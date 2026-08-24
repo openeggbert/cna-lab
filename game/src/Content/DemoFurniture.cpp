@@ -49,7 +49,8 @@ namespace People::Content
                 std::move(footprint),
                 std::move(clearance),
                 0x0F,
-                MakeVisual(std::string("people.generated.") + std::string(id.substr(7)))
+                MakeVisual(std::string("people.generated.") + std::string(id.substr(7))),
+                {}
             };
         }
 

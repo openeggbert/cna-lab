@@ -354,3 +354,30 @@ CTests, including the CNA runtime smoke. Verification used CNA HEAD
 graphics files and clean sharp-runtime HEAD
 `54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
 dependency. No new visual result or framework blocker is claimed.
+
+## 2026-08-24: PEO-057 interaction slot model
+
+Object definitions can now author named interaction slots with an approach
+offset, required cardinal facing, standing/seated/reclining posture, positive
+capacity, and extra clearance offsets relative to the approach. Resolving a
+slot on a placed instance rotates the approach, facing, and clearance by the
+object's simulation orientation and returns logical world coordinates with
+stable object/slot identity. No texture, animation frame, or camera rotation is
+part of this contract.
+
+Catalog validation rejects empty or duplicate slot IDs, zero capacity, invalid
+facing/posture values, and duplicate clearance offsets. Resolution reports
+unknown instance separately from unknown slot. Dedicated tests cover those
+failures, all four rotated world targets/facings/clearance sets, preserved
+posture and capacity, and a four-turn facing round trip. Existing definitions
+now explicitly author an empty slot list, keeping People-owned builds free of
+new missing-field warnings.
+
+HEADLESS and SDL_RENDERER/SDL3 configurations both built and passed 13/13
+CTests, including the CNA runtime smoke. Verification used CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` with seven unrelated dirty files:
+the five graphics files recorded under PEO-071 plus `Sdl3Window.cpp` and
+`Sdl3WindowTests.cpp`. The displayed rebuild compiled the changed window
+source. sharp-runtime remained clean at HEAD
+`54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
+dependency. No new visual result or framework blocker is claimed.

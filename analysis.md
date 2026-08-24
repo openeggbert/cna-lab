@@ -373,6 +373,13 @@ tile offset, facing, posture, capacity/exclusivity, and approach clearance.
 Rotating an object transforms the slot through the same integer rotation
 utility used by footprints.
 
+Slot clearance offsets are authored relative to the approach tile, while the
+approach itself is relative to the object anchor. Resolution rotates both by
+the object's simulation orientation and yields only logical world tiles,
+required cardinal facing, posture, and capacity. Presentation/camera rotation
+never participates. Definition validation rejects empty/duplicate IDs, zero
+capacity, invalid enums, and duplicate clearance cells.
+
 Reservations are explicit owner/target/slot records. Release occurs on all
 terminal paths: success, cancellation, interruption, route failure, deletion of
 either endpoint, and load repair. Tests must exercise each path, including two

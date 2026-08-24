@@ -24,7 +24,7 @@ namespace
     {
         return {
             "people.navigation.single_blocker", "Single Blocker",
-            ObjectCategory::Miscellaneous, 1, {{0, 0}}, {}, 0x0F, {}
+            ObjectCategory::Miscellaneous, 1, {{0, 0}}, {}, 0x0F, {}, {}
         };
     }
 

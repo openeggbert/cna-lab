@@ -1,5 +1,6 @@
 #include "People/Objects/ObjectModel.hpp"
 
+#include <algorithm>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -40,6 +41,33 @@ namespace People::Objects
             {
                 if (footprint.contains(clearance))
                     throw std::invalid_argument("object clearance overlaps its footprint");
+            }
+
+            std::set<std::string> slotIds;
+            for (const InteractionSlotDefinition& slot : definition.interactionSlots)
+            {
+                if (slot.id.empty())
+                    throw std::invalid_argument("interaction slot ID must not be empty");
+                if (!slotIds.insert(slot.id).second)
+                    throw std::invalid_argument("object contains a duplicate interaction slot ID");
+                if (slot.capacity == 0)
+                    throw std::invalid_argument("interaction slot capacity must be positive");
+                switch (slot.facing)
+                {
+                    case SlotFacing::North:
+                    case SlotFacing::East:
+                    case SlotFacing::South:
+                    case SlotFacing::West: break;
+                    default: throw std::invalid_argument("interaction slot facing is invalid");
+                }
+                switch (slot.posture)
+                {
+                    case SlotPosture::Standing:
+                    case SlotPosture::Seated:
+                    case SlotPosture::Reclining: break;
+                    default: throw std::invalid_argument("interaction slot posture is invalid");
+                }
+                ValidateOffsets(slot.clearance, false, "interaction slot clearance");
             }
 
             if (!definition.visual.states.empty())
@@ -90,6 +118,11 @@ namespace People::Objects
         return failure == PlacementFailure::None;
     }
 
+    bool SlotResolutionResult::IsValid() const noexcept
+    {
+        return failure == SlotResolutionFailure::None;
+    }
+
     ObjectWorld::ObjectWorld(const World::LotGrid& lot) : lot_(lot)
     {
     }
@@ -123,6 +156,18 @@ namespace People::Objects
         if (value > 3)
             throw std::invalid_argument("object rotation must be one of four directions");
         return static_cast<std::uint8_t>(1U << value);
+    }
+
+    SlotFacing ObjectWorld::RotateSlotFacing(
+        const SlotFacing facing, const ObjectRotation rotation)
+    {
+        const auto facingValue = static_cast<std::uint8_t>(facing);
+        const auto rotationValue = static_cast<std::uint8_t>(rotation);
+        if (facingValue > 3)
+            throw std::invalid_argument("interaction slot facing must be cardinal");
+        if (rotationValue > 3)
+            throw std::invalid_argument("object rotation must be one of four directions");
+        return static_cast<SlotFacing>((facingValue + rotationValue) % 4U);
     }
 
     std::vector<World::TileCoordinate> ObjectWorld::ResolveCells(
@@ -255,6 +300,51 @@ namespace People::Objects
         const auto found = occupancy_.find(tile);
         return found == occupancy_.end()
             ? std::nullopt : std::optional<ObjectInstanceId>(found->second);
+    }
+
+    SlotResolutionResult ObjectWorld::ResolveInteractionSlot(
+        const ObjectInstanceId objectId, const std::string_view slotId) const
+    {
+        const ObjectInstance* instance = Find(objectId);
+        if (instance == nullptr)
+            return {SlotResolutionFailure::UnknownInstance, {}};
+        const ObjectDefinition* definition = catalog_.Find(instance->definitionId);
+        if (definition == nullptr)
+            throw std::logic_error("placed object refers to missing definition");
+
+        const auto found = std::find_if(
+            definition->interactionSlots.begin(), definition->interactionSlots.end(),
+            [slotId](const InteractionSlotDefinition& slot) { return slot.id == slotId; });
+        if (found == definition->interactionSlots.end())
+            return {SlotResolutionFailure::UnknownSlot, {}};
+
+        const FootprintOffset rotatedApproach = RotateOffset(
+            found->approachOffset, instance->rotation);
+        const World::TileCoordinate approach{
+            instance->anchor.x + rotatedApproach.x,
+            instance->anchor.y + rotatedApproach.y,
+            instance->anchor.floor
+        };
+        ResolvedInteractionSlot resolved{
+            objectId,
+            found->id,
+            approach,
+            RotateSlotFacing(found->facing, instance->rotation),
+            found->posture,
+            found->capacity,
+            {}
+        };
+        resolved.clearanceTiles.reserve(found->clearance.size());
+        for (const FootprintOffset offset : found->clearance)
+        {
+            const FootprintOffset rotated = RotateOffset(offset, instance->rotation);
+            resolved.clearanceTiles.push_back({
+                approach.x + rotated.x,
+                approach.y + rotated.y,
+                approach.floor
+            });
+        }
+        return {SlotResolutionFailure::None, std::move(resolved)};
     }
 
     const std::map<ObjectInstanceId, ObjectInstance>& ObjectWorld::Instances() const noexcept

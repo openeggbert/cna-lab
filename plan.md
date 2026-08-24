@@ -102,7 +102,7 @@ Statuses:
 | PEO-054 | TODO | Object rotation | Rotation transforms footprint, slots, sprite choice, and selection preview without moving the anchor |
 | PEO-055 | DONE | Catalog model | Categories/items are definition-driven and queryable without an object-type switch |
 | PEO-056 | TODO | Object state values | Typed/validated persistent values support cleanliness/broken/occupied-style fields without living in render code |
-| PEO-057 | TODO | Interaction slot model | Relative tile, facing, posture, capacity, and clearance rotate correctly and expose a world-space target |
+| PEO-057 | DONE | Interaction slot model | Relative tile, facing, posture, capacity, and clearance rotate correctly and expose a world-space target |
 | PEO-058 | TODO | Reservation service | Exclusive slot acquire/query/release supports contention and owner identity deterministically |
 | PEO-059 | TODO | Reservation cleanup | Completion/cancel/interruption/route failure/object deletion/person deletion/load repair each release reservations in tests |
 | PEO-060 | TODO | Placement preview | Valid/invalid footprint cells and reason are visible; commit reuses the identical validator |

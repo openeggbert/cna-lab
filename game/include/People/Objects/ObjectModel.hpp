@@ -49,6 +49,34 @@ namespace People::Objects
         auto operator<=>(const FootprintOffset&) const = default;
     };
 
+    /** @brief Required resident facing at an interaction target in simulation space. */
+    enum class SlotFacing : std::uint8_t
+    {
+        North = 0,
+        East = 1,
+        South = 2,
+        West = 3
+    };
+
+    enum class SlotPosture : std::uint8_t
+    {
+        Standing,
+        Seated,
+        Reclining
+    };
+
+    /** @brief Authored interaction approach relative to an unrotated object anchor. */
+    struct InteractionSlotDefinition
+    {
+        std::string id;
+        FootprintOffset approachOffset;
+        SlotFacing facing = SlotFacing::North;
+        SlotPosture posture = SlotPosture::Standing;
+        std::uint16_t capacity = 1;
+        /** @brief Extra offsets relative to the approach tile, not the object anchor. */
+        std::vector<FootprintOffset> clearance;
+    };
+
     /** @brief Authored 2D sprite metadata; no texture or renderer handle lives here. */
     struct ObjectSpriteReference
     {
@@ -83,6 +111,7 @@ namespace People::Objects
         std::vector<FootprintOffset> clearance;
         std::uint8_t allowedRotations = 0x0F;
         ObjectVisualDefinition visual;
+        std::vector<InteractionSlotDefinition> interactionSlots;
     };
 
     /** @brief Persistent mutable identity/placement with no renderer state. */
@@ -127,6 +156,33 @@ namespace People::Objects
         [[nodiscard]] bool IsValid() const noexcept;
     };
 
+    enum class SlotResolutionFailure : std::uint8_t
+    {
+        None,
+        UnknownInstance,
+        UnknownSlot
+    };
+
+    /** @brief Fully rotated simulation target; it contains no presentation state. */
+    struct ResolvedInteractionSlot
+    {
+        ObjectInstanceId objectId = 0;
+        std::string slotId;
+        World::TileCoordinate approachTile;
+        SlotFacing facing = SlotFacing::North;
+        SlotPosture posture = SlotPosture::Standing;
+        std::uint16_t capacity = 1;
+        std::vector<World::TileCoordinate> clearanceTiles;
+    };
+
+    struct SlotResolutionResult
+    {
+        SlotResolutionFailure failure = SlotResolutionFailure::None;
+        ResolvedInteractionSlot slot;
+
+        [[nodiscard]] bool IsValid() const noexcept;
+    };
+
     /** @brief Definition-driven placed-object collection and shared validator. */
     class ObjectWorld final
     {
@@ -148,10 +204,14 @@ namespace People::Objects
             const ObjectInstance& instance) const;
         [[nodiscard]] std::optional<ObjectInstanceId> OccupiedBy(
             World::TileCoordinate tile) const;
+        [[nodiscard]] SlotResolutionResult ResolveInteractionSlot(
+            ObjectInstanceId objectId, std::string_view slotId) const;
         [[nodiscard]] const std::map<ObjectInstanceId, ObjectInstance>& Instances() const noexcept;
 
         [[nodiscard]] static FootprintOffset RotateOffset(
             FootprintOffset offset, ObjectRotation rotation);
+        [[nodiscard]] static SlotFacing RotateSlotFacing(
+            SlotFacing facing, ObjectRotation rotation);
         [[nodiscard]] static std::uint8_t RotationBit(ObjectRotation rotation);
 
     private:

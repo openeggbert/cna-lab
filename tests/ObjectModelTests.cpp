@@ -38,7 +38,7 @@ namespace
     {
         return {
             "people.chair.test", "Test Chair", ObjectCategory::Seating, 75,
-            {{0, 0}}, {{0, 1}}, 0x0F, {}
+            {{0, 0}}, {{0, 1}}, 0x0F, {}, {}
         };
     }
 
@@ -147,7 +147,7 @@ namespace
             static_cast<std::uint8_t>(
                 ObjectWorld::RotationBit(ObjectRotation::North)
                 | ObjectWorld::RotationBit(ObjectRotation::South)),
-            {}
+            {}, {}
         };
         (void)world.RegisterDefinition(std::move(bed));
 

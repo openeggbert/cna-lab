@@ -38,7 +38,7 @@ namespace
     {
         return {
             "people.navigation.blocker", "Navigation Blocker", ObjectCategory::Miscellaneous,
-            1, {{0, 0}, {1, 0}}, {{0, 1}}, 0x0F, {}
+            1, {{0, 0}, {1, 0}}, {{0, 1}}, 0x0F, {}, {}
         };
     }
 

@@ -50,7 +50,7 @@ namespace
     {
         ObjectDefinition definition{
             "people.chair.visual", "Visual Chair", ObjectCategory::Seating,
-            85, {{0, 0}}, {{0, 1}}, 0x0F, {}
+            85, {{0, 0}}, {{0, 1}}, 0x0F, {}, {}
         };
         definition.visual.defaultState = "default";
         definition.visual.states.emplace("default", MakeSpriteSet("default"));
