@@ -55,6 +55,7 @@ void testEveryKnownP1CharacterHasUsableFrames()
 
     for (const std::string_view id : characterIds) {
         const P1Sprite& sprite = P1SpriteCatalog::spriteForCharacter(id);
+        bool hasLitPixelInEachFrame = true;
         for (const P1SpriteFrame& frame : sprite.idleFrames) {
             expect(frame.rowCount > 0U && frame.rowCount <= P1SpriteFrame::MaximumRows,
                 "each P1 frame must declare a usable row count");
@@ -67,7 +68,24 @@ void testEveryKnownP1CharacterHasUsableFrames()
             }
             expect(frame.originY + static_cast<int>(frame.rowCount) <= 16,
                 "all P1 animation rows must stay inside the LCD height");
+            bool hasLitPixel = false;
+            for (const std::string_view row : frame.visibleRows()) {
+                hasLitPixel = hasLitPixel || row.find('#') != std::string_view::npos;
+            }
+            hasLitPixelInEachFrame = hasLitPixelInEachFrame && hasLitPixel;
         }
+        expect(hasLitPixelInEachFrame,
+            "each declared P1 idle phase must contain a visible one-bit drawing");
+        expect(sprite.idleFrame(0).rows != sprite.idleFrame(1).rows
+                || sprite.idleFrame(0).originX != sprite.idleFrame(1).originX
+                || sprite.idleFrame(0).originY != sprite.idleFrame(1).originY
+                || sprite.idleFrame(0).rowCount != sprite.idleFrame(1).rowCount,
+            "the first two P1 idle phases must remain independently drawn");
+        expect(sprite.idleFrame(1).rows != sprite.idleFrame(2).rows
+                || sprite.idleFrame(1).originX != sprite.idleFrame(2).originX
+                || sprite.idleFrame(1).originY != sprite.idleFrame(2).originY
+                || sprite.idleFrame(1).rowCount != sprite.idleFrame(2).rowCount,
+            "the latter P1 idle phases must remain independently drawn");
     }
 }
 
