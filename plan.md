@@ -555,8 +555,9 @@ health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
 secret completion ratios. A versioned, validated profile persists sector unlocks,
 five-step master volume, view angle and the last selected difficulty while accepting
-all older profile formats.
-In-run save/load and additional settings remain.
+all older profile formats. Three in-run save slots with title/pause loading and F8/F9
+quick access now persist the full active world and automap through a separately
+versioned, validated and safely replaced format. Additional settings remain.
 
 ## M10 — procedural/roguelite mode
 
@@ -1459,9 +1460,15 @@ content even where pacing is inspired by early-1990s shooters.
 
 ### WOLF-035 — versioned in-run save and load
 
-Status: planned. Add explicit save slots plus quick-save and quick-load for a
-sector in progress. Save data must be versioned and validated and must reconstruct
-gameplay state rather than serializing C++ object memory.
+Status: complete. Three explicit run slots are selectable from the title and pause
+menus; F8 and F9 save/load the selected slot during play. Version 1 stores player,
+inventory, score, lives, difficulty, sector time, enemies and AI state, dynamic
+pickups, doors, projectiles, secrets, objectives and explored cells as validated
+primitive records rather than C++ memory. Loading first reconstructs a fresh matching
+sector and commits it only after world, entity, player and automap validation succeeds.
+Saving writes a temporary file, preserves the previous slot as a recoverable backup
+during replacement and cleans staging files after success. Round-trip, malformed,
+mismatched-world, explored-wall and occupied-slot replacement tests are included.
 
 - persist player, inventory, score, lives, current sector and elapsed time;
 - persist enemies, pickups, doors, secrets, objectives and explored map cells;

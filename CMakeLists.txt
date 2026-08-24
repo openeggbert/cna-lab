@@ -40,6 +40,7 @@ add_executable(wolf-cna
     src/ExplorationMap.cpp
     src/LevelDefinition.cpp
     src/Program.cpp
+    src/RunSave.cpp
     src/WolfGame.cpp
     src/World.cpp
 )
@@ -253,6 +254,7 @@ add_executable(level-definition-tests
     src/CampaignProgress.cpp
     src/ExplorationMap.cpp
     src/LevelDefinition.cpp
+    src/RunSave.cpp
     src/World.cpp
     tests/LevelDefinitionTests.cpp
 )

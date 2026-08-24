@@ -109,6 +109,67 @@ namespace WolfCna
             float totalTravelDistance = 0.0f;
         };
 
+        struct DoorSaveState
+        {
+            bool opening = false;
+            float openAmount = 0.0f;
+            float closeDelay = 0.0f;
+        };
+
+        struct EnemySaveState
+        {
+            int state = 0;
+            int health = 0;
+            float positionX = 0.0f;
+            float positionZ = 0.0f;
+            float facingX = 0.0f;
+            float facingZ = -1.0f;
+            float lastKnownX = 0.0f;
+            float lastKnownZ = 0.0f;
+            float attackCooldown = 0.0f;
+            float attackVisualSeconds = 0.0f;
+            float painVisualSeconds = 0.0f;
+            float visualAnimationSeconds = 0.0f;
+            float reactionRemaining = 0.0f;
+            float searchRemaining = 0.0f;
+            float distanceTravelled = 0.0f;
+        };
+
+        struct PickupSaveState
+        {
+            float positionX = 0.0f;
+            float positionZ = 0.0f;
+            int type = 0;
+            bool collected = false;
+            int amount = 0;
+        };
+
+        struct ProjectileSaveState
+        {
+            float positionX = 0.0f;
+            float positionY = 0.0f;
+            float positionZ = 0.0f;
+            float velocityX = 0.0f;
+            float velocityY = 0.0f;
+            float velocityZ = 0.0f;
+            float remainingLifetime = 0.0f;
+            int damage = 0;
+        };
+
+        struct SaveState
+        {
+            int defeatedEnemies = 0;
+            int collectedGold = 0;
+            int foundSecrets = 0;
+            std::vector<DoorSaveState> doors;
+            std::vector<EnemySaveState> enemies;
+            std::vector<PickupSaveState> pickups;
+            std::vector<bool> terminalsActivated;
+            std::vector<bool> relaysActivated;
+            std::vector<float> exitOpenAmounts;
+            std::vector<ProjectileSaveState> projectiles;
+        };
+
         explicit World(
             const LevelDefinition& level,
             Difficulty difficulty = Difficulty::Operative);
@@ -179,6 +240,8 @@ namespace WolfCna
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] DifficultyBalance GetDifficultyBalance() const;
         [[nodiscard]] EnemyBehaviorStats GetEnemyBehaviorStats() const;
+        [[nodiscard]] SaveState CaptureSaveState() const;
+        [[nodiscard]] bool RestoreSaveState(const SaveState& state);
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] int ActiveEnemyImpactCount() const;
@@ -355,6 +418,7 @@ namespace WolfCna
         EnemyAudioEvents pendingEnemyAudioEvents_;
         std::optional<Microsoft::Xna::Framework::Vector3> pendingPlayerNoise_;
         std::vector<Pickup> pickups_;
+        std::size_t basePickupCount_ = 0;
         int collectedGold_ = 0;
         int totalGold_ = 0;
         int foundSecrets_ = 0;

@@ -68,6 +68,24 @@ namespace WolfCna
         return goalZ_;
     }
 
+    const std::vector<bool>& ExplorationMap::CaptureVisited() const
+    {
+        return visited_;
+    }
+
+    bool ExplorationMap::RestoreVisited(const std::vector<bool>& visited)
+    {
+        if (visited.size() != visited_.size())
+            return false;
+        for (std::size_t index = 0; index < visited.size(); ++index)
+        {
+            if (visited[index] && !walkable_[index])
+                return false;
+        }
+        visited_ = visited;
+        return true;
+    }
+
     std::size_t ExplorationMap::Index(int x, int z) const
     {
         return static_cast<std::size_t>(z * width_ + x);

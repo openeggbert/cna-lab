@@ -474,6 +474,257 @@ namespace WolfCna
         return result;
     }
 
+    World::SaveState World::CaptureSaveState() const
+    {
+        SaveState state;
+        state.defeatedEnemies = defeatedEnemies_;
+        state.collectedGold = collectedGold_;
+        state.foundSecrets = foundSecrets_;
+        state.doors.reserve(doors_.size());
+        for (const Door& door : doors_)
+            state.doors.push_back({door.opening, door.openAmount, door.closeDelay});
+        state.enemies.reserve(enemies_.size());
+        for (const Enemy& enemy : enemies_)
+        {
+            state.enemies.push_back({
+                .state = static_cast<int>(enemy.state),
+                .health = enemy.health,
+                .positionX = enemy.position.X,
+                .positionZ = enemy.position.Z,
+                .facingX = enemy.facing.X,
+                .facingZ = enemy.facing.Z,
+                .lastKnownX = enemy.lastKnownTarget.X,
+                .lastKnownZ = enemy.lastKnownTarget.Z,
+                .attackCooldown = enemy.attackCooldown,
+                .attackVisualSeconds = enemy.attackVisualSeconds,
+                .painVisualSeconds = enemy.painVisualSeconds,
+                .visualAnimationSeconds = enemy.visualAnimationSeconds,
+                .reactionRemaining = enemy.reactionRemaining,
+                .searchRemaining = enemy.searchRemaining,
+                .distanceTravelled = enemy.distanceTravelled});
+        }
+        state.pickups.reserve(pickups_.size());
+        for (const Pickup& pickup : pickups_)
+        {
+            state.pickups.push_back({
+                .positionX = pickup.position.X,
+                .positionZ = pickup.position.Z,
+                .type = static_cast<int>(pickup.type),
+                .collected = pickup.collected,
+                .amount = pickup.amount});
+        }
+        state.terminalsActivated.reserve(terminals_.size());
+        for (const Terminal& terminal : terminals_)
+            state.terminalsActivated.push_back(terminal.activated);
+        state.relaysActivated.reserve(relays_.size());
+        for (const Relay& relay : relays_)
+            state.relaysActivated.push_back(relay.activated);
+        state.exitOpenAmounts.reserve(exits_.size());
+        for (const Exit& exit : exits_)
+            state.exitOpenAmounts.push_back(exit.openAmount);
+        state.projectiles.reserve(enemyProjectiles_.size());
+        for (const EnemyProjectile& projectile : enemyProjectiles_)
+        {
+            state.projectiles.push_back({
+                .positionX = projectile.position.X,
+                .positionY = projectile.position.Y,
+                .positionZ = projectile.position.Z,
+                .velocityX = projectile.velocity.X,
+                .velocityY = projectile.velocity.Y,
+                .velocityZ = projectile.velocity.Z,
+                .remainingLifetime = projectile.remainingLifetime,
+                .damage = projectile.damage});
+        }
+        return state;
+    }
+
+    bool World::RestoreSaveState(const SaveState& state)
+    {
+        const auto finite = [](float value) { return std::isfinite(value); };
+        const auto validPosition = [this, &finite](float x, float z)
+        {
+            if (!finite(x) || !finite(z))
+                return false;
+            const int cellX = static_cast<int>(std::floor(x));
+            const int cellZ = static_cast<int>(std::floor(z));
+            return cellZ >= 0 && cellZ < static_cast<int>(map_.size()) &&
+                cellX >= 0 && cellX < static_cast<int>(map_[static_cast<std::size_t>(cellZ)].size()) &&
+                !IsStaticWallCell(cellX, cellZ);
+        };
+        if (state.doors.size() != doors_.size() || state.enemies.size() != enemies_.size() ||
+            state.terminalsActivated.size() != terminals_.size() ||
+            state.relaysActivated.size() != relays_.size() ||
+            state.exitOpenAmounts.size() != exits_.size() ||
+            state.pickups.size() < basePickupCount_ ||
+            state.pickups.size() > basePickupCount_ + enemies_.size() ||
+            state.projectiles.size() > 256 ||
+            state.defeatedEnemies < 0 ||
+            state.defeatedEnemies > static_cast<int>(enemies_.size()) ||
+            state.collectedGold < 0 || state.collectedGold > totalGold_ ||
+            state.foundSecrets < 0 || state.foundSecrets > totalSecrets_)
+            return false;
+
+        for (const DoorSaveState& door : state.doors)
+        {
+            if (!finite(door.openAmount) || door.openAmount < 0.0f || door.openAmount > 1.0f ||
+                !finite(door.closeDelay) || door.closeDelay < 0.0f || door.closeDelay > 60.0f)
+                return false;
+        }
+        int savedDeadEnemies = 0;
+        for (const EnemySaveState& enemy : state.enemies)
+        {
+            if (enemy.state < static_cast<int>(EnemyState::Idle) ||
+                enemy.state > static_cast<int>(EnemyState::Dead) ||
+                enemy.health < -1000 || enemy.health > 1000 ||
+                !validPosition(enemy.positionX, enemy.positionZ) ||
+                !finite(enemy.facingX) || !finite(enemy.facingZ) ||
+                !validPosition(enemy.lastKnownX, enemy.lastKnownZ) ||
+                !finite(enemy.attackCooldown) || enemy.attackCooldown < -60.0f ||
+                enemy.attackCooldown > 60.0f ||
+                !finite(enemy.attackVisualSeconds) || enemy.attackVisualSeconds < 0.0f ||
+                enemy.attackVisualSeconds > 10.0f ||
+                !finite(enemy.painVisualSeconds) || enemy.painVisualSeconds < 0.0f ||
+                enemy.painVisualSeconds > 10.0f ||
+                !finite(enemy.visualAnimationSeconds) || enemy.visualAnimationSeconds < 0.0f ||
+                enemy.visualAnimationSeconds > 1000.0f ||
+                !finite(enemy.reactionRemaining) || enemy.reactionRemaining < 0.0f ||
+                enemy.reactionRemaining > 60.0f ||
+                !finite(enemy.searchRemaining) || enemy.searchRemaining < 0.0f ||
+                enemy.searchRemaining > 60.0f ||
+                !finite(enemy.distanceTravelled) || enemy.distanceTravelled < 0.0f ||
+                enemy.distanceTravelled > 1000000.0f)
+                return false;
+            const bool dead = enemy.state == static_cast<int>(EnemyState::Dead);
+            if ((dead && enemy.health > 0) || (!dead && enemy.health <= 0))
+                return false;
+            savedDeadEnemies += dead ? 1 : 0;
+        }
+        if (savedDeadEnemies != state.defeatedEnemies)
+            return false;
+
+        int savedCollectedGold = 0;
+        for (std::size_t index = 0; index < state.pickups.size(); ++index)
+        {
+            const PickupSaveState& pickup = state.pickups[index];
+            if (!validPosition(pickup.positionX, pickup.positionZ) || pickup.type < 0 ||
+                pickup.type > static_cast<int>(PickupType::HeavyWeapon) ||
+                pickup.amount < 0 || pickup.amount > 999)
+                return false;
+            if (index < basePickupCount_)
+            {
+                const Pickup& authored = pickups_[index];
+                if (pickup.type != static_cast<int>(authored.type) ||
+                    std::abs(pickup.positionX - authored.position.X) > 0.001f ||
+                    std::abs(pickup.positionZ - authored.position.Z) > 0.001f ||
+                    pickup.amount != authored.amount)
+                    return false;
+            }
+            else if (pickup.type != static_cast<int>(PickupType::Ammo) || pickup.amount <= 0)
+            {
+                return false;
+            }
+            if (pickup.collected &&
+                (pickup.type == static_cast<int>(PickupType::GoldBars) ||
+                    pickup.type == static_cast<int>(PickupType::GoldenGoblet) ||
+                    pickup.type == static_cast<int>(PickupType::PeaceMedallion)))
+                ++savedCollectedGold;
+        }
+        if (savedCollectedGold != state.collectedGold)
+            return false;
+        int savedFoundSecrets = 0;
+        for (std::size_t index = 0; index < doors_.size(); ++index)
+        {
+            if (doors_[index].isSecret &&
+                (state.doors[index].opening || state.doors[index].openAmount > 0.0f))
+                ++savedFoundSecrets;
+        }
+        if (savedFoundSecrets != state.foundSecrets)
+            return false;
+        for (float openAmount : state.exitOpenAmounts)
+        {
+            if (!finite(openAmount) || openAmount < 0.0f || openAmount > 1.0f)
+                return false;
+        }
+        for (const ProjectileSaveState& projectile : state.projectiles)
+        {
+            if (!validPosition(projectile.positionX, projectile.positionZ) ||
+                !finite(projectile.positionY) || projectile.positionY < -10.0f ||
+                projectile.positionY > 10.0f || !finite(projectile.velocityX) ||
+                !finite(projectile.velocityY) || !finite(projectile.velocityZ) ||
+                !finite(projectile.remainingLifetime) || projectile.remainingLifetime < 0.0f ||
+                projectile.remainingLifetime > 10.0f || projectile.damage < 0 ||
+                projectile.damage > 1000)
+                return false;
+        }
+
+        for (std::size_t index = 0; index < doors_.size(); ++index)
+        {
+            doors_[index].opening = state.doors[index].opening;
+            doors_[index].openAmount = state.doors[index].openAmount;
+            doors_[index].closeDelay = state.doors[index].closeDelay;
+        }
+        for (std::size_t index = 0; index < enemies_.size(); ++index)
+        {
+            Enemy& enemy = enemies_[index];
+            const EnemySaveState& saved = state.enemies[index];
+            enemy.state = static_cast<EnemyState>(saved.state);
+            enemy.health = saved.health;
+            enemy.position.X = saved.positionX;
+            enemy.position.Z = saved.positionZ;
+            enemy.facing = Vector3(saved.facingX, 0.0f, saved.facingZ);
+            enemy.lastKnownTarget = Vector3(saved.lastKnownX, 0.0f, saved.lastKnownZ);
+            enemy.attackCooldown = saved.attackCooldown;
+            enemy.attackVisualSeconds = saved.attackVisualSeconds;
+            enemy.painVisualSeconds = saved.painVisualSeconds;
+            enemy.visualAnimationSeconds = saved.visualAnimationSeconds;
+            enemy.reactionRemaining = saved.reactionRemaining;
+            enemy.searchRemaining = saved.searchRemaining;
+            enemy.distanceTravelled = saved.distanceTravelled;
+            enemy.path.clear();
+            enemy.pathIndex = 0;
+            enemy.pathRefreshTime = 0.0f;
+        }
+        pickups_.clear();
+        pickups_.reserve(state.pickups.size());
+        for (const PickupSaveState& saved : state.pickups)
+        {
+            pickups_.push_back({
+                Vector3(saved.positionX, 0.08f, saved.positionZ),
+                static_cast<PickupType>(saved.type),
+                saved.collected,
+                saved.amount});
+        }
+        for (std::size_t index = 0; index < terminals_.size(); ++index)
+            terminals_[index].activated = state.terminalsActivated[index];
+        for (std::size_t index = 0; index < relays_.size(); ++index)
+            relays_[index].activated = state.relaysActivated[index];
+        for (std::size_t index = 0; index < exits_.size(); ++index)
+            exits_[index].openAmount = state.exitOpenAmounts[index];
+        enemyProjectiles_.clear();
+        enemyProjectiles_.reserve(state.projectiles.size());
+        for (const ProjectileSaveState& saved : state.projectiles)
+        {
+            enemyProjectiles_.push_back({
+                Vector3(saved.positionX, saved.positionY, saved.positionZ),
+                Vector3(saved.velocityX, saved.velocityY, saved.velocityZ),
+                saved.remainingLifetime,
+                saved.damage});
+        }
+        defeatedEnemies_ = state.defeatedEnemies;
+        collectedGold_ = state.collectedGold;
+        foundSecrets_ = state.foundSecrets;
+        enemyImpacts_.clear();
+        impacts_.clear();
+        pendingGuardShotCount_ = 0;
+        pendingEnemyAudioEvents_ = {};
+        pendingPlayerNoise_.reset();
+        RebuildDoorGeometry();
+        BuildImpactGeometry();
+        if (doorVertexBuffer_)
+            doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
+        return true;
+    }
+
     int World::ConsumeGuardShotCount()
     {
         const int shotCount = pendingGuardShotCount_;
@@ -1444,6 +1695,7 @@ namespace WolfCna
                     ++totalGold_;
             }
         }
+        basePickupCount_ = pickups_.size();
     }
 
     void World::BuildExits()

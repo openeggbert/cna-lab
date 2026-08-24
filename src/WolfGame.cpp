@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <vector>
 #include <string_view>
+#include <utility>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/MathHelper.hpp"
@@ -46,10 +47,16 @@ namespace WolfCna
             "SECTOR 4 ARCHIVE"
         };
         constexpr std::string_view ProgressFile = "wolf-cna-progress.dat";
+        constexpr int SaveSlotCount = 3;
         constexpr float KnifeAttackVisualSeconds = 0.11f;
         constexpr float SidearmAttackVisualSeconds = 0.13f;
         constexpr float RepeaterAttackVisualSeconds = 0.14f;
         constexpr float HeavyAttackVisualSeconds = 0.17f;
+
+        std::string SaveSlotPath(int slot)
+        {
+            return "wolf-cna-save-" + std::to_string(slot + 1) + ".dat";
+        }
 
         int Noise(int x, int y)
         {
@@ -1031,7 +1038,7 @@ namespace WolfCna
         else if (screen_ == Screen::Paused)
         {
             constexpr int cardWidth = 300;
-            constexpr int cardHeight = 174;
+            constexpr int cardHeight = 260;
             const int cardLeft = centerX - cardWidth / 2;
             const int cardTop = centerY - cardHeight / 2;
             hudSpriteBatch_->Draw(
@@ -1050,14 +1057,17 @@ namespace WolfCna
                 cardTop + 14,
                 title,
                 Color(184, 238, 255, 255));
-            const std::array<std::string, 4> options{
+            const std::array<std::string, 7> options{
                 "RESUME",
+                "SAVE SLOT " + std::to_string(saveSlot_ + 1),
+                "LOAD SLOT " + std::to_string(saveSlot_ + 1),
+                "SELECT SLOT " + std::to_string(saveSlot_ + 1),
                 "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
                 "VIEW " + std::to_string(fieldOfViewDegrees_) + " DEG",
                 "QUIT TO TITLE"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = cardTop + 48 + index * 25;
+                const int y = cardTop + 42 + index * 25;
                 const Color color = pauseMenuSelection_ == index
                     ? Color(255, 233, 136, 255)
                     : Color(202, 223, 255, 255);
@@ -1079,12 +1089,23 @@ namespace WolfCna
                     options[static_cast<std::size_t>(index)],
                     color);
             }
+            if (!pauseStatusMessage_.empty())
+            {
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    centerX - HudTextWidth(pauseStatusMessage_, 1) / 2,
+                    cardTop + 220,
+                    pauseStatusMessage_,
+                    Color(255, 233, 136, 255),
+                    1);
+            }
             constexpr std::string_view prompt = "P OR ESC RESUME";
             DrawHudText(
                 *hudSpriteBatch_,
                 *hudPixel_,
                 centerX - HudTextWidth(prompt, 1) / 2,
-                cardTop + 153,
+                cardTop + 242,
                 prompt,
                 Color(184, 238, 255, 255),
                 1);
@@ -1426,23 +1447,27 @@ namespace WolfCna
         if (screen_ == Screen::Title)
         {
             centered(top + 22, "MAIN MENU", title);
-            centered(top + 58, "BUNKER OPERATIONS", normal);
-            const std::array<std::string, 5> options{
+            centered(top + 50, "BUNKER OPERATIONS", normal);
+            const std::array<std::string, 7> options{
                 "START RUN",
+                "LOAD SLOT " + std::to_string(saveSlot_ + 1),
+                "SELECT SLOT " + std::to_string(saveSlot_ + 1),
                 "CONTROLS",
                 "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
                 "VIEW " + std::to_string(fieldOfViewDegrees_) + " DEG",
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 88 + index * 27;
+                const int y = top + 72 + index * 24;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
                 centered(y, options[static_cast<std::size_t>(index)], color);
             }
-            centered(top + 220, "ARROWS SELECT", normal);
-            centered(top + 238, "ENTER SELECT", normal);
+            centered(
+                top + 242,
+                pauseStatusMessage_.empty() ? "ARROWS ENTER SELECT" : pauseStatusMessage_,
+                pauseStatusMessage_.empty() ? normal : selected);
         }
         else if (screen_ == Screen::SectorSelect)
         {
@@ -1490,7 +1515,7 @@ namespace WolfCna
             centered(top + 147, "CTRL ATTACK", normal);
             centered(top + 168, "1 2 3 4 WEAPONS", normal);
             centered(top + 189, "TAB MAP", normal);
-            centered(top + 210, "P OR ESC PAUSE  F11 SCREEN", normal);
+            centered(top + 210, "F8 SAVE F9 LOAD F11 SCREEN", normal);
             centered(top + 238, "ENTER OR ESC BACK", selected);
         }
         hudSpriteBatch_->End();
@@ -1574,6 +1599,9 @@ namespace WolfCna
         ilmWasDown_ = false;
         goalCheatWasDown_ = false;
         pauseWasDown_ = false;
+        quickSaveWasDown_ = false;
+        quickLoadWasDown_ = false;
+        pauseStatusMessage_.clear();
         cheatMessageSeconds_ = 0.0f;
         objectiveMessage_.clear();
         objectiveMessageSeconds_ = 0.0f;
@@ -1629,6 +1657,133 @@ namespace WolfCna
             static_cast<int>(CampaignLevelFiles.size()));
     }
 
+    RunSaveState WolfGame::CaptureRunSaveState() const
+    {
+        return {
+            .levelIndex = levelIndex_,
+            .difficulty = static_cast<int>(difficulty_),
+            .playerX = playerPosition_.X,
+            .playerY = playerPosition_.Y,
+            .playerZ = playerPosition_.Z,
+            .yaw = yaw_,
+            .health = health_,
+            .ammunition = ammo_,
+            .score = score_,
+            .lives = lives_,
+            .nextExtraLifeScore = nextExtraLifeScore_,
+            .levelElapsedSeconds = levelElapsedSeconds_,
+            .hasSecurityCard = hasSecurityCard_,
+            .weapon = static_cast<int>(weapon_),
+            .lastFirearm = static_cast<int>(lastFirearm_),
+            .hasRepeater = hasRepeater_,
+            .hasHeavyWeapon = hasHeavyWeapon_,
+            .exploredCells = exploration_.CaptureVisited(),
+            .world = world_.CaptureSaveState()};
+    }
+
+    bool WolfGame::ApplyRunSaveState(const RunSaveState& state, std::string& error)
+    {
+        if (state.levelIndex < 0 ||
+            state.levelIndex >= static_cast<int>(CampaignLevelFiles.size()) ||
+            state.difficulty < 0 || state.difficulty > 2 ||
+            state.playerY < 0.0f || state.playerY > 4.0f)
+        {
+            error = "save references unsupported campaign state";
+            return false;
+        }
+
+        LevelDefinition loadedLevel = LevelDefinition::LoadFromFile(
+            std::string(CampaignLevelFiles[static_cast<std::size_t>(state.levelIndex)]));
+        const Difficulty loadedDifficulty = static_cast<Difficulty>(state.difficulty);
+        World loadedWorld(loadedLevel, loadedDifficulty);
+        ExplorationMap loadedExploration(loadedLevel);
+        if (!loadedWorld.RestoreSaveState(state.world))
+        {
+            error = "save world state does not match the sector";
+            return false;
+        }
+        if (!loadedExploration.RestoreVisited(state.exploredCells))
+        {
+            error = "save automap state does not match the sector";
+            return false;
+        }
+        if (loadedWorld.Collides(state.playerX, state.playerZ, PlayerRadius))
+        {
+            error = "save places the player inside blocked geometry";
+            return false;
+        }
+
+        level_ = std::move(loadedLevel);
+        world_ = std::move(loadedWorld);
+        exploration_ = std::move(loadedExploration);
+        world_.Upload(getGraphicsDeviceProperty());
+        if (atlas_)
+            CreateProceduralAtlas();
+        levelIndex_ = state.levelIndex;
+        selectedLevelIndex_ = state.levelIndex;
+        highestUnlockedLevel_ = std::max(highestUnlockedLevel_, state.levelIndex);
+        difficulty_ = loadedDifficulty;
+        playerPosition_ = Vector3(state.playerX, state.playerY, state.playerZ);
+        yaw_ = state.yaw;
+        health_ = state.health;
+        ammo_ = state.ammunition;
+        score_ = state.score;
+        lives_ = state.lives;
+        nextExtraLifeScore_ = state.nextExtraLifeScore;
+        levelElapsedSeconds_ = state.levelElapsedSeconds;
+        hasSecurityCard_ = state.hasSecurityCard;
+        weapon_ = static_cast<Weapon>(state.weapon);
+        lastFirearm_ = static_cast<Weapon>(state.lastFirearm);
+        hasRepeater_ = state.hasRepeater;
+        hasHeavyWeapon_ = state.hasHeavyWeapon;
+        completed_ = false;
+        screen_ = Screen::Playing;
+        actionWasDown_ = false;
+        attackWasDown_ = false;
+        pauseWasDown_ = false;
+        ilmWasDown_ = false;
+        goalCheatWasDown_ = false;
+        weaponFlashSeconds_ = 0.0f;
+        playerImpactFlashSeconds_ = 0.0f;
+        playerFireCooldownSeconds_ = 0.0f;
+        pauseStatusMessage_.clear();
+        SaveCampaignProfile();
+        return true;
+    }
+
+    bool WolfGame::SaveRunToSelectedSlot()
+    {
+        std::string error;
+        if (!RunSave::SaveFile(SaveSlotPath(saveSlot_), CaptureRunSaveState(), error))
+        {
+            pauseStatusMessage_ = "SAVE FAILED";
+            objectiveMessage_ = "SAVE FAILED";
+            objectiveMessageSeconds_ = 2.0f;
+            return false;
+        }
+        pauseStatusMessage_ = "SAVED SLOT " + std::to_string(saveSlot_ + 1);
+        objectiveMessage_ = pauseStatusMessage_;
+        objectiveMessageSeconds_ = 2.0f;
+        return true;
+    }
+
+    bool WolfGame::LoadRunFromSelectedSlot()
+    {
+        std::string error;
+        const std::optional<RunSaveState> state =
+            RunSave::LoadFile(SaveSlotPath(saveSlot_), error);
+        if (!state || !ApplyRunSaveState(*state, error))
+        {
+            pauseStatusMessage_ = error == "save slot is empty" ? "SLOT EMPTY" : "LOAD FAILED";
+            objectiveMessage_ = pauseStatusMessage_;
+            objectiveMessageSeconds_ = 2.0f;
+            return false;
+        }
+        objectiveMessage_ = "LOADED SLOT " + std::to_string(saveSlot_ + 1);
+        objectiveMessageSeconds_ = 2.0f;
+        return true;
+    }
+
     void WolfGame::AwardScore(int points)
     {
         if (points <= 0)
@@ -1675,9 +1830,9 @@ namespace WolfCna
         else if (screen_ == Screen::Title)
         {
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + 4) % 5;
+                menuSelection_ = (menuSelection_ + 6) % 7;
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % 5;
+                menuSelection_ = (menuSelection_ + 1) % 7;
             if (confirmIsDown && !confirmWasDown_)
             {
                 if (menuSelection_ == 0)
@@ -1687,16 +1842,25 @@ namespace WolfCna
                 }
                 else if (menuSelection_ == 1)
                 {
-                    screen_ = Screen::Controls;
+                    static_cast<void>(LoadRunFromSelectedSlot());
                 }
                 else if (menuSelection_ == 2)
+                {
+                    saveSlot_ = (saveSlot_ + 1) % SaveSlotCount;
+                    pauseStatusMessage_.clear();
+                }
+                else if (menuSelection_ == 3)
+                {
+                    screen_ = Screen::Controls;
+                }
+                else if (menuSelection_ == 4)
                 {
                     soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
                     SoundEffect::setMasterVolumeProperty(
                         static_cast<float>(soundVolumeStep_) / 4.0f);
                     SaveCampaignProfile();
                 }
-                else if (menuSelection_ == 3)
+                else if (menuSelection_ == 5)
                 {
                     fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
                         ? 60
@@ -1780,6 +1944,20 @@ namespace WolfCna
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
         const bool upIsDown = keyboard.IsKeyDown(Keys::Up);
         const bool downIsDown = keyboard.IsKeyDown(Keys::Down);
+        const bool quickSaveIsDown = keyboard.IsKeyDown(Keys::F8);
+        const bool quickLoadIsDown = keyboard.IsKeyDown(Keys::F9);
+        bool loadedQuickSave = false;
+        if (screen_ == Screen::Playing && !completed_)
+        {
+            if (quickSaveIsDown && !quickSaveWasDown_)
+                static_cast<void>(SaveRunToSelectedSlot());
+            if (quickLoadIsDown && !quickLoadWasDown_)
+                loadedQuickSave = LoadRunFromSelectedSlot();
+        }
+        quickSaveWasDown_ = quickSaveIsDown;
+        quickLoadWasDown_ = quickLoadIsDown;
+        if (loadedQuickSave)
+            return;
         if (screen_ == Screen::Map)
         {
             if (escapeIsDown && !escapeWasDown_)
@@ -1805,9 +1983,9 @@ namespace WolfCna
             else
             {
                 if (upIsDown && !upWasDown_)
-                    pauseMenuSelection_ = (pauseMenuSelection_ + 3) % 4;
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 6) % 7;
                 if (downIsDown && !downWasDown_)
-                    pauseMenuSelection_ = (pauseMenuSelection_ + 1) % 4;
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 1) % 7;
                 if (confirmIsDown && !confirmWasDown_)
                 {
                     if (pauseMenuSelection_ == 0)
@@ -1816,12 +1994,25 @@ namespace WolfCna
                     }
                     else if (pauseMenuSelection_ == 1)
                     {
+                        static_cast<void>(SaveRunToSelectedSlot());
+                    }
+                    else if (pauseMenuSelection_ == 2)
+                    {
+                        static_cast<void>(LoadRunFromSelectedSlot());
+                    }
+                    else if (pauseMenuSelection_ == 3)
+                    {
+                        saveSlot_ = (saveSlot_ + 1) % SaveSlotCount;
+                        pauseStatusMessage_.clear();
+                    }
+                    else if (pauseMenuSelection_ == 4)
+                    {
                         soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
                         SoundEffect::setMasterVolumeProperty(
                             static_cast<float>(soundVolumeStep_) / 4.0f);
                         SaveCampaignProfile();
                     }
-                    else if (pauseMenuSelection_ == 2)
+                    else if (pauseMenuSelection_ == 5)
                     {
                         fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
                             ? 60

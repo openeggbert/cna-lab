@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <queue>
 #include <string>
@@ -13,6 +14,7 @@
 #include "World.hpp"
 #include "CampaignProgress.hpp"
 #include "ExplorationMap.hpp"
+#include "RunSave.hpp"
 
 namespace
 {
@@ -468,6 +470,129 @@ int main()
     Expect(exploration.Width() == 64 && exploration.Height() == 64, "sector reset resizes exploration");
     Expect(exploration.GoalX() >= 0 && exploration.GoalZ() >= 0, "campaign sector reset records its goal");
     Expect(!exploration.IsVisited(1, 1), "sector reset clears prior exploration");
+
+    const WolfCna::LevelDefinition saveLevel = WolfCna::LevelDefinition::Parse(
+        "###########\n#PDGHAOME.#\n###########\n",
+        "run-save.level");
+    WolfCna::World saveWorld(saveLevel, WolfCna::Difficulty::Operative);
+    const Microsoft::Xna::Framework::Vector3 savePlayer(1.5f, 0.62f, 1.5f);
+    const Microsoft::Xna::Framework::Vector3 saveLook(1.0f, 0.0f, 0.0f);
+    Expect(
+        saveWorld.TryActivate(savePlayer, saveLook, false) ==
+            WolfCna::World::InteractionResult::DoorOpened,
+        "save fixture opens its door");
+    static_cast<void>(saveWorld.Update(0.5f, savePlayer));
+    for (int hit = 0; hit < 3; ++hit)
+        static_cast<void>(saveWorld.FireHitscan(savePlayer, saveLook));
+    Expect(
+        saveWorld.CollectPickups(
+            Microsoft::Xna::Framework::Vector3(4.5f, 0.62f, 1.5f),
+            50).health == 25,
+        "save fixture collects health before snapshot");
+    Expect(
+        saveWorld.CollectPickups(
+            Microsoft::Xna::Framework::Vector3(5.5f, 0.62f, 1.5f)).ammo == 6,
+        "save fixture collects fixed ammunition before snapshot");
+    Expect(
+        saveWorld.TryActivate(
+            Microsoft::Xna::Framework::Vector3(5.5f, 0.62f, 1.5f),
+            saveLook,
+            false) == WolfCna::World::InteractionResult::RelayActivated,
+        "save fixture activates its relay");
+    Expect(
+        saveWorld.TryActivate(
+            Microsoft::Xna::Framework::Vector3(6.5f, 0.62f, 1.5f),
+            saveLook,
+            false) == WolfCna::World::InteractionResult::TerminalActivated,
+        "save fixture activates its terminal");
+    WolfCna::ExplorationMap saveExploration(saveLevel);
+    static_cast<void>(saveExploration.Visit(1.5f, 1.5f));
+    static_cast<void>(saveExploration.Visit(2.5f, 1.5f));
+    WolfCna::RunSaveState runSaveState{
+        .levelIndex = 0,
+        .difficulty = 1,
+        .playerX = 2.5f,
+        .playerY = 0.62f,
+        .playerZ = 1.5f,
+        .yaw = 1.25f,
+        .health = 75,
+        .ammunition = 18,
+        .score = 1234,
+        .lives = 2,
+        .nextExtraLifeScore = 40000,
+        .levelElapsedSeconds = 42.5f,
+        .hasSecurityCard = false,
+        .weapon = 1,
+        .lastFirearm = 1,
+        .hasRepeater = false,
+        .hasHeavyWeapon = false,
+        .exploredCells = saveExploration.CaptureVisited(),
+        .world = saveWorld.CaptureSaveState()};
+    std::string saveError;
+    const std::string serializedRunSave = WolfCna::RunSave::Serialize(runSaveState);
+    const std::optional<WolfCna::RunSaveState> parsedRunSave =
+        WolfCna::RunSave::Parse(serializedRunSave, saveError);
+    Expect(parsedRunSave.has_value() && saveError.empty(), "versioned run save parses");
+    Expect(
+        WolfCna::RunSave::Serialize(*parsedRunSave) == serializedRunSave,
+        "run save serialization is a deterministic round trip");
+    WolfCna::World restoredSaveWorld(saveLevel, WolfCna::Difficulty::Operative);
+    Expect(
+        restoredSaveWorld.RestoreSaveState(parsedRunSave->world),
+        "world snapshot restores into the matching sector and difficulty");
+    Expect(
+        !restoredSaveWorld.Collides(2.5f, 1.5f, 0.1f) &&
+            restoredSaveWorld.GetCompletionStats().defeatedEnemies == 1 &&
+            restoredSaveWorld.AreObjectivesComplete(),
+        "world restore preserves doors, defeated enemies and objective state");
+    Expect(
+        restoredSaveWorld.CollectPickups(
+            Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f)).ammo == 3,
+        "world restore preserves a dynamic enemy ammunition drop");
+    WolfCna::ExplorationMap restoredExploration(saveLevel);
+    Expect(
+        restoredExploration.RestoreVisited(parsedRunSave->exploredCells) &&
+            restoredExploration.IsVisited(1, 1) && restoredExploration.IsVisited(2, 1) &&
+            !restoredExploration.IsVisited(3, 1),
+        "automap snapshot restores exactly the visited cells");
+    std::vector<bool> invalidExploration = parsedRunSave->exploredCells;
+    invalidExploration[0] = true;
+    Expect(
+        !restoredExploration.RestoreVisited(invalidExploration),
+        "automap restore rejects visited wall cells");
+    WolfCna::World::SaveState mismatchedWorldState = parsedRunSave->world;
+    mismatchedWorldState.enemies.clear();
+    Expect(
+        !restoredSaveWorld.RestoreSaveState(mismatchedWorldState),
+        "world restore rejects mismatched entity counts");
+    Expect(
+        !WolfCna::RunSave::Parse("NOT-A-WOLF-CNA-SAVE\n", saveError).has_value(),
+        "run save rejects an unsupported header");
+    Expect(
+        !WolfCna::RunSave::Parse(serializedRunSave + "TRAILING\n", saveError).has_value(),
+        "run save rejects trailing data");
+
+    const std::filesystem::path saveTestPath =
+        std::filesystem::temp_directory_path() / "wolf-cna-run-save-test.dat";
+    std::error_code removeError;
+    std::filesystem::remove(saveTestPath, removeError);
+    std::filesystem::remove(saveTestPath.string() + ".tmp", removeError);
+    std::filesystem::remove(saveTestPath.string() + ".bak", removeError);
+    Expect(
+        WolfCna::RunSave::SaveFile(saveTestPath, runSaveState, saveError),
+        "run save writes a new slot through a temporary file");
+    runSaveState.score = 4321;
+    Expect(
+        WolfCna::RunSave::SaveFile(saveTestPath, runSaveState, saveError),
+        "run save safely replaces an occupied slot");
+    const std::optional<WolfCna::RunSaveState> loadedRunSave =
+        WolfCna::RunSave::LoadFile(saveTestPath, saveError);
+    Expect(
+        loadedRunSave.has_value() && loadedRunSave->score == 4321 &&
+            !std::filesystem::exists(saveTestPath.string() + ".tmp") &&
+            !std::filesystem::exists(saveTestPath.string() + ".bak"),
+        "run save loads the replacement and leaves no staging files");
+    std::filesystem::remove(saveTestPath, removeError);
 
     ExpectParseFailure("#####\n#P.#\n#####\n", "different width");
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");

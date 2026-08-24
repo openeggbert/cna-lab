@@ -45,6 +45,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle and the last selected difficulty survive restarts
+- three versioned in-run save slots preserve the player, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
 
@@ -61,6 +62,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
+- `F8`: safely save the current run to the selected slot through a temporary file
+- `F9`: quick-load the selected slot; the pause and title menus also select, save and load slots 1–3
 - hold `Tab`: show the explored-area map; releasing it resumes play; it includes a marker legend, optional `POWER`/`TERMINAL` progress and an always-cyan `GOAL`
 - quitting the application is an explicit `QUIT` choice in the main menu
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
@@ -75,6 +78,9 @@ Before the transition, the game shows the sector time and the collected/total
 counts for kills, gold and secrets.
 Unlocked sectors are stored in `wolf-cna-progress.dat` in the launch working
 directory. Invalid progress data safely falls back to sector 1 only.
+Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
+Malformed, incompatible or sector-mismatched saves are rejected without replacing
+the current run.
 
 ## Level files
 

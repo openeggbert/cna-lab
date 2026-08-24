@@ -19,6 +19,8 @@ namespace WolfCna
         [[nodiscard]] int Height() const;
         [[nodiscard]] int GoalX() const;
         [[nodiscard]] int GoalZ() const;
+        [[nodiscard]] const std::vector<bool>& CaptureVisited() const;
+        [[nodiscard]] bool RestoreVisited(const std::vector<bool>& visited);
 
     private:
         int width_ = 0;

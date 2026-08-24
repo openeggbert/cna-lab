@@ -17,6 +17,7 @@
 #include "World.hpp"
 #include "CampaignProgress.hpp"
 #include "ExplorationMap.hpp"
+#include "RunSave.hpp"
 
 namespace WolfCna
 {
@@ -156,6 +157,10 @@ namespace WolfCna
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
         bool mouseWasDown_ = false;
+        bool quickSaveWasDown_ = false;
+        bool quickLoadWasDown_ = false;
+        int saveSlot_ = 0;
+        std::string pauseStatusMessage_;
         int soundVolumeStep_ = 4;
         int fieldOfViewDegrees_ = 72;
         float cheatMessageSeconds_ = 0.0f;
@@ -180,6 +185,12 @@ namespace WolfCna
         void UnlockNextLevel();
         void CompleteLevel();
         void SaveCampaignProfile() const;
+        [[nodiscard]] RunSaveState CaptureRunSaveState() const;
+        [[nodiscard]] bool ApplyRunSaveState(
+            const RunSaveState& state,
+            std::string& error);
+        [[nodiscard]] bool SaveRunToSelectedSlot();
+        [[nodiscard]] bool LoadRunFromSelectedSlot();
         void AwardScore(int points);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 LookDirection() const;
