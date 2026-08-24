@@ -11,7 +11,7 @@
 
 1. Playtest the authored route and rebalance enemy, ammo and health placement.
 2. Add a second objective loop before the exit, such as a terminal or power switch that opens a route.
-3. Extend the authored content with another route/encounter section made from rooms linked by corridors—not only a continuous maze—before considering advanced vertical features such as elevators.
+3. Extend the authored room-and-corridor content with another route/encounter section before considering advanced vertical features such as elevators.
 
 ## Verification
 

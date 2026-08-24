@@ -37,8 +37,9 @@ int main()
 {
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");
-    Expect(starterLevel.Rows().size() == 15, "starter level row count");
-    Expect(starterLevel.PlayerStartX() == 1 && starterLevel.PlayerStartZ() == 1, "starter spawn");
+    Expect(starterLevel.Rows().size() == 18, "starter level row count");
+    Expect(starterLevel.Rows().front().size() == 35, "starter level width");
+    Expect(starterLevel.PlayerStartX() == 3 && starterLevel.PlayerStartZ() == 3, "starter spawn");
 
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",

@@ -37,7 +37,8 @@ This starter is deliberately small. It proves the basic direction before local A
 
 ## Level files
 
-The starter level is [`assets/levels/starter.level`](assets/levels/starter.level). Each row must
+The starter level is [`assets/levels/starter.level`](assets/levels/starter.level). It uses larger
+rooms connected by corridors rather than a single continuous maze. Each row must
 have the same width and use only these symbols:
 
 - `#`: solid wall
