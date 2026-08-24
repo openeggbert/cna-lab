@@ -94,3 +94,20 @@ footprints, and identical sorted output after 20 seeded input shuffles. Headless
 and displayed configurations both passed 3/3 CTests against clean CNA
 `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
 `54578590b328aa9612fe38bfddca9fd8ca795144`.
+
+## 2026-08-24: PEO-030/031/032/035 logical lot topology
+
+The displayed tile renderer now reads the real renderer-independent `LotGrid`
+rather than a hard-coded size. The model owns bounded multi-floor cells,
+original terrain kinds, optional stable floor-covering IDs, visual dirty flags,
+canonical wall edges, and per-floor room invalidation. Walls are stored once by
+minimum vertex plus axis even when queried through either neighboring tile.
+
+`RoomMap` deterministically flood-fills one dirty floor. Components with an
+unwalled route through the lot boundary receive outside ID zero; enclosed
+components receive row-major IDs. `people_lot_grid_tests` covers bounds, two
+floors, state/no-op dirtiness, covering add/remove, wall add/query/remove and
+neighbor normalization, boundary walls, room invalidation, open outside space,
+one enclosed interior cell, a fully enclosed split room, removal-driven merge,
+and floor isolation. Headless and displayed configurations passed 4/4 CTests
+against the dependency snapshots recorded above.

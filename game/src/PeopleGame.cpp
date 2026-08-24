@@ -119,7 +119,7 @@ void PeopleGame::LoadContent()
     previousWheel_ = mouse.getScrollWheelValueProperty();
 
     std::cout << "People: CNA SpriteBatch foundation loaded; lot="
-              << Lot.width << 'x' << Lot.height << ", tile="
+              << lot_.Size().width << 'x' << lot_.Size().height << ", tile="
               << IsometricProjection::TileWidth << 'x' << IsometricProjection::TileHeight
               << ", runtime world=2D\n";
 }
@@ -133,7 +133,7 @@ void PeopleGame::ChangeZoom(const double newZoom, const PixelPoint screenFocus)
 void PeopleGame::ChangeRotation(const int clockwiseQuarterTurns)
 {
     camera_ = IsometricProjection::RotateAroundLotCenter(
-        camera_, Lot, clockwiseQuarterTurns);
+        camera_, lot_.Size(), clockwiseQuarterTurns);
 }
 
 void PeopleGame::HandleCameraInput(const double elapsedSeconds)
@@ -189,7 +189,7 @@ void PeopleGame::RefreshHoveredTile()
     const auto mouse = Mouse::GetState();
     hoveredTile_ = IsometricProjection::ScreenToWorld(
         {static_cast<double>(mouse.getXProperty()), static_cast<double>(mouse.getYProperty())},
-        Lot, camera_);
+        lot_.Size(), camera_);
 }
 
 void PeopleGame::Update(GameTime& gameTime)
@@ -210,18 +210,19 @@ void PeopleGame::DrawLot()
     };
 
     std::vector<TileDrawItem> tiles;
-    tiles.reserve(static_cast<std::size_t>(Lot.width * Lot.height));
-    for (int y = 0; y < Lot.height; ++y)
+    const People::World::LotSize lotSize = lot_.Size();
+    tiles.reserve(static_cast<std::size_t>(lotSize.width * lotSize.height));
+    for (int y = 0; y < lotSize.height; ++y)
     {
-        for (int x = 0; x < Lot.width; ++x)
+        for (int x = 0; x < lotSize.width; ++x)
         {
             const TileCoordinate tile{x, y, 0};
             const std::uint64_t stableId = static_cast<std::uint64_t>(
-                y * Lot.width + x + 1);
+                y * lotSize.width + x + 1);
             tiles.push_back({
                 tile,
                 RenderOrder::BuildKey(
-                    std::span<const TileCoordinate>(&tile, 1), tile, Lot,
+                    std::span<const TileCoordinate>(&tile, 1), tile, lotSize,
                     camera_.rotation, DrawLayer::Terrain, 0, stableId)
             });
         }
@@ -240,15 +241,18 @@ void PeopleGame::DrawLot()
     for (const TileDrawItem& item : tiles)
     {
         const TileCoordinate tile = item.tile;
-        const PixelPoint center = IsometricProjection::WorldToScreen(tile, Lot, camera_);
+        const PixelPoint center = IsometricProjection::WorldToScreen(tile, lotSize, camera_);
         const Vector2 topLeft{
             static_cast<float>(center.x - IsometricProjection::HalfTileWidth * camera_.zoom),
             static_cast<float>(center.y - IsometricProjection::HalfTileHeight * camera_.zoom)
         };
         const bool alternate = (tile.x + tile.y) % 2 != 0;
-        const Color tint = alternate
-            ? Color(166, 195, 150, 255)
-            : Color(183, 209, 165, 255);
+        const People::World::TerrainKind terrain = lot_.FloorAt(tile).terrain;
+        const Color tint = terrain == People::World::TerrainKind::Grass
+            ? (alternate ? Color(166, 195, 150, 255) : Color(183, 209, 165, 255))
+            : (terrain == People::World::TerrainKind::Soil
+                ? Color(164, 125, 82, 255)
+                : Color(151, 157, 160, 255));
         spriteBatch_->Draw(
             tileTexture_, topLeft, std::nullopt, tint,
             0.0f, Vector2::Zero, static_cast<float>(camera_.zoom),
@@ -257,7 +261,8 @@ void PeopleGame::DrawLot()
 
     if (hoveredTile_.has_value())
     {
-        const PixelPoint center = IsometricProjection::WorldToScreen(*hoveredTile_, Lot, camera_);
+        const PixelPoint center = IsometricProjection::WorldToScreen(
+            *hoveredTile_, lotSize, camera_);
         const Vector2 topLeft{
             static_cast<float>(center.x - IsometricProjection::HalfTileWidth * camera_.zoom),
             static_cast<float>(center.y - IsometricProjection::HalfTileHeight * camera_.zoom)

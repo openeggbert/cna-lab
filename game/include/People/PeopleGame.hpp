@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "People/World/IsometricProjection.hpp"
+#include "People/World/LotGrid.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
@@ -33,12 +34,12 @@ private:
     void DrawLot();
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateTileTexture(bool highlight);
 
-    static constexpr People::World::LotSize Lot{20, 20};
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
     static constexpr double PanPixelsPerSecond = 420.0;
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
+    People::World::LotGrid lot_{20, 20, 1};
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     Microsoft::Xna::Framework::Graphics::Texture2D tileTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D highlightTexture_;
