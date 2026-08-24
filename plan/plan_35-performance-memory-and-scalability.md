@@ -71,7 +71,7 @@ Establish budgets and measure representative district workloads against the lock
   *Canonical-token follow-up: raw UTC, source/scope, artifact-name, and SHA-256 strings cannot rely
   on trimming. Six padded capture/embedded/manifest shapes exit 2 while human labels retain their
   documented normalization.*
-- [ ] **IG-35-030 P1** — Add logging/overlay output and documentation for the memory tracker. *(Partial: versioned JSON, the external evidence manifest/binder, qualification-time mandatory archive verification, distinct/non-empty source-role rules, and performance documentation cover category/evidence semantics and limitations; no live overlay or real complete backend output exists.)*
+- [x] **IG-35-030 P1** — Add logging/overlay output and documentation for the memory tracker. *(Complete through the versioned profile JSON, raw per-sample DRM artifact, external evidence manifest/binder, enriched summary, release/comparison Markdown, and README/performance target/baseline/validation documentation. Two independent full Release mixed integrations provide real complete-process backend output with 2,498/2,441 retained samples and a stable 55.574 MiB peak. A live overlay is unnecessary for this opt-in bounded capture workflow, matching the completed frame and district profilers.)*
   *Evidence-consistency follow-up: the shared loader re-derives RAM known/budget state, tracked-VRAM
   budget state, and raw/enriched logical category totals. The binder validates both its raw input
   and enriched result; synthetic contradictions exit 2, while both retained real Xvfb captures pass.*

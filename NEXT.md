@@ -67,6 +67,14 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**The memory-tracker work package is now fully closed (`IG-35-030`).** Its last open task still
+claimed that no real complete backend output existed. The integrated workflow now emits a versioned
+profile, raw per-sample DRM log, evidence manifest, semantically verified enriched JSON, and release/
+comparison Markdown; the two full machine-evidence runs provide 2,498/2,441 real samples and stable
+55.574 MiB complete residency. README and all performance continuity docs cover the scope and
+limitations. A live overlay would add no value to the opt-in bounded workflow, consistent with the
+already completed frame and district profilers. This closes the tracker task, not physical M12.
+
 **M12 artifacts now display the exact swap state.** Release rows show `request / ack` instead of a
 bare acknowledgement, and comparator machine-environment rows show requested, applied, and ack
 values for both sides. The locked policy is unchanged: interval 0 remains valid hardware-headroom

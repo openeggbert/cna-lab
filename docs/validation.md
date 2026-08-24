@@ -539,6 +539,9 @@ A subsequent pair of full Release `mixed --smoke 900` DRM runs passes every dire
 17.147/17.907 ms frame p95, no minimum misses or hitches, stable 55.574 MiB complete residency, and
 `NO REGRESSION` comparison. Both archives verify independently. The qualifying audit fails only on
 the offscreen label and each capture's machine-derived `Headless` state. No visible display was used.
+This real raw/manifest/enriched/report output plus the existing documentation closes the final
+memory-tracker logging task `IG-35-030`; a live overlay is intentionally outside the bounded
+profiler scope. The physical M12 gate remains open.
 
 ## Full CNA-linked build status
 
