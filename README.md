@@ -42,7 +42,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless the player or a body blocks them)
-- left or right `Ctrl`: attack with the selected weapon; empty firearms automatically fall back to the knife
+- left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen

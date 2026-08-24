@@ -130,6 +130,7 @@ namespace WolfCna
         bool soundEnabled_ = true;
         float cheatMessageSeconds_ = 0.0f;
         float weaponFlashSeconds_ = 0.0f;
+        float playerFireCooldownSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;

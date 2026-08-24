@@ -1055,6 +1055,7 @@ namespace WolfCna
         screen_ = Screen::Playing;
         actionWasDown_ = false;
         attackWasDown_ = false;
+        playerFireCooldownSeconds_ = 0.0f;
         ilmWasDown_ = false;
         pauseWasDown_ = false;
         cheatMessageSeconds_ = 0.0f;
@@ -1265,6 +1266,8 @@ namespace WolfCna
             return;
         }
 
+        playerFireCooldownSeconds_ = std::max(0.0f, playerFireCooldownSeconds_ - elapsedSeconds);
+
         const bool ilmIsDown =
             keyboard.IsKeyDown(Keys::I) && keyboard.IsKeyDown(Keys::L) && keyboard.IsKeyDown(Keys::M);
         if (ilmIsDown && !ilmWasDown_)
@@ -1323,6 +1326,10 @@ namespace WolfCna
 
         const bool attackIsDown =
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
+        const bool automaticWeapon =
+            weapon_ == Weapon::Repeater || weapon_ == Weapon::HeavyAutomatic;
+        const bool attackTriggered = attackIsDown &&
+            (!attackWasDown_ || (automaticWeapon && playerFireCooldownSeconds_ <= 0.0f));
         if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
         {
             const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
@@ -1333,9 +1340,9 @@ namespace WolfCna
             if (attack.score > 0 && enemyDefeatedSound_)
                 static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
         }
-        else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
+        else if (attackTriggered && ammo_ > 0)
         {
-            if (weapon_ == Weapon::Repeater || weapon_ == Weapon::HeavyAutomatic)
+            if (automaticWeapon)
             {
                 const bool isHeavy = weapon_ == Weapon::HeavyAutomatic;
                 const int shotCount = std::min(ammo_, isHeavy ? 5 : 3);
@@ -1352,6 +1359,7 @@ namespace WolfCna
                         Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
                 }
                 AwardScore(defeatedScore);
+                playerFireCooldownSeconds_ = isHeavy ? 0.42f : 0.28f;
                 weaponFlashSeconds_ = isHeavy ? 0.12f : 0.09f;
                 if (shotSound_)
                     static_cast<void>(shotSound_->Play(isHeavy ? 1.0f : 0.95f, isHeavy ? 0.08f : -0.04f, 0.0f));

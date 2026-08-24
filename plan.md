@@ -1094,7 +1094,8 @@ validated level pickups. All four have distinct original generated HUD/view
 sprites, carry through sector transitions and are granted by the loadout cheat.
 Original rapid-fire troopers and heavy units now join guards and hounds with
 distinct health, score, speed, ranged damage and attack cadence. Automatic
-hold-to-fire cadence and campaign balance remain. Ranged enemies coordinate so
+hold-to-fire cadence is implemented for the repeater and heavy automatic while
+the knife and sidearm remain one attack per press. Campaign balance remains. Ranged enemies coordinate so
 only the nearest eligible shooter attacks at one time, avoiding simultaneous
 volleys when the player enters a populated room.
 
