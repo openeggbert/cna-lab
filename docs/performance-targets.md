@@ -309,6 +309,10 @@ as presentation evidence.
 The fixed `proof` text must continue to say this is only platform `SetSwapInterval` acknowledgement,
 not physical vblank/compositor proof. Successful apply has an empty `unavailable_reason`; failed or
 unknown apply requires a printable non-empty reason.
+A real AMD/Release EasyGL offscreen integration confirms this boundary even for interval 1: the
+platform returned requested/applied 1 with successful acknowledgement while CNA independently
+reported `Headless` and no native window. Frame cadence near 16.7 ms in that fixed-timestep run does
+not turn the acknowledgement into physical-vblank evidence.
 
 Current schema-8 producers also emit an additive `native_window` object. `system` is CNA's stable
 native-window discriminator (`Win32`, `X11`, `Wayland`, `Cocoa`, `Android`, `Web`, `Headless`,

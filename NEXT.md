@@ -67,6 +67,19 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**A real AMD offscreen run proves acknowledged interval 1 is not physical-vblank evidence.** A
+30-draw Release EasyGL/DRM `idle --vsync on` integration returned `requested 1`, `applied 1`, and
+`ack yes`, while the independent window block remained `Headless / false`.
+
+- The 29 frame intervals average 16.904 ms with 17.122 ms p95/18.796 ms max; GPU Draw and Present
+  p95 are 0.152/0.047 ms. The sampler retained 100 complete snapshots from 134 attempts (one fd read
+  race excluded) and bound a 51,982,336 B (49.57 MiB) complete peak.
+- The release row visibly shows `1 / yes` yet remains local `FAIL` for the machine-derived Headless
+  state; overall output remains `DIAGNOSTIC`. This is the real counterexample behind the fixed proof
+  text saying swap acknowledgement is not physical display/vblank/compositor proof.
+- Original/raw/manifest/complete/report hashes are `e88a7c0f…9627c2`, `c75642c8…6cbb9c`,
+  `a326aff5…5a2887`, `d6763602…609882`, and `c341a6a0…3a624b6`. No visible display was used.
+
 **The memory-tracker work package is now fully closed (`IG-35-030`).** Its last open task still
 claimed that no real complete backend output existed. The integrated workflow now emits a versioned
 profile, raw per-sample DRM log, evidence manifest, semantically verified enriched JSON, and release/

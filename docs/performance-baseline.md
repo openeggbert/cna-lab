@@ -1106,3 +1106,21 @@ After swap state was made explicit, current diagnostic-report/audit/comparison h
 `24333703…8c83a6`, `d896d995…0d5fbe`, and `d58296d2…d57809`; they show request/applied interval 0
 with successful acknowledgement for both captures.
 This supersedes the older offscreen pair as the current diagnostic format but still cannot close M12.
+
+## 2026-08-24 — acknowledged interval 1 offscreen counterexample
+
+A 30-draw Release EasyGL `idle --vsync on` DRM-wrapper run tested the strongest swap state available
+without violating the no-visible-display constraint. The platform returned requested interval 1,
+applied interval 1, and successful acknowledgement. CNA independently classified the window as
+`Headless/false`, while the current context still identified the real AMD Radeon 780M/radeonsi.
+
+The 29 intervals average 16.904 ms with 17.122 ms p95 and 18.796 ms maximum; GPU Draw and Present
+p95 are 0.152 and 0.047 ms. The sampler retained 100 complete snapshots from 134 attempts, excluded
+one fd read race, and bound a 51,982,336 B (49.57 MiB) peak. The report row visibly says `1 / yes`
+but remains local `FAIL` for Headless presentation and overall `DIAGNOSTIC`. Exact original/raw/
+manifest/complete/report hashes are `e88a7c0f…9627c2`, `c75642c8…6cbb9c`,
+`a326aff5…5a2887`, `d6763602…609882`, and `c341a6a0…3a624b6`.
+
+This real counterexample validates the schema's conservative proof string: successful interval-1
+application and fixed-step cadence are not by themselves physical display, vblank, or compositor
+evidence. No visible display was used and M12 remains open.

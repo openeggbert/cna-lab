@@ -542,6 +542,10 @@ the offscreen label and each capture's machine-derived `Headless` state. No visi
 This real raw/manifest/enriched/report output plus the existing documentation closes the final
 memory-tracker logging task `IG-35-030`; a live overlay is intentionally outside the bounded
 profiler scope. The physical M12 gate remains open.
+A further Release AMD offscreen `--vsync on` integration recorded requested/applied interval 1 with
+successful acknowledgement, 17.122 ms frame p95, and a verified 49.57 MiB DRM peak. Its independent
+window evidence remained `Headless/false`, so the visible `1 / yes` report row correctly failed
+local qualification. This validates the non-vblank proof boundary without using a visible display.
 
 ## Full CNA-linked build status
 
