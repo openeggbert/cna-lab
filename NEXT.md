@@ -77,18 +77,18 @@
 - WOLF-014 is complete: guard, rapid trooper, heavy unit and Warden alert/attack events retain their archetype and select four distinct original generated positional cue families.
 - Hound bark noise is gently filtered while preserving its louder two-part alert bark and distinct defeat whimper.
 - WOLF-047 is complete: Emscripten 6.0.3 builds a CNA `WEBGL2` HTML/JS/WASM/data deployment with every game asset preloaded.
-- The web target carries CNA's WebAssembly exception flags and a documented target-scoped `<algorithm>` compatibility include for CNA's pinned Draco 1.5.7 PLY reader.
+- The corrected web target uses the matching `cnanext`/`sharp-runtimenext` pair, JavaScript-lowered exceptions and Asyncify so CNA's blocking browser loop preserves the game object's lifetime; executable-level WebGL 2 limits prevent Firefox from silently creating WebGL 1.
 
 ## Current handoff
 
 - Work is on `develop`; do not modify `main`.
 - Native `build-cnanext` compiles `wolf-cna` and `level-definition-tests`; the focused test suite passes.
-- Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were served successfully over local HTTP.
-- No browser backend was attached to the build environment, so the next context should begin with an interactive browser smoke/playtest if one is available.
+- Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were rebuilt from a clean configure against explicit `cnanext`/`sharp-runtimenext` paths and served successfully over local HTTP.
+- Firefox 140.10.1 ESR completed a clean-profile headless smoke test without a page exception and rendered the 800×480 Wolf CNA title screen; manual audio/fullscreen testing still needs an interactive browser.
 
 ## Next tasks
 
-1. Interactively smoke-test `build-web-cnanext/wolf-cna.html` in a WebGL2 browser, including keyboard input, audio unlock and fullscreen behavior.
+1. Interactively smoke-test menu/game keyboard input, audio unlock and fullscreen behavior in `build-web-cnanext/wolf-cna.html`; basic loading and title-screen rendering already pass in Firefox.
 2. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
 3. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
 4. Review the remaining longer-term milestones in `plan.md` before selecting the next coherent implementation task.

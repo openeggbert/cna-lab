@@ -225,24 +225,31 @@ You can select another CNA renderer with `CNA_GRAPHICS_RENDERER` as supported by
 
 ### Web build
 
-The Emscripten build uses CNA's `WEBGL2` renderer and packages every level and
-texture into the browser virtual filesystem. Point `EMSCRIPTEN` and `emcmake`
-at the same installed emsdk checkout:
+The Emscripten build uses CNA's `WEBGL2` renderer and packages every level,
+texture and sound into the browser virtual filesystem. It requires the current
+`cnanext` browser loop and its matching `sharp-runtimenext` checkout. Point
+`EMSCRIPTEN` and `emcmake` at the same installed emsdk checkout and pass both
+dependency paths explicitly:
 
 ```bash
 EMSCRIPTEN=/path/to/emsdk/upstream/emscripten \
   /path/to/emsdk/upstream/emscripten/emcmake cmake \
-  -S . -B build-web -G Ninja \
+  -S . -B build-web-cnanext -G Ninja \
+  -DCNA_ROOT=/absolute/path/to/cnanext \
+  -DCNA_SHARP_RUNTIME_ROOT=/absolute/path/to/sharp-runtimenext \
   -DCNA_GRAPHICS_RENDERER=WEBGL2 \
   -DCMAKE_BUILD_TYPE=Release
 
-cmake --build build-web -j --target wolf-cna
-python3 -m http.server --directory build-web 8000
+cmake --build build-web-cnanext -j --target wolf-cna
+python3 -m http.server --directory build-web-cnanext 8000
 ```
 
 Open `http://127.0.0.1:8000/wolf-cna.html`; browsers cannot load the WASM/data
 pair reliably through `file://`. The generated deployment set is
-`wolf-cna.html`, `wolf-cna.js`, `wolf-cna.wasm` and `wolf-cna.data`.
+`wolf-cna.html`, `wolf-cna.js`, `wolf-cna.wasm` and `wolf-cna.data`. The final
+game target pins Emscripten's minimum and maximum WebGL version to 2; selecting
+the CNA `WEBGL2` renderer alone does not change Emscripten's executable-level
+WebGL ceiling.
 
 ## Important
 

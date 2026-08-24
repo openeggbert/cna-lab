@@ -1778,15 +1778,27 @@ project levels and original textures are preloaded at `/assets`, matching the
 same relative paths used by the native game, and WebAssembly memory is allowed
 to grow for the 64×64 campaign worlds and decoded textures.
 
-The top-level executable explicitly matches CNA's native WebAssembly exception
-model (`-fwasm-exceptions`, legacy exceptions disabled). CNA's pinned Draco
-1.5.7 currently omits `<algorithm>` in its PLY reader, so the Emscripten build
-documents and applies a narrowly scoped forced include to the `draco_io` target;
-no CNA backend or native platform API is called by game code. This compatibility
-line should be removed when the sibling CNA dependency incorporates that include.
+The top-level executable explicitly matches `cnanext`'s JavaScript-lowered
+exception ABI and enables Asyncify. This preserves the blocking XNA-style
+`Game::Run()` call, including the stack-local game object's lifetime, while the
+browser yields each frame through `requestAnimationFrame`. It also pins
+Emscripten's executable-level minimum and maximum WebGL version to 2. Without
+those final-target flags, Firefox created a WebGL 1 context despite CNA's
+`WEBGL2` renderer selection, then aborted when the GLES 3 renderer initialized.
+The matching `cnanext` and `sharp-runtimenext` paths are passed explicitly when
+configuring; no CNA backend or native platform API is called by game code.
 
-The release bundle was built with Emscripten 6.0.3. Structural verification
-confirmed valid HTML/JavaScript/WASM/data output, the expected asset manifest and
-HTTP 200 responses with the correct WebAssembly MIME type. No browser instance
-was available in the build environment, so an interactive visual/audio browser
-playtest remains a handoff check rather than a compilation blocker.
+The first generated bundle was accidentally configured against the legacy
+`../cna` and `../sharp-runtime` siblings. That CNA loop unwinds the stack after
+registering its browser callback, which is incompatible with Wolf CNA's
+stack-local game object. The corrected bundle was rebuilt cleanly against
+`cnanext` and `sharp-runtimenext`; that web configuration disables the unused
+pinned Draco dependency, so the temporary forced-include workaround was removed.
+
+The corrected release bundle was built with Emscripten 6.0.3. Structural
+verification confirmed valid HTML/JavaScript/WASM/data output, Asyncify and
+animation-frame support, the expected asset manifest and HTTP 200 responses with
+the correct WebAssembly MIME type. Firefox 140.10.1 ESR then completed the data
+load in a clean headless profile, reported no page exception and rendered the
+original Wolf CNA title screen at the expected 800×480 canvas size. Interactive
+keyboard, audio-unlock and fullscreen playtesting remains a handoff check.
