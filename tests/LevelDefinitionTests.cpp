@@ -244,20 +244,26 @@ int main()
     const WolfCna::CampaignProfile legacyProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-1\n1\n", 3);
     Expect(
-        legacyProfile.highestUnlocked == 1 && legacyProfile.soundEnabled && legacyProfile.difficulty == 1,
+        legacyProfile.highestUnlocked == 1 && legacyProfile.soundVolume == 4 && legacyProfile.difficulty == 1,
         "legacy campaign progress retains default settings");
+    const WolfCna::CampaignProfile booleanSoundProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-2\n1\n0\n2\n", 3);
+    Expect(
+        booleanSoundProfile.highestUnlocked == 1 && booleanSoundProfile.soundVolume == 0 &&
+            booleanSoundProfile.difficulty == 2,
+        "version two sound toggle migrates to volume");
     const WolfCna::CampaignProfile savedProfile = WolfCna::CampaignProgress::Parse(
         WolfCna::CampaignProgress::Serialize(
-            WolfCna::CampaignProfile{.highestUnlocked = 8, .soundEnabled = false, .difficulty = 2},
+            WolfCna::CampaignProfile{.highestUnlocked = 8, .soundVolume = 3, .difficulty = 2},
             3),
         3);
     Expect(
-        savedProfile.highestUnlocked == 2 && !savedProfile.soundEnabled && savedProfile.difficulty == 2,
-        "campaign profile restores clamped unlocks, sound and difficulty");
+        savedProfile.highestUnlocked == 2 && savedProfile.soundVolume == 3 && savedProfile.difficulty == 2,
+        "campaign profile restores clamped unlocks, volume and difficulty");
     const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
-        "WOLF-CNA-PROGRESS-2\n2\n4\n1\n", 3);
+        "WOLF-CNA-PROGRESS-3\n2\n5\n1\n", 3);
     Expect(
-        invalidProfile.highestUnlocked == 0 && invalidProfile.soundEnabled && invalidProfile.difficulty == 1,
+        invalidProfile.highestUnlocked == 0 && invalidProfile.soundVolume == 4 && invalidProfile.difficulty == 1,
         "invalid campaign profile safely restores defaults");
 
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(

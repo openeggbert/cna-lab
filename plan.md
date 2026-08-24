@@ -553,7 +553,8 @@ damage. Four authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
 secret completion ratios. A versioned, validated profile persists sector unlocks,
-master sound and the last selected difficulty while accepting legacy unlock files.
+five-step master volume and the last selected difficulty while accepting both older
+profile formats.
 In-run save/load and additional settings remain.
 
 ## M10 — procedural/roguelite mode
@@ -1014,7 +1015,7 @@ Current progress:
   to 99 and resets score;
 - the ammunition capacity is 99 and the `I` + `L` + `M` loadout cheat fills it
   to that maximum rather than to the ordinary starting supply;
-- a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu can toggle master sound on/off;
+- a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu cycles master volume through 0/25/50/75/100%;
 - `P` now pauses all gameplay simulation and draws a pause card; exits play a generated elevator-confirmation sound;
 - each of the four authored sectors now regenerates the wall, floor, ceiling and door atlas colors from its own original palette;
 - next: playtest and rebalance encounter pacing, then add an original enemy projectile impact effect and a sector-completion fanfare.
@@ -1348,3 +1349,15 @@ archive encounters severe without making each 25-health kit disproportionately w
 - distribute recovery across the authored route instead of clustering it at spawn;
 - retain Scout at 70% and Operative at baseline damage;
 - keep subjective combat and animation playtesting as the next manual validation.
+
+### WOLF-028 — persisted master-volume levels
+
+Status: complete. The title menu's binary sound toggle is replaced by five master
+volume steps (0, 25, 50, 75 and 100 percent) applied through CNA `SoundEffect`.
+Profile format 3 stores the selected step and strictly validates it, while formats
+1 and 2 migrate to sensible defaults without discarding sector unlocks or difficulty.
+
+- keep one clearly visible title-menu control instead of adding a premature settings hierarchy;
+- apply one master value consistently to effects, ambience and fanfare;
+- preserve backward compatibility with every previously shipped profile format;
+- reject malformed volume values safely.

@@ -333,7 +333,7 @@ namespace WolfCna
             std::string(ProgressFile),
             static_cast<int>(CampaignLevelFiles.size()));
         highestUnlockedLevel_ = profile.highestUnlocked;
-        soundEnabled_ = profile.soundEnabled;
+        soundVolumeStep_ = profile.soundVolume;
         difficulty_ = static_cast<Difficulty>(profile.difficulty);
     }
 
@@ -398,7 +398,7 @@ namespace WolfCna
         CreateProceduralDecorationTextures();
         CreateProceduralEnemyImpactTexture();
         CreateHudResources();
-        SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
+        SoundEffect::setMasterVolumeProperty(static_cast<float>(soundVolumeStep_) / 4.0f);
         CreateSoundEffects();
 
         Game::LoadContent();
@@ -1384,7 +1384,7 @@ namespace WolfCna
             const std::array<std::string, 4> options{
                 "START RUN",
                 "CONTROLS",
-                soundEnabled_ ? "SOUND ON" : "SOUND OFF",
+                "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
@@ -1575,7 +1575,7 @@ namespace WolfCna
             std::string(ProgressFile),
             CampaignProfile{
                 .highestUnlocked = highestUnlockedLevel_,
-                .soundEnabled = soundEnabled_,
+                .soundVolume = soundVolumeStep_,
                 .difficulty = static_cast<int>(difficulty_)},
             static_cast<int>(CampaignLevelFiles.size()));
     }
@@ -1653,8 +1653,9 @@ namespace WolfCna
                 }
                 else if (menuSelection_ == 2)
                 {
-                    soundEnabled_ = !soundEnabled_;
-                    SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
+                    soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
+                    SoundEffect::setMasterVolumeProperty(
+                        static_cast<float>(soundVolumeStep_) / 4.0f);
                     SaveCampaignProfile();
                 }
                 else

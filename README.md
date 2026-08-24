@@ -19,7 +19,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - discoverable repeater and heavy automatic weapon with distinct first-person sprites and matching HUD icons
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
-- a generated looping bunker ambience, with a master sound on/off control in the title menu
+- a generated looping bunker ambience, with five master-volume levels in the title menu
 - uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life
 - a centered completion card appears at the level exit
 - grid collision with wall sliding
@@ -41,7 +41,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
-- persistent profile: a fresh profile starts with sector 1; sector unlocks, sound and the last selected difficulty survive restarts
+- persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume and the last selected difficulty survive restarts
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin: locked red doors block entry, then rise after all power relays and terminals are active
 
@@ -50,7 +50,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - up/down arrow keys: forward / backward
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
-- title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu also has a master sound toggle
+- title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100%
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (130% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife

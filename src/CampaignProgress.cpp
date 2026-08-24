@@ -9,7 +9,8 @@ namespace WolfCna
     namespace
     {
         constexpr std::string_view LegacyHeader = "WOLF-CNA-PROGRESS-1";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-2";
+        constexpr std::string_view BooleanSoundHeader = "WOLF-CNA-PROGRESS-2";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-3";
     }
 
     CampaignProfile CampaignProgress::Load(
@@ -55,7 +56,7 @@ namespace WolfCna
             if (input >> trailing)
                 return {};
         }
-        else if (header == Header)
+        else if (header == BooleanSoundHeader)
         {
             int soundEnabled = 1;
             if (!(input >> soundEnabled >> profile.difficulty) ||
@@ -65,7 +66,17 @@ namespace WolfCna
             {
                 return {};
             }
-            profile.soundEnabled = soundEnabled != 0;
+            profile.soundVolume = soundEnabled != 0 ? 4 : 0;
+        }
+        else if (header == Header)
+        {
+            if (!(input >> profile.soundVolume >> profile.difficulty) ||
+                profile.soundVolume < 0 || profile.soundVolume > 4 ||
+                profile.difficulty < 0 || profile.difficulty > 2 ||
+                (input >> trailing))
+            {
+                return {};
+            }
         }
         else
         {
@@ -83,7 +94,7 @@ namespace WolfCna
         const int maximum = std::max(0, levelCount - 1);
         return std::string(Header) + "\n" +
             std::to_string(std::clamp(profile.highestUnlocked, 0, maximum)) + "\n" +
-            (profile.soundEnabled ? "1\n" : "0\n") +
+            std::to_string(std::clamp(profile.soundVolume, 0, 4)) + "\n" +
             std::to_string(std::clamp(profile.difficulty, 0, 2)) + "\n";
     }
 }

@@ -9,7 +9,7 @@ namespace WolfCna
     struct CampaignProfile final
     {
         int highestUnlocked = 0;
-        bool soundEnabled = true;
+        int soundVolume = 4;
         int difficulty = 1;
     };
 

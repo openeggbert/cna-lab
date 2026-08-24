@@ -161,7 +161,7 @@ namespace WolfCna
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
         bool mouseWasDown_ = false;
-        bool soundEnabled_ = true;
+        int soundVolumeStep_ = 4;
         float cheatMessageSeconds_ = 0.0f;
         std::string objectiveMessage_;
         float objectiveMessageSeconds_ = 0.0f;
