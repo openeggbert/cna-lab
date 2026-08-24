@@ -73,6 +73,30 @@ redraws, all care-action frames, and every branch condition remain open until
 they are compared frame by frame with the selected target programme. No ROM,
 emulator core, or reference-programme data is included in this project.
 
+## Home-LCD visual reference ledger
+
+This ledger is the gate for changes to `P1SpriteCatalog.cpp`. “Observed” means
+viewed in the external reference on a virtual display; it does not mean that a
+screenshot, ROM byte, or emulator asset is kept in this repository. A row may
+become “transcribed” only when the one-bit cells were read visually and written
+by hand into the catalogue. It is deliberately acceptable for an entry to stay
+open rather than substitute a plausible modern redraw.
+
+| Form / sequence | Observation and geometry | Catalogue status | Next evidence needed |
+| --- | --- | --- | --- |
+| Egg, asymmetric idle phase | Hand-read 16 × 10 drawing at `(8, 3)`; its crown, crack, and lower shell have focused regression checks. | Transcribed; regression checked. | Re-observe against a freshly started run after the reference display is relaunched. |
+| Egg, expanded/alternate idle phase | A visual P1 phase was observed to use a different vertical extent, hence `P1SpriteFrame` supports up to 12 rows and its own origin. Its lifecycle position is not yet proven to be a hatch frame. | Observed only; not encoded as a new phase. | Restart → clock configuration → hatching trace and a stable three-frame capture. |
+| Babytchi | No hand transcription is accepted yet. The existing drawing is a provisional placeholder. | Provisional. | Capture immediately after a confirmed hatch and record its idle cadence. |
+| Marutchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe after the Baby → Child transition. |
+| Tamatchi / Kuchitamatchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe one trace for each lineage. |
+| Mametchi | Three independently drawn home phases are retained with a focused distinct-frame test. | Transcribed; regression checked. | Recheck the complete sequence at normal LCD scale. |
+| Ginjirotchi / Maskutchi / Kuchipatchi / Nyorotchi / Tarakotchi / Bill | No selected-reference home sequence has been transcribed. | Provisional. | Capture the relevant qualified evolution path before replacing one form at a time. |
+
+Reference-session note: TamaTool accepts the documented host controls when
+focused under Xvfb (the shell-toggle control was visually confirmed), but an
+Xvfb process is ephemeral between tooling sessions. Relaunch the emulator and
+its virtual display before drawing conclusions from a missing later capture.
+
 ## Evolution-rule representation
 
 The shared engine represents a growth chart as ordered `EvolutionRule` data:
