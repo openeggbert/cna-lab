@@ -806,6 +806,23 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("maximum_ms cannot exceed frame_interval.maximum_ms", result.stderr)
 
+        empty_boundary_bucket = capture_fixture()
+        pacing = empty_boundary_bucket["frame_pacing"]
+        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 2
+        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 1
+        pacing["minimum_budget_misses"]["count"] = 1
+        pacing["minimum_budget_misses"]["percent"] = 25.0
+        pacing["hitches"]["count"] = 1
+        pacing["hitches"]["percent"] = 25.0
+        pacing["district_transition_boundaries"]["maximum_ms"] = 40.0
+        frame = empty_boundary_bucket["measurements"]["frame_interval"]
+        frame["p95_ms"] = 60.0
+        frame["maximum_ms"] = 60.0
+        empty_boundary_bucket["checks"]["minimum_frame_rate_pass"] = False
+        result = self.run_report([empty_boundary_bucket], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("has no matching non-empty", result.stderr)
+
         rounded_boundary_hitch = capture_fixture()
         pacing = rounded_boundary_hitch["frame_pacing"]
         pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 2

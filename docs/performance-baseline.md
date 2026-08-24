@@ -798,3 +798,15 @@ and maximum; one positive case preserves the rounded threshold ambiguity. Fixing
 older 17 ms boundary versus 16.8 ms frame maximum also made its histogram/statistics coherent.
 Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass. Full isolated CTest passes
 8/8 with its smoke process inside Xvfb; no capture was added.
+
+## 2026-08-24 — district-boundary histogram occupancy
+
+Boundary maximum validation now requires at least one non-empty global frame-pacing bucket whose
+bounds contain the serialized value. This completes the subset check: a boundary interval cannot
+exist in a duration range where the capture says no frame interval was observed.
+
+A report negative uses a 40 ms boundary with zero samples in the 33.333–50 ms bucket while a
+separate 60 ms hitch keeps the global maximum valid. It exits 2. The existing 50.000 ms rounded
+positive case remains valid through either adjacent populated bucket. Report 7/7, comparator 7/7,
+VRAM 6/6, and both retained diagnostics pass. Full isolated CTest passes 8/8 inside Xvfb; no
+capture was added.

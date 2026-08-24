@@ -417,6 +417,9 @@ Because boundary samples are a subset of frame intervals, boundary hitch count m
 greater than the global hitch count and boundary maximum must not exceed `frame_interval.maximum_ms`.
 At an exactly serialized 50.000 ms boundary either hitch state is readable: the producer compares
 the hidden full-precision interval before writing three decimals.
+The boundary maximum must also fit at least one non-empty global histogram bucket. The shared
+0.0005 ms tolerance allows an exact serialized threshold to match either adjacent bucket, but not a
+value in the interior of a bucket whose count is zero.
 
 The detailed `district_load.samples` array is also authoritative rather than decorative. Its length
 must equal each of `district_world_physics_cpu`, `district_renderer_upload_cpu`, and

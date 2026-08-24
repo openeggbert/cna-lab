@@ -74,6 +74,8 @@ rather than being a one-time final check.
     a cross-bucket claim exits 2 and no capture was added.*
     *Boundary-subset follow-up: district-boundary hitch count/maximum cannot exceed global frame
     values; exact serialized 50.000 ms retains hidden-precision ambiguity. No capture was added.*
+    *Boundary-occupancy follow-up: boundary maximum must match a populated global pacing bucket;
+    an interior value in an empty bucket exits 2 and no capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

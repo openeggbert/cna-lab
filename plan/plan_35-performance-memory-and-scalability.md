@@ -34,6 +34,9 @@ Establish budgets and measure representative district workloads against the lock
   *Boundary-subset follow-up: district-boundary hitch count and maximum cannot exceed their global
   frame counterparts. Exact serialized 50.000 ms preserves either hidden-precision hitch state;
   two contradictions and one boundary case cover the rule.*
+  *Boundary-occupancy follow-up: a boundary maximum must match at least one populated global
+  histogram bucket. Threshold rounding may match either adjacent bucket; an interior value in an
+  empty bucket exits 2.*
 - [x] **IG-35-016 P1** — Create release performance reports against the locked minimum/recommended hardware targets. *(`scripts/performance_report.py` consumes one or more schema-8 captures and emits a deterministic Markdown summary with per-capture 30/60 FPS, CPU, RAM, complete-VRAM, district-load, hitch, exact requested/applied presentation, and file/session provenance. Qualification requires at least two mixed captures with distinct canonical contents and non-overlapping session intervals on explicitly declared single-line physical hardware plus one verified, cross-bundle inode-independent original/manifest/raw-artifact archive per enriched capture. Mixed runs must share exact resolution/timing/presentation/GPU-timer/workload/VRAM-tool policy and stored budgets must equal the locked evaluator constants. Copied/renamed/reformatted evidence, overlapping sessions, inconsistent policy, ambiguous/control-character identities, missing/mutated/reused sources, duplicate keys/non-standard numeric JSON, and output aliases that could overwrite evidence are rejected. Dynamic text/file names are escaped so they cannot alter Markdown/HTML structure.)*
   *Presentation-boundary follow-up: fixed proof text cannot claim physical vblank/compositor
   behavior, and unavailable reason must be empty exactly on successful apply. Three contradictory

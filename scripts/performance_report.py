@@ -881,6 +881,15 @@ def _validate_pacing_counter(
         )
 
 
+def _fits_histogram_bucket(value: float, bucket_index: int) -> bool:
+    lower, upper = HISTOGRAM_BUCKET_BOUNDS[bucket_index]
+    rounding_tolerance = 0.0005
+    return not (
+        (lower is not None and value < lower - rounding_tolerance)
+        or (upper is not None and value > upper + rounding_tolerance)
+    )
+
+
 def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
     if _single_line_string(capture, "frame_pacing", "scope") != FRAME_PACING_SCOPE:
         raise ReportError("frame_pacing.scope does not match schema-8 sampling scope")
@@ -954,12 +963,8 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
             if cumulative >= percentile_rank:
                 percentile_bucket = index
                 break
-        lower, upper = HISTOGRAM_BUCKET_BOUNDS[percentile_bucket]
         percentile = _number(capture, "measurements", "frame_interval", "p95_ms")
-        rounding_tolerance = 0.0005
-        if (lower is not None and percentile < lower - rounding_tolerance) or (
-            upper is not None and percentile > upper + rounding_tolerance
-        ):
+        if not _fits_histogram_bucket(percentile, percentile_bucket):
             raise ReportError(
                 "measurements.frame_interval.p95_ms does not fall in the frame-pacing "
                 "histogram bucket containing the nearest-rank p95 sample"
@@ -970,11 +975,8 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
             for index, bucket in enumerate(HISTOGRAM_BUCKETS)
             if counts[bucket] > 0
         )
-        lower, upper = HISTOGRAM_BUCKET_BOUNDS[maximum_bucket]
         maximum = _number(capture, "measurements", "frame_interval", "maximum_ms")
-        if (lower is not None and maximum < lower - rounding_tolerance) or (
-            upper is not None and maximum > upper + rounding_tolerance
-        ):
+        if not _fits_histogram_bucket(maximum, maximum_bucket):
             raise ReportError(
                 "measurements.frame_interval.maximum_ms does not fall in the highest "
                 "non-empty frame-pacing histogram bucket"
@@ -1045,6 +1047,14 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
         if maximum > frame_maximum:
             raise ReportError(
                 "district-transition boundary maximum_ms cannot exceed frame_interval.maximum_ms"
+            )
+        if not any(
+            counts[bucket] > 0 and _fits_histogram_bucket(maximum, index)
+            for index, bucket in enumerate(HISTOGRAM_BUCKETS)
+        ):
+            raise ReportError(
+                "district-transition boundary maximum_ms has no matching non-empty "
+                "frame-pacing histogram bucket"
             )
 
 

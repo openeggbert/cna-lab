@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 district-boundary maximum now requires a populated global frame bucket.** Subset count/max
+bounds alone still allowed a boundary duration in a bucket containing no frame samples.
+
+- The shared bucket predicate now validates p95, global maximum, and boundary maximum with the same
+  0.0005 ms serialization tolerance.
+- A 40 ms boundary with an empty 33.333–50 ms bucket exits 2. The existing exact-50.000 ms positive
+  case proves either adjacent populated bucket remains readable after full-precision rounding.
+- Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass; full isolated CTest
+  passes 8/8 with its smoke process inside Xvfb.
+
 **M12 district-boundary pacing is now validated as a subset of all frame intervals.** Boundary
 statistics could previously exceed the global histogram/maximum while remaining locally coherent.
 
