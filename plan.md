@@ -122,6 +122,9 @@ similar emulation core is permitted in the application, build, or test suite.
     selected icon, C does not leave Clock view, A+C from that view enters SET,
     C confirms back to Clock view, and B returns home. Initial SET starts the
     egg directly; A+C starts an end-screen egg while retaining the clock.
+  - [x] Preserve the original P1 Clock SET pause workaround: B opens Clock,
+    A+C enters SET, all simulation and presentation timers freeze there, and C
+    resumes without applying elapsed absence time.
   - [x] Reproduce the measured nominal ten-second home-icon selection timeout
     as programme display data, restart it after each A, and keep menu/action
     timing independent from this non-persisted UI timer.

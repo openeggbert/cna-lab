@@ -111,6 +111,14 @@ create a new egg after the end screen **without** resetting the established
 clock. Desktop shortcuts mirror those button combinations but do not introduce
 a fourth care action.
 
+Clock SET also reproduces the classic P1 pause workaround. Press B on a clear
+home LCD, hold A+C until `SET` appears, and leave the application running on
+that screen. Pet needs, growth, calls, the device clock, and visible animation
+phases remain frozen even over a long absence. Press C to keep the displayed
+time and resume, then B to return from the clock to the pet. This is reached
+through the same `A`, `B`, and `C` keyboard keys or the three shell buttons;
+there is no separate desktop-only pause control.
+
 The recessed pinhole at the lower-right of the shell simulates the original
 rear reset switch without making it an accidental fourth care control. Hold it
 with the mouse, or hold `R`, for about 1.5 seconds; the desktop guard then
@@ -123,6 +131,9 @@ Eight P1 pictograms sit *inside* the LCD in two permanent bands: four above
 the creature and four below it. Their placement, selection sequence, status
 pages, and care outcome follow the international P1 programme. An icon selected
 on the home LCD clears after the observed ten seconds without another A input.
+Dormant icons remain faintly legible, while the selected or urgent LCD segment
+turns fully black like the energised icon on the original P1; no added cursor
+or coloured selection tile obscures the pictogram.
 
 | Top band | Function | Behaviour |
 | --- | --- | --- |

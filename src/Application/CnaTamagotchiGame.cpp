@@ -142,20 +142,26 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const auto elapsedMilliseconds =
         gameTime.getElapsedGameTimeProperty().getTotalMillisecondsProperty();
     const float elapsedSeconds = static_cast<float>(elapsedMilliseconds) / 1000.0F;
-    backgroundTimeSeconds_ += elapsedSeconds;
-    if (feedbackSeconds_ > 0.0F) {
-        feedbackSeconds_ = std::max(0.0F, feedbackSeconds_ - elapsedSeconds);
-        if (feedbackSeconds_ == 0.0F) {
-            feedback_ = Feedback::None;
+    // The classic P1 pause trick is to leave the device in Clock SET after
+    // pressing A+C from the clock. Freeze presentation timers as well as the
+    // pet simulation so returning with C resumes the exact visible phase.
+    const bool clockSetPaused = screen_ == Screen::ClockSetup;
+    if (!clockSetPaused) {
+        backgroundTimeSeconds_ += elapsedSeconds;
+        if (feedbackSeconds_ > 0.0F) {
+            feedbackSeconds_ = std::max(0.0F, feedbackSeconds_ - elapsedSeconds);
+            if (feedbackSeconds_ == 0.0F) {
+                feedback_ = Feedback::None;
+            }
         }
-    }
-    if (transientVisual_ == TransientVisual::ToiletWipe) {
-        transientVisualSeconds_ += elapsedSeconds;
-        if (Display::P1ToiletWipe::complete(transientVisualSeconds_)) {
-            transientVisual_ = TransientVisual::None;
-            transientVisualSeconds_ = 0.0F;
-            selectedIcon_ = -1;
-            iconSelectionSeconds_ = 0.0F;
+        if (transientVisual_ == TransientVisual::ToiletWipe) {
+            transientVisualSeconds_ += elapsedSeconds;
+            if (Display::P1ToiletWipe::complete(transientVisualSeconds_)) {
+                transientVisual_ = TransientVisual::None;
+                transientVisualSeconds_ = 0.0F;
+                selectedIcon_ = -1;
+                iconSelectionSeconds_ = 0.0F;
+            }
         }
     }
 
@@ -1096,9 +1102,12 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // The eight original face pictograms are normalised into equal transparent
-    // cells. The atlas contains black RGB plus alpha only; no cell background
-    // can cover the independently coloured LCD bands.
+    // A real P1 selects an icon by energising that LCD segment: the chosen
+    // pictogram becomes fully black, without a modern box, outline, or cursor.
+    // Keep dormant segments faintly visible here so all eight controls remain
+    // legible on a desktop display, while retaining the same strong on/off
+    // contrast. The atlas is black plus alpha, so tint alpha alone controls
+    // the apparent LCD density without introducing a coloured cell background.
     for (int index = 0; index < IconCount; ++index) {
         const int slot = index % 4;
         const bool topBand = index < 4;
@@ -1109,20 +1118,15 @@ void CnaTamagotchiGame::drawDevice()
         const Rectangle source(slot * IconAtlasCellWidth, (index / 4) * IconAtlasCellHeight,
             IconAtlasCellWidth, IconAtlasCellHeight);
         const Rectangle destination(iconX, iconY, IconDrawWidth, IconDrawHeight);
-        spriteBatch_->Draw(*iconAtlasTexture_, destination, source, lcdOn);
 
         const bool urgent = (index == 3 && pet_.sick)
             || (index == 4 && pet_.wasteCount > 0)
             || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
-        if (index == selectedIcon_ || urgent) {
-            if (topBand) {
-                drawRect(Rectangle(iconX + 17, bandY + IconBandHeight - 5, 6, 2), lcdOn);
-                drawRect(Rectangle(iconX + 19, bandY + IconBandHeight - 3, 2, 2), lcdOn);
-            } else {
-                drawRect(Rectangle(iconX + 19, bandY + 1, 2, 2), lcdOn);
-                drawRect(Rectangle(iconX + 17, bandY + 3, 6, 2), lcdOn);
-            }
-        }
+        const bool energised = index == selectedIcon_ || urgent;
+        constexpr std::uint8_t DormantIconOpacity = 58U;
+        const Color iconTint(255, 255, 255,
+            energised ? 255 : static_cast<int>(DormantIconOpacity));
+        spriteBatch_->Draw(*iconAtlasTexture_, destination, source, iconTint);
     }
 
     // Controls are rendered last so their moulded rims sit above the body.

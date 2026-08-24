@@ -55,6 +55,14 @@ write and verify the clean implementation.
   contained only the already transcribed two stable Marutchi silhouettes.
   A six-state normal-scale CNA run confirmed Clock → C/Clock → SET → C/Clock
   → B/Home with the corrected implementation.
+- Clock SET is also the user-facing P1 pause workaround: with the application
+  left running on SET, the simulation, clock, UI timeouts, action visuals, and
+  animation phase all remain frozen until C resumes. README and the web FAQ
+  document the exact keyboard/shell sequence B, A+C, C, B.
+- P1 ROM observation confirmed that selection energises the pictogram itself;
+  it does not add a cursor or a modern highlight tile. The renderer therefore
+  keeps dormant desktop icons faint, renders selected/urgent icons fully dark,
+  and no longer draws the small triangular cursor.
 - The hand-drawn device treatment now uses the selected reference's turquoise
   shell family and yellow buttons. It was inspected on a separate Xvfb screen;
   its colours and geometry are authored C++ values, with no reference image
