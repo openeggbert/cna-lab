@@ -41,6 +41,12 @@ endif()
 # The framework's own samples/tests are not part of this game's build.
 set(CNA_BUILD_TESTS OFF CACHE BOOL "Build CNA tests" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "Build CNA examples" FORCE)
+# The P1 desktop device has no network, CNAEXT, or device/sensor integration.
+# Set all three explicitly before CNA is added so a framework default cannot
+# pull ENet or optional extension targets into this application's closure.
+set(CNA_ENABLE_NET OFF CACHE BOOL "Build CNA networking" FORCE)
+set(CNA_CNAEXT OFF CACHE BOOL "Enable CNA extended graphics layer" FORCE)
+set(CNA_DEVICES OFF CACHE BOOL "Enable CNA device and sensor extensions" FORCE)
 # The game has no glTF content path, so do not build CNA's optional Draco
 # decoder and its encoder-side dependency graph.
 set(CNA_ENABLE_DRACO OFF CACHE BOOL "Build CNA glTF Draco decoder" FORCE)

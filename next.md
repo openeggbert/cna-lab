@@ -22,7 +22,10 @@ write and verify the clean implementation.
   modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
   `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
   chosen renderer rather than CNA's compatibility umbrella. The explicit
-  sharp-runtime closure and `CNA_ENABLE_DRACO=OFF` are intentional.
+  sharp-runtime closure and `CNA_ENABLE_DRACO=OFF` are intentional. CNA's
+  current `Runtime` target owns graphics/input/content/audio/media as one API
+  closure; this game disables the genuinely unused network/ENet, CNAEXT, and
+  device-extension branches before CNA is added.
 - Both supported modular renderer presets configure and build: SDL also passes
   all nine CTest tests with `--parallel 2`, and a fresh HEADLESS application
   build completed on 2026-08-24. Keep the two-job ceiling. This runner can

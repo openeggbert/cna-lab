@@ -25,7 +25,7 @@ similar emulation core is permitted in the application, build, or test suite.
   - Update the integration for the current modular `../cna` and
     `../sharp-runtime`: link `CNA::Runtime` plus only the selected renderer,
     provide the required sharp-runtime component closure, and disable the
-    unused Draco path.
+    unused networking, CNAEXT, device-extension, and Draco paths.
 
 - [x] **2. P1 target decision**
   - Select international P1 (1997), rather than P2 or a hybrid.
