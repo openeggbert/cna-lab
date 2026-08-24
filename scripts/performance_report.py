@@ -84,6 +84,23 @@ GPU_TIMING_SCOPE = "draw_commands_excluding_present"
 SWAP_INTERVAL_PROOF = (
     "platform SetSwapInterval acknowledgement; not physical vblank or compositor proof"
 )
+NATIVE_WINDOW_PROOF = (
+    "CNA native-window handle classification; not physical display, vblank, or compositor proof"
+)
+NATIVE_WINDOW_SYSTEMS = frozenset(
+    {
+        "Unknown",
+        "Win32",
+        "X11",
+        "Wayland",
+        "Cocoa",
+        "Android",
+        "Web",
+        "Headless",
+        "Terminal",
+    }
+)
+NATIVE_WINDOW_CAPABLE_SYSTEMS = frozenset({"Win32", "X11", "Wayland", "Cocoa", "Android"})
 FRAME_PACING_SCOPE = (
     "wall-clock intervals between consecutive BeginFrame calls; the first frame establishes a "
     "baseline and has no sample"
@@ -583,6 +600,25 @@ def swap_interval_acknowledged(capture: dict[str, Any]) -> bool:
     else:
         _single_line_text(reason, "swap_interval.unavailable_reason")
     return result_known and apply_succeeded is True
+
+
+def native_window_evidence(capture: dict[str, Any]) -> tuple[str, bool] | None:
+    """Validate additive schema-8 native-window evidence, if this capture contains it."""
+    if "native_window" not in capture:
+        return None
+    raw = capture["native_window"]
+    native_window = _mapping(raw, "native_window")
+    system = _single_line_string(native_window, "system")
+    if system not in NATIVE_WINDOW_SYSTEMS:
+        raise ReportError(f"native_window.system has unknown CNA value {system!r}")
+    available = _boolean(native_window, "available")
+    if available and system not in NATIVE_WINDOW_CAPABLE_SYSTEMS:
+        raise ReportError(
+            "native_window.available cannot be true for a CNA system without a native window"
+        )
+    if _single_line_string(native_window, "proof") != NATIVE_WINDOW_PROOF:
+        raise ReportError("native_window.proof does not match schema-8 evidence scope")
+    return system, available
 
 
 def _require_schema_number(
@@ -1275,6 +1311,7 @@ def load_capture(path: Path) -> dict[str, Any]:
     validate_workloads(capture)
     validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
+    native_window_evidence(capture)
     validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)
     return capture
@@ -1328,6 +1365,14 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
 
     if not swap_interval_acknowledged(capture):
         blockers.append(prefix + "requested swap interval lacks a successful platform acknowledgement")
+
+    native_window = native_window_evidence(capture)
+    if native_window is None:
+        blockers.append(prefix + "capture lacks machine-readable native-window evidence")
+    elif not native_window[1]:
+        blockers.append(
+            prefix + f"CNA reports no usable native graphical window ({native_window[0]})"
+        )
 
     frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
     frame_p95 = _number(capture, "measurements", "frame_interval", "p95_ms")
@@ -1402,6 +1447,17 @@ def qualification_repeatability_blockers(
                     f"{candidate_path.name}: repeatability policy does not match "
                     f"{reference_path.name} at {'.'.join(policy_path)}"
                 )
+        reference_native_window = native_window_evidence(reference)
+        candidate_native_window = native_window_evidence(candidate)
+        if (
+            reference_native_window is not None
+            and candidate_native_window is not None
+            and reference_native_window != candidate_native_window
+        ):
+            blockers.append(
+                f"{candidate_path.name}: repeatability policy does not match "
+                f"{reference_path.name} at native_window"
+            )
     for left_index, (left_path, left) in enumerate(mixed):
         for right_path, right in mixed[left_index + 1 :]:
             if _capture_sessions_overlap(left, right):
@@ -1547,8 +1603,8 @@ def build_markdown(
             "",
             "## Capture summary",
             "",
-            "| Capture | Scenario | Resolution | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap ack | Local result |",
-            "| --- | --- | ---: | ---: | :---: | :---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
+            "| Capture | Scenario | Resolution | Native window | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap ack | Local result |",
+            "| --- | --- | ---: | --- | ---: | :---: | :---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
         ]
     )
     for path, capture, local_blockers in zip(capture_paths, captures, per_capture_blockers):
@@ -1574,6 +1630,12 @@ def build_markdown(
         vram = _number(capture, "video_memory", "tracked_bytes")
         vram_complete = _boolean(capture, "video_memory", "tracking_complete")
         swap_ack = swap_interval_acknowledged(capture)
+        native_window = native_window_evidence(capture)
+        native_window_text = (
+            "—"
+            if native_window is None
+            else f"{native_window[0]} / {'yes' if native_window[1] else 'no'}"
+        )
         minimum_pass = _boolean(capture, "checks", "minimum_frame_rate_pass")
         recommended = (
             width >= RECOMMENDED_WIDTH
@@ -1582,7 +1644,7 @@ def build_markdown(
         )
         lines.append(
             f"| {_markdown_code(path.name)} | {_escape(_path(capture, 'scenario'))} | "
-            f"{width}x{height} | "
+            f"{width}x{height} | {_escape(native_window_text)} | "
             f"{frame_p95:.3f} ms | {'yes' if minimum_pass else 'no'} | "
             f"{'yes' if recommended else 'no'} | {cpu_p95} ms | {gpu_present} | {load_text} | "
             f"{hitches} | {severe} | {boundary_text} | "
@@ -1601,9 +1663,10 @@ def build_markdown(
             "| CPU p95 | update 8 ms; physics 3 ms; AI 2 ms; audio 1 ms; render 8 ms | Same first-district guardrails |",
             "| Memory | <=2 GiB resident RAM; <=512 MiB complete VRAM | <=4 GiB RAM; <=1 GiB VRAM target hardware |",
             "| District transition | <=1000 ms p95 in at least two mixed captures | Same budget |",
-            "| Presentation evidence | Successful platform swap-interval acknowledgement | Controlled physical vblank/compositor |",
+            "| Presentation evidence | Usable CNA native window and successful platform swap-interval acknowledgement | Controlled physical vblank/compositor |",
             "",
-            "The report generator never promotes an unlabelled capture, virtual/offscreen/headless "
+            "The report generator never promotes a capture without a usable machine-reported "
+            "native window, an unlabelled capture, virtual/offscreen/headless "
             "presentation, software rasterization, or incomplete VRAM accounting to a qualifying "
             "pass.",
             "The provenance hashes identify the exact files read; qualifying bundle hashes were also reconstructed and verified before evaluation.",

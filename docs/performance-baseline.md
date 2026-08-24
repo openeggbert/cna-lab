@@ -1028,3 +1028,22 @@ Key hashes:
 
 The memory tracker and its real-flow integration are now implemented and proven. M12 itself remains
 open because an offscreen surface cannot establish the required physical display/vblank behavior.
+
+## 2026-08-24 — machine-readable native-window classification
+
+The schema-8 producer now records CNA's native-window system and whether its typed native handle is
+usable. This closes a classification weakness in the prior policy: a label containing `offscreen`
+was rejected, but the capture itself could not disprove a misleading physical-display label.
+Older diagnostics remain readable; qualification now requires the additive evidence to be present
+and `available:true`. The proof text explicitly excludes physical-display, vblank, and compositor
+claims because an X11 or Wayland handle alone cannot establish them.
+
+A 30-draw EasyGL `idle` validation used the AMD Radeon 780M with
+`SDL_VIDEODRIVER=offscreen`, dummy audio, and both visible-display environment variables removed.
+OpenGL ES 3.2 initialized and `SetSwapInterval(0)` succeeded, while the new block independently
+reported `system: Headless` and `available: false`. A diagnostic report whose hardware label was
+deliberately changed to `AMD Radeon 780M physical-display claim` still emitted
+`CNA reports no usable native graphical window (Headless)`. Exact hashes are
+`dd680607af0f2da4c43c2e153e22b8478ed3a9450c426e3299ec0df70185544c` for the capture and
+`9bb7b2bfa4da9aff1019cea0b9e3411d670f76604e8e12555a10b7e4752e568d` for the report.
+No visible window or qualifying physical-display evidence was created.

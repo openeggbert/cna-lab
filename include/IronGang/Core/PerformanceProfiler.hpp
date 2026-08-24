@@ -221,6 +221,8 @@ namespace IronGang
         int height{0};
         bool verticalSyncRequested{true};
         int requestedSwapInterval{1};
+        std::string nativeWindowSystem{"Unknown"};
+        bool nativeWindowAvailable{false};
         bool swapIntervalApplyResultKnown{false};
         bool swapIntervalApplySucceeded{false};
         std::optional<int> appliedSwapInterval;

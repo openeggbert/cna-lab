@@ -170,6 +170,14 @@ def capture_fixture() -> dict:
             "fixed_timestep": True,
             "target_frame_ms": 16.667,
         },
+        "native_window": {
+            "system": "X11",
+            "available": True,
+            "proof": (
+                "CNA native-window handle classification; not physical display, vblank, or "
+                "compositor proof"
+            ),
+        },
         "swap_interval": {
             "requested": 1,
             "apply_result_known": True,
@@ -511,6 +519,13 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("report title must be a single printable line", result.stderr)
 
+        legacy = capture_fixture()
+        legacy.pop("native_window")
+        result = self.run_report([legacy], "Legacy diagnostic hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
+        self.assertIn("lacks machine-readable native-window evidence", result.stdout)
+
     def test_two_complete_physical_captures_pass(self) -> None:
         first = capture_fixture()
         second = independent_capture_fixture()
@@ -543,6 +558,21 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("diagnostic software/virtual display", result.stdout)
+
+        machine_headless_first = capture_fixture()
+        machine_headless_second = independent_capture_fixture()
+        for capture in (machine_headless_first, machine_headless_second):
+            capture["native_window"]["system"] = "Headless"
+            capture["native_window"]["available"] = False
+        result = self.run_report(
+            [machine_headless_first, machine_headless_second],
+            "AMD Radeon 780M physical-display claim",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("CNA reports no usable native graphical window (Headless)", result.stdout)
+        self.assertNotIn("diagnostic software/virtual display", result.stdout)
 
         short_capture = deepcopy(first)
         short_capture["measurements"]["frame_interval"]["samples"] = 4
@@ -1176,6 +1206,18 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_swap_proof], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("swap_interval.proof does not match", result.stderr)
+
+        bad_native_window_proof = capture_fixture()
+        bad_native_window_proof["native_window"]["proof"] = "physical display proven"
+        result = self.run_report([bad_native_window_proof], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("native_window.proof does not match", result.stderr)
+
+        contradictory_native_window = capture_fixture()
+        contradictory_native_window["native_window"]["system"] = "Headless"
+        result = self.run_report([contradictory_native_window], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("native_window.available cannot be true", result.stderr)
 
         successful_swap_with_reason = capture_fixture()
         successful_swap_with_reason["swap_interval"]["unavailable_reason"] = "contradiction"

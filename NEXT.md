@@ -67,6 +67,26 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 profiles now carry machine-readable native-window evidence.** Hardware-label filtering alone
+could reject an honestly named offscreen run, but it could not detect an offscreen capture renamed
+as a physical display. The schema-8 producer now writes CNA's native-window system and validated
+handle availability without claiming physical-display, vblank, or compositor proof.
+
+- New profiles contain `native_window.system`, `available`, and a fixed conservative `proof`.
+  `performance_report.py` requires a usable native graphical window for qualification, displays the
+  evidence in each capture row, and keeps older schema-8 diagnostics readable while blocking their
+  promotion. Qualifying comparisons enforce the same rule and require both runs to agree.
+- A real 30-draw AMD Radeon 780M EasyGL run with `SDL_VIDEODRIVER=offscreen`, no `DISPLAY` or
+  `WAYLAND_DISPLAY`, and no visible window reported `Headless / false`. Its swap interval was still
+  acknowledged, proving the two checks are independent. Even under the deliberately misleading
+  label `AMD Radeon 780M physical-display claim`, the report adds the machine-derived blocker.
+  Capture/report hashes are `dd680607…85544c` and `9bb7b2bf…e568d`.
+- An isolated Xvfb integration independently reports `X11 / true`; its profile hash is
+  `eccd9860…31943`. Report 7/7, comparator 7/7, full isolated CTest 8/8, syntax validation, and the
+  EasyGL C++ build pass. This closes an
+  evidence-classification gap; it does not prove that X11/Wayland reaches a physical display, and
+  it adds no qualifying physical capture. M12 remains open.
+
 **M12 now has two full-window hardware-GL/offscreen captures with complete DRM residency.** Both
 independent Release EasyGL `mixed --smoke 900` runs use the real AMD Radeon 780M without opening a
 window, supply the full 899-interval window, and pass every direct minimum budget.
@@ -1665,6 +1685,8 @@ remaining code-side residency seam is now closed by the external complete-reside
 contract; do not duplicate the CNJ buffer/texture, GPU timer, render-workload, swap-acknowledgement,
 or evidence-binding work now completed. The next
 physical-hardware capture should first require `swap_interval.apply_succeeded`, then use
+the capture's `native_window.available=true` evidence (while remembering that X11/Wayland alone is
+not proof of a physical monitor), then use
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside

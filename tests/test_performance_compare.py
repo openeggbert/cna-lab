@@ -47,6 +47,14 @@ def capture_fixture() -> dict:
             "fixed_timestep": True,
             "target_frame_ms": 16.667,
         },
+        "native_window": {
+            "system": "X11",
+            "available": True,
+            "proof": (
+                "CNA native-window handle classification; not physical display, vblank, or "
+                "compositor proof"
+            ),
+        },
         "swap_interval": {
             "requested": 1,
             "apply_result_known": True,
@@ -397,6 +405,12 @@ class PerformanceCompareTests(unittest.TestCase):
 
     def test_changed_budget_and_measurement_availability_are_refused(self) -> None:
         baseline = capture_fixture()
+        candidate = deepcopy(baseline)
+        candidate["native_window"]["proof"] = "physical display proven"
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("native_window.proof does not match", result.stderr)
+
         candidate = deepcopy(baseline)
         candidate["budgets"]["minimum_frame_p95_ms"] = 40.0
         result = self.run_compare(baseline, candidate)

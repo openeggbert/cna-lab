@@ -310,6 +310,17 @@ The fixed `proof` text must continue to say this is only platform `SetSwapInterv
 not physical vblank/compositor proof. Successful apply has an empty `unavailable_reason`; failed or
 unknown apply requires a printable non-empty reason.
 
+Current schema-8 producers also emit an additive `native_window` object. `system` is CNA's stable
+native-window discriminator (`Win32`, `X11`, `Wayland`, `Cocoa`, `Android`, `Web`, `Headless`,
+`Terminal`, or `Unknown`), and `available` is CNA's validation of the fields required by that
+system. Its fixed proof text is
+`CNA native-window handle classification; not physical display, vblank, or compositor proof`.
+This is deliberately separate from swap acknowledgement: a real GPU offscreen context can accept
+`SetSwapInterval` while reporting `Headless` and no native window. Older schema-8 diagnostics that
+predate the additive object remain readable, but neither missing evidence nor `available:false`
+can qualify. Conversely, `X11`/`Wayland` availability proves only a usable native handle; the
+controlled physical display/compositor identity remains part of the archived operator evidence.
+
 JSON schema 4 makes district loading a per-transition record instead of one opaque stopwatch.
 `district_world_physics_cpu` covers destruction of the old static bodies, construction/activation
 of the target procedural world, target static-body creation, and (for an exit-trigger transition)
@@ -677,8 +688,9 @@ canonical performance contents, and write the release artifact:
   runtime/performance/m12-mixed-02-complete.json
 ```
 
-`--qualifying-hardware` is an operator assertion, not automatic hardware detection. The generator
-still rejects labels identifying Xvfb/llvmpipe/software rasterization or
+`--qualifying-hardware` is an operator assertion, not automatic physical-monitor detection. The
+generator also requires the capture's machine-readable CNA native-window evidence to be present and
+usable, and still rejects labels identifying Xvfb/llvmpipe/software rasterization or
 offscreen/headless/surfaceless presentation and requires Release
 OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
 known RAM, complete VRAM accounting within budget, and a real passing district transition in each

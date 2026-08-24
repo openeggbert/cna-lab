@@ -1084,6 +1084,8 @@ namespace
         context.height = 720;
         context.verticalSyncRequested = false;
         context.requestedSwapInterval = 0;
+        context.nativeWindowSystem = "X11";
+        context.nativeWindowAvailable = true;
         context.swapIntervalApplyResultKnown = true;
         context.swapIntervalApplySucceeded = true;
         context.appliedSwapInterval = 0;
@@ -1188,6 +1190,11 @@ namespace
                     report.find("\"apply_succeeded\": true, \"applied\": 0") != std::string::npos &&
                     report.find("not physical vblank or compositor proof") != std::string::npos,
                 "performance report must separate platform swap acknowledgement from vblank proof");
+        Require(report.find("\"native_window\": {\"system\": \"X11\", \"available\": true") !=
+                        std::string::npos &&
+                    report.find("CNA native-window handle classification; not physical display, vblank, or compositor proof") !=
+                        std::string::npos,
+                "performance report must expose machine-readable native-window availability without claiming a physical display");
         Require(report.find("\"minimum_frame_rate_pass\": true") != std::string::npos,
                 "19ms p95 must pass the 30 FPS minimum budget");
         Require(report.find("\"recommended_frame_rate_pass\": false") != std::string::npos,

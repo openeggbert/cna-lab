@@ -68,6 +68,11 @@ rather than being a one-time final check.
     *Process-identity follow-up: capture-session and external-manifest executable values must be a
     printable single line before basename normalization. Newline-prefixed `iron_gang` paths exit 2;
     no capture was added.*
+    *Native-window follow-up: new schema-8 captures record CNA's native-window system and validated
+    handle availability with proof text that explicitly excludes physical-display/vblank claims.
+    Missing or unavailable evidence blocks qualification, and qualifying comparisons require both
+    runs to agree. A real AMD offscreen run reported `Headless/false` and remained blocked even under
+    a misleading physical-display hardware label; no visible window or physical capture was added.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

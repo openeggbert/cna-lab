@@ -6,6 +6,7 @@
 #include "IronGang/UI/DistrictMap.hpp"
 
 #include "CNA/Platform/IPlatform.hpp"
+#include "CNA/Platform/NativeWindowHandle.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Content/ContentManager.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
@@ -190,6 +191,10 @@ namespace IronGang
         context.height = kBackBufferHeight;
         context.verticalSyncRequested = graphicsDeviceManager_->getSynchronizeWithVerticalRetraceProperty();
         context.requestedSwapInterval = context.verticalSyncRequested ? 1 : 0;
+        const CNA::Platform::NativeWindowHandle nativeWindow =
+            getWindowProperty().GetNativeWindowHandleEXT();
+        context.nativeWindowSystem = CNA::Platform::ToString(nativeWindow.system);
+        context.nativeWindowAvailable = CNA::Platform::HasNativeWindow(nativeWindow);
         context.swapIntervalApplyResultKnown = swapIntervalApplyResultKnown_;
         context.swapIntervalApplySucceeded = swapIntervalApplySucceeded_;
         context.appliedSwapInterval = appliedSwapInterval_;

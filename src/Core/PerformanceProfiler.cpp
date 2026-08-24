@@ -731,6 +731,10 @@ namespace IronGang
                    << (context.verticalSyncRequested ? "true" : "false")
                    << ", \"fixed_timestep\": " << (context.fixedTimeStep ? "true" : "false")
                    << ", \"target_frame_ms\": " << context.targetFrameMilliseconds << "},\n"
+                   << "  \"native_window\": {\"system\": \""
+                   << EscapeJson(context.nativeWindowSystem) << "\", \"available\": "
+                   << (context.nativeWindowAvailable ? "true" : "false")
+                   << ", \"proof\": \"CNA native-window handle classification; not physical display, vblank, or compositor proof\"},\n"
                    << "  \"swap_interval\": {\"requested\": " << context.requestedSwapInterval
                    << ", \"apply_result_known\": "
                    << (context.swapIntervalApplyResultKnown ? "true" : "false")

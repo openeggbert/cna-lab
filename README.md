@@ -133,7 +133,11 @@ kernel-interface scope are documented in
 Two no-window AMD Radeon 780M/OPENGLES3 900-draw `mixed` integrations have each produced and
 verified a 55.57 MiB complete DRM peak while passing every direct minimum budget. They remain
 diagnostic because offscreen presentation is not a physical display/vblank path. The release tools
-explicitly refuse offscreen/headless/surfaceless labels as qualifying hardware.
+explicitly refuse offscreen/headless/surfaceless labels as qualifying hardware. New schema-8
+profiles also record CNA's machine-readable native-window system and validated handle availability;
+qualification requires a usable native graphical window, so a `Headless` offscreen run cannot be
+promoted merely by giving it a physical-sounding hardware label. This remains a conservative
+window-handle check, not proof that X11 or Wayland reaches a physical monitor.
 
 When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
 profiler, bind its raw artifact and manifest to the original profile without overwriting it:
@@ -298,6 +302,8 @@ report generation.
 Presentation acknowledgement is also schema-checked: `swap_interval.requested` must be 0 or 1,
 must agree with `timing.vertical_sync_requested`, and a successful `applied` value must exactly
 equal the request. Inconsistent hand-edited captures are rejected rather than promoted.
+New captures additionally carry `native_window.system`, `available`, and a fixed proof string.
+Older schema-8 diagnostics without the additive block remain readable but cannot qualify.
 Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
 severe counts and percentages, and district-boundary counts must agree with the underlying bucket
 and district-load sample counts. Every measurement also enforces coherent zero/one-sample and
