@@ -95,12 +95,15 @@ void testEggKeepsItsObservedP1Silhouette()
 
     // This is a hand transcription of a visual P1 LCD observation, rather
     // than data imported from a ROM or another emulator implementation.
-    expect(egg.idleFrame(0).rows[0] == "......##........",
-        "the P1 egg must retain its observed two-pixel crown");
-    expect(egg.idleFrame(0).rows[4] == ".##.##.#####....",
+    expect(egg.idleFrame(0).originX == 8 && egg.idleFrame(0).originY == 2
+            && egg.idleFrame(0).rowCount == 11U,
+        "the observed P1 egg phase must retain its larger true LCD bounds");
+    expect(egg.idleFrame(0).rows[0] == ".....####.......",
+        "the P1 egg must retain its observed four-pixel crown");
+    expect(egg.idleFrame(0).rows[5] == "..####..####....",
         "the P1 egg must retain its asymmetric middle crack");
-    expect(egg.idleFrame(0).rows[9] == "..##########....",
-        "the P1 egg must retain its wide lower shell");
+    expect(egg.idleFrame(0).rows[10] == "....#######.....",
+        "the P1 egg must retain its observed lower shell");
 }
 
 } // namespace
