@@ -90,6 +90,8 @@ rather than being a one-time final check.
     *Comparison-window follow-up: the same floor applies to both sides of a qualifying comparison;
     a rebound four-interval candidate exits 2 while diagnostic comparison stays flexible. No
     physical capture was added.*
+    *Canonical-token follow-up: machine UTC/source/scope/artifact-name/SHA strings must be unpadded
+    exact encodings. Six whitespace aliases exit 2; no physical evidence was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 machine-readable evidence tokens are now canonical, not silently trimmed.** UTC timestamps,
+external measurement scope/source, SHA-256 fields, and the raw-artifact file name could carry
+leading/trailing whitespace while validators compared only their stripped values.
+
+- UTC parsing now matches the raw JSON string exactly. Machine scope/source and artifact names are
+  printable single lines without padding; SHA-256 values must be exactly 64 lowercase hex digits.
+- Report coverage rejects a padded capture timestamp and embedded artifact digest. VRAM coverage
+  independently rejects padded manifest scope, profile digest, artifact name, and timestamp.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained diagnostics, and diagnostic self-comparison
+  pass; full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
 **M12 qualifying comparisons now enforce the representative sample window too.** The release report
 rejected short `mixed` evidence, but the comparator's `qualifying` kind previously checked archives,
 hardware, presentation, RAM/VRAM, and chronology without applying that sample floor.

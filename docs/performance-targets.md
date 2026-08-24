@@ -545,6 +545,12 @@ inode identity: a hardlink cannot fill two evidence roles. The raw artifact must
 regular file. Binding also refuses an output path that equals or hardlinks any source, preserving
 the archive inputs; verification is read-only.
 
+Machine-readable archive tokens are canonical raw JSON strings rather than trim-normalized aliases.
+Capture/evidence UTC strings must match the documented UTC grammar without surrounding whitespace;
+the external source/scope and artifact file name are unpadded printable single lines; and every
+embedded or manifest SHA-256 is exactly 64 lowercase hexadecimal digits. Human-facing hardware and
+tool labels retain their documented trimmed single-line behavior.
+
 This contract binds evidence; it does not certify a profiler's semantics or fabricate a
 measurement. `apitrace`, adapter-global free-memory queries, Xvfb/llvmpipe, and a hand-authored
 manifest without an authoritative complete-residency artifact remain non-qualifying. Archive the

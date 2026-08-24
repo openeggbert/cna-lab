@@ -646,6 +646,20 @@ remains intentionally flexible: the retained 539-interval Xvfb self-comparison s
 `NO REGRESSION`. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
 evidence was added.
 
+## 2026-08-24 — canonical evidence token encoding
+
+The shared loader and VRAM binder no longer trim machine-readable evidence before validating it.
+UTC timestamps must match their raw JSON text exactly; external source/scope and artifact file names
+must be unpadded printable single lines; and SHA-256 tokens must be exactly 64 lowercase hexadecimal
+characters. This removes semantically equivalent but byte-distinct spellings from the archive
+contract while preserving trim normalization for human hardware/tool labels.
+
+Report cases reject a padded capture timestamp and embedded artifact digest. VRAM cases independently
+reject padded manifest scope, profile digest, artifact name, and timestamp. Report 7/7, comparator
+7/7, VRAM 6/6, both retained diagnostics, and the retained diagnostic self-comparison pass without
+launching the game. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
+evidence was added.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID

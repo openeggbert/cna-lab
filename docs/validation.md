@@ -312,6 +312,12 @@ before metric comparison, then restores the full candidate for its remaining arc
 Focused suites pass 7/7, 7/7, and 6/6; the retained short Xvfb diagnostic self-comparison remains
 `NO REGRESSION`. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
 
+Machine evidence strings are now canonical at their raw JSON boundary. UTC values, external
+source/scope, artifact file name, and SHA-256 tokens no longer gain validity from trimming. Padded
+capture time/embedded digest report cases and padded scope/profile digest/artifact name/evidence time
+VRAM cases all exit 2. Focused suites pass 7/7, 7/7, and 6/6; both retained diagnostics and their
+diagnostic self-comparison pass. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
 Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
 synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
 at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces

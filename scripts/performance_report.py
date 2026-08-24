@@ -425,9 +425,26 @@ def _single_line_string(value: dict[str, Any], *keys: str) -> str:
     return _single_line_text(_non_empty_string(value, *keys), ".".join(keys))
 
 
+def _canonical_single_line_string(value: dict[str, Any], *keys: str) -> str:
+    raw = _path(value, *keys)
+    normalized = _single_line_string(value, *keys)
+    if raw != normalized:
+        raise ReportError(
+            f"{'.'.join(keys)} must not have leading or trailing whitespace"
+        )
+    return normalized
+
+
+def _sha256_string(value: dict[str, Any], *keys: str) -> str:
+    digest = _path(value, *keys)
+    if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
+        raise ReportError(f"{'.'.join(keys)} must be lowercase SHA-256")
+    return digest
+
+
 def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
-    text = _non_empty_string(value, *keys)
-    if UTC_TIMESTAMP_PATTERN.fullmatch(text) is None:
+    text = _path(value, *keys)
+    if not isinstance(text, str) or UTC_TIMESTAMP_PATTERN.fullmatch(text) is None:
         raise ReportError(
             f"{'.'.join(keys)} must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z UTC format"
         )
@@ -1096,9 +1113,12 @@ def validate_complete_vram_evidence(
     )
     if _integer(evidence, "schema_version") != 1:
         raise ReportError("video_memory.complete_evidence.schema_version must be 1")
-    if _non_empty_string(evidence, "source") != "external_capture":
+    if _canonical_single_line_string(evidence, "source") != "external_capture":
         raise ReportError("video_memory.complete_evidence.source must be external_capture")
-    if _non_empty_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
+    if (
+        _canonical_single_line_string(evidence, "measurement_scope")
+        != COMPLETE_VRAM_SCOPE
+    ):
         raise ReportError(
             "video_memory.complete_evidence.measurement_scope must be " + COMPLETE_VRAM_SCOPE
         )
@@ -1125,15 +1145,9 @@ def validate_complete_vram_evidence(
             "externally measured complete residency"
         )
     for key in ("profile_capture_sha256", "evidence_manifest_sha256"):
-        digest = _non_empty_string(evidence, key)
-        if SHA256_PATTERN.fullmatch(digest) is None:
-            raise ReportError(f"video_memory.complete_evidence.{key} must be lowercase SHA-256")
-    _non_empty_string(evidence, "source_artifact", "file_name")
-    source_digest = _non_empty_string(evidence, "source_artifact", "sha256")
-    if SHA256_PATTERN.fullmatch(source_digest) is None:
-        raise ReportError(
-            "video_memory.complete_evidence.source_artifact.sha256 must be lowercase SHA-256"
-        )
+        _sha256_string(evidence, key)
+    _canonical_single_line_string(evidence, "source_artifact", "file_name")
+    _sha256_string(evidence, "source_artifact", "sha256")
     if hardware is not None and evidence_hardware != hardware.strip():
         raise ReportError(
             "external VRAM evidence hardware identity does not match the report hardware label"

@@ -431,6 +431,33 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("measurement_scope must be complete_process_gpu_residency_peak", result.stderr)
 
             evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["measurement_scope"] = " complete_process_gpu_residency_peak"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "measurement_scope must not have leading or trailing whitespace",
+                result.stderr,
+            )
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["profile_capture_sha256"] = " " + evidence["profile_capture_sha256"]
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("profile_capture_sha256 must be lowercase SHA-256", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["source_artifact"]["file_name"] += " "
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "source_artifact.file_name must not have leading or trailing whitespace",
+                result.stderr,
+            )
+
+            evidence = evidence_fixture(capture_path, artifact_path)
             evidence["hardware_identity"] = "Evidence GPU\nInjected identity"
             evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
             result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
@@ -448,6 +475,7 @@ class VramEvidenceTests(unittest.TestCase):
                 "2026-08-24Z",
                 "2026-08-24 10:00:00Z",
                 "2026-08-24T10:00:00.1234567Z",
+                " 2026-08-24T10:00:00Z",
             ):
                 with self.subTest(invalid_timestamp=invalid_timestamp):
                     evidence = evidence_fixture(capture_path, artifact_path)

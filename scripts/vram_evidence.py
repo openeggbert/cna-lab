@@ -16,10 +16,11 @@ from performance_report import (
     COMPLETE_VRAM_COVERAGE,
     COMPLETE_VRAM_SCOPE,
     ReportError,
+    _canonical_single_line_string,
     _integer,
     _mapping,
-    _non_empty_string,
     _same_file,
+    _sha256_string,
     _single_line_string,
     _strict_json_load,
     load_capture,
@@ -53,19 +54,21 @@ def load_evidence(
 
     if _integer(evidence, "schema_version") != EVIDENCE_SCHEMA_VERSION:
         raise ReportError(f"evidence schema_version must be {EVIDENCE_SCHEMA_VERSION}")
-    if _non_empty_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
+    if _canonical_single_line_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
         raise ReportError(f"measurement_scope must be {COMPLETE_VRAM_SCOPE}")
     _single_line_string(evidence, "hardware_identity")
     _single_line_string(evidence, "tool", "name")
     _single_line_string(evidence, "tool", "version")
     validate_external_vram_measurement(evidence, "evidence")
-    bound_digest = _non_empty_string(evidence, "profile_capture_sha256")
+    bound_digest = _sha256_string(evidence, "profile_capture_sha256")
     if bound_digest != capture_sha256:
         raise ReportError("profile_capture_sha256 does not match the input capture")
-    artifact_name = _non_empty_string(evidence, "source_artifact", "file_name")
+    artifact_name = _canonical_single_line_string(
+        evidence, "source_artifact", "file_name"
+    )
     if artifact_name != artifact_path.name:
         raise ReportError("source_artifact.file_name does not match --artifact")
-    bound_artifact_digest = _non_empty_string(evidence, "source_artifact", "sha256")
+    bound_artifact_digest = _sha256_string(evidence, "source_artifact", "sha256")
     if bound_artifact_digest != artifact_sha256:
         raise ReportError("source_artifact.sha256 does not match --artifact")
     return evidence

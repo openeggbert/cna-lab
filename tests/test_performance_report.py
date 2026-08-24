@@ -887,6 +887,17 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("tracked_budget_pass must match", result.stderr)
 
+        padded_embedded_digest = capture_fixture()
+        padded_embedded_digest["video_memory"]["complete_evidence"]["source_artifact"][
+            "sha256"
+        ] = " " + "b" * 64
+        result = self.run_report([padded_embedded_digest], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(
+            "source_artifact.sha256 must be lowercase SHA-256",
+            result.stderr,
+        )
+
         bad_complete_vram_coverage = capture_fixture()
         bad_complete_vram_coverage["video_memory"]["coverage"] = (
             "complete physical residency including every driver allocation"
@@ -1112,6 +1123,14 @@ class PerformanceReportTests(unittest.TestCase):
             "2026-08-24T10:00:05.1234567Z"
         )
         result = self.run_report([bad_session_time], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z", result.stderr)
+
+        padded_session_time = capture_fixture()
+        padded_session_time["capture_session"]["started_utc"] = (
+            " 2026-08-24T10:00:05Z"
+        )
+        result = self.run_report([padded_session_time], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z", result.stderr)
 
