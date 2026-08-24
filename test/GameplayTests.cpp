@@ -78,9 +78,10 @@ namespace
             "! hazard\n"
             "E exit\n"
             "d decoration\n"
+            "G cog\n"
             "map\n"
-            ".d..\n"
-            "B!E.\n"
+            "d...\n"
+            "BG!E\n"
             "####\n";
 
         const CopperBoots::LevelDefinition level =
@@ -94,18 +95,23 @@ namespace
               "checkpoint coordinate is parsed");
         CheckNear(level.ParallaxFactors[1], 0.25F, 0.0001F,
                   "parallax factors are parsed");
-        Check(level.Map.Get(1, 0).Visual == CopperBoots::TileVisual::Decoration &&
-                  level.Map.Get(1, 0).Collision == CopperBoots::TileCollision::None,
+        Check(level.Map.Get(0, 0).Visual == CopperBoots::TileVisual::Decoration &&
+                  level.Map.Get(0, 0).Collision == CopperBoots::TileCollision::None,
               "decoration keeps visual and collision independent");
         Check(level.Map.Get(0, 1) == CopperBoots::Tiles::Breakable,
               "breakable glyph maps to breakable solid");
-        Check(level.Map.Get(1, 1) == CopperBoots::Tiles::Hazard,
+        Check(level.Map.Get(2, 1) == CopperBoots::Tiles::Hazard,
               "hazard glyph maps to hazard semantics");
-        Check(level.Map.Get(2, 1) == CopperBoots::Tiles::Exit,
+        Check(level.Map.Get(3, 1) == CopperBoots::Tiles::Exit,
               "exit glyph maps to exit semantics");
+        Check(level.Cogs.size() == 1 && level.Cogs[0].X == 1 &&
+                  level.Cogs[0].Y == 1,
+              "cog glyph becomes an object coordinate");
+        Check(level.Map.Get(1, 1) == CopperBoots::Tiles::Empty,
+              "cog marker does not become a collision tile");
 
         std::string malformed(source);
-        const std::size_t row = malformed.find(".d..\n");
+        const std::size_t row = malformed.find("d...\n");
         malformed.erase(row, 1);
         bool threwLineError = false;
         try {
@@ -113,7 +119,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:15:");
+                "broken.cbl:16:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -145,12 +151,35 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("B!E.", "B?E."), "case.cbl:16:"),
+        Check(failsAt(replaced("BG!E", "B?!E"), "case.cbl:17:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
                       "case.cbl:5:"),
               "duplicate ordered directive is rejected deterministically");
+
+        CopperBoots::WorldSimulation collectibleWorld;
+        collectibleWorld.LoadLevel(
+            CopperBoots::LevelDefinition::Parse(source, "collectible.cbl"));
+        collectibleWorld.Update({}, static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds));
+        Check(collectibleWorld.CollectedCogCount() == 1 &&
+                  collectibleWorld.Score() == 100,
+              "overlap collects one cog and awards score");
+        Check(collectibleWorld.LastEvents().CogsCollected == 1 &&
+                  collectibleWorld.LastEvents().ScoreAdded == 100,
+              "collection emits a one-tick event");
+        collectibleWorld.Update({}, static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds));
+        Check(collectibleWorld.CollectedCogCount() == 1 &&
+                  collectibleWorld.LastEvents().CogsCollected == 0,
+              "continued overlap cannot collect a cog twice");
+        collectibleWorld.LoadLevel(
+            CopperBoots::LevelDefinition::Parse(source, "reload.cbl"));
+        Check(collectibleWorld.CollectedCogCount() == 0 &&
+                  collectibleWorld.Score() == 0 &&
+                  !collectibleWorld.Cogs()[0].Collected,
+              "reloading a level resets transient cog progress");
     }
 
     void TestMovementAndJump()

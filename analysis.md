@@ -456,6 +456,7 @@ B breakable
 ! hazard
 E exit
 d decoration
+G cog object
 map
 ...row-major UTF-8/ASCII rows...
 ```
@@ -471,6 +472,13 @@ are errors rather than silently ignored extensions. An incompatible grammar
 increments the magic version; compatible optional metadata will be introduced
 in a documented section before `legend`, with old loaders failing clearly
 instead of guessing.
+
+`G` is an object marker, not a visual/collision tile: loading extracts its tile
+coordinate into a cog list and leaves empty terrain behind. The fixed-step world
+owns collected state, emits a one-tick event, awards 100 points exactly once,
+and resets transient cog progress when a level is reloaded. This establishes the
+same data path future enemies and pickups can use without making decorative map
+glyphs physically solid.
 
 ## CNA and sharp-runtime baseline
 

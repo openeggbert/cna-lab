@@ -159,6 +159,7 @@ namespace CopperBoots
         const float cameraY = world_.Camera().Y();
         DrawParallax(cameraX);
         DrawTiles(cameraX, cameraY);
+        DrawCogs(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         spriteBatch_->End();
     }
@@ -280,6 +281,23 @@ namespace CopperBoots
         FillRectangle(Rectangle(x + 7, y + 15, 3, 5), Color(53, 81, 94));
         const int eyeX = player.FacingRight ? x + 8 : x + 3;
         FillRectangle(Rectangle(eyeX, y + 2, 2, 2), Color(24, 36, 42));
+    }
+
+    void CopperBootsGame::DrawCogs(const float cameraX, const float cameraY)
+    {
+        const int pulse = static_cast<int>((world_.TickCount() / 6U) % 3U);
+        for (const CogState& cog : world_.Cogs()) {
+            if (cog.Collected)
+                continue;
+            const int x = ScreenCoordinate(cog.X, cameraX);
+            const int y = ScreenCoordinate(cog.Y, cameraY) - pulse;
+            if (x < -8 || x > LogicalWidth || y < -8 || y > LogicalHeight)
+                continue;
+
+            FillRectangle(Rectangle(x + 2, y, 4, 8), Color(230, 173, 54));
+            FillRectangle(Rectangle(x, y + 2, 8, 4), Color(230, 173, 54));
+            FillRectangle(Rectangle(x + 3, y + 3, 2, 2), Color(102, 68, 46));
+        }
     }
 
     void CopperBootsGame::FillRectangle(const Rectangle& rectangle,

@@ -106,7 +106,7 @@ namespace CopperBoots
                                            const std::string_view sourceName)
     {
         const std::vector<SourceLine> lines = SplitLines(text);
-        constexpr std::size_t HeaderLineCount = 14;
+        constexpr std::size_t HeaderLineCount = 15;
         if (lines.size() < HeaderLineCount)
             Fail(sourceName, lines.empty() ? 1 : lines.back().Number,
                  "incomplete level header");
@@ -153,9 +153,9 @@ namespace CopperBoots
             Fail(sourceName, lines[5].Number,
                  "parallax factors must be ascending values from 0 to 1.5");
 
-        constexpr std::array<std::string_view, 8> fixedLines{
+        constexpr std::array<std::string_view, 9> fixedLines{
             "legend", ". empty", "# solid", "B breakable", "! hazard",
-            "E exit", "d decoration", "map"};
+            "E exit", "d decoration", "G cog", "map"};
         for (std::size_t i = 0; i < fixedLines.size(); ++i) {
             const std::size_t lineIndex = 6 + i;
             if (lines[lineIndex].Text != fixedLines[i])
@@ -168,14 +168,22 @@ namespace CopperBoots
             Fail(sourceName, lines.back().Number, "level map has too few rows");
 
         TileMap map(width, height);
+        std::vector<TileCoordinate> cogs;
         for (int y = 0; y < height; ++y) {
             const SourceLine& line = lines[mapStart + static_cast<std::size_t>(y)];
             if (line.Text.size() != static_cast<std::size_t>(width))
                 Fail(sourceName, line.Number,
                      "map row width does not match size directive");
-            for (int x = 0; x < width; ++x)
-                map.Set(x, y, DecodeTile(line.Text[static_cast<std::size_t>(x)],
-                                         sourceName, line.Number));
+            for (int x = 0; x < width; ++x) {
+                const char glyph = line.Text[static_cast<std::size_t>(x)];
+                if (glyph == 'G') {
+                    cogs.push_back({x, y});
+                    map.Set(x, y, Tiles::Empty);
+                }
+                else {
+                    map.Set(x, y, DecodeTile(glyph, sourceName, line.Number));
+                }
+            }
         }
 
         for (std::size_t i = mapStart + static_cast<std::size_t>(height);
@@ -185,6 +193,6 @@ namespace CopperBoots
         }
 
         return {name, std::move(map), spawnX, spawnY,
-                checkpointX, checkpointY, parallax};
+                checkpointX, checkpointY, parallax, std::move(cogs)};
     }
 }

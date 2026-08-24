@@ -276,7 +276,7 @@ Acceptance:
   width, glyph, duplicates, missing spawn, or out-of-bounds metadata.
 - Valid and invalid fixtures have deterministic tests.
 
-### MAR-032 — Green Ruins original level — TODO
+### MAR-032 — Green Ruins original level — DONE
 
 Acceptance:
 
@@ -320,7 +320,7 @@ Acceptance:
 
 ## Gameplay systems
 
-### MAR-040 — Copper cog collectibles — TODO
+### MAR-040 — Copper cog collectibles — DONE
 
 Acceptance:
 

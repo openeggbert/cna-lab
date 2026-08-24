@@ -42,11 +42,25 @@ namespace CopperBoots
 
     void WorldSimulation::LoadLevel(LevelDefinition level)
     {
+        cogs_.clear();
+        cogs_.reserve(level.Cogs.size());
+        for (const TileCoordinate& cog : level.Cogs) {
+            cogs_.push_back({
+                static_cast<float>(cog.X * TileMap::TileSize) +
+                    (TileMap::TileSize - CogState::Size) * 0.5F,
+                static_cast<float>(cog.Y * TileMap::TileSize) +
+                    (TileMap::TileSize - CogState::Size) * 0.5F,
+                false});
+        }
         level_ = std::move(level.Map);
         spawnX_ = static_cast<float>(level.SpawnTileX * TileMap::TileSize);
         spawnY_ = static_cast<float>(level.SpawnFootTileY * TileMap::TileSize) -
                   PlayerState::Height;
         parallaxFactors_ = level.ParallaxFactors;
+        collectedCogs_ = 0;
+        score_ = 0;
+        tickCount_ = 0;
+        lastEvents_ = {};
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
                                static_cast<float>(level_.PixelHeight()));
         ResetPlayer();
@@ -66,6 +80,7 @@ namespace CopperBoots
 
     void WorldSimulation::Update(const PlayerInput& input, const float seconds)
     {
+        lastEvents_ = {};
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
         const float speedLimit = input.Run ? RunSpeed : WalkSpeed;
         const float acceleration = player_.Grounded
@@ -103,10 +118,12 @@ namespace CopperBoots
         if (player_.Y > static_cast<float>(level_.PixelHeight() + 64))
             ResetPlayer();
 
+        CollectOverlappingCogs();
         UpdateMotion(input);
         camera_.Update(player_.X + PlayerState::Width * 0.5F,
                        player_.Y + PlayerState::Height * 0.5F,
                        player_.VelocityX, seconds);
+        ++tickCount_;
     }
 
     bool WorldSimulation::Collides(const float x, const float y,
@@ -193,6 +210,28 @@ namespace CopperBoots
             player_.Motion = input.Run
                 ? PlayerMotion::Running
                 : PlayerMotion::Walking;
+        }
+    }
+
+    void WorldSimulation::CollectOverlappingCogs() noexcept
+    {
+        const float playerRight = player_.X + PlayerState::Width;
+        const float playerBottom = player_.Y + PlayerState::Height;
+        for (CogState& cog : cogs_) {
+            if (cog.Collected)
+                continue;
+            const bool overlaps = player_.X < cog.X + CogState::Size &&
+                                  playerRight > cog.X &&
+                                  player_.Y < cog.Y + CogState::Size &&
+                                  playerBottom > cog.Y;
+            if (!overlaps)
+                continue;
+
+            cog.Collected = true;
+            ++collectedCogs_;
+            score_ += 100;
+            ++lastEvents_.CogsCollected;
+            lastEvents_.ScoreAdded += 100;
         }
     }
 }
