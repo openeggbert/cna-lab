@@ -21,7 +21,7 @@ void expect(const bool condition, const char* const message)
 
 std::filesystem::path testDirectory()
 {
-    return std::filesystem::temp_directory_path() / "cna-tamagotchi-save-repository-tests";
+    return std::filesystem::temp_directory_path() / "tamagotchi-cna-save-repository-tests";
 }
 
 Persistence::SaveData p1Save()

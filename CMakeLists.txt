@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(CnaTamagotchi LANGUAGES CXX)
+project(TamagotchiCna LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,7 +13,7 @@ set(CNA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cna" CACHE PATH
 
 if(NOT EXISTS "${CNA_ROOT_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "cna-tamagotchi: CNA was not found at '${CNA_ROOT_DIR}'.\n"
+        "tamagotchi-cna: CNA was not found at '${CNA_ROOT_DIR}'.\n"
         "Clone https://github.com/openeggbert/cna next to this project, or set\n"
         "-DCNA_ROOT_DIR=/path/to/cna.")
 endif()
@@ -34,7 +34,7 @@ set_property(CACHE CNA_GRAPHICS_RENDERER PROPERTY STRINGS ${CNA_TAMAGOTCHI_RENDE
 
 if(NOT CNA_GRAPHICS_RENDERER IN_LIST CNA_TAMAGOTCHI_RENDERERS)
     message(FATAL_ERROR
-        "cna-tamagotchi: unsupported CNA_GRAPHICS_RENDERER='${CNA_GRAPHICS_RENDERER}'. "
+        "tamagotchi-cna: unsupported CNA_GRAPHICS_RENDERER='${CNA_GRAPHICS_RENDERER}'. "
         "Choose one of: ${CNA_TAMAGOTCHI_RENDERERS}")
 endif()
 
@@ -59,7 +59,7 @@ set(CNA_USE_CCACHE OFF CACHE BOOL "Use ccache for CNA and sharp-runtime builds")
 # its unrelated `All` component set.
 set(SHARP_RUNTIME_COMPONENTS
     "Core.Base;IO;Collections.Core;Collections.ObjectModel;Runtime;Threading;Text;Globalization;Storage;Security.Cryptography"
-    CACHE STRING "Sharp Runtime components required by cna-tamagotchi and CNA")
+    CACHE STRING "Sharp Runtime components required by tamagotchi-cna and CNA")
 add_subdirectory("${CNA_ROOT_DIR}" cna)
 
 set(CNA_TAMAGOTCHI_SOURCES
@@ -80,7 +80,7 @@ if(ANDROID)
     set(CNA_TAMAGOTCHI_TARGET main)
     add_library(${CNA_TAMAGOTCHI_TARGET} SHARED ${CNA_TAMAGOTCHI_SOURCES})
 else()
-    set(CNA_TAMAGOTCHI_TARGET CnaTamagotchi)
+    set(CNA_TAMAGOTCHI_TARGET TamagotchiCna)
     add_executable(${CNA_TAMAGOTCHI_TARGET} ${CNA_TAMAGOTCHI_SOURCES})
 endif()
 
@@ -106,7 +106,7 @@ endif()
 
 if(NOT TARGET ${CNA_TAMAGOTCHI_RENDERER_TARGET})
     message(FATAL_ERROR
-        "cna-tamagotchi: CNA renderer target '${CNA_TAMAGOTCHI_RENDERER_TARGET}' was not created.")
+        "tamagotchi-cna: CNA renderer target '${CNA_TAMAGOTCHI_RENDERER_TARGET}' was not created.")
 endif()
 
 target_link_libraries(${CNA_TAMAGOTCHI_TARGET} PRIVATE

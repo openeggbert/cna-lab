@@ -133,7 +133,7 @@ CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest,
 {
     graphics_.setPreferredBackBufferWidthProperty(WindowWidth);
     graphics_.setPreferredBackBufferHeightProperty(WindowHeight);
-    Game::getWindowProperty().setTitleProperty("CNA Tamagotchi");
+    Game::getWindowProperty().setTitleProperty("Tamagotchi CNA");
     if (!smokeTest_) {
         savePath_ = defaultSavePath();
         saveDirty_ = loadSave();

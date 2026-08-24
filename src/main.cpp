@@ -35,7 +35,7 @@ int main(const int argc, char* argv[])
             continue;
         }
 
-        std::cerr << "Usage: CnaTamagotchi [--smoke-test] "
+        std::cerr << "Usage: TamagotchiCna [--smoke-test] "
                      "[--lcd-palette=olive|amber|ice|mono]\n";
         return 2;
     }

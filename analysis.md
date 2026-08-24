@@ -2,7 +2,7 @@
 
 ## Product decision
 
-`cna-tamagotchi` is an independent C++ fan reimplementation of the
+`tamagotchi-cna` is an independent C++ fan reimplementation of the
 **international 1997 Tamagotchi Generation 1 programme** (P1). It is no longer
 an original virtual-pet game and must not be a P1/P2 hybrid. P2 characters,
 food, Number game, wavy LCD background, and UFO ending are outside scope.

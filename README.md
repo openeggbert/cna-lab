@@ -1,6 +1,6 @@
-# CNA Tamagotchi
+# Tamagotchi CNA
 
-`cna-tamagotchi` is a C++ fan reimplementation built with
+`tamagotchi-cna` is a C++ fan reimplementation built with
 [CNA](https://github.com/openeggbert/cna). Its single historical target is the
 **international 1997 Tamagotchi Generation 1 programme** (usually called
 **P1**): one creature, three buttons, a 32 × 16 monochrome LCD, short
@@ -28,6 +28,9 @@ in [web/index.html](web/index.html). It is being migrated alongside the game
 from the earlier prototype to the selected 1997 international P1 reference.
 
 ## Current prototype
+
+New platform saves use the `tamagotchi-cna` product directory. An existing
+active `cna-tamagotchi` slot remains preferred, so the rename keeps the pet.
 
 The current build opens a CNA window and renders an egg-shaped device with a
 full 32 × 16 one-bit game field, connected top/bottom icon bands, and three
@@ -68,7 +71,7 @@ hardware cannot be reproduced safely. In particular, a held virtual reset
 pinhole may require confirmation before it performs the original reset result:
 a fresh pulsating egg followed by clock setup and hatching.
 
-`cna-tamagotchi` therefore uses a permanent **32 × 16 logical game LCD**.
+`tamagotchi-cna` therefore uses a permanent **32 × 16 logical game LCD**.
 Every game pixel is either off (muted yellow-green) or on (near-black), with
 integer nearest-neighbour scaling and no grey pixels or anti-aliasing. Four
 fixed icon cells above it and four below it are a physically connected LCD
@@ -264,7 +267,7 @@ push is performed until a remote exists and the user explicitly requests it.
 ```bash
 cmake --preset sdl-renderer
 cmake --build --preset sdl-renderer --parallel 2
-./cmake-build-sdl-renderer/CnaTamagotchi
+./cmake-build-sdl-renderer/TamagotchiCna
 ```
 
 Pass `--smoke-test` to exit after three rendered frames.
@@ -275,8 +278,8 @@ Xvfb display, forcing X11 rather than the host Wayland session:
 ```bash
 Xvfb :99 -screen 0 1024x768x24 -nolisten tcp &
 env -u WAYLAND_DISPLAY SDL_VIDEODRIVER=x11 \
-  XDG_DATA_HOME=/tmp/cna-tamagotchi-visual DISPLAY=:99 \
-  ./cmake-build-sdl-renderer/CnaTamagotchi
+  XDG_DATA_HOME=/tmp/tamagotchi-cna-visual DISPLAY=:99 \
+  ./cmake-build-sdl-renderer/TamagotchiCna
 ```
 
 The normal first run opens `SET`; hold `C` briefly to confirm the clock and

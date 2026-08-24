@@ -31,7 +31,7 @@
     }
   ],
   "buildPresets": [
-    { "name": "sdl-renderer", "configurePreset": "sdl-renderer", "targets": ["CnaTamagotchi"] },
-    { "name": "headless", "configurePreset": "headless", "targets": ["CnaTamagotchi"] }
+    { "name": "sdl-renderer", "configurePreset": "sdl-renderer", "targets": ["TamagotchiCna"] },
+    { "name": "headless", "configurePreset": "headless", "targets": ["TamagotchiCna"] }
   ]
 }

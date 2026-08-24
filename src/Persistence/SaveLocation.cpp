@@ -28,6 +28,12 @@ bool hasLegacyActiveSlot(const std::filesystem::path& path)
     return std::filesystem::exists(path.string() + ".bak", error) || error;
 }
 
+std::filesystem::path productSlot(const std::filesystem::path& platformDirectory,
+                                  const char* const productDirectory)
+{
+    return platformDirectory / productDirectory / "saves" / "slot-1.json";
+}
+
 } // namespace
 
 std::filesystem::path SaveLocation::legacySlot(const std::filesystem::path& workingDirectory)
@@ -62,7 +68,15 @@ std::filesystem::path SaveLocation::resolveSlot(
         return legacy;
     }
 
-    return platformDirectory / "cna-tamagotchi" / "saves" / "slot-1.json";
+    // Preserve a live per-user save written before the product rename rather
+    // than silently starting a separate pet in the new directory.
+    const std::filesystem::path previousProduct = productSlot(
+        platformDirectory, "cna-tamagotchi");
+    if (hasLegacyActiveSlot(previousProduct)) {
+        return previousProduct;
+    }
+
+    return productSlot(platformDirectory, "tamagotchi-cna");
 }
 
 } // namespace CnaTamagotchi::Persistence

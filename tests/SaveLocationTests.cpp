@@ -20,7 +20,7 @@ void expect(const bool condition, const char* const message)
 
 std::filesystem::path testDirectory()
 {
-    return std::filesystem::temp_directory_path() / "cna-tamagotchi-save-location-tests";
+    return std::filesystem::temp_directory_path() / "tamagotchi-cna-save-location-tests";
 }
 
 void testNewSlotUsesPlatformDataDirectory()
@@ -33,7 +33,7 @@ void testNewSlotUsesPlatformDataDirectory()
 
     const std::filesystem::path resolved =
         SaveLocation::resolveSlot(workingDirectory, dataDirectory);
-    expect(resolved == dataDirectory / "cna-tamagotchi" / "saves" / "slot-1.json",
+    expect(resolved == dataDirectory / "tamagotchi-cna" / "saves" / "slot-1.json",
         "a new slot must use the supplied per-user data directory");
 
     std::filesystem::remove_all(directory, error);
@@ -67,12 +67,34 @@ void testLegacySaveAndBackupTakePrecedence()
     std::filesystem::remove_all(directory, error);
 }
 
+void testPreviousProductSlotTakesPrecedence()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path workingDirectory = directory / "working";
+    const std::filesystem::path dataDirectory = directory / "data";
+    const std::filesystem::path previous = dataDirectory / "cna-tamagotchi" / "saves"
+        / "slot-1.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+    std::filesystem::create_directories(previous.parent_path(), error);
+
+    {
+        std::ofstream stream(previous);
+        stream << "previous product slot";
+    }
+    expect(SaveLocation::resolveSlot(workingDirectory, dataDirectory) == previous,
+        "a pre-rename per-user save must remain the active pet after renaming");
+
+    std::filesystem::remove_all(directory, error);
+}
+
 } // namespace
 
 int main()
 {
     testNewSlotUsesPlatformDataDirectory();
     testLegacySaveAndBackupTakePrecedence();
+    testPreviousProductSlotTakesPrecedence();
 
     if (failures == 0) {
         std::cout << "SaveLocationTests passed\n";
