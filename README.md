@@ -50,7 +50,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P`: pause / resume
-- `M`: open / close the explored-area map; the `I` + `L` + `M` cheat takes priority over the standalone map key
+- `M`: press and release to open / close the explored-area map; the `I` + `L` + `M` cheat takes priority even when its keys are pressed gradually
 - `Escape`: quit
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero

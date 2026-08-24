@@ -11,7 +11,7 @@
 - Holding Ctrl repeats repeater and heavy-automatic bursts at distinct bounded cadences; knife and sidearm remain one attack per press.
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
-- `M` opens a paused floor map of visited cells only; tested input latching keeps `I+L+M` independent.
+- Pressing and releasing `M` opens a paused map of visited cells; a latched cheat chord keeps gradual `I+L+M` input independent.
 - The illustrated splash is separate from the main menu.
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
 

@@ -15,6 +15,7 @@ namespace WolfCna
 
     private:
         bool wasDown_ = false;
+        bool loadoutCheatSeen_ = false;
     };
 
     class ExplorationMap final

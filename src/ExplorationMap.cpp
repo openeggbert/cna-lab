@@ -6,7 +6,20 @@ namespace WolfCna
 {
     bool MapToggleLatch::Update(bool mapIsDown, bool loadoutCheatIsDown)
     {
-        const bool toggleRequested = mapIsDown && !wasDown_ && !loadoutCheatIsDown;
+        bool toggleRequested = false;
+        if (mapIsDown)
+        {
+            if (!wasDown_)
+                loadoutCheatSeen_ = false;
+
+            loadoutCheatSeen_ = loadoutCheatSeen_ || loadoutCheatIsDown;
+        }
+        else if (wasDown_)
+        {
+            toggleRequested = !loadoutCheatSeen_;
+            loadoutCheatSeen_ = false;
+        }
+
         wasDown_ = mapIsDown;
         return toggleRequested;
     }
@@ -14,6 +27,7 @@ namespace WolfCna
     void MapToggleLatch::Reset()
     {
         wasDown_ = false;
+        loadoutCheatSeen_ = false;
     }
 
     ExplorationMap::ExplorationMap(const LevelDefinition& level)
