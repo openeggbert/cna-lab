@@ -83,6 +83,7 @@ add_library(copper_boots_gameplay STATIC
     gameplay/src/InputActionAdapter.cpp
     gameplay/src/LevelDefinition.cpp
     gameplay/src/ProceduralAudio.cpp
+    gameplay/src/PresentationLayout.cpp
     gameplay/src/ProgressSave.cpp
     gameplay/src/SimulationClock.cpp
     gameplay/src/TileMap.cpp
@@ -161,9 +162,15 @@ if(COPPER_BOOTS_BUILD_TESTS)
             LABELS "storage;cna"
             ENVIRONMENT
                 "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-user-data")
+        add_test(NAME copper_boots_display
+            COMMAND copper-boots --display-smoke-test --no-audio --no-settings)
+        set_tests_properties(copper_boots_display PROPERTIES
+            TIMEOUT 20
+            LABELS "graphics;smoke;cna;display;resize;fullscreen")
         if(UNIX AND NOT APPLE)
             set_tests_properties(
-                copper_boots_smoke copper_boots_smoke_silent PROPERTIES
+                copper_boots_smoke copper_boots_smoke_silent
+                copper_boots_display PROPERTIES
                 ENVIRONMENT "SDL_VIDEODRIVER=offscreen;SDL_AUDIODRIVER=dummy")
         endif()
     endif()

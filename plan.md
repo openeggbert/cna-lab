@@ -61,10 +61,16 @@ The debug overlay now combines timing, sprite submissions, active entities and
 post-load gameplay allocation evidence while explicitly reporting the missing
 generic CNA draw-call counter.
 
-**Current: M8 — display lifecycle validation**
+**M8 — display lifecycle validation — ACHIEVED**
 
-Exercise resize, aspect changes and CNA fullscreen transitions while preserving
-logical presentation and player/input coordinates.
+Automated aspect/resize coverage plus a real Linux desktop run now exercise
+minimize/restore and CNA fullscreen transitions while preserving the 320x180
+surface, bounded camera and live CNA input polling.
+
+**Current: M9 — renderer compatibility evidence**
+
+Expand the compatibility matrix beyond the proven SDL_RENDERER lane without
+mistaking descriptor compilation for a usable CNA renderer implementation.
 
 ## Foundation and research
 
@@ -538,12 +544,19 @@ Acceptance:
 - SDL_RENDERER plus at least one non-SDL-renderer CNA lane run the milestone when
   available; compile-only results are labeled correctly.
 
-### MAR-073 — Resize and fullscreen validation — TODO
+### MAR-073 — Resize and fullscreen validation — DONE
 
 Acceptance:
 
 - Repeated resize, minimize/restore, fullscreen toggle, and aspect changes keep
   logical coordinates, render target, camera and input sane on tested lanes.
+
+Evidence: pure layout tests cover exact integer, unusual aspect, undersized and
+zero-sized outputs. The CNA display smoke lane resizes through 640x360,
+1000x500, 256x144 and 960x540 while validating the persistent 320x180 target
+and simulation bounds. CNA's offscreen platform explicitly reports
+minimize/restore and exclusive fullscreen as unavailable; a real Linux desktop
+SDL_RENDERER run completed those operations and returned to windowed 960x540.
 
 ### MAR-074 — Cross-platform build lanes — DEFERRED
 
@@ -616,5 +629,4 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Validate resize/fullscreen behavior under `MAR-073`.
-2. Expand the renderer compatibility matrix under `MAR-072`.
+1. Expand the renderer compatibility matrix under `MAR-072`.

@@ -30,7 +30,8 @@ namespace CopperBoots
     public:
         explicit CopperBootsGame(bool smokeTest = false,
                                  bool audioEnabled = true,
-                                 bool settingsEnabled = true);
+                                 bool settingsEnabled = true,
+                                 bool displaySmokeTest = false);
 
         [[nodiscard]] const std::string& GetTypeName() const override;
 
@@ -49,6 +50,8 @@ namespace CopperBoots
         void PlayAudioCue(AudioCue cue);
         void SaveSettings();
         void UpdateProgress(const WorldEvents& events);
+        void UpdateDisplaySmokeTest();
+        void ValidateDisplaySmokeState();
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
@@ -101,6 +104,7 @@ namespace CopperBoots
         bool settingsEnabled_ = true;
         bool progressEnabled_ = true;
         bool smokeTest_ = false;
+        bool displaySmokeTest_ = false;
         bool paused_ = false;
         bool debugOverlay_ = false;
         bool debugToggleDown_ = false;
@@ -112,5 +116,7 @@ namespace CopperBoots
         double updateMilliseconds_ = 0.0;
         double drawMilliseconds_ = 0.0;
         std::uint32_t drawnFrames_ = 0;
+        int displaySmokeStep_ = 0;
+        int displaySmokeValidatedFrames_ = 0;
     };
 }

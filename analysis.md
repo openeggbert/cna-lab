@@ -771,6 +771,17 @@ the CNA API path and lifetime, not acoustic output or subjective mix quality.
 container, so Linux CTest explicitly selects the offscreen driver for repeatable
 headless validation.
 
+Presentation sizing is also isolated in a renderer-free integer calculation.
+Tests pin exact 16:9 integer scaling, a 2:1 output, an output smaller than the
+320x180 logical surface, and the zero-sized viewport observed while minimized.
+The CNA display smoke lane resizes through 640x360, 1000x500, 256x144 and back
+to 960x540, retaining the original render target and checking finite player and
+bounded camera coordinates while CNA keyboard/gamepad polling continues.
+The offscreen platform reports minimize/restore and exclusive fullscreen as
+unsupported rather than pretending to exercise them. A real Linux desktop run
+on 2026-08-24 completed minimize/restore and fullscreen/windowed transitions
+with SDL_RENDERER and no validation failure.
+
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |

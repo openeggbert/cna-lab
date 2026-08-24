@@ -1,12 +1,14 @@
 #include "CopperBoots/CopperBootsGame.hpp"
 #include "CopperBoots/CnaSettingsStore.hpp"
 #include "CopperBoots/CnaProgressStore.hpp"
+#include "CopperBoots/PresentationLayout.hpp"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -102,11 +104,13 @@ namespace CopperBoots
 
     CopperBootsGame::CopperBootsGame(const bool smokeTest,
                                      const bool audioEnabled,
-                                     const bool settingsEnabled)
+                                     const bool settingsEnabled,
+                                     const bool displaySmokeTest)
         : graphics_(this),
           audioEnabled_(audioEnabled),
           settingsEnabled_(settingsEnabled),
-          smokeTest_(smokeTest)
+          smokeTest_(smokeTest),
+          displaySmokeTest_(displaySmokeTest)
     {
         if (settingsEnabled_) {
             try {
@@ -242,6 +246,95 @@ namespace CopperBoots
         }
     }
 
+    void CopperBootsGame::UpdateDisplaySmokeTest()
+    {
+        if (!displaySmokeTest_ || displaySmokeStep_ >= 9)
+            return;
+        try {
+            switch (displaySmokeStep_) {
+            case 0:
+                break;
+            case 1:
+                graphics_.setPreferredBackBufferWidthProperty(640);
+                graphics_.setPreferredBackBufferHeightProperty(360);
+                graphics_.ApplyChanges();
+                break;
+            case 2:
+                graphics_.setPreferredBackBufferWidthProperty(1'000);
+                graphics_.setPreferredBackBufferHeightProperty(500);
+                graphics_.ApplyChanges();
+                break;
+            case 3:
+                getWindowProperty().MinimizeEXT();
+                break;
+            case 4:
+                getWindowProperty().RestoreEXT();
+                break;
+            case 5:
+                graphics_.setPreferredBackBufferWidthProperty(256);
+                graphics_.setPreferredBackBufferHeightProperty(144);
+                graphics_.ApplyChanges();
+                break;
+            case 6:
+                graphics_.ToggleFullScreen();
+                break;
+            case 7:
+                graphics_.ToggleFullScreen();
+                break;
+            case 8:
+                graphics_.setPreferredBackBufferWidthProperty(960);
+                graphics_.setPreferredBackBufferHeightProperty(540);
+                graphics_.ApplyChanges();
+                break;
+            default:
+                break;
+            }
+        }
+        catch (const std::exception& error) {
+            std::cerr << "Copper Boots: display smoke step "
+                      << displaySmokeStep_ << " unavailable: "
+                      << error.what() << '\n';
+        }
+        ++displaySmokeStep_;
+    }
+
+    void CopperBootsGame::ValidateDisplaySmokeState()
+    {
+        if (!displaySmokeTest_)
+            return;
+        if (logicalTarget_ == nullptr ||
+            logicalTarget_->getWidthProperty() != LogicalWidth ||
+            logicalTarget_->getHeightProperty() != LogicalHeight) {
+            throw std::runtime_error(
+                "display smoke: logical render target changed size");
+        }
+        const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
+        const int outputWidth = viewport.getWidthProperty();
+        const int outputHeight = viewport.getHeightProperty();
+        const PresentationViewport presentation = ComputePresentationViewport(
+            outputWidth, outputHeight, LogicalWidth, LogicalHeight,
+            settings_.Presentation);
+        if (outputWidth > 0 && outputHeight > 0 &&
+            (presentation.Width <= 0 || presentation.Height <= 0 ||
+             presentation.X < 0 || presentation.Y < 0 ||
+             presentation.X + presentation.Width > outputWidth ||
+             presentation.Y + presentation.Height > outputHeight)) {
+            throw std::runtime_error(
+                "display smoke: presentation escaped output bounds");
+        }
+        const PlayerState& player = world_.Player();
+        if (!std::isfinite(player.X) || !std::isfinite(player.Y) ||
+            player.X < 0.0F ||
+            world_.Camera().X() < -0.01F || world_.Camera().Y() < -0.01F ||
+            world_.Camera().X() + world_.Camera().ViewportWidth() >
+                world_.Level().PixelWidth() + 0.01F ||
+            world_.Camera().Y() + world_.Camera().ViewportHeight() >
+                world_.Level().PixelHeight() + 0.01F) {
+            throw std::runtime_error(
+                "display smoke: simulation coordinates became invalid");
+        }
+    }
+
     void CopperBootsGame::PlayAudioCue(const AudioCue cue)
     {
         if (!audioAvailable_)
@@ -324,6 +417,7 @@ namespace CopperBoots
         const KeyboardState keyboard = Keyboard::GetState();
         const GamePadState gamepad = GamePad::GetState(
             Microsoft::Xna::Framework::PlayerIndex::One);
+        UpdateDisplaySmokeTest();
         const bool debugToggleDown = keyboard.IsKeyDown(Keys::F1);
         if (debugToggleDown && !debugToggleDown_) {
             debugOverlay_ = !debugOverlay_;
@@ -422,11 +516,19 @@ namespace CopperBoots
         device.Clear(Color(8, 10, 18));
         spriteBatch_->Begin(SpriteSortMode::Deferred, BlendState::Opaque,
                             &pointSampler_, nullptr, nullptr);
-        spriteBatch_->Draw(*logicalTarget_, PresentationRectangle(), Color::White);
+        const Rectangle presentation = PresentationRectangle();
+        if (presentation.Width > 0 && presentation.Height > 0)
+            spriteBatch_->Draw(*logicalTarget_, presentation, Color::White);
         spriteBatch_->End();
 
         ++drawnFrames_;
-        if (smokeTest_ && drawnFrames_ >= 3)
+        if (displaySmokeTest_) {
+            ValidateDisplaySmokeState();
+            ++displaySmokeValidatedFrames_;
+            if (displaySmokeStep_ >= 9 && displaySmokeValidatedFrames_ >= 3)
+                Exit();
+        }
+        if (smokeTest_ && !displaySmokeTest_ && drawnFrames_ >= 3)
             Exit();
 
         Game::Draw(gameTime);
@@ -1164,27 +1266,9 @@ namespace CopperBoots
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
         const int width = viewport.getWidthProperty();
         const int height = viewport.getHeightProperty();
-        int destinationWidth = 0;
-        int destinationHeight = 0;
-        if (settings_.Presentation == PresentationStyle::IntegerScale &&
-            width >= LogicalWidth && height >= LogicalHeight) {
-            const int integerScale = std::max(1,
-                std::min(width / LogicalWidth, height / LogicalHeight));
-            destinationWidth = LogicalWidth * integerScale;
-            destinationHeight = LogicalHeight * integerScale;
-        }
-        else {
-            const float scale = std::min(
-                static_cast<float>(width) / LogicalWidth,
-                static_cast<float>(height) / LogicalHeight);
-            destinationWidth = std::max(1,
-                static_cast<int>(std::floor(LogicalWidth * scale)));
-            destinationHeight = std::max(1,
-                static_cast<int>(std::floor(LogicalHeight * scale)));
-        }
-
-        return Rectangle((width - destinationWidth) / 2,
-                         (height - destinationHeight) / 2,
-                         destinationWidth, destinationHeight);
+        const PresentationViewport result = ComputePresentationViewport(
+            width, height, LogicalWidth, LogicalHeight,
+            settings_.Presentation);
+        return Rectangle(result.X, result.Y, result.Width, result.Height);
     }
 }

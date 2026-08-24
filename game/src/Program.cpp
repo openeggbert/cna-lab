@@ -13,6 +13,7 @@ int main(const int argc, char* argv[])
     bool audioEnabled = true;
     bool settingsEnabled = true;
     bool storageSmokeTest = false;
+    bool displaySmokeTest = false;
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument(argv[index]);
         if (argument == "--smoke-test")
@@ -23,11 +24,13 @@ int main(const int argc, char* argv[])
             settingsEnabled = false;
         else if (argument == "--storage-smoke-test")
             storageSmokeTest = true;
+        else if (argument == "--display-smoke-test")
+            displaySmokeTest = true;
         else {
             std::cerr << "Unknown argument: " << argument << '\n'
                       << "Usage: " << argv[0]
                       << " [--smoke-test] [--no-audio] [--no-settings]"
-                         " [--storage-smoke-test]\n";
+                         " [--storage-smoke-test] [--display-smoke-test]\n";
             return 2;
         }
     }
@@ -67,10 +70,12 @@ int main(const int argc, char* argv[])
     }
 
     CopperBoots::CopperBootsGame game(
-        smokeTest, audioEnabled, settingsEnabled);
+        smokeTest, audioEnabled, settingsEnabled, displaySmokeTest);
     game.Run();
 
     if (smokeTest)
         std::cout << "Copper Boots: smoke test completed\n";
+    if (displaySmokeTest)
+        std::cout << "Copper Boots: display lifecycle smoke test completed\n";
     return 0;
 }

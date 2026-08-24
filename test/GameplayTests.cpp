@@ -16,6 +16,7 @@
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/ProceduralAudio.hpp"
 #include "CopperBoots/ProgressSave.hpp"
+#include "CopperBoots/PresentationLayout.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -443,6 +444,33 @@ namespace
                   completion.BestScore == 900 &&
                   completion.BestCompletionTicks == 3'500,
               "independent better score and time replace stored records");
+    }
+
+    void TestPresentationLayout()
+    {
+        using CopperBoots::ComputePresentationViewport;
+        using CopperBoots::PresentationStyle;
+        using CopperBoots::PresentationViewport;
+        Check(ComputePresentationViewport(960, 540, 320, 180,
+                                          PresentationStyle::IntegerScale) ==
+                  PresentationViewport{0, 0, 960, 540},
+              "integer presentation fills an exact three-times output");
+        Check(ComputePresentationViewport(1'000, 500, 320, 180,
+                                          PresentationStyle::IntegerScale) ==
+                  PresentationViewport{180, 70, 640, 360},
+              "integer presentation centers a bounded two-times viewport");
+        Check(ComputePresentationViewport(1'000, 500, 320, 180,
+                                          PresentationStyle::AspectFit) ==
+                  PresentationViewport{56, 0, 888, 500},
+              "fit presentation uses available height without stretching");
+        Check(ComputePresentationViewport(200, 100, 320, 180,
+                                          PresentationStyle::IntegerScale) ==
+                  PresentationViewport{11, 0, 177, 100},
+              "small output falls back to centered fractional fit");
+        Check(ComputePresentationViewport(0, 0, 320, 180,
+                                          PresentationStyle::IntegerScale) ==
+                  PresentationViewport{},
+              "minimized zero output produces an empty safe viewport");
     }
 
     void TestProceduralAudio()
@@ -1895,6 +1923,7 @@ int main()
     TestSimulationClock();
     TestGameSettings();
     TestProgressSave();
+    TestPresentationLayout();
     TestProceduralAudio();
     TestInputActionAdapter();
     TestTileBounds();

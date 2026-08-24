@@ -116,9 +116,12 @@ Completing Green Ruins records the next unlocked stage, best score and best
 `progress-b.cfg` slots. A partial/corrupt newest write therefore falls back to
 the previous generation instead of erasing progress.
 
-Focused lanes are available with `ctest --test-dir build -L logic` and
-`ctest --test-dir build -L smoke`; deterministic logic and CNA graphics tests
-carry separate labels.
+Focused lanes are available with `ctest --test-dir build -L logic`,
+`ctest --test-dir build -L smoke`, and `ctest --test-dir build -L display`;
+deterministic logic, CNA graphics, and display-lifecycle tests carry separate
+labels. `./build/copper-boots --display-smoke-test --no-audio --no-settings`
+also performs the resize, minimize/restore, fullscreen round trip on a real
+desktop. Unsupported headless window operations are reported explicitly.
 
 `SDL_RENDERER` is the initial conservative 2D validation lane. It does not mean
 game code depends on SDL: the executable links CNA's public `CNA` target and
