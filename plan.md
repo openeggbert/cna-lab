@@ -1111,7 +1111,7 @@ rectangle over the world.
 
 ### WOLF-014 — combat variety
 
-Status: in progress. The knife and sidearm are always available, while the
+Status: complete. The knife and sidearm are always available, while the
 three-round repeater and five-round heavy automatic must be discovered from
 validated level pickups. All four have distinct original generated HUD/view
 sprites, carry through sector transitions and are granted by the loadout cheat.
@@ -1129,6 +1129,16 @@ damage has been tuned from 140% to 130%; subjective difficulty playtesting remai
 Ranged enemies coordinate so
 only the nearest eligible shooter attacks at one time, avoiding simultaneous
 volleys when the player enters a populated room.
+
+Every ranged archetype now emits a typed world-audio event for both its first
+alert and each attack. Original generated cues give the guard, rapid trooper,
+heavy unit and Bunker Warden clearly different pitch, duration, pulse and weight,
+while the existing listener-relative pan and distance attenuation keep each cue
+anchored to its source. Focused tests require all four archetype identities to
+survive the gameplay-to-audio boundary. Hound bark noise is gently filtered so
+its two-part voice remains clear without resembling malformed high-entropy PCM.
+The remaining subjective campaign difficulty check belongs to playtesting rather
+than this implementation milestone.
 
 - add original security guard, rapid-fire trooper and heavy-unit archetypes;
 - add knife, sidearm, automatic weapon and heavy automatic weapon;

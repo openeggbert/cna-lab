@@ -114,10 +114,16 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> hurtSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyDefeatedSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> terminalSound_;
-        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardShotSound_;
+        std::array<
+            std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect>,
+            static_cast<std::size_t>(World::RangedEnemyAudioKind::Count)>
+            rangedShotSounds_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyImpactSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
-        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
+        std::array<
+            std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect>,
+            static_cast<std::size_t>(World::RangedEnemyAudioKind::Count)>
+            rangedAlertSounds_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndBarkSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndWhimperSound_;

@@ -20,7 +20,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - full-width blue HUD keeps `LEVEL`, `SCORE`, `LIVES`, `HEALTH%`, `AMMO` and the final weapon icon in order, with independent cyan/amber card indicators and an original animated player-status portrait
 - explicit weapon profiles give knife, sidearm, repeater and heavy automatic distinct range, damage, spread and cadence; firearm damage falls with distance and movement widens deterministic seeded spread
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
-- clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
+- clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage; every ranged archetype has its own alert and attack timbre
 - a generated looping bunker ambience, with five master-volume levels in the title menu
 - a persisted 60/72/84/96-degree view-angle choice in the title menu
 - uncapped run score for treasure, defeated enemies, secrets and deterministic sector bonuses; every 40,000 points awards another life
@@ -188,6 +188,8 @@ setting through CNA audio.
 Enemy, projectile, door, objective, secret and pickup effects now use listener-relative
 stereo pan and bounded distance attenuation through CNA. Hounds clearly bark when
 alerted, occasionally repeat the bark and use a distinct louder whimper when defeated.
+Guards, rapid troopers, heavy units and the Bunker Warden each use a different
+generated positional alert and attack cue instead of sharing one generic tone.
 Two original procedurally generated
 ambient loops are selected by campaign-family metadata; UI feedback remains
 non-positional and the five-step master-volume control governs every channel.

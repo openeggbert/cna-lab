@@ -169,6 +169,58 @@ namespace WolfCna
             return pcm;
         }
 
+        std::vector<SharpRuntime::bytecs> MakeRangedEnemyCue(int kind, bool alert)
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr std::array<float, 4> shotDurations = {0.16f, 0.10f, 0.28f, 0.24f};
+            constexpr std::array<float, 4> alertDurations = {0.28f, 0.34f, 0.42f, 0.52f};
+            constexpr std::array<float, 4> shotFrequencies = {285.0f, 525.0f, 105.0f, 235.0f};
+            constexpr std::array<float, 4> alertFrequencies = {360.0f, 590.0f, 155.0f, 275.0f};
+            const std::size_t index = static_cast<std::size_t>(std::clamp(kind, 0, 3));
+            const float duration = alert ? alertDurations[index] : shotDurations[index];
+            const float baseFrequency = alert ? alertFrequencies[index] : shotFrequencies[index];
+            const int sampleCount = static_cast<int>(sampleRate * duration);
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+                const float progress = static_cast<float>(sampleIndex) /
+                    static_cast<float>(sampleCount);
+                const float glide = kind == 1
+                    ? 1.0f + progress * 0.22f
+                    : kind == 2
+                        ? 1.0f - progress * 0.28f
+                        : kind == 3
+                            ? 1.0f + std::sin(2.0f * MathHelper::Pi * 5.0f * time) * 0.08f
+                            : 1.0f - progress * 0.12f;
+                const float fundamental = std::sin(
+                    2.0f * MathHelper::Pi * baseFrequency * glide * time);
+                const float harmonic = std::sin(
+                    2.0f * MathHelper::Pi * baseFrequency *
+                    (kind == 2 ? 0.5f : kind == 3 ? 1.5f : 2.0f) * time);
+                float pulse = 1.0f;
+                if (alert)
+                {
+                    const int pulseCount = kind == 1 ? 3 : kind == 3 ? 4 : 2;
+                    pulse = std::sin(
+                        MathHelper::Pi * std::fmod(progress * pulseCount, 1.0f));
+                    pulse = std::max(0.12f, pulse);
+                }
+                const float envelope = alert
+                    ? std::sin(MathHelper::Pi * progress) * pulse
+                    : (1.0f - progress) * (1.0f - progress);
+                const float signal = (fundamental * (kind == 2 ? 0.82f : 0.7f) +
+                    harmonic * (kind == 3 ? 0.28f : 0.2f)) * envelope;
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp(signal, -1.0f, 1.0f) * 26000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
         std::vector<SharpRuntime::bytecs> MakeHoundVoice(bool whimper)
         {
             constexpr float sampleRate = 22050.0f;
@@ -177,13 +229,15 @@ namespace WolfCna
             std::vector<SharpRuntime::bytecs> pcm;
             pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
             std::uint32_t noiseState = whimper ? 0x91c53a7bu : 0x42de7189u;
+            float filteredNoise = 0.0f;
 
             for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
             {
                 noiseState = noiseState * 1664525u + 1013904223u;
-                const float noise = static_cast<float>(
+                const float rawNoise = static_cast<float>(
                     static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) /
                     32768.0f;
+                filteredNoise = filteredNoise * 0.82f + rawNoise * 0.18f;
                 const float progress = static_cast<float>(sampleIndex) /
                     static_cast<float>(sampleCount);
                 const float time = static_cast<float>(sampleIndex) / sampleRate;
@@ -199,7 +253,7 @@ namespace WolfCna
                     const float release = std::min(
                         1.0f,
                         (0.85f - time) / 0.24f);
-                    signal = (voice * 0.82f + overtone * 0.13f + noise * 0.025f) *
+                    signal = (voice * 0.82f + overtone * 0.13f + filteredNoise * 0.025f) *
                         attack * std::max(0.0f, release);
                 }
                 else
@@ -220,7 +274,7 @@ namespace WolfCna
                     const float voice = std::sin(2.0f * MathHelper::Pi * frequency * time);
                     const float growl = std::sin(
                         2.0f * MathHelper::Pi * frequency * 0.5f * time);
-                    signal = (voice * 0.58f + growl * 0.19f + noise * 0.32f) * envelope;
+                    signal = (voice * 0.58f + growl * 0.19f + filteredNoise * 0.32f) * envelope;
                 }
                 const auto sample = static_cast<std::int16_t>(
                     std::clamp(signal, -1.0f, 1.0f) * 28500.0f);
@@ -1049,20 +1103,23 @@ namespace WolfCna
             MakeTone(520.0f, 4400),
             22050,
             AudioChannels::Mono);
-        guardShotSound_ = std::make_unique<SoundEffect>(
-            MakeTone(270.0f, 1700),
-            22050,
-            AudioChannels::Mono);
+        for (std::size_t kind = 0; kind < rangedShotSounds_.size(); ++kind)
+        {
+            rangedShotSounds_[kind] = std::make_unique<SoundEffect>(
+                MakeRangedEnemyCue(static_cast<int>(kind), false),
+                22050,
+                AudioChannels::Mono);
+            rangedAlertSounds_[kind] = std::make_unique<SoundEffect>(
+                MakeRangedEnemyCue(static_cast<int>(kind), true),
+                22050,
+                AudioChannels::Mono);
+        }
         enemyImpactSound_ = std::make_unique<SoundEffect>(
             MakeProjectileImpact(),
             22050,
             AudioChannels::Mono);
         secretSound_ = std::make_unique<SoundEffect>(
             MakeTone(790.0f, 4200),
-            22050,
-            AudioChannels::Mono);
-        guardAlertSound_ = std::make_unique<SoundEffect>(
-            MakeTone(360.0f, 3000),
             22050,
             AudioChannels::Mono);
         houndBarkSound_ = std::make_unique<SoundEffect>(
@@ -3126,13 +3183,50 @@ namespace WolfCna
         weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
         playerImpactFlashSeconds_ = std::max(0.0f, playerImpactFlashSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
-        const std::vector<Vector3> guardShotPositions =
-            world_.ConsumeGuardShotPositions();
-        if (guardShotSound_)
-            PlaySpatialSounds(*guardShotSound_, guardShotPositions, 0.34f, 0.12f, 16.0f);
+        const std::vector<World::RangedEnemyAudioEvent> rangedShotEvents =
+            world_.ConsumeRangedShotAudioEvents();
+        constexpr std::array<float, 4> rangedShotVolumes = {0.34f, 0.3f, 0.48f, 0.5f};
+        const std::size_t firstShotEvent = rangedShotEvents.size() > 4
+            ? rangedShotEvents.size() - 4
+            : 0;
+        for (std::size_t eventIndex = firstShotEvent;
+            eventIndex < rangedShotEvents.size();
+            ++eventIndex)
+        {
+            const World::RangedEnemyAudioEvent& event = rangedShotEvents[eventIndex];
+            const std::size_t kind = static_cast<std::size_t>(event.kind);
+            if (kind < rangedShotSounds_.size() && rangedShotSounds_[kind])
+            {
+                PlaySpatialSound(
+                    *rangedShotSounds_[kind],
+                    event.position,
+                    rangedShotVolumes[kind],
+                    0.0f,
+                    kind == 2 || kind == 3 ? 18.0f : 16.0f);
+            }
+        }
         const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
-        if (guardAlertSound_)
-            PlaySpatialSounds(*guardAlertSound_, enemyAudioEvents.guardAlertPositions, 0.32f, -0.1f);
+        constexpr std::array<float, 4> rangedAlertVolumes = {0.32f, 0.34f, 0.44f, 0.48f};
+        const std::size_t firstAlertEvent = enemyAudioEvents.rangedAlertSources.size() > 4
+            ? enemyAudioEvents.rangedAlertSources.size() - 4
+            : 0;
+        for (std::size_t eventIndex = firstAlertEvent;
+            eventIndex < enemyAudioEvents.rangedAlertSources.size();
+            ++eventIndex)
+        {
+            const World::RangedEnemyAudioEvent& event =
+                enemyAudioEvents.rangedAlertSources[eventIndex];
+            const std::size_t kind = static_cast<std::size_t>(event.kind);
+            if (kind < rangedAlertSounds_.size() && rangedAlertSounds_[kind])
+            {
+                PlaySpatialSound(
+                    *rangedAlertSounds_[kind],
+                    event.position,
+                    rangedAlertVolumes[kind],
+                    0.0f,
+                    kind == 3 ? 18.0f : 14.0f);
+            }
+        }
         if (houndBarkSound_)
         {
             PlaySpatialSounds(

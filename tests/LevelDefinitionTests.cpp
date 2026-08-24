@@ -910,7 +910,7 @@ int main()
         for (int tick = 0; tick < 120; ++tick)
         {
             static_cast<void>(cadenceWorld.Update(0.05f, target));
-            shots += cadenceWorld.ConsumeGuardShotCount();
+            shots += cadenceWorld.ConsumeRangedShotCount();
         }
         return shots;
     };
@@ -1765,6 +1765,51 @@ int main()
         heavyUnitWorld.CollectPickups(enemyDropPosition).ammo == 8,
         "defeated heavy unit drops eight rounds");
 
+    const std::array<std::pair<char, WolfCna::World::RangedEnemyAudioKind>, 4>
+        rangedAudioArchetypes = {{
+            {'G', WolfCna::World::RangedEnemyAudioKind::Guard},
+            {'F', WolfCna::World::RangedEnemyAudioKind::RapidTrooper},
+            {'U', WolfCna::World::RangedEnemyAudioKind::HeavyUnit},
+            {'Z', WolfCna::World::RangedEnemyAudioKind::Boss}}};
+    for (const auto [symbol, expectedKind] : rangedAudioArchetypes)
+    {
+        std::string levelText = "#####\n#P";
+        levelText.push_back(symbol);
+        levelText += ".#\n#####\n";
+        const std::string sourceName =
+            std::string("ranged-audio-") + symbol + ".level";
+        WolfCna::World audioWorld(WolfCna::LevelDefinition::Parse(
+            levelText,
+            sourceName));
+        bool heardTypedAlert = false;
+        bool heardTypedShot = false;
+        for (int tick = 0; tick < 80 && (!heardTypedAlert || !heardTypedShot); ++tick)
+        {
+            static_cast<void>(audioWorld.Update(0.05f, combatPlayer));
+            const WolfCna::World::EnemyAudioEvents audioEvents =
+                audioWorld.ConsumeEnemyAudioEvents();
+            heardTypedAlert = heardTypedAlert || std::any_of(
+                audioEvents.rangedAlertSources.begin(),
+                audioEvents.rangedAlertSources.end(),
+                [expectedKind](const WolfCna::World::RangedEnemyAudioEvent& event)
+                {
+                    return event.kind == expectedKind;
+                });
+            const std::vector<WolfCna::World::RangedEnemyAudioEvent> shotEvents =
+                audioWorld.ConsumeRangedShotAudioEvents();
+            heardTypedShot = heardTypedShot || std::any_of(
+                shotEvents.begin(),
+                shotEvents.end(),
+                [expectedKind](const WolfCna::World::RangedEnemyAudioEvent& event)
+                {
+                    return event.kind == expectedKind;
+                });
+        }
+        Expect(
+            heardTypedAlert && heardTypedShot,
+            std::string("ranged audio events retain archetype identity for ") + symbol);
+    }
+
     WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",
         "damage.level"));
@@ -1775,7 +1820,7 @@ int main()
     {
         guardProjectileDamage += damageWorld.Update(0.05f, combatPlayer);
         guardShots += static_cast<int>(
-            damageWorld.ConsumeGuardShotPositions().size());
+            damageWorld.ConsumeRangedShotAudioEvents().size());
         activeProjectileImpacts = std::max(
             activeProjectileImpacts,
             damageWorld.ActiveEnemyImpactCount());
@@ -1797,7 +1842,7 @@ int main()
     for (int tick = 0; tick < 10; ++tick)
     {
         static_cast<void>(coordinatedFireWorld.Update(0.05f, combatPlayer));
-        coordinatedShots += coordinatedFireWorld.ConsumeGuardShotCount();
+        coordinatedShots += coordinatedFireWorld.ConsumeRangedShotCount();
     }
     Expect(
         coordinatedShots == 1,
@@ -1808,7 +1853,7 @@ int main()
         "patrol-perception.level"));
     static_cast<void>(patrolPerceptionWorld.Update(0.5f, combatPlayer));
     Expect(
-        patrolPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 0,
+        patrolPerceptionWorld.ConsumeEnemyAudioEvents().rangedAlerts == 0,
         "a patrol does not see a player behind its facing direction");
     const WolfCna::World::EnemyBehaviorStats movingPatrol =
         patrolPerceptionWorld.GetEnemyBehaviorStats();
@@ -1821,7 +1866,7 @@ int main()
     static_cast<void>(patrolPerceptionWorld.Update(0.05f, combatPlayer));
     Expect(
         patrolPerceptionWorld.GetEnemyBehaviorStats().alertingEnemies == 1 &&
-            patrolPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 1,
+            patrolPerceptionWorld.ConsumeEnemyAudioEvents().rangedAlerts == 1,
         "firearm noise starts a reaction delay for an enemy facing away");
 
     WolfCna::World ambushPerceptionWorld(WolfCna::LevelDefinition::Parse(
@@ -1833,7 +1878,7 @@ int main()
     static_cast<void>(ambushPerceptionWorld.Update(0.1f, combatPlayer));
     Expect(
         ambushPerceptionWorld.GetEnemyBehaviorStats().idleEnemies == 1 &&
-            ambushPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 0,
+            ambushPerceptionWorld.ConsumeEnemyAudioEvents().rangedAlerts == 0,
         "an ambush enemy ignores weapon noise while the player remains outside its view");
     static_cast<void>(ambushPerceptionWorld.Update(
         0.05f,

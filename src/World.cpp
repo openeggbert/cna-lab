@@ -1031,8 +1031,8 @@ namespace WolfCna
         foundSecrets_ = state.foundSecrets;
         enemyImpacts_.clear();
         impacts_.clear();
-        pendingGuardShotCount_ = 0;
-        pendingGuardShotPositions_.clear();
+        pendingRangedShotCount_ = 0;
+        pendingRangedShotAudioEvents_.clear();
         pendingEnemyAudioEvents_ = {};
         lastInteractionPosition_.reset();
         pendingPlayerNoise_.reset();
@@ -1043,20 +1043,21 @@ namespace WolfCna
         return true;
     }
 
-    int World::ConsumeGuardShotCount()
+    int World::ConsumeRangedShotCount()
     {
-        const int shotCount = pendingGuardShotCount_;
-        pendingGuardShotCount_ = 0;
-        pendingGuardShotPositions_.clear();
+        const int shotCount = pendingRangedShotCount_;
+        pendingRangedShotCount_ = 0;
+        pendingRangedShotAudioEvents_.clear();
         return shotCount;
     }
 
-    std::vector<Vector3> World::ConsumeGuardShotPositions()
+    std::vector<World::RangedEnemyAudioEvent> World::ConsumeRangedShotAudioEvents()
     {
-        pendingGuardShotCount_ = 0;
-        std::vector<Vector3> positions = std::move(pendingGuardShotPositions_);
-        pendingGuardShotPositions_.clear();
-        return positions;
+        pendingRangedShotCount_ = 0;
+        std::vector<RangedEnemyAudioEvent> events =
+            std::move(pendingRangedShotAudioEvents_);
+        pendingRangedShotAudioEvents_.clear();
+        return events;
     }
 
     World::EnemyAudioEvents World::ConsumeEnemyAudioEvents()
@@ -1646,8 +1647,18 @@ namespace WolfCna
                                 GuardProjectileLifetime,
                                 enemy.attackDamage});
                         }
-                        ++pendingGuardShotCount_;
-                        pendingGuardShotPositions_.push_back(enemy.position);
+                        ++pendingRangedShotCount_;
+                        const RangedEnemyAudioKind audioKind =
+                            enemy.type == Enemy::Type::RapidTrooper
+                                ? RangedEnemyAudioKind::RapidTrooper
+                                : enemy.type == Enemy::Type::HeavyUnit
+                                    ? RangedEnemyAudioKind::HeavyUnit
+                                    : enemy.type == Enemy::Type::Boss
+                                        ? RangedEnemyAudioKind::Boss
+                                        : RangedEnemyAudioKind::Guard;
+                        pendingRangedShotAudioEvents_.push_back({
+                            enemy.position,
+                            audioKind});
                     }
                     enemy.attackVisualSeconds = enemy.melee
                         ? HoundAttackVisualSeconds
@@ -2479,8 +2490,18 @@ namespace WolfCna
         }
         else
         {
-            ++pendingEnemyAudioEvents_.guardAlerts;
-            pendingEnemyAudioEvents_.guardAlertPositions.push_back(enemy.position);
+            ++pendingEnemyAudioEvents_.rangedAlerts;
+            const RangedEnemyAudioKind audioKind =
+                enemy.type == Enemy::Type::RapidTrooper
+                    ? RangedEnemyAudioKind::RapidTrooper
+                    : enemy.type == Enemy::Type::HeavyUnit
+                        ? RangedEnemyAudioKind::HeavyUnit
+                        : enemy.type == Enemy::Type::Boss
+                            ? RangedEnemyAudioKind::Boss
+                            : RangedEnemyAudioKind::Guard;
+            pendingEnemyAudioEvents_.rangedAlertSources.push_back({
+                enemy.position,
+                audioKind});
         }
     }
 

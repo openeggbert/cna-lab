@@ -77,15 +77,30 @@ namespace WolfCna
             operator bool() const { return hit; }
         };
 
+        enum class RangedEnemyAudioKind
+        {
+            Guard,
+            RapidTrooper,
+            HeavyUnit,
+            Boss,
+            Count
+        };
+
+        struct RangedEnemyAudioEvent
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            RangedEnemyAudioKind kind = RangedEnemyAudioKind::Guard;
+        };
+
         struct EnemyAudioEvents
         {
-            int guardAlerts = 0;
+            int rangedAlerts = 0;
             int houndAlerts = 0;
             int houndBarks = 0;
             int houndAttacks = 0;
             int projectileImpacts = 0;
             int doorsOpened = 0;
-            std::vector<Microsoft::Xna::Framework::Vector3> guardAlertPositions;
+            std::vector<RangedEnemyAudioEvent> rangedAlertSources;
             std::vector<Microsoft::Xna::Framework::Vector3> houndAlertPositions;
             std::vector<Microsoft::Xna::Framework::Vector3> houndBarkPositions;
             std::vector<Microsoft::Xna::Framework::Vector3> houndAttackPositions;
@@ -301,9 +316,9 @@ namespace WolfCna
         [[nodiscard]] BossStatus GetBossStatus() const;
         [[nodiscard]] SaveState CaptureSaveState() const;
         [[nodiscard]] bool RestoreSaveState(const SaveState& state);
-        [[nodiscard]] int ConsumeGuardShotCount();
-        [[nodiscard]] std::vector<Microsoft::Xna::Framework::Vector3>
-            ConsumeGuardShotPositions();
+        [[nodiscard]] int ConsumeRangedShotCount();
+        [[nodiscard]] std::vector<RangedEnemyAudioEvent>
+            ConsumeRangedShotAudioEvents();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] std::optional<Microsoft::Xna::Framework::Vector3>
             GetLastInteractionPosition() const;
@@ -492,8 +507,8 @@ namespace WolfCna
         int defeatedEnemies_ = 0;
         std::vector<EnemyProjectile> enemyProjectiles_;
         std::vector<EnemyImpact> enemyImpacts_;
-        int pendingGuardShotCount_ = 0;
-        std::vector<Microsoft::Xna::Framework::Vector3> pendingGuardShotPositions_;
+        int pendingRangedShotCount_ = 0;
+        std::vector<RangedEnemyAudioEvent> pendingRangedShotAudioEvents_;
         EnemyAudioEvents pendingEnemyAudioEvents_;
         std::optional<Microsoft::Xna::Framework::Vector3> lastInteractionPosition_;
         std::optional<Microsoft::Xna::Framework::Vector3> pendingPlayerNoise_;
