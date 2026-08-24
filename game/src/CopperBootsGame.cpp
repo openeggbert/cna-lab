@@ -365,16 +365,14 @@ namespace CopperBoots
         const PlayerState& player = world_.Player();
         const int x = ScreenCoordinate(player.X, cameraX);
         const int y = ScreenCoordinate(player.Y, cameraY);
-        if (player.Dead) {
+        const PlayerPose pose = SelectPlayerPose(player, world_.TickCount());
+        if (pose == PlayerPose::Dead) {
             FillRectangle(Rectangle(x, y + 15, 12, 5), Color(124, 73, 48));
             FillRectangle(Rectangle(x + 2, y + 13, 8, 3), Color(205, 119, 42));
             return;
         }
-        if (player.InvulnerabilityTicks > 0 &&
-            (player.InvulnerabilityTicks / 3) % 2 == 0)
-            return;
 
-        Color coat = player.Motion == PlayerMotion::Running
+        Color coat = pose == PlayerPose::RunA || pose == PlayerPose::RunB
             ? Color(232, 154, 48)
             : Color(205, 119, 42);
         if (player.Plated)
@@ -382,12 +380,87 @@ namespace CopperBoots
         if (player.PowerTransitionTicks > 0 &&
             (player.PowerTransitionTicks / 2) % 2 == 0)
             coat = Color(222, 225, 180);
-        FillRectangle(Rectangle(x + 2, y, 8, 5), Color(217, 189, 143));
-        FillRectangle(Rectangle(x + 1, y + 5, 10, 10), coat);
-        FillRectangle(Rectangle(x + 2, y + 15, 3, 5), Color(53, 81, 94));
-        FillRectangle(Rectangle(x + 7, y + 15, 3, 5), Color(53, 81, 94));
-        const int eyeX = player.FacingRight ? x + 8 : x + 3;
-        FillRectangle(Rectangle(eyeX, y + 2, 2, 2), Color(24, 36, 42));
+        if (pose == PlayerPose::DamageBlink)
+            coat = Color(231, 224, 181);
+
+        const Color skin = pose == PlayerPose::DamageBlink
+            ? Color(245, 239, 183)
+            : Color(217, 189, 143);
+        const Color boots(53, 81, 94);
+        const auto partX = [&](const int offset, const int width) {
+            return player.FacingRight
+                ? x + offset
+                : x + static_cast<int>(PlayerState::Width) - offset - width;
+        };
+        const auto part = [&](const int offset, const int offsetY,
+                              const int width, const int height,
+                              const Color& color) {
+            FillRectangle(Rectangle(partX(offset, width), y + offsetY,
+                                    width, height), color);
+        };
+
+        part(2, 0, 8, 5, skin);
+        switch (pose) {
+        case PlayerPose::WalkA:
+            part(1, 5, 10, 10, coat);
+            part(0, 6, 2, 6, coat);
+            part(10, 8, 2, 6, coat);
+            part(1, 15, 4, 5, boots);
+            part(8, 15, 3, 4, boots);
+            break;
+        case PlayerPose::WalkB:
+            part(1, 5, 10, 10, coat);
+            part(0, 8, 2, 6, coat);
+            part(10, 6, 2, 6, coat);
+            part(1, 15, 3, 4, boots);
+            part(7, 15, 4, 5, boots);
+            break;
+        case PlayerPose::RunA:
+            part(2, 5, 9, 9, coat);
+            part(0, 5, 3, 3, coat);
+            part(10, 9, 2, 5, coat);
+            part(0, 14, 5, 3, boots);
+            part(7, 14, 5, 6, boots);
+            break;
+        case PlayerPose::RunB:
+            part(2, 5, 9, 9, coat);
+            part(0, 9, 2, 5, coat);
+            part(9, 5, 3, 3, coat);
+            part(0, 14, 5, 6, boots);
+            part(7, 14, 5, 3, boots);
+            break;
+        case PlayerPose::Rise:
+            part(1, 5, 10, 9, coat);
+            part(0, 4, 2, 7, coat);
+            part(10, 4, 2, 7, coat);
+            part(2, 14, 3, 4, boots);
+            part(7, 14, 3, 4, boots);
+            break;
+        case PlayerPose::Fall:
+            part(1, 5, 10, 9, coat);
+            part(0, 8, 3, 3, coat);
+            part(9, 8, 3, 3, coat);
+            part(0, 15, 5, 4, boots);
+            part(7, 15, 5, 4, boots);
+            break;
+        case PlayerPose::DamageBlink:
+            part(1, 5, 10, 10, coat);
+            part(0, 7, 2, 6, skin);
+            part(10, 7, 2, 6, skin);
+            part(2, 15, 3, 5, boots);
+            part(7, 15, 3, 5, boots);
+            break;
+        case PlayerPose::Idle:
+        case PlayerPose::Dead:
+            part(1, 5, 10, 10, coat);
+            part(0, 7, 2, 6, coat);
+            part(10, 7, 2, 6, coat);
+            part(2, 15, 3, 5, boots);
+            part(7, 15, 3, 5, boots);
+            break;
+        }
+
+        part(8, 2, 2, 2, Color(24, 36, 42));
     }
 
     void CopperBootsGame::DrawCogs(const float cameraX, const float cameraY)

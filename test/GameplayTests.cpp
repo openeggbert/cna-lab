@@ -959,6 +959,41 @@ namespace
               "simultaneous harmful contacts collapse to one damage class");
     }
 
+    void TestPlayerPoseSelection()
+    {
+        using CopperBoots::PlayerMotion;
+        using CopperBoots::PlayerPose;
+
+        CopperBoots::PlayerState player;
+        player.Motion = PlayerMotion::Standing;
+        Check(CopperBoots::SelectPlayerPose(player, 0) == PlayerPose::Idle,
+              "standing player selects idle pose");
+        player.Motion = PlayerMotion::Walking;
+        Check(CopperBoots::SelectPlayerPose(player, 0) == PlayerPose::WalkA &&
+                  CopperBoots::SelectPlayerPose(player, 8) == PlayerPose::WalkB,
+              "walking pose alternates on an eight-tick cadence");
+        player.Motion = PlayerMotion::Running;
+        Check(CopperBoots::SelectPlayerPose(player, 0) == PlayerPose::RunA &&
+                  CopperBoots::SelectPlayerPose(player, 4) == PlayerPose::RunB,
+              "running pose alternates on a faster four-tick cadence");
+        player.Motion = PlayerMotion::Jumping;
+        Check(CopperBoots::SelectPlayerPose(player, 100) == PlayerPose::Rise,
+              "jumping player selects rise silhouette");
+        player.Motion = PlayerMotion::Falling;
+        Check(CopperBoots::SelectPlayerPose(player, 100) == PlayerPose::Fall,
+              "falling player selects fall silhouette");
+        player.InvulnerabilityTicks = 6;
+        Check(CopperBoots::SelectPlayerPose(player, 100) ==
+                  PlayerPose::DamageBlink,
+              "invulnerability phase selects damage blink silhouette");
+        player.InvulnerabilityTicks = 3;
+        Check(CopperBoots::SelectPlayerPose(player, 100) == PlayerPose::Fall,
+              "alternate invulnerability phase preserves motion silhouette");
+        player.Dead = true;
+        Check(CopperBoots::SelectPlayerPose(player, 100) == PlayerPose::Dead,
+              "death pose has priority over transient presentation states");
+    }
+
     void TestClockworkCrawler()
     {
         constexpr float tick = static_cast<float>(
@@ -1312,6 +1347,7 @@ int main()
     TestCameraBounds();
     TestParallaxDescriptor();
     TestEnemyContactClassification();
+    TestPlayerPoseSelection();
     TestClockworkCrawler();
     TestDeathAndRespawn();
     TestArcProjectiles();

@@ -547,6 +547,12 @@ once. Crawler pairs restore their non-overlapping previous horizontal poses and
 turn outward in stable level order. Generated body/eye/leg rectangles are
 presentation only.
 
+Courier animation is likewise procedural and presentation-only. A pure selector
+maps motion state and simulation tick to idle, two-frame walk, faster two-frame
+run, rise, fall, damage-blink, and flattened death poses. Facing mirrors limb
+placement while leaving the fixed 12x20 collision body untouched; plating and
+capacitor transitions change colors, not bounds.
+
 Damage now has a bounded lifecycle. Plating is consumed by one crawler hit and
 starts 75 invulnerable ticks; an unprotected enemy hit, hazard overlap, or fall
 below the open lower map boundary enters a 45-tick dead state and decrements one

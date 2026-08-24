@@ -30,10 +30,9 @@ gamepad input. Logic and CNA offscreen smoke tests pass.
 
 **Current: M2 — presentation and conduit/subarea foundation**
 
-Add readable procedural courier poses and the first debug overlay, then build
-the first data-driven maintenance-conduit transition without broadening into a
-generic scene engine. The enemy corner/underside/simultaneous-contact matrix is
-complete.
+The procedural courier pose set and enemy contact matrix are complete. Add the
+first debug overlay, then build the first data-driven maintenance-conduit
+transition without broadening into a generic scene engine.
 
 ## Foundation and research
 
@@ -237,7 +236,7 @@ Acceptance:
 - Tests cover corners, one-tile gaps, slopes-not-supported behavior, map edges,
   floor snap, ceiling hit, and a long repeated-run stability case.
 
-### MAR-026 — Player procedural animation — TODO
+### MAR-026 — Player procedural animation — DONE
 
 Acceptance:
 
@@ -584,7 +583,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Complete `MAR-026` procedural courier poses and `MAR-016` debug overlay.
+1. Complete the `MAR-016` debug overlay.
 2. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
 3. Add deterministic state hashes and CTest labels for `MAR-070`.
 4. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.

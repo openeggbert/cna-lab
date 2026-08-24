@@ -84,6 +84,37 @@ namespace CopperBoots
         return result;
     }
 
+    PlayerPose SelectPlayerPose(const PlayerState& player,
+                                const std::uint64_t tick) noexcept
+    {
+        if (player.Dead || player.Motion == PlayerMotion::Dead)
+            return PlayerPose::Dead;
+        if (player.InvulnerabilityTicks > 0 &&
+            (player.InvulnerabilityTicks / 3) % 2 == 0) {
+            return PlayerPose::DamageBlink;
+        }
+        switch (player.Motion) {
+        case PlayerMotion::Walking:
+            return (tick / 8U) % 2U == 0U
+                ? PlayerPose::WalkA
+                : PlayerPose::WalkB;
+        case PlayerMotion::Running:
+            return (tick / 4U) % 2U == 0U
+                ? PlayerPose::RunA
+                : PlayerPose::RunB;
+        case PlayerMotion::Jumping:
+            return PlayerPose::Rise;
+        case PlayerMotion::Falling:
+            return PlayerPose::Fall;
+        case PlayerMotion::Dead:
+            return PlayerPose::Dead;
+        case PlayerMotion::Standing:
+        case PlayerMotion::Transition:
+            return PlayerPose::Idle;
+        }
+        return PlayerPose::Idle;
+    }
+
     WorldSimulation::WorldSimulation()
         : level_(TileMap::CreateTestRoom()),
           camera_(320.0F, 180.0F),

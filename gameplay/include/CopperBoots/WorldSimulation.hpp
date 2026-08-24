@@ -55,6 +55,22 @@ namespace CopperBoots
         PlayerMotion Motion = PlayerMotion::Falling;
     };
 
+    enum class PlayerPose
+    {
+        Idle,
+        WalkA,
+        WalkB,
+        RunA,
+        RunB,
+        Rise,
+        Fall,
+        DamageBlink,
+        Dead,
+    };
+
+    [[nodiscard]] PlayerPose SelectPlayerPose(
+        const PlayerState& player, std::uint64_t tick) noexcept;
+
     struct CogState
     {
         static constexpr float Size = 8.0F;
