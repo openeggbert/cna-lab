@@ -67,6 +67,14 @@ namespace WolfCna
             int totalSecrets = 0;
         };
 
+        struct ObjectiveStatus
+        {
+            int activatedRelays = 0;
+            int totalRelays = 0;
+            int activatedTerminals = 0;
+            int totalTerminals = 0;
+        };
+
         explicit World(const LevelDefinition& level);
 
         [[nodiscard]] int Update(
@@ -122,6 +130,7 @@ namespace WolfCna
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();

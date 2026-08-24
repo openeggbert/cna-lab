@@ -907,6 +907,33 @@ namespace WolfCna
             title,
             Color(184, 238, 255, 255));
 
+        const World::ObjectiveStatus objective = world_.GetObjectiveStatus();
+        const std::string powerStatus =
+            "POWER " + std::to_string(objective.activatedRelays) + "/" + std::to_string(objective.totalRelays);
+        const std::string terminalStatus =
+            "TERMINAL " + std::to_string(objective.activatedTerminals) + "/" + std::to_string(objective.totalTerminals);
+        constexpr int objectiveGap = 18;
+        const int objectiveWidth = HudTextWidth(powerStatus) + objectiveGap + HudTextWidth(terminalStatus);
+        const int objectiveLeft = viewport.getXProperty() + (width - objectiveWidth) / 2;
+        DrawHudText(
+            *hudSpriteBatch_,
+            *hudPixel_,
+            objectiveLeft,
+            viewport.getYProperty() + 32,
+            powerStatus,
+            objective.activatedRelays == objective.totalRelays
+                ? Color(88, 230, 132, 255)
+                : Color(199, 94, 231, 255));
+        DrawHudText(
+            *hudSpriteBatch_,
+            *hudPixel_,
+            objectiveLeft + HudTextWidth(powerStatus) + objectiveGap,
+            viewport.getYProperty() + 32,
+            terminalStatus,
+            objective.activatedTerminals == objective.totalTerminals
+                ? Color(88, 230, 132, 255)
+                : Color(242, 164, 61, 255));
+
         for (int z = 0; z < exploration_.Height(); ++z)
         {
             for (int x = 0; x < exploration_.Width(); ++x)

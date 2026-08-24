@@ -348,8 +348,16 @@ int main()
         "######\n#POME#\n######\n",
         "relay.level"));
     Expect(
+        relayWorld.GetObjectiveStatus().activatedRelays == 0 &&
+            relayWorld.GetObjectiveStatus().activatedTerminals == 0,
+        "new objective status starts incomplete");
+    Expect(
         relayWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::RelayActivated,
         "power relay activates when used from the front");
+    Expect(
+        relayWorld.GetObjectiveStatus().activatedRelays == 1 &&
+            relayWorld.GetObjectiveStatus().activatedTerminals == 0,
+        "objective status reports relay progress independently");
     Expect(!relayWorld.IsExitUnlocked(), "power relay alone does not bypass the terminal");
     Expect(
         relayWorld.TryActivate(
@@ -358,6 +366,10 @@ int main()
             false) == WolfCna::World::InteractionResult::TerminalActivated,
         "terminal remains independently required after the relay");
     Expect(relayWorld.IsExitUnlocked(), "relay and terminal together unlock the exit");
+    Expect(
+        relayWorld.GetObjectiveStatus().activatedRelays == 1 &&
+            relayWorld.GetObjectiveStatus().activatedTerminals == 1,
+        "objective status reports full completion");
 
     WolfCna::World tableWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PY.#\n#####\n",

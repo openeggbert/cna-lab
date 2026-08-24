@@ -1178,7 +1178,8 @@ cells and resets on sector changes. The standalone `M` release edge opens a CNA
 wall boundaries, colors known doors/objectives and draws the player's facing.
 The sector exit is always marked as `GOAL` without revealing its surrounding
 geometry; it changes from red to cyan when activated. All other unknown geometry
-and entities remain hidden. A tested input latch gives the
+and entities remain hidden. A centered `POWER` and `TERMINAL` progress readout
+reports objective completion without exposing either object's position. A tested input latch gives the
 `I` + `L` + `M` loadout chord priority even when its keys are pressed gradually,
 without breaking the next standalone `M`.
 
@@ -1188,6 +1189,7 @@ without breaking the next standalone `M`.
 - distinguish explored floor, walls, ordinary doors, security doors, secrets that
   have already been discovered, the player position and facing direction;
 - always mark the sector exit as `GOAL` while keeping its unvisited surroundings hidden;
+- show relay and terminal completion counts without revealing their locations;
 - do not reveal unexplored enemies, pickups, secrets or room geometry;
 - reset exploration when a new sector starts and preserve it while the current
   sector remains active;

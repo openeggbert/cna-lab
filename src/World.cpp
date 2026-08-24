@@ -339,6 +339,21 @@ namespace WolfCna
         return terminalsActivated && relaysActivated;
     }
 
+    World::ObjectiveStatus World::GetObjectiveStatus() const
+    {
+        return {
+            static_cast<int>(std::count_if(
+                relays_.begin(),
+                relays_.end(),
+                [](const Relay& relay) { return relay.activated; })),
+            static_cast<int>(relays_.size()),
+            static_cast<int>(std::count_if(
+                terminals_.begin(),
+                terminals_.end(),
+                [](const Terminal& terminal) { return terminal.activated; })),
+            static_cast<int>(terminals_.size())};
+    }
+
     World::CompletionStats World::GetCompletionStats() const
     {
         return {
