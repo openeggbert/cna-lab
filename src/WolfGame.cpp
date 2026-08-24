@@ -891,6 +891,13 @@ namespace WolfCna
         const int mapTop = viewport.getYProperty() + (height - mapHeight) / 2 + 10;
         const int edge = std::max(1, cellSize / 5);
         const auto& rows = level_.Rows();
+        const Color playerColor(255, 231, 116, 255);
+        const Color doorColor(75, 137, 193, 255);
+        const Color lockedDoorColor(174, 57, 65, 255);
+        const Color secretColor(194, 144, 50, 255);
+        const Color goalColor = world_.IsExitUnlocked()
+            ? Color(55, 225, 220, 255)
+            : Color(239, 76, 83, 255);
 
         hudSpriteBatch_->Begin();
         hudSpriteBatch_->Draw(
@@ -944,11 +951,11 @@ namespace WolfCna
                 const char symbol = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
                 Color floorColor(29, 58, 91, 255);
                 if (symbol == 'D')
-                    floorColor = Color(75, 137, 193, 255);
+                    floorColor = doorColor;
                 else if (symbol == 'Q')
-                    floorColor = Color(174, 57, 65, 255);
+                    floorColor = lockedDoorColor;
                 else if (symbol == 'S')
-                    floorColor = Color(194, 144, 50, 255);
+                    floorColor = secretColor;
                 else if (symbol == 'E' || symbol == 'M')
                     floorColor = Color(36, 173, 177, 255);
 
@@ -981,9 +988,6 @@ namespace WolfCna
             const int goalCenterY = mapTop + exploration_.GoalZ() * cellSize + cellSize / 2;
             const int goalSize = std::max(7, cellSize + 2);
             const int goalThickness = std::max(2, cellSize / 4);
-            const Color goalColor = world_.IsExitUnlocked()
-                ? Color(55, 225, 220, 255)
-                : Color(239, 76, 83, 255);
             hudSpriteBatch_->Draw(
                 *hudPixel_,
                 Rectangle(goalCenterX - goalSize / 2, goalCenterY - goalThickness / 2, goalSize, goalThickness),
@@ -1029,7 +1033,7 @@ namespace WolfCna
         hudSpriteBatch_->Draw(
             *hudPixel_,
             Rectangle(playerCenterX - markerSize / 2, playerCenterY - markerSize / 2, markerSize, markerSize),
-            Color(255, 231, 116, 255));
+            playerColor);
         const int directionLength = std::max(5, cellSize);
         for (int step = 1; step <= directionLength; ++step)
         {
@@ -1038,8 +1042,48 @@ namespace WolfCna
             hudSpriteBatch_->Draw(
                 *hudPixel_,
                 Rectangle(directionX - 1, directionY - 1, 3, 3),
-                Color(255, 231, 116, 255));
+                playerColor);
         }
+
+        constexpr int legendWidth = 74;
+        constexpr int legendHeight = 65;
+        int legendLeft = viewport.getXProperty() + 8;
+        if (legendLeft + legendWidth > mapLeft - 6)
+            legendLeft = mapLeft + mapWidth + 6;
+        legendLeft = std::clamp(
+            legendLeft,
+            viewport.getXProperty() + 3,
+            viewport.getXProperty() + width - legendWidth - 3);
+        const int legendTop = std::clamp(
+            mapTop,
+            viewport.getYProperty() + 52,
+            viewport.getYProperty() + height - legendHeight - 28);
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(legendLeft, legendTop, legendWidth, legendHeight),
+            Color(7, 18, 38, 235));
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(legendLeft, legendTop, legendWidth, 1),
+            Color(119, 148, 180, 255));
+        const auto drawLegendItem = [&](int row, std::string_view label, Color color)
+        {
+            const int itemTop = legendTop + 5 + row * 12;
+            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(legendLeft + 5, itemTop + 1, 7, 7), color);
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                legendLeft + 17,
+                itemTop + 1,
+                label,
+                Color(211, 226, 246, 255),
+                1);
+        };
+        drawLegendItem(0, "PLAYER", playerColor);
+        drawLegendItem(1, "DOOR", doorColor);
+        drawLegendItem(2, "LOCK", lockedDoorColor);
+        drawLegendItem(3, "SECRET", secretColor);
+        drawLegendItem(4, "GOAL", goalColor);
 
         constexpr std::string_view prompt = "M CLOSE";
         DrawHudText(
