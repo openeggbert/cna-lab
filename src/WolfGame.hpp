@@ -49,7 +49,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardShotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
 
-        World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
+        LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
+        World world_{level_};
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
@@ -59,6 +60,7 @@ namespace WolfCna
         int lives_ = 3;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
+        bool gameOver_ = false;
         enum class Weapon { Knife, Sidearm, Repeater };
         Weapon weapon_ = Weapon::Sidearm;
         bool actionWasDown_ = false;
@@ -71,6 +73,7 @@ namespace WolfCna
 
         void HandleInput(float elapsedSeconds);
         void TryMove(float dx, float dz);
+        void ResetRun();
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 LookDirection() const;
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ViewMatrix() const;

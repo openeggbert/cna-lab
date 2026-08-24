@@ -467,6 +467,14 @@ Tasks:
 - death/restart;
 - audio placeholders generated or permissively licensed.
 
+Audio scope:
+
+- player and guard weapon fire, impacts and empty-weapon feedback;
+- door movement, locks, terminals, secrets, pickups and exit confirmation;
+- guard and hound alerts, attacks and deaths;
+- player damage, death and restart;
+- an original generated or permissively licensed music/ambient layer.
+
 Acceptance:
 
 - player can complete a combat encounter and die/restart.
@@ -964,6 +972,7 @@ Current progress:
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
 - `3` switches to a generated three-round repeater icon; it consumes three shared ammunition units for a spread burst;
 - generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
+- losing the last life presents `GAME OVER`; Space creates a clean new run with the original level state;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;

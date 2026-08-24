@@ -35,6 +35,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - `F11`: toggle fullscreen
 - `Escape`: quit
 
+After all lives are lost, press `Space` to start a new run.
+
 ## Level files
 
 The starter level is [`assets/levels/starter.level`](assets/levels/starter.level). It uses larger

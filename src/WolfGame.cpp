@@ -392,9 +392,9 @@ namespace WolfCna
                 : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
-        if (completed_)
+        if (completed_ || gameOver_)
         {
-            constexpr std::string_view message = "LEVEL COMPLETE";
+            const std::string_view message = completed_ ? "LEVEL COMPLETE" : "GAME OVER";
             const int messageWidth = HudTextWidth(message);
             const int messageX = centerX - messageWidth / 2;
             const int messageY = centerY - 34;
@@ -445,6 +445,22 @@ namespace WolfCna
             playerPosition_.Z = targetZ;
     }
 
+    void WolfGame::ResetRun()
+    {
+        world_ = World(level_);
+        world_.Upload(getGraphicsDeviceProperty());
+        playerPosition_ = world_.PlayerStart();
+        yaw_ = 0.0f;
+        health_ = 100;
+        ammo_ = 12;
+        score_ = 0;
+        lives_ = 3;
+        hasSecurityCard_ = false;
+        completed_ = false;
+        gameOver_ = false;
+        weapon_ = Weapon::Sidearm;
+    }
+
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
@@ -461,6 +477,14 @@ namespace WolfCna
         fullScreenWasDown_ = fullScreenIsDown;
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
+        if (gameOver_)
+        {
+            if (actionIsDown && !actionWasDown_)
+                ResetRun();
+            actionWasDown_ = actionIsDown;
+            return;
+        }
+
         if (actionIsDown && !actionWasDown_)
         {
             const World::InteractionResult activation =
@@ -573,10 +597,18 @@ namespace WolfCna
         if (health_ <= 0)
         {
             lives_ = std::max(0, lives_ - 1);
-            health_ = 100;
-            ammo_ = 12;
-            playerPosition_ = world_.PlayerStart();
-            completed_ = false;
+            if (lives_ == 0)
+            {
+                gameOver_ = true;
+                actionWasDown_ = false;
+            }
+            else
+            {
+                health_ = 100;
+                ammo_ = 12;
+                playerPosition_ = world_.PlayerStart();
+                completed_ = false;
+            }
         }
         HandleInput(clampedElapsed);
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
