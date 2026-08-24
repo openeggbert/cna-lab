@@ -378,6 +378,8 @@ Every producer-defined audio metric and all three scope strings remain mandatory
 integer-count summary rules.
 
 JSON schema 8 adds `frame_pacing` derived from the existing wall-clock `frame_interval` samples.
+The root `schema_version` is a JSON integer contract: numerically equal floating-point encodings
+such as `8.0` are malformed rather than silently accepted as version 8.
 Its `scope` is fixed to intervals between consecutive `BeginFrame` calls: the first frame only
 establishes a baseline and produces no sample. `boundary_scope` is fixed to the first such interval
 recorded after `RecordDistrictLoad`. The shared loader rejects missing or rewritten scope text so

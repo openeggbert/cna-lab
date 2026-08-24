@@ -762,3 +762,13 @@ the external profiler manifest. Both exit 2 with source-specific diagnostics. Re
 comparator 7/7, VRAM 6/6, both retained diagnostics, and full isolated CTest 8/8 pass. Its Xvfb
 smoke ran separately while the explicitly requested visible instance remained open; no evidence
 was added.
+
+## 2026-08-24 — root schema-version type consistency
+
+The shared capture loader now requires `schema_version` to be a non-boolean JSON integer equal to
+8. Python's numeric equality previously let a floating-point `8.0` pass the direct comparison even
+though the versioned producer and external evidence schemas use integer tokens.
+
+A report negative proves `8.0` exits 2 with the received value identified. Report 7/7, comparator
+7/7, VRAM 6/6, both retained diagnostics, and full isolated CTest 8/8 pass. Its smoke process ran
+inside Xvfb; no capture was added.

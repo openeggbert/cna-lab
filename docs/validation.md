@@ -307,6 +307,11 @@ newline-prefixed path in capture-session and external-manifest data. Focused sui
 diagnostics, and full isolated 8/8 CTest pass. Its Xvfb smoke remained separate from the
 user-requested visible instance, which stayed running.
 
+Root capture `schema_version` now requires an actual non-boolean JSON integer equal to 8. A
+floating-point `8.0` no longer passes through Python's numeric equality. The new report negative,
+all focused suites, both retained diagnostics, and full isolated 8/8 CTest pass with its smoke
+process inside Xvfb.
+
 Producer-authored `checks` are correlated with frame/CPU/district sample availability and p95 budget
 direction. Frame minimum/recommended, aggregate CPU, and district-load contradictions exit 2;
 district load is `null` only without samples. Exact serialized budget equality deliberately accepts

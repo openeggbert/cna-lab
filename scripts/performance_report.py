@@ -1146,9 +1146,14 @@ def load_capture(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as error:
         raise ReportError(f"could not read {path}: {error}") from error
 
-    if capture.get("schema_version") != SCHEMA_VERSION:
+    schema_version = capture.get("schema_version")
+    if (
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version != SCHEMA_VERSION
+    ):
         raise ReportError(
-            f"{path}: schema_version must be {SCHEMA_VERSION}, got {capture.get('schema_version')!r}"
+            f"{path}: schema_version must be integer {SCHEMA_VERSION}, got {schema_version!r}"
         )
 
     validate_capture_metadata(capture)

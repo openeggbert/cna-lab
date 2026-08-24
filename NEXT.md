@@ -67,6 +67,13 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 root schema version is now type-strict.** Python equality previously allowed JSON `8.0` to
+match integer schema version `8`, unlike the already strict external-evidence schema.
+
+- The shared loader requires a non-boolean JSON integer equal to 8 and reports the received value.
+- A report negative covers `8.0`. Report 7/7, comparator 7/7, VRAM 6/6, and both retained
+  diagnostics pass; full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
 **M12 process executable identities now reject control-character path prefixes.** Basename checks
 alone allowed a path such as `spoofed\n/iron_gang` to identify the expected process.
 

@@ -677,7 +677,13 @@ class PerformanceReportTests(unittest.TestCase):
         bad_schema["schema_version"] = 7
         result = self.run_report([bad_schema], "Test hardware")
         self.assertEqual(result.returncode, 2)
-        self.assertIn("schema_version must be 8", result.stderr)
+        self.assertIn("schema_version must be integer 8", result.stderr)
+
+        floating_schema = capture_fixture()
+        floating_schema["schema_version"] = 8.0
+        result = self.run_report([floating_schema], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("schema_version must be integer 8, got 8.0", result.stderr)
 
         missing_startup = capture_fixture()
         missing_startup["measurements"].pop("startup_cpu")
