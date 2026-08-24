@@ -103,6 +103,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> exitSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> completionFanfareSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> ambientSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance> ambientInstance_;
 

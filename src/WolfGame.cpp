@@ -172,6 +172,59 @@ namespace WolfCna
             return pcm;
         }
 
+        std::vector<SharpRuntime::bytecs> MakeSectorCompletionFanfare()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr float durationSeconds = 1.9f;
+            constexpr int sampleCount = static_cast<int>(sampleRate * durationSeconds);
+            constexpr std::array<float, 4> melodyFrequencies = {
+                293.66f,
+                369.99f,
+                440.0f,
+                587.33f};
+            constexpr float noteSeconds = 0.27f;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+                float signal = 0.0f;
+
+                for (std::size_t note = 0; note < melodyFrequencies.size(); ++note)
+                {
+                    const float noteStart = static_cast<float>(note) * 0.25f;
+                    const float noteTime = time - noteStart;
+                    if (noteTime < 0.0f || noteTime >= noteSeconds)
+                        continue;
+
+                    const float attack = std::min(1.0f, noteTime / 0.025f);
+                    const float release = std::min(1.0f, (noteSeconds - noteTime) / 0.08f);
+                    const float envelope = attack * release;
+                    const float frequency = melodyFrequencies[note];
+                    const float bright = std::sin(2.0f * MathHelper::Pi * frequency * noteTime);
+                    const float brass = std::sin(2.0f * MathHelper::Pi * frequency * 2.0f * noteTime);
+                    signal += (bright * 0.72f + brass * 0.18f) * envelope;
+                }
+
+                const float chordTime = time - 0.98f;
+                if (chordTime >= 0.0f)
+                {
+                    const float chordProgress = chordTime / (durationSeconds - 0.98f);
+                    const float envelope = std::max(0.0f, 1.0f - chordProgress);
+                    constexpr std::array<float, 3> chord = {293.66f, 369.99f, 440.0f};
+                    for (const float frequency : chord)
+                        signal += std::sin(2.0f * MathHelper::Pi * frequency * chordTime) * envelope * 0.28f;
+                }
+
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp(signal, -1.0f, 1.0f) * 21000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
         std::vector<SharpRuntime::bytecs> MakeAmbientLoop()
         {
             constexpr float sampleRate = 22050.0f;
@@ -781,6 +834,10 @@ namespace WolfCna
             AudioChannels::Mono);
         exitSound_ = std::make_unique<SoundEffect>(
             MakeTone(440.0f, 7000),
+            22050,
+            AudioChannels::Mono);
+        completionFanfareSound_ = std::make_unique<SoundEffect>(
+            MakeSectorCompletionFanfare(),
             22050,
             AudioChannels::Mono);
         ambientSound_ = std::make_unique<SoundEffect>(
@@ -1508,6 +1565,8 @@ namespace WolfCna
         AwardScore(1000);
         if (exitSound_)
             static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
+        if (completionFanfareSound_)
+            static_cast<void>(completionFanfareSound_->Play(0.42f, 0.0f, 0.0f));
     }
 
     void WolfGame::SaveCampaignProfile() const
