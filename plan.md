@@ -366,9 +366,14 @@ reproduction demonstrates actual behavior.
 
 ## Immediate execution queue
 
-1. Commit the verified bootstrap milestone as
-   `Add initial isometric People skeleton` on `develop`.
-2. Complete `PEO-020` deterministic render keys without changing the working
-   presentation.
-3. Implement `PEO-030`–`PEO-035`, then visible walls and objects toward M2.
-4. Preserve a runnable build after every coherent commit.
+1. Complete `PEO-072`: deterministic four-direction procedural walk frames
+   selected from movement presentation state, followed by headless and
+   displayed verification.
+2. Close `PEO-089` by exercising directed resident movement across the
+   furnished room in all four camera views without rotating simulation state.
+3. Build the explicit action foundation in `PEO-079`, `PEO-080`, and
+   `PEO-082`; keep direct right-click routing only as a temporary developer
+   control until player commands can enqueue interactions.
+4. Add `PEO-058`/`PEO-059` reservations and cleanup before implementing the
+   `PEO-090` energy motive and `PEO-091` bed sleep interaction.
+5. Preserve a runnable build and one coherent verified commit per task.
