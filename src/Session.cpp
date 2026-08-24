@@ -54,6 +54,7 @@ void AdventureSession::restart() {
     messageTargetId_.reset();
     pendingSoundEffects_.clear();
     activeAnimations_.clear();
+    checkpoint_.reset();
     sceneElapsedSeconds_ = 0.0F;
     poseTimeRemaining_ = 0.0F;
     terminalMessage_ = {};
@@ -63,6 +64,15 @@ void AdventureSession::restart() {
     selectedVerb_ = Verb::examine;
     mode_ = SessionMode::world;
     enterRoom(world_.startRoom);
+}
+
+void AdventureSession::resumeFromCheckpoint() {
+    if (!checkpoint_.has_value()) {
+        restart();
+        return;
+    }
+    const SessionSnapshot safeState = *checkpoint_;
+    if (!restore(safeState)) restart();
 }
 
 const RoomDefinition& AdventureSession::currentRoom() const {
@@ -150,6 +160,7 @@ bool AdventureSession::tryExit(const Direction direction) {
         if (!exit->blockedMessage.empty()) showSystemMessage(exit->blockedMessage);
         return false;
     }
+    if (currentRoom().travelAnchor) rememberCheckpoint();
     enterRoom(exit->destinationRoom, exit->spawn);
     return true;
 }
@@ -167,6 +178,24 @@ void AdventureSession::enterRoom(const std::string_view roomId, const std::optio
     player_.grounded = isSupported();
     visitedRooms_.insert(room->id);
     if (room->travelAnchor) unlockedTravel_.insert(room->id);
+    if (room->travelAnchor) rememberCheckpoint();
+}
+
+void AdventureSession::rememberCheckpoint() {
+    checkpoint_ = snapshot();
+    checkpoint_->player.position = currentRoom().defaultSpawn;
+    checkpoint_->player.verticalVelocity = 0.0F;
+    const Rect safePlayer{checkpoint_->player.position.x, checkpoint_->player.position.y,
+        config_.playerSize.x, config_.playerSize.y};
+    constexpr float epsilon = 1.5F;
+    checkpoint_->player.grounded = std::ranges::any_of(currentRoom().solids,
+        [&safePlayer](const Rect solid) {
+            const bool horizontal = safePlayer.right() > solid.left() + 1.0F
+                && safePlayer.left() < solid.right() - 1.0F;
+            return horizontal && std::abs(safePlayer.bottom() - solid.top()) <= epsilon;
+        });
+    checkpoint_->player.pose = checkpoint_->player.grounded
+        ? PlayerPose::standing : PlayerPose::jumping;
 }
 
 void AdventureSession::walk(const Direction direction) {
@@ -226,7 +255,8 @@ void AdventureSession::jumpOrContext() {
         return;
     }
     if (mode_ == SessionMode::dead || mode_ == SessionMode::won) {
-        restart();
+        if (mode_ == SessionMode::dead) resumeFromCheckpoint();
+        else restart();
         return;
     }
     contextNearbyOrJump();
@@ -766,6 +796,7 @@ bool AdventureSession::restore(const SessionSnapshot& snapshotValue) {
     pendingTarget_.reset();
     choicePurpose_ = ChoicePurpose::none;
     selectionIndex_ = 0;
+    rememberCheckpoint();
     return true;
 }
 

@@ -33,6 +33,7 @@ public:
     AdventureSession(const WorldDefinition& world, SessionConfig config = {});
 
     void restart();
+    void resumeFromCheckpoint();
     void tick(float seconds);
     void walk(Direction direction);
     void jumpOrContext();
@@ -107,6 +108,7 @@ private:
     std::optional<std::string> messageTargetId_;
     std::vector<std::string> pendingSoundEffects_;
     std::map<std::string, float> activeAnimations_;
+    std::optional<SessionSnapshot> checkpoint_;
     float sceneElapsedSeconds_{};
     float poseTimeRemaining_{};
 
@@ -123,6 +125,7 @@ private:
     [[nodiscard]] const ExitDefinition* exitFor(Direction direction) const noexcept;
     [[nodiscard]] bool tryExit(Direction direction);
     void enterRoom(std::string_view roomId, std::optional<Vec2> spawn = std::nullopt);
+    void rememberCheckpoint();
     void applyGravity(float seconds);
     void checkHazards();
     void beginMessages(const std::vector<Message>& messages, std::optional<std::string> targetId = std::nullopt);

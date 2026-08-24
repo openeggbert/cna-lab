@@ -529,7 +529,7 @@ world.hints.push_back({
     "Climb the tower and operate the relay console.",
     {e2d::Condition::flag("power_on")}, 20});</code></pre>
               <p>Pressing F1 does not change these flags. It pauses the visible action and shows whichever matching hint has the highest priority.</p>
-              <div class="checkpoint"><strong>Checkpoint</strong><span>Victory and death restart cleanly, while F1 follows the unfinished objective without mutating the session.</span></div>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Victory starts a fresh session, death resumes at the latest travel-anchor checkpoint, and F1 follows the unfinished objective without mutating game state.</span></div>
             </div>
           </article>
         </section>

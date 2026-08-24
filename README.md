@@ -28,6 +28,9 @@ strips below. This is a defining feature rather than a temporary limitation.
 - Player walking, optional turn-before-walk behaviour, jumping and gravity.
 - A distinct left/right-facing crouch-and-reach pose while TAKE is performed.
 - Declarative solids and hazardous regions.
+- Automatic safe-place checkpoints at travel-anchor rooms; after a hazard,
+  ENTER resumes with the inventory and world state recorded at the latest
+  anchor instead of starting a new game.
 - Hotspots for scenery, items, characters, mechanisms and hazards.
 - Three explicit verbs: **USE / EXAMINE / TAKE**.
 - A separate contextual action used by ENTER; if no contextual interaction is

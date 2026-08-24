@@ -250,7 +250,7 @@ e2d::ExitDefinition lockedExit{
 cabin.exits.push_back(std::move(lockedExit));</code></pre>
           <ul class="doc-list">
             <li><strong><code>defaultSpawn</code></strong> is used on new game, map travel and mutations that do not provide another spawn.</li>
-            <li><strong><code>travelAnchor</code></strong> makes a visited room available on the discovered-location map.</li>
+            <li><strong><code>travelAnchor</code></strong> makes a visited room available on the discovered-location map and records it as a safe checkpoint. Leaving an anchor refreshes that checkpoint with the player's latest inventory and world state.</li>
             <li><strong><code>turnBeforeWalk</code></strong> makes the first opposite-direction press turn the player without moving.</li>
             <li><strong>ENTER/Space</strong> attempts a nearby contextual rule first and jumps only when none applies.</li>
           </ul>

@@ -369,7 +369,10 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
                 break;
             case SessionMode::dead:
             case SessionMode::won:
-                if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.restart();
+                if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) {
+                    if (session_.mode() == SessionMode::dead) session_.resumeFromCheckpoint();
+                    else session_.restart();
+                }
                 break;
             }
             session_.tick(1.0F / 60.0F);

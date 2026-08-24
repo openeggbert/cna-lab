@@ -360,7 +360,7 @@ void AdventureRenderer::drawTerminal(const AdventureSession& session) {
     canvas_.text((ScreenMetrics::width - canvas_.textWidth(heading, 3)) / 2, 69, heading,
         won ? theme_.accent : theme_.danger, 3);
     canvas_.wrappedText(62, 113, 388, session.terminalMessage(), theme_.text, 1, 4);
-    const std::string_view restart = localize(ui.restartPrompt);
+    const std::string_view restart = localize(won ? ui.restartPrompt : ui.resumePrompt);
     canvas_.text((ScreenMetrics::width - canvas_.textWidth(restart, 1)) / 2, 205, restart, theme_.selected, 1);
 }
 

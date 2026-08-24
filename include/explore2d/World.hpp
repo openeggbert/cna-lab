@@ -119,6 +119,7 @@ struct InterfaceTextDefinition final {
     LocalizedText missionComplete{"MISSION COMPLETE"};
     LocalizedText missionFailed{"MISSION FAILED"};
     LocalizedText restartPrompt{"ENTER TO RESTART"};
+    LocalizedText resumePrompt{"ENTER TO RETURN TO SAFETY"};
     LocalizedText paused{"GAME PAUSED"};
     LocalizedText resume{"RESUME GAME"};
     LocalizedText settings{"SETTINGS"};

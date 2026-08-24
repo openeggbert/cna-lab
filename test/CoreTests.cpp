@@ -60,8 +60,9 @@ static e2d::WorldDefinition makeWorld() {
     b.id = "b";
     b.label = "ROOM B";
     b.defaultSpawn = {20, 232};
-    b.travelAnchor = true;
     b.solids.push_back({0, 260, 492, 28});
+    b.hazards.push_back({"test_hazard", {0, 200, 492, 60},
+        testText("The test hazard caught you.", "Zasáhlo tě testovací nebezpečí."), {}});
     b.exits.push_back({e2d::Direction::left, "a", {460, 232}, {}, {}});
     world.addRoom(std::move(b));
 
@@ -212,6 +213,18 @@ int main() {
     assert(restored.hasItem("key"));
     assert(restored.currentRoomId() == "a");
     std::filesystem::remove(path);
+
+    // Leaving a travel anchor records all progress made there. Death resumes
+    // at that safe anchor instead of silently turning ENTER into NEW GAME.
+    while (session.currentRoomId() == "a") session.walk(e2d::Direction::right);
+    assert(session.mode() == e2d::SessionMode::dead);
+    session.resumeFromCheckpoint();
+    assert(session.mode() == e2d::SessionMode::world);
+    assert(session.currentRoomId() == "a");
+    assert(session.player().position == world.room("a")->defaultSpawn);
+    assert(session.hasItem("key"));
+    assert(!session.hasItem("fuse"));
+    assert(session.flag("fuse_installed"));
 
     session.openMap();
     assert(session.mode() == e2d::SessionMode::map);
