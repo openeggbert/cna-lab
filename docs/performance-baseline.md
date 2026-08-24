@@ -341,6 +341,27 @@ passing. Separate tests prove stale schema, inconsistent histograms, rejected sw
 incomplete VRAM cannot be promoted. The CLI plus these four cases are wired into CTest as
 `iron_gang_performance_report_tests`; generating a report successfully never by itself closes M12.
 
+## 2026-08-24 — automated capture-comparison follow-up
+
+`scripts/performance_compare.py` now turns two compatible schema-8 captures into a deterministic
+Markdown regression table. It compares 15 available p95/pacing/memory values and returns exit 1
+when any candidate increase exceeds both its metric-specific absolute tolerance and the configured
+relative tolerance. Workload counts are included as non-failing context. Exit 2 is reserved for
+invalid or incomparable evidence rather than mislabelling environment changes as regressions.
+
+Compatibility is intentionally strict: hardware identity, diagnostic/qualifying kind, scenario,
+resolution, backend/build, timing and swap state, GPU timer scope/support, budget/hitch definitions,
+RAM observability, VRAM completeness/coverage, and optional metric availability must match. The
+qualifying path additionally rejects virtual/software displays, missing platform presentation
+acknowledgement, unknown RAM, and incomplete VRAM.
+
+The latest real schema-8 Xvfb/llvmpipe capture was compared with itself as a diagnostic integration
+check. All 15 values matched exactly and the generated report returned `NO REGRESSION`; this proves
+real-report parsing, compatibility validation, metric selection, and Markdown/exit-code plumbing.
+It is deliberately not a comparison over two points in time and does not qualify the virtual
+hardware. Unit coverage separately proves regression exit 1, configurable tolerance acceptance,
+hardware/kind refusal, budget and sample-availability refusal, and incomplete qualifying evidence.
+
 ## 2026-08-24 — bounded lifecycle memory-soak follow-up
 
 The new no-window `iron_gang_memory_soak_tests` repeatedly combines mission reset/replay, real

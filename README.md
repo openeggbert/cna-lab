@@ -116,6 +116,25 @@ Physical qualification additionally requires `--qualifying-hardware`, an explici
 display identity, at least two distinct mixed captures, acknowledged presentation, and complete
 VRAM evidence. See [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
+To compare one compatible capture against a named historical baseline with CI-significant
+regression exit codes:
+
+```bash
+./scripts/performance_compare.py \
+  --baseline runtime/performance/m12-baseline.json \
+  --candidate runtime/performance/m12-candidate.json \
+  --baseline-hardware "<same CPU, GPU, driver, display/compositor identity>" \
+  --candidate-hardware "<same CPU, GPU, driver, display/compositor identity>" \
+  --baseline-kind qualifying \
+  --candidate-kind qualifying \
+  --output runtime/performance/m12-comparison.md
+```
+
+The comparator refuses unlike hardware, diagnostic/qualifying kinds, scenarios, resolutions,
+timing/presentation policy, GPU timing availability, budget definitions, or RAM/VRAM coverage.
+Its default relative and metric-specific absolute tolerances are documented in
+[`docs/performance-targets.md`](docs/performance-targets.md#capture-regression-comparison).
+
 The bounded no-window lifecycle soak is part of CTest and can be extended locally:
 
 ```bash

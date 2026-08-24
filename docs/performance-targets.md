@@ -433,6 +433,41 @@ mixed capture. It reports `FAIL` when a declared qualification misses any condit
 because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
 a strict evidence summary, while successful command execution alone is not a gate result.
 
+### Capture regression comparison
+
+Compare a candidate schema-8 capture with a historical baseline using:
+
+```bash
+./scripts/performance_compare.py \
+  --baseline runtime/performance/m12-baseline.json \
+  --candidate runtime/performance/m12-candidate.json \
+  --baseline-hardware "<same CPU, GPU, driver, display/compositor identity>" \
+  --candidate-hardware "<same CPU, GPU, driver, display/compositor identity>" \
+  --baseline-kind qualifying \
+  --candidate-kind qualifying \
+  --output runtime/performance/m12-comparison.md
+```
+
+Hardware identities and capture kinds must match exactly. The tool also requires matching backend,
+build configuration, scenario, resolution, timing, requested/applied presentation state, GPU timer
+support/scope, budget and hitch-threshold definitions, RAM observability, VRAM completeness/
+coverage, and optional GPU/load/transition measurement availability. A qualifying comparison also
+rejects virtual/software display labels, unacknowledged presentation, unknown RAM, and incomplete
+VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other non-qualifying
+engineering runs; diagnostic and qualifying evidence can never be mixed.
+
+The candidate is a regression only when its increase is greater than both the relative tolerance
+and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition
+frame, 0.1 ms for CPU subsystems, 1 ms for district load, 8 MiB for RAM/VRAM, and 0.25 percentage
+points for minimum-budget misses/hitches. Every tolerance has a named CLI override. The Markdown
+table covers frame, update/physics/AI/audio/render/Present/GPU/load p95, miss/hitch rates, peak RAM,
+tracked VRAM, and the district-transition frame; workload counts are context and do not fail the
+comparison by themselves.
+
+Exit 0 means no measured regression beyond tolerance, exit 1 means at least one regression, and
+exit 2 means invalid or incompatible evidence. A no-regression result is not an M12 budget pass;
+use the release-summary generator for the gate decision.
+
 ### Bootstrap source-content budgets
 
 `assets/content-budgets.json` is the versioned first-pass policy consumed by

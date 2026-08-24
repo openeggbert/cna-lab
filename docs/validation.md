@@ -142,6 +142,14 @@ peak RSS with 0 B/cycle rounded trend and 8 bodies. The test enforces 8 MiB curr
 and 32 KiB/cycle trend allowances with a 60-second CTest timeout. It validates core ownership, not
 render/audio/backend residency or physical-hardware M12 qualification.
 
+The capture-comparison follow-up adds standard-library `scripts/performance_compare.py` and a
+seventh CTest. Six CLI tests cover identical evidence, multiple simultaneous regressions, tolerance
+overrides, hardware/kind mismatch, changed budget or GPU-sample availability, and incomplete
+qualifying evidence. The latest real schema-8 Xvfb capture self-comparison reports all 15 available
+metrics unchanged and exits 0. That is an integrated parser/report check only: meaningful temporal
+comparison still requires a later compatible capture from the same named environment, and physical
+M12 qualification still requires the separate release-summary rules.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

@@ -11,6 +11,8 @@ compile_commands.json
 .ninja_*
 
 # Binaries and compiler output
+__pycache__/
+*.py[cod]
 *.o
 *.obj
 *.a

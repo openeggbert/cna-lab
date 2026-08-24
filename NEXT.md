@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has automated compatible capture comparison (`IG-35-024`).** New standard-library
+`scripts/performance_compare.py` compares schema-8 baseline/candidate captures across frame,
+subsystem CPU, GPU, load, pacing, RAM, VRAM, and district-boundary metrics. A candidate fails only
+when its increase exceeds both the configured relative and metric-specific absolute tolerance;
+workload counts remain non-failing context.
+
+- Hardware identity and diagnostic/qualifying kind must match exactly. Backend/build/scenario/
+  resolution, timing/swap state, GPU timer semantics, budget/hitch definitions, RAM observability,
+  VRAM coverage, and optional sample availability must also match. Qualifying comparisons reject
+  virtual/software labels, unacknowledged presentation, unknown RAM, and incomplete VRAM.
+- Six focused CLI tests plus a real schema-8 diagnostic self-comparison pass. The real report found
+  all 15 metrics unchanged, validating the integrated parser/table/exit path without claiming a
+  temporal result or physical qualification. CTest is now 7/7.
+
 **M12 now has a complete smallest-scope lifecycle memory soak (`IG-35-013`, `051`-`052`).** New
 no-window `iron_gang_memory_soak_tests` repeats mission reset/replay, real mid-mission save/read/
 resume/completion, and WarehouseBlock↔Countryside round trips in one process. After warm-up it
@@ -1107,11 +1121,11 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is automated capture comparison over time (`IG-35-024`):
-compare compatible schema-8 reports against a named baseline with explicit absolute/relative
-regression tolerances, while refusing cross-hardware or diagnostic-vs-qualifying comparisons. Do
-not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware
-and VRAM tracking is complete.
+budget. Automated compatible baseline/candidate comparison (`IG-35-024`) is now complete. The next
+safe code-side M12 slice is the dedicated mission capture still missing from `IG-35-012`; keep the
+interior capture explicitly pending because this prototype has no interior gameplay space. Do not
+mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and
+VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --
