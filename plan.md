@@ -103,6 +103,10 @@ similar emulation core is permitted in the application, build, or test suite.
     Babytchi's two observed 8 × 3 bottom poses at their real origin and cadence;
     keep later-form sick poses and illness/Medicine transitions open rather
     than reusing or inventing Babytchi art.
+  - [x] Replace generic success feedback for the observed Marutchi Medicine
+    action with its three exact full-LCD states, seven-phase order, sixteen-frame
+    duration, input blocking, and deterministic framebuffer/timing tests; keep
+    other-form treatment art explicitly open.
   - [x] Replace the generic Marutchi sleep symbol with the two exact observed Z
     arrangements and their 0.82-second cadence while preserving independent
     Marutchi-body and waste animation; keep every other form's sleep pose open.

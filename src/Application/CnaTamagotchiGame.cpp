@@ -154,9 +154,12 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
                 feedback_ = Feedback::None;
             }
         }
-        if (transientVisual_ == TransientVisual::ToiletWipe) {
+        if (transientVisual_ != TransientVisual::None) {
             transientVisualSeconds_ += elapsedSeconds;
-            if (Display::P1ToiletWipe::complete(transientVisualSeconds_)) {
+            const bool complete = transientVisual_ == TransientVisual::Medicine
+                ? Display::P1MedicineAnimation::complete(transientVisualSeconds_)
+                : Display::P1ToiletWipe::complete(transientVisualSeconds_);
+            if (complete) {
                 transientVisual_ = TransientVisual::None;
                 transientVisualSeconds_ = 0.0F;
                 selectedIcon_ = -1;
@@ -482,8 +485,15 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return false;
         }
         if (selectedIcon_ == 3) {
+            const bool observedMarutchiAction = pet_.characterId == "marutchi";
             const bool changed = simulation_.giveMedicine(pet_);
-            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            if (changed && observedMarutchiAction) {
+                setFeedback(Feedback::None);
+                transientVisual_ = TransientVisual::Medicine;
+                transientVisualSeconds_ = 0.0F;
+            } else {
+                setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            }
             return changed;
         }
         if (selectedIcon_ == 4) {
@@ -1000,6 +1010,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         }
         const int markerX = gameChoice_ == 0 ? 8 : 23;
         display_.setPixel(markerX, 12, true);
+        return;
+    }
+
+    if (transientVisual_ == TransientVisual::Medicine) {
+        Display::P1MedicineAnimation::render(display_,
+            Display::P1MedicineAnimation::phaseAt(transientVisualSeconds_));
         return;
     }
 

@@ -1,5 +1,6 @@
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
 #include "CnaTamagotchi/Display/P1LightScreen.hpp"
+#include "CnaTamagotchi/Display/P1MedicineAnimation.hpp"
 #include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
 
 #include <array>
@@ -8,6 +9,7 @@
 using CnaTamagotchi::Display::LcdPalette;
 using CnaTamagotchi::Display::MonochromeDisplay;
 using CnaTamagotchi::Display::P1LightScreen;
+using CnaTamagotchi::Display::P1MedicineAnimation;
 using CnaTamagotchi::Display::P1ToiletWipe;
 
 namespace {
@@ -174,6 +176,87 @@ void testP1ToiletWipeTimingIsDeterministic()
            "the verified wipe core must finish after its blank hold");
 }
 
+void testP1MarutchiMedicineKeepsItsObservedFramesAndTiming()
+{
+    constexpr std::array<std::string_view, 16> expectedFront{{
+        "................................",
+        "................................",
+        "................................",
+        ".............######........##...",
+        "............#......#.......##...",
+        "...........#.##..##.#.....#.....",
+        "...........#........#...........",
+        "...........#...##...#...........",
+        "...........#........#...........",
+        "...........#........#...........",
+        "............#......#............",
+        ".............######.............",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+    }};
+    constexpr std::array<std::string_view, 16> expectedSideA{{
+        ".............#####..........##..",
+        "............#.....#.........####",
+        "............##.....#.......#####",
+        ".............##.....#......####.",
+        "..............##.##.#........##.",
+        "...............#....#...........",
+        "...........#.#.#....#....#......",
+        "...........#####....#...........",
+        "...........#........#...........",
+        "............#......#............",
+        ".............######.............",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+    }};
+    constexpr std::array<std::string_view, 16> expectedSideB{{
+        "..............#####.........##..",
+        ".............#.....#........####",
+        "............#.....##.......#####",
+        "...........#.....##........####.",
+        "...........#.##.##...........##.",
+        "...........#....#...............",
+        "...........#....#.#.#....#......",
+        "...........#....#####...........",
+        "...........#........#...........",
+        "............#......#............",
+        ".............######.............",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+    }};
+
+    MonochromeDisplay display;
+    P1MedicineAnimation::render(display, 0U);
+    expect(matchesRows(display, expectedFront),
+        "the Marutchi Medicine front phase must retain every observed cell");
+    P1MedicineAnimation::render(display, 1U);
+    expect(matchesRows(display, expectedSideA),
+        "the first Marutchi Medicine side phase must retain every observed cell");
+    P1MedicineAnimation::render(display, 3U);
+    expect(matchesRows(display, expectedSideB),
+        "the second Marutchi Medicine side phase must retain every observed cell");
+    P1MedicineAnimation::render(display, 5U);
+    expect(matchesRows(display, expectedSideA),
+        "the final side phase must repeat the independently observed first pose");
+
+    expect(P1MedicineAnimation::phaseAt(0.0F) == 0U
+            && P1MedicineAnimation::phaseAt(2.0F / 30.0F) == 1U
+            && P1MedicineAnimation::phaseAt(4.0F / 30.0F) == 2U
+            && P1MedicineAnimation::phaseAt(7.0F / 30.0F) == 3U,
+        "Medicine phases must retain their observed two/three-frame boundaries");
+    expect(!P1MedicineAnimation::complete(15.0F / 30.0F)
+            && P1MedicineAnimation::complete(16.0F / 30.0F),
+        "the observed seven-phase Medicine action must complete after sixteen frames");
+}
+
 void testP1LightMenuKeepsBothExactStableSelections()
 {
     constexpr std::array<std::string_view, 16> expectedOn{{
@@ -272,6 +355,7 @@ int main()
     testP1ToiletWipeMovesTheWholeFramebuffer();
     testP1ToiletWipeKeepsTheObservedWaterPattern();
     testP1ToiletWipeTimingIsDeterministic();
+    testP1MarutchiMedicineKeepsItsObservedFramesAndTiming();
     testP1LightMenuKeepsBothExactStableSelections();
     testP1LightsOutUsesTheShiftedInvertedSleepCycle();
 

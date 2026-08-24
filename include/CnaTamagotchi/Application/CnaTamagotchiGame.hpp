@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "CnaTamagotchi/Display/P1MedicineAnimation.hpp"
 #include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
 #include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
 #include "CnaTamagotchi/Persistence/SaveRepository.hpp"
@@ -65,6 +66,7 @@ private:
 
     enum class TransientVisual {
         None,
+        Medicine,
         ToiletWipe,
     };
 

@@ -40,7 +40,9 @@ active state is now the shared P1 programme state, not the retired
 Pipple/Budbit prototype. The implemented P1 trace covers the egg,
 Babytchi, Marutchi, early illness and two-dose medicine, baby waste, P1
 Bread/Candy, the five-round Character game, weight effects, Toilet, and the
-captured Marutchi sleep schedule. P1 JSON saves have an explicit programme id;
+captured Marutchi sleep schedule. Marutchi Medicine now uses its observed
+seven-phase 16-frame treatment animation instead of the generic success mark.
+P1 JSON saves have an explicit programme id;
 an incompatible prototype save is preserved under a `.legacy` suffix rather
 than invented into a P1 pet. A persisted, data-driven P1 growth resolver now
 covers the documented classic visible teen/adult branches in deterministic
@@ -55,9 +57,8 @@ and animation capture. The implemented fifteen-minute Attention windows cover
 initial/zero-heart, lights-off, and scheduled false-discipline calls; genuine
 need timers pause during sleep. Later illness, life span, and the timing that
 reaches the already-rendered angel end screen still need
-source-backed implementation. Legacy
-prototype source files remain temporarily for isolated historical tests, but
-they no longer drive the active application.
+source-backed implementation. The retired prototype domain is available only
+in Git history and no longer participates in production or test builds.
 
 ## Reference target and display decision
 

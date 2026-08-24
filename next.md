@@ -156,8 +156,14 @@ write and verify the clean implementation.
   27–29 host frames, represented as 0.93 seconds. Waste remains an independent
   overlay. Catalogue tests protect every row, bound, cadence, wrap, and the
   deliberate normal-pose fallback for unobserved sick forms; a five-second
-  normal-scale application run with one waste pile was checked. Illness onset,
-  Medicine/recovery, and later-form sick poses remain open.
+  normal-scale application run with one waste pile was checked. Illness onset
+  and later-form sick poses remain open.
+- A complete 30 fps 1× Marutchi Medicine trace established three full-frame
+  states and the seven-phase order front/A/front/B/front/A/front. Stable phases
+  occupy `2, 2, 3, 2, 2, 2, 3` host frames, sixteen total. The application now
+  blocks input during this exact transient and returns directly to the healthy
+  home cycle. Other-form Medicine art remains open rather than reusing the
+  observed Marutchi states.
 
 - The naturally evolved reference later showed sleeping Marutchi. Its regular
   long/short body cycle continues while an independent two-phase Z overlay
@@ -240,19 +246,22 @@ uses the previous translated-sprite bobbing behaviour.
 5. [x] Replace the generic Light text with both exact ON/OFF menu frames, the
    measured inactivity timeout, and the filled lights-out LCD with shifted,
    transparent Z phases.
-6. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+6. [x] Transcribe Marutchi's complete Medicine recovery as three exact full-LCD
+   states in its seven-phase, sixteen-frame order; block input until completion
+   and keep all unobserved forms on the fallback path.
+7. Capture separate frame sequences for egg cracking/hatching, eating Bread,
    eating Candy, Character game play, sleeping for every remaining form,
    unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-7. Add a rendering state key to the programme/UI boundary for the remaining
+8. Add a rendering state key to the programme/UI boundary for the remaining
    actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-8. Define action duration, frame cadence, interruption rules, and what A, B,
+9. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-9. Add deterministic display/controller tests for each finite animation:
+10. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 
