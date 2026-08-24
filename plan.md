@@ -997,7 +997,8 @@ Current progress:
 - the in-game `I` + `L` + `M` retro loadout cheat restores health and ammunition, grants the sector card, selects the repeater and resets score, matching the original cheat's gameplay role with wolf-cna's own systems and message;
 - a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu can toggle master sound on/off;
 - `P` now pauses all gameplay simulation and draws a pause card; exits play a generated elevator-confirmation sound;
-- next: playtest and rebalance the encounter pacing, then add level-specific material palettes to make the three authored sectors more visually distinct.
+- each of the three authored sectors now regenerates the wall, floor, ceiling and door atlas colors from its own original palette;
+- next: playtest and rebalance encounter pacing, then add an original enemy projectile impact effect and a sector-completion fanfare.
 
 ---
 

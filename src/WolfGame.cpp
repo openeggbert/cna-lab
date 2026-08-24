@@ -205,6 +205,42 @@ namespace WolfCna
         std::vector<Color> pixels(
             static_cast<std::size_t>(AtlasWidth * AtlasHeight),
             Color(0, 0, 0, 255));
+        int mortarR = 45;
+        int mortarG = 47;
+        int mortarB = 45;
+        int wallR = 113;
+        int wallG = 58;
+        int wallB = 43;
+        int floorR = 58;
+        int floorG = 63;
+        int floorB = 65;
+        int ceilingR = 135;
+        int ceilingG = 137;
+        int ceilingB = 129;
+        int doorR = 49;
+        int doorG = 86;
+        int doorB = 128;
+        int securityR = 132;
+        int securityG = 46;
+        int securityB = 50;
+        if (levelIndex_ == 1)
+        {
+            mortarR = 30; mortarG = 51; mortarB = 39;
+            wallR = 55; wallG = 97; wallB = 66;
+            floorR = 45; floorG = 71; floorB = 58;
+            ceilingR = 102; ceilingG = 126; ceilingB = 104;
+            doorR = 44; doorG = 110; doorB = 97;
+            securityR = 161; securityG = 96; securityB = 33;
+        }
+        else if (levelIndex_ == 2)
+        {
+            mortarR = 42; mortarG = 50; mortarB = 65;
+            wallR = 70; wallG = 88; wallB = 124;
+            floorR = 53; floorG = 61; floorB = 82;
+            ceilingR = 137; ceilingG = 151; ceilingB = 174;
+            doorR = 67; doorG = 91; doorB = 151;
+            securityR = 145; securityG = 47; securityB = 104;
+        }
 
         for (int y = 0; y < PanelSize; ++y)
         {
@@ -223,14 +259,14 @@ namespace WolfCna
                     Color c(0, 0, 0, 255);
                     if (mortar)
                     {
-                        c = Color(45, 47, 45, 255);
+                        c = Color(mortarR, mortarG, mortarB, 255);
                     }
                     else
                     {
                         c = Color(
-                            ByteClamp(113 + noise),
-                            ByteClamp(58 + noise / 2),
-                            ByteClamp(43 + noise / 3),
+                            ByteClamp(wallR + noise),
+                            ByteClamp(wallG + noise / 2),
+                            ByteClamp(wallB + noise / 3),
                             ByteClamp(255));
                     }
 
@@ -250,11 +286,11 @@ namespace WolfCna
                     }
                     else
                     {
-                        const int base = checker ? 68 : 58;
+                        const int base = floorR + (checker ? 10 : 0);
                         c = Color(
                             ByteClamp(base + noise / 3),
-                            ByteClamp(base + 5 + noise / 3),
-                            ByteClamp(base + 7 + noise / 3),
+                            ByteClamp(floorG + (checker ? 10 : 0) + noise / 3),
+                            ByteClamp(floorB + (checker ? 10 : 0) + noise / 3),
                             ByteClamp(255));
                     }
 
@@ -269,14 +305,14 @@ namespace WolfCna
                     Color c(0, 0, 0, 255);
                     if (seam)
                     {
-                        c = Color(74, 76, 72, 255);
+                        c = Color(ceilingR - 61, ceilingG - 61, ceilingB - 61, 255);
                     }
                     else
                     {
                         c = Color(
-                            ByteClamp(135 + noise),
-                            ByteClamp(137 + noise),
-                            ByteClamp(129 + noise),
+                            ByteClamp(ceilingR + noise),
+                            ByteClamp(ceilingG + noise),
+                            ByteClamp(ceilingB + noise),
                             ByteClamp(255));
                     }
 
@@ -288,8 +324,8 @@ namespace WolfCna
                     const int ax = x + PanelSize * 3;
                     const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
-                        ? Color(31, 50, 78, 255)
-                        : Color(ByteClamp(49 + noise), ByteClamp(86 + noise), ByteClamp(128 + noise), ByteClamp(255));
+                        ? Color(doorR / 2, doorG / 2, doorB / 2, 255)
+                        : Color(ByteClamp(doorR + noise), ByteClamp(doorG + noise), ByteClamp(doorB + noise), ByteClamp(255));
                 }
 
                 // Panel 4: red security door.
@@ -297,8 +333,8 @@ namespace WolfCna
                     const int ax = x + PanelSize * 4;
                     const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
-                        ? Color(76, 25, 28, 255)
-                        : Color(ByteClamp(132 + noise), ByteClamp(46 + noise), ByteClamp(50 + noise), ByteClamp(255));
+                        ? Color(securityR / 2, securityG / 2, securityB / 2, 255)
+                        : Color(ByteClamp(securityR + noise), ByteClamp(securityG + noise), ByteClamp(securityB + noise), ByteClamp(255));
                 }
             }
         }
@@ -678,6 +714,8 @@ namespace WolfCna
         level_ = LevelDefinition::LoadFromFile(std::string(CampaignLevelFiles[static_cast<std::size_t>(levelIndex_)]));
         world_ = World(level_);
         world_.Upload(getGraphicsDeviceProperty());
+        if (atlas_)
+            CreateProceduralAtlas();
         playerPosition_ = world_.PlayerStart();
         yaw_ = 0.0f;
         hasSecurityCard_ = false;

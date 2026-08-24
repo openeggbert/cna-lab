@@ -23,6 +23,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - grid collision with wall sliding
 - level loaded from a validated text file
 - a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
+- distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
