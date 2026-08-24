@@ -332,6 +332,10 @@ namespace WolfCna
             MakeTone(270.0f, 1700),
             22050,
             AudioChannels::Mono);
+        secretSound_ = std::make_unique<SoundEffect>(
+            MakeTone(790.0f, 4200),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -454,6 +458,12 @@ namespace WolfCna
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
             else if (activation == World::InteractionResult::TerminalActivated && terminalSound_)
                 static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
+            else if (activation == World::InteractionResult::SecretRevealed)
+            {
+                score_ += 500;
+                if (secretSound_)
+                    static_cast<void>(secretSound_->Play(0.3f, 0.45f, 0.0f));
+            }
         }
         actionWasDown_ = actionIsDown;
 

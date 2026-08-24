@@ -48,6 +48,7 @@ have the same width and use only these symbols:
 - `Q`: closed red security door
 - `C`: cyan security-card pickup, required to open `Q`
 - `M`: amber terminal; use it to bring the exit online
+- `S`: secret moving wall; use it to expose a hidden reward
 - `G`: guard spawn
 - `K`: hound spawn
 - `H`: health pickup

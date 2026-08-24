@@ -334,7 +334,7 @@ namespace WolfCna
 
         target->opening = true;
         target->closeDelay = DoorAutoCloseDelay;
-        return InteractionResult::DoorOpened;
+        return target->isSecret ? InteractionResult::SecretRevealed : InteractionResult::DoorOpened;
     }
 
     int World::Update(float elapsedSeconds, const Vector3& playerPosition)
@@ -358,6 +358,9 @@ namespace WolfCna
             }
 
             if (door.openAmount <= 0.0f)
+                continue;
+
+            if (door.isSecret)
                 continue;
 
             if (HasDeadEnemyInDoorway(door))
@@ -568,14 +571,17 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] != 'D' && map_[z][x] != 'Q')
+                if (map_[z][x] != 'D' && map_[z][x] != 'Q' && map_[z][x] != 'S')
                     continue;
 
                 doors_.push_back({
                     x,
                     z,
                     IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
-                    map_[z][x] == 'Q' ? Material::SecurityDoor : Material::Door});
+                    map_[z][x] == 'Q'
+                        ? Material::SecurityDoor
+                        : map_[z][x] == 'S' ? Material::Wall : Material::Door,
+                    map_[z][x] == 'S'});
             }
         }
     }

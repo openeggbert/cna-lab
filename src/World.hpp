@@ -27,7 +27,8 @@ namespace WolfCna
             None,
             DoorOpened,
             DoorLocked,
-            TerminalActivated
+            TerminalActivated,
+            SecretRevealed
         };
 
         struct PickupResult
@@ -93,6 +94,7 @@ namespace WolfCna
             int z = 0;
             bool blocksAlongX = true;
             Material material = Material::Door;
+            bool isSecret = false;
             bool opening = false;
             float openAmount = 0.0f;
             float closeDelay = 0.0f;

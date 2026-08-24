@@ -76,6 +76,17 @@ int main()
     static_cast<void>(doorWorld.Update(0.5f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after its delay");
 
+    WolfCna::World secretWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#PS..#\n######\n",
+        "secret.level"));
+    Expect(secretWorld.Collides(2.5f, 1.5f, 0.1f), "secret wall blocks movement before it is found");
+    Expect(
+        secretWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::SecretRevealed,
+        "secret wall is revealed through interaction");
+    static_cast<void>(secretWorld.Update(0.5f, playerPosition));
+    static_cast<void>(secretWorld.Update(5.0f, playerPosition));
+    Expect(!secretWorld.Collides(2.5f, 1.5f, 0.1f), "secret wall remains open after discovery");
+
     WolfCna::World bodyDoorWorld(WolfCna::LevelDefinition::Parse(
         "######\n#PDK.#\n######\n",
         "body-door.level"));
