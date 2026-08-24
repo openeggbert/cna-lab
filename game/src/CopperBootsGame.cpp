@@ -3,16 +3,19 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <utility>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
+#include "Microsoft/Xna/Framework/TitleContainer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteSortMode.hpp"
 #include "Microsoft/Xna/Framework/Graphics/TextureFilter.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
+#include "System/IO/StreamReader.hpp"
 
 namespace CopperBoots
 {
@@ -56,6 +59,13 @@ namespace CopperBoots
 
     void CopperBootsGame::LoadContent()
     {
+        constexpr std::string_view levelPath =
+            "Content/Levels/green_ruins.cbl";
+        auto levelStream = Microsoft::Xna::Framework::TitleContainer::OpenStream(
+            std::string(levelPath));
+        System::IO::StreamReader reader(levelStream.get(), true);
+        world_.LoadLevel(LevelDefinition::Parse(reader.ReadToEnd(), levelPath));
+
         auto& device = getGraphicsDeviceProperty();
         spriteBatch_ = std::make_unique<SpriteBatch>(device);
         solidTexture_ = std::make_unique<Texture2D>(device, 1, 1);
@@ -69,6 +79,7 @@ namespace CopperBoots
         std::cout << "Copper Boots: renderer "
                   << device.GetGraphicsRendererName()
                   << ", logical surface " << LogicalWidth << 'x' << LogicalHeight
+                  << ", level " << levelPath
                   << "\n";
         std::cout.flush();
     }
@@ -170,11 +181,13 @@ namespace CopperBoots
             }
         };
 
-        repeatLayer(0.10F, 78, 116, 22, Color(60, 83, 112));
-        repeatLayer(0.25F, 54, 130, 30, Color(58, 107, 104));
-        repeatLayer(0.50F, 38, 146, 20, Color(70, 126, 95));
+        const auto& factors = world_.ParallaxFactors();
+        repeatLayer(factors[0], 78, 116, 22, Color(60, 83, 112));
+        repeatLayer(factors[1], 54, 130, 30, Color(58, 107, 104));
+        repeatLayer(factors[2], 38, 146, 20, Color(70, 126, 95));
 
-        const int cloudOffset = static_cast<int>(std::floor(cameraX * 0.10F)) % 110;
+        const int cloudOffset =
+            static_cast<int>(std::floor(cameraX * factors[0])) % 110;
         for (int x = 20 - cloudOffset; x < LogicalWidth + 80; x += 110) {
             FillRectangle(Rectangle(x, 26, 42, 7), Color(181, 211, 196));
             FillRectangle(Rectangle(x + 9, 21, 25, 6), Color(205, 225, 207));
@@ -193,22 +206,61 @@ namespace CopperBoots
 
         for (int y = firstY; y <= lastY; ++y) {
             for (int x = firstX; x <= lastX; ++x) {
-                if (level.Get(x, y) != TileKind::Solid)
+                const Tile tile = level.Get(x, y);
+                if (tile.Visual == TileVisual::None)
                     continue;
 
                 const int screenX = ScreenCoordinate(
                     static_cast<float>(x * TileMap::TileSize), cameraX);
                 const int screenY = ScreenCoordinate(
                     static_cast<float>(y * TileMap::TileSize), cameraY);
-                const Color body = ((x + y) % 2 == 0)
-                    ? Color(118, 82, 53)
-                    : Color(104, 71, 49);
-                FillRectangle(Rectangle(screenX, screenY,
-                                        TileMap::TileSize, TileMap::TileSize), body);
-                FillRectangle(Rectangle(screenX, screenY,
-                                        TileMap::TileSize, 3), Color(166, 142, 69));
-                FillRectangle(Rectangle(screenX + 2, screenY + 6,
-                                        4, 3), Color(73, 58, 48));
+                switch (tile.Visual) {
+                case TileVisual::Ruin: {
+                    const Color body = ((x + y) % 2 == 0)
+                        ? Color(118, 82, 53)
+                        : Color(104, 71, 49);
+                    FillRectangle(Rectangle(screenX, screenY,
+                                            TileMap::TileSize, TileMap::TileSize), body);
+                    FillRectangle(Rectangle(screenX, screenY,
+                                            TileMap::TileSize, 3), Color(166, 142, 69));
+                    FillRectangle(Rectangle(screenX + 2, screenY + 6,
+                                            4, 3), Color(73, 58, 48));
+                    break;
+                }
+                case TileVisual::Breakable:
+                    FillRectangle(Rectangle(screenX, screenY, 16, 16),
+                                  Color(160, 90, 48));
+                    FillRectangle(Rectangle(screenX + 1, screenY + 1, 14, 3),
+                                  Color(221, 150, 65));
+                    FillRectangle(Rectangle(screenX + 7, screenY + 4, 2, 12),
+                                  Color(91, 55, 43));
+                    break;
+                case TileVisual::Hazard:
+                    FillRectangle(Rectangle(screenX, screenY + 12, 16, 4),
+                                  Color(107, 46, 54));
+                    for (int spike = 0; spike < 4; ++spike)
+                        FillRectangle(Rectangle(screenX + spike * 4 + 1,
+                                                screenY + 5 + spike % 2,
+                                                2, 7 - spike % 2),
+                                      Color(226, 100, 70));
+                    break;
+                case TileVisual::Exit:
+                    FillRectangle(Rectangle(screenX + 2, screenY, 12, 16),
+                                  Color(40, 71, 73));
+                    FillRectangle(Rectangle(screenX + 4, screenY + 2, 8, 12),
+                                  Color(95, 192, 158));
+                    FillRectangle(Rectangle(screenX + 9, screenY + 8, 2, 2),
+                                  Color(235, 189, 67));
+                    break;
+                case TileVisual::Decoration:
+                    FillRectangle(Rectangle(screenX + 3, screenY + 8, 10, 8),
+                                  Color(68, 143, 86));
+                    FillRectangle(Rectangle(screenX + 7, screenY + 3, 3, 12),
+                                  Color(94, 174, 93));
+                    break;
+                case TileVisual::None:
+                    break;
+                }
             }
         }
     }

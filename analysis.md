@@ -444,17 +444,18 @@ The first format is deliberately transparent, line-oriented text:
 
 ```text
 copper-boots-level 1
-name Green Ruins Workshop
-size 96 11
-spawn 3 7
+name Green Ruins Relay
+size 80 12
+spawn 3 9
+checkpoint 3 9
 parallax 0.10 0.25 0.50
 legend
-. empty air
-# ground solid
-B brick solid breakable
+. empty
+# solid
+B breakable
 ! hazard
-G cog collectible
 E exit
+d decoration
 map
 ...row-major UTF-8/ASCII rows...
 ```
@@ -463,6 +464,13 @@ The loader validates version, dimensions, row widths, recognized glyphs,
 exactly one spawn, reachable in-bounds coordinates where structural checks are
 practical, and reports line-numbered errors. It converts glyphs to visual and
 semantic tile records. The historical character codes are not reused.
+
+The version-1 grammar is deliberately strict and ordered. Unknown directives,
+duplicate directives, unknown glyphs, and non-empty data after the declared map
+are errors rather than silently ignored extensions. An incompatible grammar
+increments the magic version; compatible optional metadata will be introduced
+in a documented section before `legend`, with old loaders failing clearly
+instead of guessing.
 
 ## CNA and sharp-runtime baseline
 

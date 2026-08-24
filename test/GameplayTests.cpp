@@ -1,9 +1,12 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 #include <string_view>
 
 #include "CopperBoots/Camera2D.hpp"
+#include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -52,8 +55,102 @@ namespace
         Check(map.IsSolid(2, 0), "right of map is solid");
         Check(!map.IsSolid(0, -1), "above map is empty");
         Check(map.IsSolid(0, 2), "below map is solid");
-        map.Set(1, 1, CopperBoots::TileKind::Solid);
+        map.Set(1, 1, CopperBoots::Tiles::Ruin);
         Check(map.IsSolid(1, 1), "set solid tile is returned");
+        map.Set(0, 0, CopperBoots::Tiles::Decoration);
+        Check(!map.IsSolid(0, 0),
+              "decorative visual does not imply solid collision");
+    }
+
+    void TestLevelParsing()
+    {
+        constexpr std::string_view source =
+            "copper-boots-level 1\n"
+            "name Parser Workshop\n"
+            "size 4 3\n"
+            "spawn 1 2\n"
+            "checkpoint 2 2\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "map\n"
+            ".d..\n"
+            "B!E.\n"
+            "####\n";
+
+        const CopperBoots::LevelDefinition level =
+            CopperBoots::LevelDefinition::Parse(source, "memory.cbl");
+        Check(level.Name == "Parser Workshop", "level name is parsed");
+        Check(level.Map.Width() == 4 && level.Map.Height() == 3,
+              "level dimensions are parsed");
+        Check(level.SpawnTileX == 1 && level.SpawnFootTileY == 2,
+              "spawn coordinate is parsed");
+        Check(level.CheckpointTileX == 2 && level.CheckpointFootTileY == 2,
+              "checkpoint coordinate is parsed");
+        CheckNear(level.ParallaxFactors[1], 0.25F, 0.0001F,
+                  "parallax factors are parsed");
+        Check(level.Map.Get(1, 0).Visual == CopperBoots::TileVisual::Decoration &&
+                  level.Map.Get(1, 0).Collision == CopperBoots::TileCollision::None,
+              "decoration keeps visual and collision independent");
+        Check(level.Map.Get(0, 1) == CopperBoots::Tiles::Breakable,
+              "breakable glyph maps to breakable solid");
+        Check(level.Map.Get(1, 1) == CopperBoots::Tiles::Hazard,
+              "hazard glyph maps to hazard semantics");
+        Check(level.Map.Get(2, 1) == CopperBoots::Tiles::Exit,
+              "exit glyph maps to exit semantics");
+
+        std::string malformed(source);
+        const std::size_t row = malformed.find(".d..\n");
+        malformed.erase(row, 1);
+        bool threwLineError = false;
+        try {
+            (void)CopperBoots::LevelDefinition::Parse(malformed, "broken.cbl");
+        }
+        catch (const std::runtime_error& error) {
+            threwLineError = std::string_view(error.what()).starts_with(
+                "broken.cbl:15:");
+        }
+        Check(threwLineError, "malformed map reports source and line number");
+
+        const auto failsAt = [](std::string text,
+                                const std::string_view expectedPrefix) {
+            try {
+                (void)CopperBoots::LevelDefinition::Parse(text, "case.cbl");
+            }
+            catch (const std::runtime_error& error) {
+                return std::string_view(error.what()).starts_with(expectedPrefix);
+            }
+            return false;
+        };
+        const auto replaced = [source](const std::string_view before,
+                                       const std::string_view after) {
+            std::string result(source);
+            const std::size_t position = result.find(before);
+            result.replace(position, before.size(), after);
+            return result;
+        };
+
+        Check(failsAt(replaced("copper-boots-level 1",
+                               "copper-boots-level 2"), "case.cbl:1:"),
+              "unsupported level version reports line one");
+        Check(failsAt(replaced("size 4 3", "size 0 3"), "case.cbl:3:"),
+              "invalid dimensions report their directive");
+        Check(failsAt(replaced("spawn 1 2", "spoon 1 2"), "case.cbl:4:"),
+              "missing spawn directive reports its line");
+        Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
+                      "case.cbl:5:"),
+              "out-of-bounds checkpoint reports its line");
+        Check(failsAt(replaced("B!E.", "B?E."), "case.cbl:16:"),
+              "unknown map glyph reports its row");
+        Check(failsAt(replaced("checkpoint 2 2",
+                               "spawn 1 2\ncheckpoint 2 2"),
+                      "case.cbl:5:"),
+              "duplicate ordered directive is rejected deterministically");
     }
 
     void TestMovementAndJump()
@@ -139,6 +236,7 @@ int main()
 {
     TestSimulationClock();
     TestTileBounds();
+    TestLevelParsing();
     TestMovementAndJump();
     TestVariableJumpHeight();
     TestCameraBounds();
@@ -150,4 +248,3 @@ int main()
     std::cout << "Copper Boots gameplay tests passed\n";
     return EXIT_SUCCESS;
 }
-

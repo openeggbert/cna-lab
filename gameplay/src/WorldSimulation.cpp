@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace CopperBoots
 {
@@ -34,6 +35,18 @@ namespace CopperBoots
           spawnX_(3.0F * static_cast<float>(TileMap::TileSize)),
           spawnY_(9.0F * static_cast<float>(TileMap::TileSize) - PlayerState::Height)
     {
+        camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
+                               static_cast<float>(level_.PixelHeight()));
+        ResetPlayer();
+    }
+
+    void WorldSimulation::LoadLevel(LevelDefinition level)
+    {
+        level_ = std::move(level.Map);
+        spawnX_ = static_cast<float>(level.SpawnTileX * TileMap::TileSize);
+        spawnY_ = static_cast<float>(level.SpawnFootTileY * TileMap::TileSize) -
+                  PlayerState::Height;
+        parallaxFactors_ = level.ParallaxFactors;
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
                                static_cast<float>(level_.PixelHeight()));
         ResetPlayer();
@@ -183,4 +196,3 @@ namespace CopperBoots
         }
     }
 }
-

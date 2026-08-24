@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CopperBoots/Camera2D.hpp"
+#include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/TileMap.hpp"
 
 namespace CopperBoots
@@ -41,12 +42,17 @@ namespace CopperBoots
     public:
         WorldSimulation();
 
+        void LoadLevel(LevelDefinition level);
         void Update(const PlayerInput& input, float seconds);
         void ResetPlayer();
 
         [[nodiscard]] const TileMap& Level() const noexcept { return level_; }
         [[nodiscard]] const PlayerState& Player() const noexcept { return player_; }
         [[nodiscard]] const Camera2D& Camera() const noexcept { return camera_; }
+        [[nodiscard]] const std::array<float, 3>& ParallaxFactors() const noexcept
+        {
+            return parallaxFactors_;
+        }
 
     private:
         [[nodiscard]] bool Collides(float x, float y, float width,
@@ -60,6 +66,6 @@ namespace CopperBoots
         Camera2D camera_;
         float spawnX_;
         float spawnY_;
+        std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
     };
 }
-

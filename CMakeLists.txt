@@ -79,6 +79,7 @@ add_subdirectory("${CNA_ROOT_DIR}" CNA)
 
 add_library(copper_boots_gameplay STATIC
     gameplay/src/Camera2D.cpp
+    gameplay/src/LevelDefinition.cpp
     gameplay/src/SimulationClock.cpp
     gameplay/src/TileMap.cpp
     gameplay/src/WorldSimulation.cpp
@@ -102,6 +103,12 @@ endif()
 if(COMMAND cna_copy_renderer_runtime)
     cna_copy_renderer_runtime(copper-boots)
 endif()
+
+add_custom_command(TARGET copper-boots POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/Content"
+        "$<TARGET_FILE_DIR:copper-boots>/Content"
+    COMMENT "Copying Copper Boots content")
 
 if(MSVC)
     target_compile_options(copper_boots_gameplay PRIVATE /W4 /WX)

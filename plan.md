@@ -256,7 +256,7 @@ Acceptance:
 
 ## Levels and data
 
-### MAR-030 — Versioned external level format — TODO
+### MAR-030 — Versioned external level format — DONE
 
 Acceptance:
 
@@ -266,12 +266,12 @@ Acceptance:
   copied.
 - Visual identity and collision semantic can vary independently.
 
-### MAR-031 — Level loader — TODO
+### MAR-031 — Level loader — DONE
 
 Acceptance:
 
-- Transport accepts a standard stream so parser tests need no CNA; game opens
-  content using verified CNA `TitleContainer` or `ContentManager` public API.
+- Parser accepts an independent text buffer so tests need no CNA; game transports
+  that text using verified CNA `TitleContainer` and sharp-runtime stream APIs.
 - Errors include path/context and line number for bad version, dimensions, row
   width, glyph, duplicates, missing spawn, or out-of-bounds metadata.
 - Valid and invalid fixtures have deterministic tests.

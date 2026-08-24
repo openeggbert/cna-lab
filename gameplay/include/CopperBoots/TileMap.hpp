@@ -5,10 +5,40 @@
 
 namespace CopperBoots
 {
-    enum class TileKind
+    enum class TileVisual
     {
-        Empty,
+        None,
+        Ruin,
+        Breakable,
+        Hazard,
+        Exit,
+        Decoration,
+    };
+
+    enum class TileCollision
+    {
+        None,
         Solid,
+        Hazard,
+        Exit,
+    };
+
+    struct Tile
+    {
+        TileVisual Visual = TileVisual::None;
+        TileCollision Collision = TileCollision::None;
+
+        [[nodiscard]] constexpr bool operator==(const Tile&) const = default;
+    };
+
+    namespace Tiles
+    {
+        inline constexpr Tile Empty{};
+        inline constexpr Tile Ruin{TileVisual::Ruin, TileCollision::Solid};
+        inline constexpr Tile Breakable{TileVisual::Breakable, TileCollision::Solid};
+        inline constexpr Tile Hazard{TileVisual::Hazard, TileCollision::Hazard};
+        inline constexpr Tile Exit{TileVisual::Exit, TileCollision::Exit};
+        inline constexpr Tile Decoration{TileVisual::Decoration, TileCollision::None};
     };
 
     class TileMap
@@ -20,8 +50,8 @@ namespace CopperBoots
 
         [[nodiscard]] static TileMap CreateTestRoom();
 
-        void Set(int x, int y, TileKind kind);
-        [[nodiscard]] TileKind Get(int x, int y) const noexcept;
+        void Set(int x, int y, Tile tile);
+        [[nodiscard]] Tile Get(int x, int y) const noexcept;
         [[nodiscard]] bool IsSolid(int x, int y) const noexcept;
         [[nodiscard]] int Width() const noexcept { return width_; }
         [[nodiscard]] int Height() const noexcept { return height_; }
@@ -33,7 +63,6 @@ namespace CopperBoots
 
         int width_;
         int height_;
-        std::vector<TileKind> tiles_;
+        std::vector<Tile> tiles_;
     };
 }
-
