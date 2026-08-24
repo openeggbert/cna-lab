@@ -1272,7 +1272,7 @@ namespace WolfCna
         drawLegendItem(3, "SECRET", secretColor);
         drawLegendItem(4, "GOAL", goalColor);
 
-        constexpr std::string_view prompt = "M CLOSE";
+        constexpr std::string_view prompt = "RELEASE TAB";
         DrawHudText(
             *hudSpriteBatch_,
             *hudPixel_,

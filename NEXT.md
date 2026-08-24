@@ -44,6 +44,7 @@
 - Campaign pacing tests now require early and late health recovery plus a 90–130-cell relay/terminal/exit route; sector 1's second kit moved into its late combat room and Veteran damage is now 130%.
 - The title menu now cycles CNA master volume through 0/25/50/75/100%; profile format 3 persists it and migrates both older profile versions.
 - The title menu now cycles a CNA-rendered 60/72/84/96-degree view angle; profile format 4 persists it and migrates formats 1–3.
+- The held automap prompt now correctly says `RELEASE TAB` instead of the obsolete `M CLOSE` binding.
 
 ## Next tasks
 
