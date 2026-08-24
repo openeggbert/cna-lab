@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <ranges>
 #include <string_view>
 
 namespace e2d = explore2d;
@@ -43,6 +44,10 @@ int main() {
     assert(world.rooms.size() == 7);
     assert(world.items.size() == 6);
     assert(!world.presentation.title.artwork.empty());
+    assert(world.soundEffects.size() >= 11);
+    assert(!world.presentation.sounds.pickup.empty());
+    assert(world.room("generator")->animations.size() == 2);
+    assert(world.room("tower_base")->animations.size() == 1);
 
     e2d::AdventureSession session{world};
 
@@ -50,6 +55,11 @@ int main() {
     moveSession(session, "trailhead", {410, 228});
     session.performVerb(e2d::Verb::take);
     assert(session.hasItem("patch_cable"));
+    assert(session.player().pose == e2d::PlayerPose::taking);
+    const auto pickupSounds = session.takePendingSoundEffects();
+    assert(std::ranges::find(pickupSounds, "pickup") != pickupSounds.end());
+    session.tick(0.5F);
+    assert(session.player().pose == e2d::PlayerPose::standing);
     dismiss(session);
 
     moveSession(session, "trailhead", {250, 228});
@@ -60,6 +70,11 @@ int main() {
     // Cabin: contextual talk, exploration reveals a previously hidden pickup.
     moveSession(session, "cabin", {294, 220});
     session.jumpOrContext();
+    assert(session.messageAnchoredToTarget());
+    session.advanceMessage();
+    assert(!session.messageAnchoredToTarget());
+    session.advanceMessage();
+    assert(session.messageAnchoredToTarget());
     dismiss(session);
     assert(session.flag("met_mara"));
 
@@ -110,8 +125,11 @@ int main() {
 
     moveSession(session, "generator", {250, 220});
     session.jumpOrContext();
-    dismiss(session);
     assert(session.flag("power_on"));
+    assert(session.animationElapsed("generator_start").has_value());
+    const auto powerSounds = session.takePendingSoundEffects();
+    assert(std::ranges::find(powerSounds, "power") != powerSounds.end());
+    dismiss(session);
 
     // Tower: context transition to another screen, then align the antenna and finish.
     moveSession(session, "tower_base", {395, 220});
@@ -122,13 +140,16 @@ int main() {
     moveSession(session, "tower_top", {90, 220});
     session.performVerb(e2d::Verb::use);
     chooseItem(session, "wrench");
-    dismiss(session);
     assert(session.flag("antenna_aligned"));
+    assert(session.animationElapsed("antenna_align").has_value());
+    dismiss(session);
 
     moveSession(session, "tower_top", {350, 220});
     session.jumpOrContext();
     assert(session.mode() == e2d::SessionMode::won);
     assert(!session.terminalMessage().empty());
+    const auto victorySounds = session.takePendingSoundEffects();
+    assert(std::ranges::find(victorySounds, "victory") != victorySounds.end());
 
     // Hazard/death/restart path is independent from the winning route.
     e2d::AdventureSession danger{world};
@@ -136,6 +157,8 @@ int main() {
     danger.tick(1.0F / 60.0F);
     assert(danger.mode() == e2d::SessionMode::dead);
     assert(!danger.terminalMessage().empty());
+    const auto deathSounds = danger.takePendingSoundEffects();
+    assert(std::ranges::find(deathSounds, "death") != deathSounds.end());
     danger.jumpOrContext();
     assert(danger.mode() == e2d::SessionMode::world);
     assert(danger.currentRoomId() == "trailhead");

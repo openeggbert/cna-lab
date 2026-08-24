@@ -62,7 +62,12 @@ e2d::ExitDefinition exit(e2d::Direction direction, std::string destination, e2d:
 }
 
 e2d::Message inspect(std::string text) { return {std::move(text), e2d::MessageStyle::inspect}; }
-e2d::Message speech(std::string text) { return {std::move(text), e2d::MessageStyle::speech}; }
+e2d::Message speech(std::string text) {
+    return {std::move(text), e2d::MessageStyle::speech, e2d::MessageSpeaker::target};
+}
+e2d::Message playerSpeech(std::string text) {
+    return {std::move(text), e2d::MessageStyle::speech, e2d::MessageSpeaker::player};
+}
 e2d::Message warning(std::string text) { return {std::move(text), e2d::MessageStyle::warning}; }
 
 } // namespace
@@ -108,6 +113,27 @@ e2d::WorldDefinition buildWorld() {
         ellipse(550, 194, 30, 40, pineDark), ellipse(592, 201, 18, 28, pine),
         label(32, 218, "STORM OVER BLACK PINE RIDGE", P::brightYellow),
     };
+
+    // Deliberately QBasic-like: monophonic square-wave phrases expressed as
+    // SOUND frequency/timer-tick pairs, with no sampled music or modern DSP.
+    world.addSoundEffect({"title", {{392, 2}, {523, 2}, {659, 2}, {784, 4}, {0, 1}, {659, 2}}, 0.17F});
+    world.addSoundEffect({"menu", {{880, 1}}, 0.12F});
+    world.addSoundEffect({"confirm", {{523, 1}, {784, 2}}, 0.15F});
+    world.addSoundEffect({"talk", {{330, 1}}, 0.10F});
+    world.addSoundEffect({"pickup", {{440, 1}, {660, 1}, {880, 2}}, 0.15F});
+    world.addSoundEffect({"jump", {{220, 1}, {330, 1}}, 0.11F});
+    world.addSoundEffect({"warning", {{147, 2}, {110, 3}}, 0.16F});
+    world.addSoundEffect({"death", {{330, 2}, {262, 2}, {196, 2}, {131, 5}}, 0.18F});
+    world.addSoundEffect({"victory", {{392, 2}, {523, 2}, {659, 2}, {784, 2}, {1047, 6}}, 0.18F});
+    world.addSoundEffect({"save", {{659, 1}, {880, 2}}, 0.12F});
+    world.addSoundEffect({"load", {{880, 1}, {659, 2}}, 0.12F});
+    world.addSoundEffect({"unlock", {{196, 1}, {247, 1}, {330, 2}}, 0.15F});
+    world.addSoundEffect({"repair", {{880, 1}, {0, 1}, {880, 1}}, 0.13F});
+    world.addSoundEffect({"power", {{110, 2}, {165, 2}, {220, 2}, {330, 3}}, 0.17F});
+    world.addSoundEffect({"climb", {{262, 1}, {294, 1}, {330, 1}, {349, 1}}, 0.11F});
+    world.presentation.sounds = {
+        "title", "menu", "confirm", "talk", "pickup", "jump",
+        "warning", "death", "victory", "save", "load"};
 
     world.addItem({"patch_cable", "PATCH CABLE", "A weatherproof copper patch cable, short but intact.", true});
     world.addItem({"field_note", "FIELD NOTE", "A faded maintenance note: MAIN FUSE FIRST. PATCH THE BLUE TERMINALS. THEN THROW THE LEVER.", false});
@@ -258,6 +284,16 @@ e2d::WorldDefinition buildWorld() {
         {e2d::Condition::flag("cable_installed")}, {line(113, 220, 160, 220, blue), line(113, 221, 160, 221, blue)}});
     generator.hotspots.push_back({"power_lamp_visual", "POWER LAMP", {0, 0, 0, 0}, e2d::HotspotKind::scenery,
         {e2d::Condition::flag("power_on")}, {circle(266, 169, 6, green), circle(280, 184, 4, green)}});
+    generator.animations.push_back({"generator_start", false, false, {}, {
+        {2, {line(231, 195, 218, 181, amber), line(231, 195, 218, 201, pale)}},
+        {2, {line(231, 195, 211, 193, red), circle(231, 195, 8, amber, false)}},
+        {3, {line(231, 195, 220, 207, pale), line(231, 195, 245, 204, amber)}},
+    }});
+    generator.animations.push_back({"generator_lamps", true, true,
+        {e2d::Condition::flag("power_on")}, {
+            {7, {circle(266, 169, 6, P::brightGreen), circle(280, 184, 4, P::brightGreen)}},
+            {7, {circle(266, 169, 6, green), circle(280, 184, 4, green)}},
+        }});
     generator.exits.push_back(exit(e2d::Direction::left, "yard", {462, 232}));
     generator.exits.push_back(exit(e2d::Direction::right, "tower_base", {8, 232}));
     world.addRoom(std::move(generator));
@@ -292,6 +328,11 @@ e2d::WorldDefinition buildWorld() {
     towerBase.hotspots.push_back({"tower_structure", "TOWER", {148, 44, 164, 216}, e2d::HotspotKind::scenery, {}, {}});
     towerBase.hotspots.push_back({"tower_beacon_visual", "TOWER BEACON", {0, 0, 0, 0}, e2d::HotspotKind::scenery,
         {e2d::Condition::flag("power_on")}, {circle(230, 40, 7, red, false), circle(230, 40, 3, P::brightRed)}});
+    towerBase.animations.push_back({"tower_beacon", true, true,
+        {e2d::Condition::flag("power_on")}, {
+            {8, {circle(230, 40, 9, P::brightRed, false), circle(230, 40, 4, P::brightRed)}},
+            {8, {circle(230, 40, 7, red, false), circle(230, 40, 3, red)}},
+        }});
     towerBase.exits.push_back(exit(e2d::Direction::left, "generator", {462, 232}));
     towerBase.exits.push_back(exit(e2d::Direction::right, "ravine", {8, 232}));
     world.addRoom(std::move(towerBase));
@@ -326,6 +367,16 @@ e2d::WorldDefinition buildWorld() {
         {e2d::Condition::flag("antenna_aligned")}, {line(81, 181, 132, 155, green), circle(132, 155, 4, green)}});
     towerTop.hotspots.push_back({"console_power_visual", "LIVE CONSOLE", {0, 0, 0, 0}, e2d::HotspotKind::scenery,
         {e2d::Condition::flag("power_on")}, {circle(350, 192, 7, P::brightGreen), line(337, 205, 423, 205, blue)}});
+    towerTop.animations.push_back({"console_scan", true, true,
+        {e2d::Condition::flag("power_on")}, {
+            {6, {circle(350, 192, 7, P::brightGreen), line(337, 205, 371, 205, blue)}},
+            {6, {circle(350, 192, 7, green), line(389, 205, 423, 205, P::brightCyan)}},
+        }});
+    towerTop.animations.push_back({"antenna_align", false, false, {}, {
+        {2, {line(78, 178, 138, 149, amber), circle(138, 149, 5, pale, false)}},
+        {2, {line(81, 181, 135, 153, pale), circle(135, 153, 6, amber, false)}},
+        {3, {line(81, 181, 132, 155, green), circle(132, 155, 7, P::brightGreen, false)}},
+    }});
     world.addRoom(std::move(towerTop));
 
     // Ravine -------------------------------------------------------------------
@@ -368,6 +419,7 @@ e2d::WorldDefinition buildWorld() {
     // Cabin --------------------------------------------------------------------
     world.addInteraction({e2d::Verb::context, "caretaker", std::nullopt, {e2d::Condition::notFlag("met_mara")},
         {speech("Mara: The storm killed the relay. The yard key should be under my desk logbook, if the mice did not move it."),
+         playerSpeech("I will check the desk, repair the generator, and get the transmitter back on the air."),
          speech("Mara: The generator needs its fuse and the blue terminals patched before you touch the main lever.")},
         {e2d::Mutation::setFlag("met_mara")}, 10, {}});
     world.addInteraction({e2d::Verb::context, "caretaker", std::nullopt,
@@ -397,7 +449,7 @@ e2d::WorldDefinition buildWorld() {
         {inspect("The gate hangs open toward the generator shed.")}, {}, 5, {}});
     world.addInteraction({e2d::Verb::use, "yard_gate", std::optional<std::string>{"brass_key"}, {e2d::Condition::notFlag("gate_open")},
         {inspect("The brass key turns with a hard metallic snap. The yard gate is open.")},
-        {e2d::Mutation::setFlag("gate_open")}, 10, {}});
+        {e2d::Mutation::setFlag("gate_open")}, 10, {}, "unlock"});
     world.addInteraction({e2d::Verb::examine, "relay_frame", std::nullopt, {},
         {inspect("The old relay frame is only a skeleton now. All useful equipment was moved into the shed and tower console.")}, {}, 0, {}});
 
@@ -411,16 +463,16 @@ e2d::WorldDefinition buildWorld() {
         {inspect("The replacement fuse sits firmly in the MAIN holder.")}, {}, 5, {}});
     world.addInteraction({e2d::Verb::use, "fuse_socket", std::optional<std::string>{"ceramic_fuse"}, {e2d::Condition::notFlag("fuse_installed")},
         {inspect("The ceramic fuse locks into the holder.")},
-        {e2d::Mutation::setFlag("fuse_installed"), e2d::Mutation::removeItem("ceramic_fuse")}, 10, {}});
+        {e2d::Mutation::setFlag("fuse_installed"), e2d::Mutation::removeItem("ceramic_fuse")}, 10, {}, "repair"});
     world.addInteraction({e2d::Verb::examine, "cable_terminals", std::nullopt, {e2d::Condition::notFlag("cable_installed")},
         {inspect("Two blue terminals should be linked. The original cable has burned away.")}, {}, 5, {}});
     world.addInteraction({e2d::Verb::use, "cable_terminals", std::optional<std::string>{"patch_cable"}, {e2d::Condition::notFlag("cable_installed")},
         {inspect("The patch cable bridges the blue terminals exactly.")},
-        {e2d::Mutation::setFlag("cable_installed"), e2d::Mutation::removeItem("patch_cable")}, 10, {}});
+        {e2d::Mutation::setFlag("cable_installed"), e2d::Mutation::removeItem("patch_cable")}, 10, {}, "repair"});
     world.addInteraction({e2d::Verb::context, "generator_lever", std::nullopt,
         {e2d::Condition::flag("fuse_installed"), e2d::Condition::flag("cable_installed"), e2d::Condition::notFlag("power_on")},
         {inspect("You throw the main lever. The generator coughs twice, then settles into a steady roar. Lights wake across the relay site.")},
-        {e2d::Mutation::setFlag("power_on")}, 20, {}});
+        {e2d::Mutation::setFlag("power_on"), e2d::Mutation::playAnimation("generator_start")}, 20, {}, "power"});
     world.addInteraction({e2d::Verb::context, "generator_lever", std::nullopt, {e2d::Condition::flag("power_on")},
         {inspect("The generator is running steadily. Best leave the lever alone.")}, {}, 15, {}});
     world.addInteraction({e2d::Verb::context, "generator_lever", std::nullopt, {},
@@ -430,14 +482,14 @@ e2d::WorldDefinition buildWorld() {
     world.addInteraction({e2d::Verb::examine, "tower_structure", std::nullopt, {},
         {inspect("A steel lattice tower, old but sound. The maintenance platform is reached by the ladder on the right.")}, {}, 0, {}});
     world.addInteraction({e2d::Verb::context, "tower_ladder", std::nullopt, {},
-        {inspect("You climb to the maintenance platform.")}, {e2d::Mutation::moveTo("tower_top")}, 0, {}});
+        {inspect("You climb to the maintenance platform.")}, {e2d::Mutation::moveTo("tower_top")}, 0, {}, "climb"});
     world.addInteraction({e2d::Verb::context, "tower_down_ladder", std::nullopt, {},
-        {inspect("You climb back down to the base of the tower.")}, {e2d::Mutation::moveTo("tower_base")}, 0, {}});
+        {inspect("You climb back down to the base of the tower.")}, {e2d::Mutation::moveTo("tower_base")}, 0, {}, "climb"});
     world.addInteraction({e2d::Verb::examine, "antenna_mount", std::nullopt, {e2d::Condition::notFlag("antenna_aligned")},
         {inspect("The storm twisted the azimuth mount several degrees off its painted alignment marks. The locking nut will not move by hand.")}, {}, 5, {}});
     world.addInteraction({e2d::Verb::use, "antenna_mount", std::optional<std::string>{"wrench"}, {e2d::Condition::notFlag("antenna_aligned")},
         {inspect("The wrench breaks the nut free. You swing the antenna onto the old alignment marks and lock it down.")},
-        {e2d::Mutation::setFlag("antenna_aligned")}, 10, {}});
+        {e2d::Mutation::setFlag("antenna_aligned"), e2d::Mutation::playAnimation("antenna_align")}, 10, {}, "repair"});
     world.addInteraction({e2d::Verb::examine, "relay_console", std::nullopt, {e2d::Condition::notFlag("power_on")},
         {inspect("The console is dark. The generator below is still offline.")}, {}, 5, {}});
     world.addInteraction({e2d::Verb::examine, "relay_console", std::nullopt, {e2d::Condition::flag("power_on")},

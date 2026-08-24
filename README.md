@@ -23,6 +23,7 @@ route.
 - Six inventory items, including optional/non-usable discoveries.
 - USE / EXAMINE / TAKE.
 - A character with state-dependent dialogue.
+- Compact blue dialogue bubbles that alternate between Mara and the player.
 - Examination that reveals a hidden key.
 - Overlapping hotspots (the key sits on the desk) to exercise action-aware
   target resolution.
@@ -40,6 +41,10 @@ route.
 - Seven original code-drawn scenes using only the fixed 16-colour EGA palette.
 - Visible state changes for the gate, installed generator components, power
   lamps, tower beacon and antenna alignment.
+- Selective animation: generator startup and antenna alignment are one-shot
+  actions; powered lamps, console scan and tower beacon loop while appropriate.
+- Monophonic QBasic/PC-speaker-style cues for menu, movement actions, pickups,
+  repairs, warnings, death, save/load and victory, played through CNA.
 - Entirely procedural graphics; there are no external art assets.
 
 ## Build
@@ -94,6 +99,7 @@ also verifies the hazard/death/restart path.
 | Enter / Space | contextual action, otherwise jump |
 | M | travel to a discovered anchor |
 | S / L | save / load |
+| F11 | toggle window / fullscreen |
 | Q | quit |
 | Up / Down + Enter | choice/map navigation |
 | Escape | cancel |
@@ -101,7 +107,8 @@ also verifies the hazard/death/restart path.
 Black Pine inherits Explore2D's fixed 640×350 display, room/inventory/action
 layout and palette. Its mountain, forest, cabin, machinery and title artwork are
 original combinations of rectangles, lines, circles, ellipses and bitmap text
-declared in `BlackPineWorld.cpp`.
+declared in `BlackPineWorld.cpp`. Only story-relevant actions and machinery are
+animated; static scenery deliberately remains static.
 
 ## Suggested route if you are testing mechanics
 

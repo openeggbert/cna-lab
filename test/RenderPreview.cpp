@@ -23,6 +23,16 @@ static void writePpm(const e2d::Canvas& canvas, const std::filesystem::path& pat
     }
 }
 
+static void place(e2d::AdventureSession& session, const std::string& roomId, const e2d::Vec2 position) {
+    auto snapshot = session.snapshot();
+    snapshot.roomId = roomId;
+    snapshot.player.position = position;
+    snapshot.player.grounded = true;
+    snapshot.player.verticalVelocity = 0.0F;
+    snapshot.visitedRooms.insert(roomId);
+    if (!session.restore(snapshot)) throw std::runtime_error{"cannot preview room " + roomId};
+}
+
 int main(const int argc, const char* const argv[]) {
     const std::filesystem::path outputDirectory = argc > 1 ? argv[1] : "/tmp/black-pine-preview";
     std::filesystem::create_directories(outputDirectory);
@@ -38,14 +48,31 @@ int main(const int argc, const char* const argv[]) {
     session.showSystemMessage("The storm has passed, but the relay is silent. Find Mara in the caretaker cabin.");
     renderer.render(session);
     writePpm(renderer.canvas(), outputDirectory / "message.ppm");
+
+    place(session, "trailhead", {410, 228});
+    session.performVerb(e2d::Verb::take);
+    renderer.render(session);
+    writePpm(renderer.canvas(), outputDirectory / "take-pose.ppm");
+
+    place(session, "cabin", {294, 220});
+    session.jumpOrContext();
+    renderer.render(session);
+    writePpm(renderer.canvas(), outputDirectory / "mara-speech.ppm");
+    session.advanceMessage();
+    renderer.render(session);
+    writePpm(renderer.canvas(), outputDirectory / "player-speech.ppm");
+
+    place(session, "generator", {250, 220});
+    auto powered = session.snapshot();
+    powered.flags["fuse_installed"] = true;
+    powered.flags["cable_installed"] = true;
+    if (!session.restore(powered)) throw std::runtime_error{"cannot preview generator startup"};
+    session.jumpOrContext();
+    renderer.render(session);
+    writePpm(renderer.canvas(), outputDirectory / "generator-start.ppm");
+
     for (const auto& [roomId, room] : world.rooms) {
-        auto snapshot = session.snapshot();
-        snapshot.roomId = roomId;
-        snapshot.player.position = room.defaultSpawn;
-        snapshot.player.grounded = true;
-        snapshot.player.verticalVelocity = 0.0F;
-        snapshot.visitedRooms.insert(roomId);
-        if (!session.restore(snapshot)) throw std::runtime_error{"cannot preview room " + roomId};
+        place(session, roomId, room.defaultSpawn);
         session.cancel();
         renderer.render(session);
         writePpm(renderer.canvas(), outputDirectory / (roomId + ".ppm"));
