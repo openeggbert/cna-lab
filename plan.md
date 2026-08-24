@@ -98,6 +98,10 @@ similar emulation core is permitted in the application, build, or test suite.
     its measured cadence/final hold, and a blank closing phase. Block P1 input
     during it and regression-test the transform independently of CNA; keep the
     following form-specific celebration explicitly open.
+  - [x] Replace the generic sickness plus with the exact fixed 7 × 7 skull and
+    Babytchi's two observed 8 × 3 bottom poses at their real origin and cadence;
+    keep later-form sick poses and illness/Medicine transitions open rather
+    than reusing or inventing Babytchi art.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.

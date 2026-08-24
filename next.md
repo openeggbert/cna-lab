@@ -8,7 +8,7 @@ is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
 16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
-home cycle, two stable Marutchi silhouettes, and a Mametchi idle sequence have
+home and two-phase sick cycles, two stable Marutchi silhouettes, and a Mametchi idle sequence have
 been visually transcribed from P1 reference traces. The exact two-phase stacked
 waste overlay is also implemented; Marutchi's clean-state path
 and the other character redraws remain provisional.
@@ -107,6 +107,14 @@ write and verify the clean implementation.
   LCD. Display tests protect the transform, clipping, all water cells, timing,
   and completion; a normal-scale two-pile Marutchi application run was checked.
   The character-specific post-flush celebration remains open evidence.
+- A natural Babytchi illness on the retained 1× reference produced a repeating
+  ten-second trace. The fixed skull is an exact 7 × 7 glyph at `(25, 1)`; the
+  character alternates exact wide/narrow 8 × 3 poses at `(12, 13)` every
+  27–29 host frames, represented as 0.93 seconds. Waste remains an independent
+  overlay. Catalogue tests protect every row, bound, cadence, wrap, and the
+  deliberate normal-pose fallback for unobserved sick forms; a five-second
+  normal-scale application run with one waste pile was checked. Illness onset,
+  Medicine/recovery, and later-form sick poses remain open.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -165,17 +173,20 @@ uses the previous translated-sprite bobbing behaviour.
    transforms a framebuffer snapshot without persisting animation state or
    accepting A/B/C during the wipe. Keep its following character celebration
    open until a complete reference trace is captured.
-3. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+3. [x] Replace the generic sickness plus with the exact common 7 × 7 skull and
+   both observed Babytchi bottom poses. Do not invent sick poses for later forms.
+4. Capture separate frame sequences for egg cracking/hatching, eating Bread,
    eating Candy, Character game play, sleeping, unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-4. Add a rendering state key to the programme/UI boundary for the remaining actions. The renderer must
+5. Add a rendering state key to the programme/UI boundary for the remaining
+   actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-5. Define action duration, frame cadence, interruption rules, and what A, B,
+6. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-6. Add deterministic display/controller tests for each finite animation:
+7. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 

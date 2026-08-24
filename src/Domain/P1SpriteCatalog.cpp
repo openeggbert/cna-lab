@@ -92,6 +92,14 @@ constexpr P1SpriteFrame wasteFrame(const std::string_view row0, const std::strin
     return {24, 8, 8U,
             {{row0, row1, row2, row3, row4, row5, row6, row7, "", "", "", ""}}};
 }
+constexpr P1SpriteFrame babytchiSickFrame(const std::string_view row0,
+                                          const std::string_view row1,
+                                          const std::string_view row2) noexcept
+{
+    return {12, 13, 3U,
+            {{row0, row1, row2, "", "", "", "", "", "", "", "", ""}}};
+}
+
 
 // Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
 // poses at new origins are retained when the reference really moves them; the
@@ -130,6 +138,17 @@ constexpr P1Sprite Babytchi = sequence(
     babytchiSquashFrame(11), babytchiSquashFrame(14),
     babytchiFullFrame(18), babytchiFullFrame(15),
     babytchiSquashFrame(12), babytchiSquashFrame(9));
+// A complete ten-second sick-state trace repeats these two bottom poses every
+// 28 host frames at 30 fps. The skull and waste remain independent overlays.
+constexpr P1Sprite SickBabytchi = twoPhaseSprite(
+    babytchiSickFrame(".######.", "#..##..#", "########"),
+    babytchiSickFrame("..####..", ".#.##.#.", "########"),
+    0.93F);
+
+constexpr P1SpriteFrame SicknessIndicator{
+    25, 1, 7U,
+    {{".#####.", "#######", "#..#..#", "#######", "###.###", ".#####.", ".#.#.#.",
+      "", "", "", "", ""}}};
 
 // The two stable silhouettes are separated spatially from two waste piles in
 // the source trace. A clean-state horizontal path, if any, remains unverified.
@@ -263,6 +282,20 @@ const P1Sprite& P1SpriteCatalog::spriteForCharacter(const std::string_view chara
     if (characterId == "tarakotchi") return Tarakotchi;
     if (characterId == "bill") return Bill;
     return Egg;
+}
+
+const P1Sprite& P1SpriteCatalog::sickSpriteForCharacter(
+    const std::string_view characterId) noexcept
+{
+    if (characterId == "babytchi") {
+        return SickBabytchi;
+    }
+    return spriteForCharacter(characterId);
+}
+
+const P1SpriteFrame& P1SpriteCatalog::sicknessIndicator() noexcept
+{
+    return SicknessIndicator;
 }
 
 const P1Sprite& P1SpriteCatalog::waste() noexcept

@@ -271,6 +271,48 @@ void testWasteKeepsItsObservedStackedP1Animation()
            "a second waste must stack directly above the first at the top edge");
 }
 
+void testBabytchiSicknessKeepsItsObservedP1Cycle()
+{
+    const P1Sprite& sick = P1SpriteCatalog::sickSpriteForCharacter("babytchi");
+    constexpr std::array<std::string_view, 3> expectedWide{{
+        ".######.", "#..##..#", "########",
+    }};
+    constexpr std::array<std::string_view, 3> expectedNarrow{{
+        "..####..", ".#.##.#.", "########",
+    }};
+
+    expect(sick.idleFrameCount == 2U && sick.idleFrameSeconds == 0.93F,
+           "sick Babytchi must retain its two observed bottom poses and cadence");
+    for (std::size_t phase = 0U; phase < sick.idleFrameCount; ++phase) {
+        const P1SpriteFrame& frame = sick.idleFrame(phase);
+        expect(frame.originX == 12 && frame.originY == 13 && frame.rowCount == 3U,
+               "each sick Babytchi phase must retain its exact 8x3 bottom bounds");
+        const auto& expected = phase == 0U ? expectedWide : expectedNarrow;
+        for (std::size_t row = 0U; row < expected.size(); ++row) {
+            expect(frame.rows[row] == expected[row],
+                   "every hand-read sick Babytchi row must remain exact");
+        }
+    }
+    expect(!framesDiffer(sick.idleFrame(2), sick.idleFrame(0)),
+           "the sick Babytchi cycle must wrap directly");
+
+    const P1SpriteFrame& indicator = P1SpriteCatalog::sicknessIndicator();
+    constexpr std::array<std::string_view, 7> expectedIndicator{{
+        ".#####.", "#######", "#..#..#", "#######", "###.###", ".#####.", ".#.#.#.",
+    }};
+    expect(indicator.originX == 25 && indicator.originY == 1
+               && indicator.rowCount == expectedIndicator.size(),
+           "the P1 sickness indicator must retain its exact top-right 7x7 bounds");
+    for (std::size_t row = 0U; row < expectedIndicator.size(); ++row) {
+        expect(indicator.rows[row] == expectedIndicator[row],
+               "every hand-read sickness-indicator row must remain exact");
+    }
+
+    expect(&P1SpriteCatalog::sickSpriteForCharacter("marutchi")
+               == &P1SpriteCatalog::spriteForCharacter("marutchi"),
+           "an unobserved sick form must keep its normal pose rather than inventing one");
+}
+
 } // namespace
 
 int main()
@@ -281,6 +323,7 @@ int main()
     testBabytchiKeepsItsObservedMovingTrace();
     testMarutchiKeepsItsObservedP1Silhouettes();
     testWasteKeepsItsObservedStackedP1Animation();
+    testBabytchiSicknessKeepsItsObservedP1Cycle();
     if (failures == 0) {
         std::cout << "P1SpriteCatalogTests passed\n";
     }

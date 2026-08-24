@@ -965,7 +965,9 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
-    const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
+    const Domain::P1Sprite& sprite = pet_.sick
+        ? Domain::P1SpriteCatalog::sickSpriteForCharacter(pet_.characterId)
+        : Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
     // P1 home animation consists of independently transcribed LCD phases.
     // Each phase carries its observed origin, rather than turning one modern
     // sprite into a synthetic bobbing animation. Sleeping leaves the first
@@ -982,11 +984,8 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     if (pet_.sick) {
-        display_.setPixel(28, 7, true);
-        display_.setPixel(27, 8, true);
-        display_.setPixel(28, 8, true);
-        display_.setPixel(29, 8, true);
-        display_.setPixel(28, 9, true);
+        const Domain::P1SpriteFrame& sickness = Domain::P1SpriteCatalog::sicknessIndicator();
+        display_.drawSprite(sickness.originX, sickness.originY, sickness.visibleRows());
     }
 
     const int visibleWaste = std::min(pet_.wasteCount, 2);
