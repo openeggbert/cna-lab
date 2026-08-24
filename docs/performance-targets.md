@@ -378,11 +378,18 @@ SDL_AUDIODRIVER=dummy ./cmake-build-release-easygl/iron_gang \
   --profile-scenario mixed
 ```
 
-Supported `--profile-scenario` values are `intro`, `idle`, `walk`, `drive`, and `mixed`. `intro`
+Supported `--profile-scenario` values are `intro`, `idle`, `walk`, `drive`, `mixed`, and `mission`. `intro`
 keeps the real opening sequence. `idle`, `walk`, and `drive` skip it and hold one isolated workload;
 `mixed` skips it, walks for two fixed-time seconds, drives, and performs a real district transition
 after eight fixed-time seconds. The scenarios exist only for profiling; ordinary play and ordinary
 `--smoke` behavior are unchanged. `--vsync on|off` selects the requested presentation interval.
+
+`mission` keeps the real opening sequence, advances one real dialogue line per simulated second,
+lets the 2.5-second cutscene finish naturally, walks the physics character to the sedan, enters via
+the real interaction and half-second animation path, drives the Jolt vehicle, and finishes on the
+real warehouse mission trigger. It exits at the exact `Completed` boundary so continued motion
+cannot contaminate the capture with the nearby district exit. `--smoke` is its upper safety bound;
+if that bound expires first, report generation fails and no incomplete JSON is written.
 
 For isolated automation that must not open a visible Wayland window, force SDL onto X11 as well as
 setting a virtual `DISPLAY`; otherwise SDL may prefer an inherited `WAYLAND_DISPLAY`:

@@ -362,6 +362,33 @@ It is deliberately not a comparison over two points in time and does not qualify
 hardware. Unit coverage separately proves regression exit 1, configurable tolerance acceptance,
 hardware/kind refusal, budget and sample-availability refusal, and incomplete qualifying evidence.
 
+## 2026-08-24 — representative mission-capture follow-up
+
+The new schema-8 `mission` scenario preserves and programmatically advances the real opening
+dialogue, lets the real cutscene complete, walks the Jolt-backed character to the sedan, enters via
+the production interaction/animation state, drives the Jolt-backed sedan, and finishes only when
+the data-driven mission observes the warehouse trigger. It exits at that exact success boundary.
+Report generation refuses a too-short `--smoke` run, so a mission-labelled JSON cannot silently
+represent a partial playthrough.
+
+A 120-frame isolated Xvfb negative run ended before completion, returned the actionable error, and
+wrote no JSON. The complete Release EasyGL run used a 900-frame upper bound but ended naturally at
+647 updates and 642 measured frame intervals:
+
+| Metric | Mission capture |
+| --- | ---: |
+| Frame interval p95 / maximum | 16.936 / 69.503 ms |
+| Update / physics / AI / audio CPU p95 | 0.293 / 0.227 / 0.009 / 0.019 ms |
+| Render / GPU Draw-range / Present p95 | 1.502 / 8.642 / 13.721 ms |
+| Minimum-budget misses / hitches / severe hitches | 1 / 1 / 0 |
+| District transitions | 0 |
+| Peak resident RAM | 167.9 MiB |
+| Peak ambient workload | 9 physics bodies, 2 traffic vehicles, 2 pedestrians, 0 police |
+
+The capture parses through both the release-summary generator (`DIAGNOSTIC`) and a comparator
+self-check (`NO REGRESSION`). It supports the mission portion of `IG-35-012`; it does not supply
+the still-nonexistent interior workload or qualify Xvfb/llvmpipe, presentation, or complete VRAM.
+
 ## 2026-08-24 — bounded lifecycle memory-soak follow-up
 
 The new no-window `iron_gang_memory_soak_tests` repeatedly combines mission reset/replay, real

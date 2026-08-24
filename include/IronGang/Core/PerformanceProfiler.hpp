@@ -102,6 +102,7 @@ namespace IronGang
         Walk,
         Drive,
         Mixed,
+        Mission,
     };
 
     [[nodiscard]] const char* PerformanceScenarioName(PerformanceScenario scenario) noexcept;

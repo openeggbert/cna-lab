@@ -245,6 +245,8 @@ namespace IronGang
             return "drive";
         case PerformanceScenario::Mixed:
             return "mixed";
+        case PerformanceScenario::Mission:
+            return "mission";
         }
         return "unknown";
     }
@@ -270,6 +272,10 @@ namespace IronGang
         if (name == "mixed")
         {
             return PerformanceScenario::Mixed;
+        }
+        if (name == "mission")
+        {
+            return PerformanceScenario::Mission;
         }
         return std::nullopt;
     }

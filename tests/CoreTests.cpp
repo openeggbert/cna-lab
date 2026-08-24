@@ -926,16 +926,20 @@ namespace
         const auto walkScenario = IronGang::ParsePerformanceScenario("walk");
         const auto driveScenario = IronGang::ParsePerformanceScenario("drive");
         const auto mixedScenario = IronGang::ParsePerformanceScenario("mixed");
+        const auto missionScenario = IronGang::ParsePerformanceScenario("mission");
         Require(introScenario == IronGang::PerformanceScenario::Intro &&
                     idleScenario == IronGang::PerformanceScenario::Idle &&
                     walkScenario == IronGang::PerformanceScenario::Walk &&
                     driveScenario == IronGang::PerformanceScenario::Drive &&
-                    mixedScenario == IronGang::PerformanceScenario::Mixed,
+                    mixedScenario == IronGang::PerformanceScenario::Mixed &&
+                    missionScenario == IronGang::PerformanceScenario::Mission,
                 "every documented performance scenario must parse to its distinct enum value");
         Require(!IronGang::ParsePerformanceScenario("unknown"),
                 "an unknown performance scenario must be rejected");
         Require(std::string(IronGang::PerformanceScenarioName(*driveScenario)) == "drive",
                 "performance scenario report names must round-trip through the parser");
+        Require(std::string(IronGang::PerformanceScenarioName(*missionScenario)) == "mission",
+                "mission performance scenario must round-trip through the parser");
 
         IronGang::PerformanceProfiler profiler;
         profiler.SetEnabled(true);

@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
                 if (!profileScenario)
                 {
                     throw std::invalid_argument(
-                        "--profile-scenario must be one of: intro, idle, walk, drive, mixed");
+                        "--profile-scenario must be one of: intro, idle, walk, drive, mixed, mission");
                 }
             }
             else if (argument == "--vsync" && index + 1 < argc)
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
                     << "  --assets <path>  Override the source asset root\n"
                     << "  --smoke [frames] Exit after a bounded number of draw frames\n"
                     << "  --profile <path> Write an M12 JSON performance report on exit\n"
-                    << "  --profile-scenario <name>  intro, idle, walk, drive, or mixed\n"
+                    << "  --profile-scenario <name>  intro, idle, walk, drive, mixed, or mission\n"
                     << "  --vsync on|off  Request synchronized or immediate presentation\n";
                 return 0;
             }

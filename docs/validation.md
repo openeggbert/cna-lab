@@ -150,6 +150,14 @@ metrics unchanged and exits 0. That is an integrated parser/report check only: m
 comparison still requires a later compatible capture from the same named environment, and physical
 M12 qualification still requires the separate release-summary rules.
 
+The representative-mission follow-up adds `--profile-scenario mission`. Parser/name tests cover
+the public scenario seam. A 120-frame isolated Xvfb negative integration correctly refused an
+incomplete report; a 900-frame upper-bound run exited on real mission completion after 647 updates
+and produced 642 frame intervals with 16.936 ms p95, one 69.503 ms hitch, no severe hitch, 167.9 MiB
+peak RSS, and no accidental district transition. The schema-8 output passes both summary and
+comparison tooling. This validates the full production mission route but remains a virtual-display
+diagnostic, not physical M12 qualification.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

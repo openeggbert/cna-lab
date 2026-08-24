@@ -67,6 +67,21 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a representative end-to-end mission capture (mission portion of `IG-35-012`).**
+`--profile-scenario mission` retains the real opening dialogue/cutscene, advances dialogue at fixed
+simulated intervals, walks the Jolt character to the sedan, enters through the real interaction and
+half-second animation state, drives the Jolt vehicle, and stops the run exactly when the real
+warehouse trigger completes the data-driven mission. If `--smoke` expires first, no misleading
+partial mission JSON is written.
+
+- A 120-frame isolated Xvfb negative run was correctly refused. The successful Release EasyGL run
+  used a 900-frame upper bound and ended at mission completion after 647 updates/642 intervals,
+  with no accidental district transition.
+- The diagnostic result was 16.936 ms frame p95 / 69.503 ms maximum, one hitch, no severe hitch,
+  0.293/0.227/0.009/0.019/1.502 ms update/physics/AI/audio/render p95, 8.642 ms GPU p95,
+  13.721 ms Present p95, and 167.9 MiB peak RAM. Summary and comparison tooling both accept it.
+  Xvfb/llvmpipe, rejected swap acknowledgement, and incomplete VRAM still prevent qualification.
+
 **M12 now has automated compatible capture comparison (`IG-35-024`).** New standard-library
 `scripts/performance_compare.py` compares schema-8 baseline/candidate captures across frame,
 subsystem CPU, GPU, load, pacing, RAM, VRAM, and district-boundary metrics. A candidate fails only
@@ -1121,11 +1136,12 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. Automated compatible baseline/candidate comparison (`IG-35-024`) is now complete. The next
-safe code-side M12 slice is the dedicated mission capture still missing from `IG-35-012`; keep the
-interior capture explicitly pending because this prototype has no interior gameplay space. Do not
-mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and
-VRAM tracking is complete.
+budget. Automated compatible comparison and the dedicated mission capture are now complete. All
+representative workloads that currently exist in the prototype have a scenario; the interior part
+of `IG-35-012` remains explicitly pending because there is no interior gameplay space to measure.
+The next M12 investigation is the remaining backend/external VRAM residency seam; physical capture
+still requires named hardware and an acknowledged swap interval. Do not mark M12 complete until
+repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

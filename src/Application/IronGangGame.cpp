@@ -176,6 +176,11 @@ namespace IronGang
             error.clear();
             return true;
         }
+        if (performanceScenario_ == PerformanceScenario::Mission && !mission_.IsCompleted())
+        {
+            error = "Mission performance scenario did not complete; increase --smoke frames";
+            return false;
+        }
 
         PerformanceReportContext context;
         context.backend = IRON_GANG_GRAPHICS_BACKEND;
@@ -495,6 +500,7 @@ namespace IronGang
         // Gameplay profiling workloads must reach control without synthetic keyboard events.
         // Ordinary smoke/play and the explicit intro scenario keep the real opening sequence;
         // idle/walk/drive/mixed take this deterministic shortcut through dialogue and cutscene.
+        // Mission keeps and advances the real opening sequence as part of its end-to-end route.
         const bool skipsOpening = performanceScenario_ == PerformanceScenario::Idle ||
             performanceScenario_ == PerformanceScenario::Walk ||
             performanceScenario_ == PerformanceScenario::Drive ||
@@ -871,6 +877,15 @@ namespace IronGang
             }
         }
 
+        // The mission workload retains the real dialogue/cutscene instead of skipping them. It
+        // advances one dialogue line per simulated second, lets the 2.5-second camera track finish
+        // naturally, then uses the same HandleInteraction/physics/mission paths as player input.
+        const bool missionAdvancesDialogue =
+            performanceScenario_ == PerformanceScenario::Mission &&
+            dialogue_.IsActive() &&
+            performanceScenarioUpdate_ > 0 &&
+            performanceScenarioUpdate_ % 60 == 0;
+
         // Gate M8: ticks independently of dialogue's own pace -- the cutscene has its own short,
         // fixed duration and naturally hands control back on its own, but pressing Enter while
         // dialogue has already finished (a player racing through the opening) skips straight to
@@ -880,7 +895,7 @@ namespace IronGang
             cutscene_.Update(deltaSeconds);
         }
 
-        if (WasPressed(keyboard, Keys::Enter))
+        if (missionAdvancesDialogue || WasPressed(keyboard, Keys::Enter))
         {
             if (dialogue_.IsActive())
             {
@@ -896,7 +911,13 @@ namespace IronGang
             }
         }
 
-        if (WasPressed(keyboard, Keys::E) && !dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
+        const bool missionEntersVehicle =
+            performanceScenario_ == PerformanceScenario::Mission &&
+            mission_.GetState() == PrototypeMissionState::EnterVehicle &&
+            vehicleTransitionState_ == VehicleTransitionState::None &&
+            !playerDriving_;
+        if ((missionEntersVehicle || WasPressed(keyboard, Keys::E)) &&
+            !dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
         {
             HandleInteraction();
         }
@@ -935,11 +956,12 @@ namespace IronGang
                                  (keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.handbrake = keyboard.IsKeyDown(Keys::Space);
                 if (performanceScenario_ == PerformanceScenario::Drive ||
-                    performanceScenario_ == PerformanceScenario::Mixed)
+                    performanceScenario_ == PerformanceScenario::Mixed ||
+                    performanceScenario_ == PerformanceScenario::Mission)
                 {
-                    input.throttle = 0.65F;
+                    input.throttle = mission_.IsCompleted() ? 0.0F : 0.65F;
                     input.steering = 0.0F;
-                    input.handbrake = false;
+                    input.handbrake = mission_.IsCompleted();
                 }
                 {
                     ScopedPerformanceSample physicsSample(performanceProfiler_, PerformanceMetric::PhysicsCpu);
@@ -963,7 +985,8 @@ namespace IronGang
                              (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
                 if (performanceScenario_ == PerformanceScenario::Walk ||
-                    performanceScenario_ == PerformanceScenario::Mixed)
+                    performanceScenario_ == PerformanceScenario::Mixed ||
+                    performanceScenario_ == PerformanceScenario::Mission)
                 {
                     input.forward = 1.0F;
                     input.strafe = 0.0F;
@@ -1150,6 +1173,13 @@ namespace IronGang
 
             mission_.Update(dialogue_.IsFinished(), player_.GetPosition(), vehicle_.GetPosition(),
                             playerDriving_, districtManager_.GetWorld().GetWarehouseGoal());
+            if (performanceScenario_ == PerformanceScenario::Mission && mission_.IsCompleted())
+            {
+                // End at the exact successful mission boundary. Continuing toward the fixed
+                // --smoke limit would let the still-moving sedan reach the district exit and
+                // contaminate this dedicated mission workload with a district transition.
+                Exit();
+            }
         }
 
         if (transientStatusSeconds_ > 0.0F)
