@@ -24,7 +24,8 @@ camera pan/zoom, cycles exactly four presentation rotations, and highlights the
 tile under the mouse. Projection, inverse picking, rotation, camera focus, and
 runtime startup are covered by CTest. The lot now contains an original
 procedural warm-wood room with logical edge walls rendered from generated
-textures in all four views. It has no door, catalog objects, or residents yet.
+textures in all four views plus one stateful procedural door. It has no catalog
+objects or residents yet.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
@@ -110,6 +111,7 @@ placeholder textures keep early builds self-contained.
 - `WASD` or arrow keys: pan the lot.
 - Mouse wheel or `+`/`-`: cursor-centered zoom.
 - `Q`/`E`: rotate the presentation 90 degrees counter-clockwise/clockwise.
+- `F`: toggle the demo door open/closed (temporary developer control).
 - `Escape`: exit.
 
 `./build/People --smoke-test` draws four bounded frames, one in each world

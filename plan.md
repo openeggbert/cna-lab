@@ -77,8 +77,8 @@ Statuses:
 | PEO-034 | TODO | Wall placement/removal core | Logical mutations validate funds/topology hooks and mark affected room/render regions dirty |
 | PEO-035 | DONE | Room detection | Flood fill assigns stable room regions from floors/wall boundaries; simple, split, merged, and outside cases pass |
 | PEO-036 | TODO | Incremental room invalidation | Wall edits rebuild only a declared dirty area or intentionally fall back with measurable whole-floor rebuild |
-| PEO-037 | DOING | Door edge model | Door attaches to valid wall edge, exposes route portal/open state, and removes cleanly with topology updates |
-| PEO-038 | TODO | Procedural door rendering | Four view-correct closed/open placeholder door sprites align to wall edges |
+| PEO-037 | DONE | Door edge model | Door attaches to valid wall edge, exposes route portal/open state, and removes cleanly with topology updates |
+| PEO-038 | DONE | Procedural door rendering | Four view-correct closed/open placeholder door sprites align to wall edges |
 | PEO-039 | TODO | Window edge model | Window attaches to valid wall without becoming a route portal and persists its state |
 | PEO-040 | TODO | Wallpaper/paint state | Independent interior/exterior wall finishes are data references and render with placeholder colors |
 | PEO-041 | TODO | Floor-covering placement | Covering add/remove is bounded, priced transaction-ready, and visually distinct without affecting walkability |
@@ -86,16 +86,16 @@ Statuses:
 | PEO-043 | TODO | Selected-room cutaway | Camera-facing walls obscuring selected resident/room are hidden consistently under all rotations |
 | PEO-044 | TODO | Architecture command history | Build mutations are reversible commands with exact cost/refund data and undo/redo tests |
 | PEO-045 | TODO | Architecture validation | Invalid isolated doors/windows, out-of-bounds walls, and unsupported floor edits fail with actionable reason codes |
-| PEO-046 | TODO | One-room demo lot | A small original room with floor, walls, and one door loads from owned code/data and renders in four views |
+| PEO-046 | DONE | One-room demo lot | A small original room with floor, walls, and one door loads from owned code/data and renders in four views |
 | PEO-047 | DEFERRED | Multiple stories | Add upper-floor editing/visibility only after M5; floor transforms and persistence already reserve the dimension |
 | PEO-048 | DEFERRED | Stairs | Explicit cross-floor footprint and navigation edges after multiple stories are playable |
-| PEO-049 | TODO | Architecture M2 sub-gate | Room, walls, door, rotations, sorting, and picking pass tests and displayed smoke |
+| PEO-049 | DONE | Architecture M2 sub-gate | Room, walls, door, rotations, sorting, and picking pass tests and displayed smoke |
 
 ## Object system (`PEO-050`–`PEO-069`)
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-050 | TODO | Definition/instance split | Immutable definitions and persistent instances use stable IDs; renderer state is absent from simulation instances |
+| PEO-050 | DOING | Definition/instance split | Immutable definitions and persistent instances use stable IDs; renderer state is absent from simulation instances |
 | PEO-051 | TODO | Four-view sprite references | Direction/state selection maps view plus object orientation deterministically to authored sprite metadata |
 | PEO-052 | TODO | Rotatable footprints | Arbitrary small cell masks rotate through four orientations and return to origin after four turns |
 | PEO-053 | TODO | Basic placement validator | Bounds, floor support, occupied footprint, allowed rotation, and clearance return structured results with tests |

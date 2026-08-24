@@ -29,7 +29,8 @@ namespace People::World
           height_(height),
           floorCount_(floorCount),
           floors_(CheckedCellCount(width, height, floorCount)),
-          roomsDirty_(static_cast<std::size_t>(floorCount), true)
+          roomsDirty_(static_cast<std::size_t>(floorCount), true),
+          routingDirty_(static_cast<std::size_t>(floorCount), true)
     {
     }
 
@@ -114,7 +115,10 @@ namespace People::World
         const WallEdge wall = CanonicalWall(tile, edge);
         const bool inserted = walls_.insert(wall).second;
         if (inserted)
+        {
             roomsDirty_[static_cast<std::size_t>(tile.floor)] = true;
+            routingDirty_[static_cast<std::size_t>(tile.floor)] = true;
+        }
         return inserted;
     }
 
@@ -123,7 +127,11 @@ namespace People::World
         const WallEdge wall = CanonicalWall(tile, edge);
         const bool removed = walls_.erase(wall) != 0;
         if (removed)
+        {
+            doors_.erase(wall);
             roomsDirty_[static_cast<std::size_t>(tile.floor)] = true;
+            routingDirty_[static_cast<std::size_t>(tile.floor)] = true;
+        }
         return removed;
     }
 
@@ -169,6 +177,85 @@ namespace People::World
         return result;
     }
 
+    bool LotGrid::AddDoor(
+        const TileCoordinate tile, const TileEdge edge, const bool open)
+    {
+        const WallEdge wall = CanonicalWall(tile, edge);
+        if (!walls_.contains(wall))
+            throw std::invalid_argument("door requires an existing wall edge");
+        const bool inserted = doors_.emplace(wall, DoorState{open}).second;
+        if (inserted)
+            routingDirty_[static_cast<std::size_t>(tile.floor)] = true;
+        return inserted;
+    }
+
+    bool LotGrid::RemoveDoor(const TileCoordinate tile, const TileEdge edge)
+    {
+        const WallEdge wall = CanonicalWall(tile, edge);
+        const bool removed = doors_.erase(wall) != 0;
+        if (removed)
+            routingDirty_[static_cast<std::size_t>(tile.floor)] = true;
+        return removed;
+    }
+
+    bool LotGrid::HasDoor(const TileCoordinate tile, const TileEdge edge) const
+    {
+        return HasDoor(CanonicalWall(tile, edge));
+    }
+
+    bool LotGrid::HasDoor(const WallEdge wall) const
+    {
+        ValidateWall(wall);
+        return doors_.contains(wall);
+    }
+
+    bool LotGrid::IsDoorOpen(const TileCoordinate tile, const TileEdge edge) const
+    {
+        return IsDoorOpen(CanonicalWall(tile, edge));
+    }
+
+    bool LotGrid::IsDoorOpen(const WallEdge wall) const
+    {
+        ValidateWall(wall);
+        const auto found = doors_.find(wall);
+        if (found == doors_.end())
+            throw std::invalid_argument("wall edge has no door");
+        return found->second.open;
+    }
+
+    bool LotGrid::SetDoorOpen(
+        const TileCoordinate tile, const TileEdge edge, const bool open)
+    {
+        return SetDoorOpen(CanonicalWall(tile, edge), open);
+    }
+
+    bool LotGrid::SetDoorOpen(const WallEdge wall, const bool open)
+    {
+        ValidateWall(wall);
+        const auto found = doors_.find(wall);
+        if (found == doors_.end())
+            throw std::invalid_argument("wall edge has no door");
+        if (found->second.open == open)
+            return false;
+        found->second.open = open;
+        routingDirty_[static_cast<std::size_t>(wall.floor)] = true;
+        return true;
+    }
+
+    bool LotGrid::WallBlocksRouting(const TileCoordinate tile, const TileEdge edge) const
+    {
+        const WallEdge wall = CanonicalWall(tile, edge);
+        if (!walls_.contains(wall))
+            return false;
+        const auto door = doors_.find(wall);
+        return door == doors_.end() || !door->second.open;
+    }
+
+    const std::map<WallEdge, DoorState>& LotGrid::Doors() const noexcept
+    {
+        return doors_;
+    }
+
     void LotGrid::ValidateFloor(const int floor) const
     {
         if (floor < 0 || floor >= floorCount_)
@@ -185,5 +272,17 @@ namespace People::World
     {
         ValidateFloor(floor);
         roomsDirty_[static_cast<std::size_t>(floor)] = false;
+    }
+
+    bool LotGrid::RoutingDirty(const int floor) const
+    {
+        ValidateFloor(floor);
+        return routingDirty_[static_cast<std::size_t>(floor)];
+    }
+
+    void LotGrid::AcknowledgeRoutingRebuilt(const int floor)
+    {
+        ValidateFloor(floor);
+        routingDirty_[static_cast<std::size_t>(floor)] = false;
     }
 }

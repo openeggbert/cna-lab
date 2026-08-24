@@ -2,6 +2,7 @@
 
 #include <compare>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -60,6 +61,14 @@ namespace People::World
         auto operator<=>(const WallEdge&) const = default;
     };
 
+    /** @brief Persistent mutable door state attached to one existing wall. */
+    struct DoorState
+    {
+        bool open = false;
+
+        bool operator==(const DoorState&) const = default;
+    };
+
     /** @brief Renderer-independent bounded lot, floor cells, and wall topology. */
     class LotGrid final
     {
@@ -84,8 +93,21 @@ namespace People::World
         [[nodiscard]] const std::set<WallEdge>& Walls() const noexcept;
         [[nodiscard]] std::vector<TileCoordinate> AdjacentTiles(WallEdge wall) const;
 
+        [[nodiscard]] bool AddDoor(TileCoordinate tile, TileEdge edge, bool open = false);
+        [[nodiscard]] bool RemoveDoor(TileCoordinate tile, TileEdge edge);
+        [[nodiscard]] bool HasDoor(TileCoordinate tile, TileEdge edge) const;
+        [[nodiscard]] bool HasDoor(WallEdge wall) const;
+        [[nodiscard]] bool IsDoorOpen(TileCoordinate tile, TileEdge edge) const;
+        [[nodiscard]] bool IsDoorOpen(WallEdge wall) const;
+        [[nodiscard]] bool SetDoorOpen(TileCoordinate tile, TileEdge edge, bool open);
+        [[nodiscard]] bool SetDoorOpen(WallEdge wall, bool open);
+        [[nodiscard]] bool WallBlocksRouting(TileCoordinate tile, TileEdge edge) const;
+        [[nodiscard]] const std::map<WallEdge, DoorState>& Doors() const noexcept;
+
         [[nodiscard]] bool RoomsDirty(int floor) const;
         void AcknowledgeRoomsRebuilt(int floor);
+        [[nodiscard]] bool RoutingDirty(int floor) const;
+        void AcknowledgeRoutingRebuilt(int floor);
 
     private:
         [[nodiscard]] std::size_t CellIndex(TileCoordinate tile) const;
@@ -97,6 +119,8 @@ namespace People::World
         int floorCount_;
         std::vector<FloorTileState> floors_;
         std::set<WallEdge> walls_;
+        std::map<WallEdge, DoorState> doors_;
         std::vector<bool> roomsDirty_;
+        std::vector<bool> routingDirty_;
     };
 }

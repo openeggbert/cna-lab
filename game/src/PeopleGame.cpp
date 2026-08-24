@@ -97,6 +97,9 @@ void PeopleGame::InitializeDemoLot()
         (void)lot_.AddWall({minimumX, y, 0}, People::World::TileEdge::MinX);
         (void)lot_.AddWall({maximumX, y, 0}, People::World::TileEdge::MaxX);
     }
+    const TileCoordinate doorTile{9, maximumY, 0};
+    (void)lot_.AddDoor(doorTile, People::World::TileEdge::MaxY);
+    demoDoor_ = lot_.CanonicalWall(doorTile, People::World::TileEdge::MaxY);
 }
 
 Texture2D PeopleGame::CreateTileTexture(const bool highlight)
@@ -183,6 +186,71 @@ Texture2D PeopleGame::CreateWallTexture(const bool slopesDownRight)
     return texture;
 }
 
+Texture2D PeopleGame::CreateDoorTexture(
+    const bool slopesDownRight, const bool open)
+{
+    auto& device = getGraphicsDeviceProperty();
+    constexpr int width = IsometricProjection::HalfTileWidth + 1;
+    constexpr int height = WallHeight + IsometricProjection::HalfTileHeight + 1;
+    Texture2D texture(device, width, height);
+    std::vector<Color> pixels(
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height),
+        Color::Transparent);
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            const double slope = static_cast<double>(x)
+                * IsometricProjection::HalfTileHeight
+                / IsometricProjection::HalfTileWidth;
+            const double top = slopesDownRight
+                ? slope : IsometricProjection::HalfTileHeight - slope;
+            const double vertical = static_cast<double>(y) - top;
+            if (vertical < 0.0 || vertical > WallHeight)
+                continue;
+
+            const bool doorway = x >= 7 && x <= width - 8 && vertical >= 9.0;
+            const bool opening = open && x >= 12 && x <= width - 13 && vertical >= 15.0;
+            if (opening)
+                continue;
+
+            Color color = Color(226, 211, 181, 255);
+            if (doorway)
+            {
+                const bool frame = x < 11 || x > width - 12 || vertical < 14.0;
+                if (frame)
+                    color = Color(92, 61, 39, 255);
+                else if (open)
+                    color = Color(63, 45, 34, 255);
+                else
+                {
+                    const bool panelEdge = x < 14 || x > width - 15
+                        || vertical < 19.0 || vertical > WallHeight - 5.0;
+                    color = panelEdge
+                        ? Color(103, 65, 38, 255)
+                        : Color(147, 91, 49, 255);
+                    const double knobX = slopesDownRight ? width - 17.0 : 16.0;
+                    if (std::abs(static_cast<double>(x) - knobX) < 1.5
+                        && std::abs(vertical - 43.0) < 1.5)
+                        color = Color(221, 177, 67, 255);
+                }
+            }
+            else if (vertical > WallHeight - 18.0)
+                color = Color(178, 151, 111, 255);
+
+            const bool outerBorder = vertical < 2.0 || vertical > WallHeight - 2.0
+                || x < 2 || x >= width - 2;
+            if (outerBorder)
+                color = Color(104, 79, 59, 255);
+            pixels[static_cast<std::size_t>(y) * width + static_cast<std::size_t>(x)] = color;
+        }
+    }
+
+    texture.SetData(pixels.data(), static_cast<int>(pixels.size()));
+    return texture;
+}
+
 void PeopleGame::LoadContent()
 {
     auto& device = getGraphicsDeviceProperty();
@@ -191,6 +259,10 @@ void PeopleGame::LoadContent()
     highlightTexture_ = CreateTileTexture(true);
     wallDownRightTexture_ = CreateWallTexture(true);
     wallUpRightTexture_ = CreateWallTexture(false);
+    doorClosedDownRightTexture_ = CreateDoorTexture(true, false);
+    doorClosedUpRightTexture_ = CreateDoorTexture(false, false);
+    doorOpenDownRightTexture_ = CreateDoorTexture(true, true);
+    doorOpenUpRightTexture_ = CreateDoorTexture(false, true);
 
     const auto& viewport = device.getViewportProperty();
     camera_.origin = {
@@ -208,6 +280,7 @@ void PeopleGame::LoadContent()
               << lot_.Size().width << 'x' << lot_.Size().height << ", tile="
               << IsometricProjection::TileWidth << 'x' << IsometricProjection::TileHeight
               << ", walls=" << lot_.Walls().size()
+              << ", doors=" << lot_.Doors().size()
               << ", enclosed-rooms=" << rooms.EnclosedRoomCount()
               << ", runtime world=2D\n";
 }
@@ -248,6 +321,8 @@ void PeopleGame::HandleCameraInput(const double elapsedSeconds)
 
     if (WasPressed(current, previousKeyboard_, Keys::Q)) ChangeRotation(-1);
     if (WasPressed(current, previousKeyboard_, Keys::E)) ChangeRotation(1);
+    if (demoDoor_.has_value() && WasPressed(current, previousKeyboard_, Keys::F))
+        (void)lot_.SetDoorOpen(*demoDoor_, !lot_.IsDoorOpen(*demoDoor_));
 
     const auto mouse = Mouse::GetState();
     const PixelPoint mousePoint{
@@ -403,7 +478,13 @@ void PeopleGame::DrawWall(const WallEdge wall)
         static_cast<float>(left.x),
         static_cast<float>(std::min(left.y, right.y) - WallHeight * camera_.zoom)
     };
-    const Texture2D& texture = slopesDownRight ? wallDownRightTexture_ : wallUpRightTexture_;
+    const bool hasDoor = lot_.HasDoor(wall);
+    const bool doorOpen = hasDoor && lot_.IsDoorOpen(wall);
+    const Texture2D& texture = hasDoor
+        ? (doorOpen
+            ? (slopesDownRight ? doorOpenDownRightTexture_ : doorOpenUpRightTexture_)
+            : (slopesDownRight ? doorClosedDownRightTexture_ : doorClosedUpRightTexture_))
+        : (slopesDownRight ? wallDownRightTexture_ : wallUpRightTexture_);
     spriteBatch_->Draw(
         texture, topLeft, std::nullopt, Color::White,
         0.0f, Vector2::Zero, static_cast<float>(camera_.zoom),

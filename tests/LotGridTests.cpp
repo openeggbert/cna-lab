@@ -169,6 +169,48 @@ namespace
                 Check(merged.RoomAt({x, y, 0}) == 1, "merged room has deterministic first ID");
     }
 
+    void TestDoorLifecycleAndRoutingPortal()
+    {
+        LotGrid lot(3, 2);
+        const TileCoordinate tile{1, 1, 0};
+        constexpr TileEdge edge = TileEdge::MaxY;
+        CheckThrows([&] { (void)lot.AddDoor(tile, edge); },
+                    "door cannot attach without a wall");
+
+        (void)lot.AddWall(tile, edge);
+        lot.AcknowledgeRoomsRebuilt(0);
+        lot.AcknowledgeRoutingRebuilt(0);
+        Check(lot.AddDoor(tile, edge), "door attaches to existing wall");
+        Check(!lot.AddDoor(tile, edge), "duplicate door insertion is a no-op");
+        Check(lot.HasDoor(tile, edge) && !lot.IsDoorOpen(tile, edge),
+              "new door persists closed state");
+        Check(lot.WallBlocksRouting(tile, edge), "closed door blocks routing");
+        Check(!lot.RoomsDirty(0), "door attachment does not merge room semantics");
+        Check(lot.RoutingDirty(0), "door attachment invalidates routing");
+
+        lot.AcknowledgeRoutingRebuilt(0);
+        Check(lot.SetDoorOpen(tile, edge, true), "door can transition open");
+        Check(!lot.SetDoorOpen(tile, edge, true), "identical door state is a no-op");
+        Check(lot.IsDoorOpen(tile, edge), "open state is queryable");
+        Check(!lot.WallBlocksRouting(tile, edge), "open door exposes route portal");
+        Check(lot.RoutingDirty(0), "door state transition invalidates routing");
+        Check(!lot.RoomsDirty(0), "opening door preserves environment room boundary");
+
+        Check(lot.RemoveDoor(tile, edge), "door removes cleanly");
+        Check(!lot.HasDoor(tile, edge), "removed door is absent");
+        Check(lot.HasWall(tile, edge), "removing door leaves its host wall");
+        Check(lot.WallBlocksRouting(tile, edge), "host wall blocks after door removal");
+        Check(!lot.RemoveDoor(tile, edge), "missing door removal is a no-op");
+
+        (void)lot.AddDoor(tile, edge, true);
+        Check(lot.RemoveWall(tile, edge), "host wall removal succeeds");
+        Check(!lot.HasDoor(tile, edge), "host wall removal cascades attached door cleanup");
+        Check(!lot.WallBlocksRouting(tile, edge), "removed wall no longer blocks routing");
+        Check(lot.Doors().empty(), "door registry has no orphan after host removal");
+        CheckThrows([&] { (void)lot.IsDoorOpen(tile, edge); },
+                    "door state query rejects absent door");
+    }
+
     void TestFloorIsolationAndValidation()
     {
         LotGrid lot(2, 2, 2);
@@ -190,6 +232,7 @@ int main()
     TestCanonicalWalls();
     TestOutsideAndEnclosedRoom();
     TestRoomSplitAndMerge();
+    TestDoorLifecycleAndRoutingPortal();
     TestFloorIsolationAndValidation();
 
     if (failures != 0)

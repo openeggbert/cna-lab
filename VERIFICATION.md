@@ -130,3 +130,22 @@ captures, one per rotation, were assembled and visually inspected: wall tops,
 shared corners, alpha boundaries, floor contact, warm-wood covering, selection,
 and lot focus stayed aligned in all views. The captures were verification
 artifacts in `/tmp`, not retained or treated as shipping art.
+
+## 2026-08-24: PEO-037/038/046 door and architecture gate
+
+One closed door is attached to the demo room's front canonical wall. The model
+requires an existing host wall, persists open state, invalidates routing on
+attach/remove/state change, exposes an open route portal, preserves room
+semantics, and cascades cleanup when its host wall is removed. Duplicate and
+missing mutations remain explicit no-ops or actionable errors.
+
+Four original runtime-generated door textures cover both projected slopes and
+closed/open state. The closed view has a wood panel, frame, and knob; the open
+view retains frame/header pixels but leaves a genuinely transparent passage.
+The temporary `F` control changes only logical door state, from which rendering
+selects its texture.
+
+Headless and displayed configurations passed 4/4 CTests. Temporary Xvfb
+captures of closed and open states were visually compared; panel, opening,
+wall contact, sorting, and adjacent floor remained aligned. This completes the
+tested one-room architecture sub-gate, not the five-object M2 content gate.

@@ -38,6 +38,8 @@ private:
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateTileTexture(bool highlight);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateWallTexture(
         bool slopesDownRight);
+    [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateDoorTexture(
+        bool slopesDownRight, bool open);
 
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
@@ -50,6 +52,11 @@ private:
     Microsoft::Xna::Framework::Graphics::Texture2D highlightTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D wallDownRightTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D wallUpRightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D doorClosedDownRightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D doorClosedUpRightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D doorOpenDownRightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D doorOpenUpRightTexture_;
+    std::optional<People::World::WallEdge> demoDoor_;
     People::World::Camera camera_;
     std::optional<People::World::TileCoordinate> hoveredTile_;
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_;
