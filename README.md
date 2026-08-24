@@ -117,7 +117,9 @@ display identity, at least two mixed captures with distinct canonical contents, 
 presentation, complete VRAM evidence, and one ordered archived source bundle per enriched capture.
 A copied/renamed/reformatted single capture does not satisfy repeatability, and an enriched JSON
 without its original profile, evidence manifest, and raw profiler artifact is invalid qualifying
-input. See
+input. Repeated mixed captures must also share resolution, timestep/v-sync request, GPU-timer
+policy, representative workload, VRAM coverage, and profiler identity; incompatible runs produce
+`FAIL`. Stored budget metadata must equal the locked M12 values or the input is malformed. See
 [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
 When complete per-process VRAM residency comes from a vendor/OS profiler, bind its raw artifact and

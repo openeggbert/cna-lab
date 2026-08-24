@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying repeatability now means the same capture policy and workload.** Individually
+passing mixed runs no longer form a `PASS` pair if they differ in resolution, timestep/v-sync/swap
+request, GPU-timer policy, representative actor counts, VRAM coverage, or external profiler
+source/tool. Locked schema-8 budget metadata is also validated against the evaluator constants.
+
+- Synthetic qualification still reaches `PASS`; a 1280-vs-1920 pair and a profiler-version
+  mismatch now produce `FAIL`, while edited 33.333 ms metadata exits 2.
+- Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass. Both retained real Xvfb captures
+  parse under the stricter policy; the self-comparison remains `NO REGRESSION` at `df217f17…41cd0`.
+- This prevents incompatible runs from satisfying repeatability but adds no physical capture.
+
 **M12 Markdown evidence output now treats every dynamic value as data.** Shared report/comparison
 rendering HTML-escapes code values, encodes table pipes, escapes inline Markdown punctuation, and
 renders non-printable filename characters visibly instead of allowing them to alter output layout.

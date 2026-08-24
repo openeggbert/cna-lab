@@ -252,6 +252,14 @@ tests now include backticks, `<b>`, `*`, a pipe, and a newline in titles/hardwar
 prove provenance rows remain data. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass;
 the real Xvfb diagnostic outputs retain their prior status/hash without launching the game.
 
+Qualifying mixed captures now form one repeatability set rather than merely passing independently.
+The report requires exact agreement on resolution, fixed-timestep/v-sync/swap request, GPU timer
+policy, representative workload counts, complete-VRAM coverage, and external source/tool identity.
+A 1280-vs-1920 synthetic pair and profiler-version mismatch both produce `FAIL`. Every stored
+budget value is also checked against the locked schema-8 constants; changing 33.333 to 40 exits 2,
+including through the comparator's shared loader. Report 7/7, comparator 7/7, VRAM 6/6, and both
+retained Xvfb diagnostics pass; no graphical process was launched.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

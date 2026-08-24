@@ -562,6 +562,13 @@ enriched capture in a qualifying report. The generator reconstructs and verifies
 capture before parsing it and rejects a missing bundle, missing source, hash mismatch, semantic
 change, or capture mutation during verification with exit 2. Diagnostic reports remain usable
 without archived bundles and stay `DIAGNOSTIC`.
+The schema's `budgets` object must reproduce every locked value in this document exactly; changing
+the JSON policy cannot change the evaluator's thresholds and is rejected as malformed input.
+For repeatability, every pair of mixed captures in a declared qualification must agree on exact
+resolution, fixed-timestep/v-sync request, swap request, GPU-timer support/scope, representative
+physics/traffic/pedestrian/police workload, complete-VRAM coverage, and external profiler source,
+scope, name, and version. A mismatch is a qualification blocker and yields `FAIL`, even when both
+runs pass their budgets individually.
 When `--output` is supplied, the Markdown file is written atomically in its destination directory.
 The destination must differ from every enriched capture and every original profile, evidence
 manifest, and raw artifact, including an existing hardlink alias; a collision exits 2 without
@@ -611,6 +618,8 @@ coverage, and optional GPU/load/transition measurement availability. A qualifyin
 rejects virtual/software display labels, unacknowledged presentation, unknown RAM, and incomplete
 VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other non-qualifying
 engineering runs; diagnostic and qualifying evidence can never be mixed.
+Budget metadata is validated against the locked schema-8 values before compatibility comparison,
+so two consistently edited policies are invalid rather than self-consistent evidence.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,
 so two identically tampered presentation objects cannot compare as valid evidence.
 Every qualifying side must also provide its ordered original-profile/evidence-manifest/raw-artifact

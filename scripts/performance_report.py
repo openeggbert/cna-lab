@@ -39,6 +39,39 @@ CPU_BUDGETS_MS = {
     "audio_cpu": 1.0,
     "render_cpu": 8.0,
 }
+LOCKED_FLOAT_BUDGETS = {
+    "minimum_frame_p95_ms": SCHEMA_MINIMUM_FRAME_MS,
+    "recommended_frame_p95_ms": SCHEMA_RECOMMENDED_FRAME_MS,
+    "update_cpu_p95_ms": CPU_BUDGETS_MS["update_cpu"],
+    "physics_cpu_p95_ms": CPU_BUDGETS_MS["physics_cpu"],
+    "ai_cpu_p95_ms": CPU_BUDGETS_MS["ai_cpu"],
+    "audio_cpu_p95_ms": CPU_BUDGETS_MS["audio_cpu"],
+    "render_cpu_p95_ms": CPU_BUDGETS_MS["render_cpu"],
+    "district_load_p95_ms": DISTRICT_LOAD_BUDGET_MS,
+}
+LOCKED_INTEGER_BUDGETS = {
+    "ram_bytes": RAM_BUDGET_BYTES,
+    "vram_bytes": VRAM_BUDGET_BYTES,
+}
+QUALIFICATION_REPEATABILITY_PATHS = (
+    ("resolution", "width"),
+    ("resolution", "height"),
+    ("timing", "vertical_sync_requested"),
+    ("timing", "fixed_timestep"),
+    ("timing", "target_frame_ms"),
+    ("swap_interval", "requested"),
+    ("gpu_timing", "supported"),
+    ("gpu_timing", "scope"),
+    ("workload", "physics_bodies"),
+    ("workload", "traffic_vehicles"),
+    ("workload", "pedestrians"),
+    ("workload", "police_vehicles"),
+    ("video_memory", "coverage"),
+    ("video_memory", "complete_evidence", "source"),
+    ("video_memory", "complete_evidence", "measurement_scope"),
+    ("video_memory", "complete_evidence", "tool", "name"),
+    ("video_memory", "complete_evidence", "tool", "version"),
+)
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
 IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
@@ -314,6 +347,15 @@ def _require_schema_number(
         raise ReportError(f"{'.'.join(keys)} must be {expected:.3f}")
 
 
+def validate_locked_budgets(capture: dict[str, Any]) -> None:
+    for key, expected in LOCKED_FLOAT_BUDGETS.items():
+        _require_schema_number(capture, ("budgets", key), expected)
+    for key, expected in LOCKED_INTEGER_BUDGETS.items():
+        actual = _integer(capture, "budgets", key)
+        if actual != expected:
+            raise ReportError(f"budgets.{key} must be {expected}")
+
+
 def _validate_pacing_counter(
     capture: dict[str, Any],
     key: str,
@@ -522,6 +564,16 @@ def load_capture(path: Path) -> dict[str, Any]:
             f"{path}: schema_version must be {SCHEMA_VERSION}, got {capture.get('schema_version')!r}"
         )
 
+    validate_locked_budgets(capture)
+    _boolean(capture, "gpu_timing", "supported")
+    _single_line_string(capture, "gpu_timing", "scope")
+    for workload in (
+        "physics_bodies",
+        "traffic_vehicles",
+        "pedestrians",
+        "police_vehicles",
+    ):
+        _integer(capture, "workload", workload)
     for metric in (
         "frame_interval",
         *CPU_BUDGETS_MS,
@@ -547,6 +599,16 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
         blockers.append(prefix + "backend is not the primary EasyGL/OPENGLES3 target")
     if _path(capture, "build_configuration") != "Release":
         blockers.append(prefix + "capture is not a Release build")
+
+    fixed_timestep = _boolean(capture, "timing", "fixed_timestep")
+    target_frame_ms = _number(capture, "timing", "target_frame_ms")
+    if not fixed_timestep or not math.isclose(
+        target_frame_ms,
+        SCHEMA_RECOMMENDED_FRAME_MS,
+        rel_tol=0.0,
+        abs_tol=0.000001,
+    ):
+        blockers.append(prefix + "capture does not use the locked 16.667 ms fixed timestep")
 
     width = _integer(capture, "resolution", "width")
     height = _integer(capture, "resolution", "height")
@@ -587,6 +649,30 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
         load_p95 = _number(capture, "measurements", "district_load_cpu", "p95_ms")
         if load_samples == 0 or load_p95 > DISTRICT_LOAD_BUDGET_MS:
             blockers.append(prefix + "mixed capture lacks a passing real district transition")
+    return blockers
+
+
+def qualification_repeatability_blockers(
+    capture_paths: list[Path],
+    captures: list[dict[str, Any]],
+) -> list[str]:
+    mixed = [
+        (path, capture)
+        for path, capture in zip(capture_paths, captures)
+        if _path(capture, "scenario") == "mixed"
+    ]
+    if len(mixed) < 2:
+        return []
+
+    reference_path, reference = mixed[0]
+    blockers: list[str] = []
+    for candidate_path, candidate in mixed[1:]:
+        for policy_path in QUALIFICATION_REPEATABILITY_PATHS:
+            if _path(reference, *policy_path) != _path(candidate, *policy_path):
+                blockers.append(
+                    f"{candidate_path.name}: repeatability policy does not match "
+                    f"{reference_path.name} at {'.'.join(policy_path)}"
+                )
     return blockers
 
 
@@ -652,6 +738,8 @@ def build_markdown(
         )
     if any(term in hardware.lower() for term in DIAGNOSTIC_HARDWARE_TERMS):
         blockers.append("the hardware label identifies a diagnostic software/virtual display")
+    if qualifying_hardware:
+        blockers.extend(qualification_repeatability_blockers(capture_paths, captures))
     per_capture_blockers: list[list[str]] = []
     for path, capture in zip(capture_paths, captures):
         current = capture_blockers(path, capture, hardware)

@@ -314,6 +314,29 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("VRAM bundle verification failed", result.stderr)
         self.assertIn("source_artifact.sha256 does not match", result.stderr)
 
+        different_resolution = deepcopy(second)
+        different_resolution["resolution"]["width"] = 1920
+        result = self.run_report(
+            [first, different_resolution],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("repeatability policy does not match", result.stdout)
+        self.assertIn("resolution.width", result.stdout)
+
+        different_tool = deepcopy(second)
+        different_tool["video_memory"]["complete_evidence"]["tool"]["version"] = "2.0"
+        result = self.run_report(
+            [first, different_tool],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("complete\\_evidence.tool.version", result.stdout)
+
     def test_copied_capture_does_not_meet_repeatability_requirement(self) -> None:
         first = capture_fixture()
         second = deepcopy(first)
@@ -377,6 +400,12 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_schema], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("schema_version must be 8", result.stderr)
+
+        bad_budget = capture_fixture()
+        bad_budget["budgets"]["minimum_frame_p95_ms"] = 40.0
+        result = self.run_report([bad_budget], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("budgets.minimum_frame_p95_ms must be 33.333", result.stderr)
 
         bad_histogram = capture_fixture()
         bad_histogram["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 2

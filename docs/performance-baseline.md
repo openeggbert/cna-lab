@@ -550,3 +550,18 @@ The existing output-preservation tests exercise adversarial titles, hardware, an
 both generators while retaining their 7/7 suite counts. Report 7/7, comparator 7/7, and VRAM 6/6
 focused suites pass. The stored Xvfb report/self-comparison still yields `DIAGNOSTIC`/
 `NO REGRESSION` with `df217f17…41cd0`; no graphical process ran and M12 remains open.
+
+## 2026-08-24 — qualification repeatability-policy enforcement
+
+The release report previously evaluated mixed captures individually and counted distinct contents,
+but did not require the two runs to use the same resolution, presentation/timestep request, GPU
+timer policy, representative workload, or external VRAM method. Two individually passing but
+incompatible runs could therefore satisfy the repeatability count. The qualifying path now compares
+those policy fields across every mixed capture and emits `FAIL` with the exact differing field.
+
+The capture's own `budgets` object is now validated against every locked schema-8 threshold as well;
+editing both captures to the same alternative policy exits 2 rather than evading a compatibility
+check. The synthetic same-policy pair still reaches `PASS`. Focused tests prove 1280-vs-1920 and
+profiler-version mismatch failures plus a changed 33.333 ms metadata refusal. Report 7/7,
+comparator 7/7, VRAM 6/6, both retained real diagnostics, and the diagnostic self-comparison pass
+without launching the game. No physical complete-VRAM capture exists, so M12 remains open.

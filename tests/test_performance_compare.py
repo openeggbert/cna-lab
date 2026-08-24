@@ -295,7 +295,7 @@ class PerformanceCompareTests(unittest.TestCase):
         candidate["budgets"]["minimum_frame_p95_ms"] = 40.0
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("incompatible budgets.minimum_frame_p95_ms", result.stderr)
+        self.assertIn("budgets.minimum_frame_p95_ms must be 33.333", result.stderr)
 
         candidate = deepcopy(baseline)
         candidate["measurements"]["gpu_render"]["samples"] = 0
