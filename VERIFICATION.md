@@ -57,6 +57,16 @@ because CNA's bundled `ply_reader.cc` uses `std::all_of` without including that
 header. This keeps the compatibility workaround local and leaves CNA and
 sharp-runtime unchanged. The executable link also selects CNA's
 `-fwasm-exceptions` mode so Emscripten uses the matching C++ runtime.
+The checked-in `web/shell.html` presents the same 1280×700 integer-scaled game
+surface as the native CNA window without Emscripten's generic logo, console or
+resize controls.
+
+For presentation-parity diagnosis, `black_pine_render_preview` was compiled
+both natively and as WebAssembly. Their complete PPM output trees—title,
+trailhead, message, all 124 rooms and persistent completed states—were
+byte-for-byte identical. Any remaining platform difference is therefore outside
+the Explore2D software framebuffer and belongs to the CNA/SDL presentation or
+browser display layer.
 
 ```bash
 ./scripts/build-web.sh

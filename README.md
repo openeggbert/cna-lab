@@ -128,6 +128,8 @@ HTML, JavaScript and WebAssembly outputs are non-empty. The project CMake also
 supplies the `<algorithm>` include omitted by CNA's bundled Draco revision when
 that target is compiled by recent Emscripten versions and links with the same
 WebAssembly exception mode used by CNA. The CNA checkout itself is not modified.
+The generated page uses Black Pine's own 1280×700 pixel-perfect shell rather
+than Emscripten's generic demonstration page, matching the native CNA window.
 
 ## Controls
 

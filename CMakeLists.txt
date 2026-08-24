@@ -46,7 +46,8 @@ if(TARGET Explore2D::Cna)
             "-sWASM_LEGACY_EXCEPTIONS=0"
             "-sALLOW_MEMORY_GROWTH=1"
             "-sINITIAL_MEMORY=268435456"
-            "-sNO_EXIT_RUNTIME=1")
+            "-sNO_EXIT_RUNTIME=1"
+            "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
         set_target_properties(black_pine PROPERTIES SUFFIX ".html")
     endif()
 else()
