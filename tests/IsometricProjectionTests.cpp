@@ -196,6 +196,30 @@ namespace
         CheckNear(newCenter.y, oldCenter.y, "rotation preserves rectangular lot center y");
     }
 
+    void TestContinuousBoundaryProjection()
+    {
+        const LotSize lot{6, 4};
+        for (int rotationIndex = 0; rotationIndex < 4; ++rotationIndex)
+        {
+            const Camera camera{{100.0, 50.0}, 1.25,
+                                static_cast<ViewRotation>(rotationIndex)};
+            const PixelPoint a = IsometricProjection::WorldPointToScreen(
+                {-0.5, -0.5, 0}, lot, camera);
+            const PixelPoint b = IsometricProjection::WorldPointToScreen(
+                {0.5, -0.5, 0}, lot, camera);
+            CheckNear(std::abs(b.x - a.x),
+                      IsometricProjection::HalfTileWidth * camera.zoom,
+                      "rotated wall vertex span keeps half tile width");
+            CheckNear(std::abs(b.y - a.y),
+                      IsometricProjection::HalfTileHeight * camera.zoom,
+                      "rotated wall vertex span keeps half tile height");
+        }
+        const Camera camera{{0.0, 0.0}, 1.0, ViewRotation::North};
+        CheckThrows([&] {
+            (void)IsometricProjection::WorldPointToScreen({-0.51, 0.0, 0}, lot, camera);
+        }, "continuous point beyond outer wall boundary is rejected");
+    }
+
     void TestValidationAndRotationWrapping()
     {
         CheckThrows([] { (void)IsometricProjection::ViewSize({0, 2}, ViewRotation::North); },
@@ -228,6 +252,7 @@ int main()
     TestInsideAndOutsidePicking();
     TestSharedEdgePickingUnderAllRotations();
     TestCameraTranslationAndZoom();
+    TestContinuousBoundaryProjection();
     TestValidationAndRotationWrapping();
 
     if (failures != 0)

@@ -101,6 +101,8 @@ namespace
                   && lot.HasWall({1, 0, 0}, TileEdge::MinX),
               "wall can be queried from either adjacent tile");
         Check(lot.Walls().size() == 1, "canonical wall is stored once");
+        Check(lot.AdjacentTiles(fromLeft).size() == 2,
+              "interior wall reports both adjacent tiles");
         Check(!lot.HasWall({0, 0, 1}, TileEdge::MaxX), "walls are isolated by floor");
 
         lot.AcknowledgeRoomsRebuilt(0);
@@ -114,6 +116,8 @@ namespace
               "missing wall removal is a no-op");
 
         Check(lot.AddWall({0, 0, 0}, TileEdge::MinY), "minimum boundary wall is valid");
+        Check(lot.AdjacentTiles(lot.CanonicalWall({0, 0, 0}, TileEdge::MinY)).size() == 1,
+              "boundary wall reports its one in-lot adjacent tile");
         Check(lot.AddWall({2, 1, 0}, TileEdge::MaxX), "maximum boundary wall is valid");
         CheckThrows([&] {
             (void)lot.CanonicalWall({3, 0, 0}, TileEdge::MinX);

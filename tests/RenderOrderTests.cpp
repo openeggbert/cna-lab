@@ -1,7 +1,9 @@
 #include "People/Rendering/RenderOrder.hpp"
+#include "People/Rendering/WallPresentation.hpp"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <exception>
 #include <functional>
 #include <iostream>
@@ -136,6 +138,60 @@ namespace
                                         DrawLayer::Terrain, 0, 1);
         }, "out-of-bounds footprint is rejected");
     }
+
+    void TestWallPresentationInAllRotations()
+    {
+        LotGrid lot(5, 3);
+        for (int x = 0; x < lot.Size().width; ++x)
+        {
+            (void)lot.AddWall({x, 0, 0}, TileEdge::MinY);
+            (void)lot.AddWall({x, lot.Size().height - 1, 0}, TileEdge::MaxY);
+        }
+        for (int y = 0; y < lot.Size().height; ++y)
+        {
+            (void)lot.AddWall({0, y, 0}, TileEdge::MinX);
+            (void)lot.AddWall({lot.Size().width - 1, y, 0}, TileEdge::MaxX);
+        }
+
+        for (int rotationIndex = 0; rotationIndex < 4; ++rotationIndex)
+        {
+            const auto rotation = static_cast<ViewRotation>(rotationIndex);
+            int backCount = 0;
+            int frontCount = 0;
+            for (const WallEdge wall : lot.Walls())
+            {
+                const WallRenderDescriptor descriptor = WallPresentation::Describe(
+                    lot, wall, rotation);
+                Check(descriptor.footprint.size() == 1,
+                      "perimeter wall has one in-lot footprint tile");
+                if (descriptor.layer == DrawLayer::WallBack) ++backCount;
+                if (descriptor.layer == DrawLayer::WallFront) ++frontCount;
+
+                const Camera camera{{0.0, 0.0}, 1.0, rotation};
+                const PixelPoint first = IsometricProjection::WorldPointToScreen(
+                    descriptor.endpoints[0], lot.Size(), camera);
+                const PixelPoint second = IsometricProjection::WorldPointToScreen(
+                    descriptor.endpoints[1], lot.Size(), camera);
+                Check(std::abs(std::abs(second.x - first.x)
+                               - IsometricProjection::HalfTileWidth) <= 1.0e-9,
+                      "wall segment keeps projected half-tile width");
+                Check(std::abs(std::abs(second.y - first.y)
+                               - IsometricProjection::HalfTileHeight) <= 1.0e-9,
+                      "wall segment keeps projected half-tile height");
+            }
+            Check(backCount == lot.Size().width + lot.Size().height,
+                  "two camera-away perimeter sides use back layer");
+            Check(frontCount == lot.Size().width + lot.Size().height,
+                  "two camera-facing perimeter sides use front layer");
+        }
+
+        (void)lot.AddWall({1, 1, 0}, TileEdge::MaxX);
+        const WallRenderDescriptor interior = WallPresentation::Describe(
+            lot, lot.CanonicalWall({1, 1, 0}, TileEdge::MaxX), ViewRotation::North);
+        Check(interior.footprint.size() == 2, "interior wall spans two adjacent tiles");
+        Check(interior.layer == DrawLayer::WallFront,
+              "initial interior-wall policy uses front layer pending segmentation");
+    }
 }
 
 int main()
@@ -144,6 +200,7 @@ int main()
     TestFootprintDepthAndAnchorForAllRotations();
     TestInsertionOrderIndependence();
     TestValidation();
+    TestWallPresentationInAllRotations();
 
     if (failures != 0)
     {

@@ -120,6 +120,27 @@ namespace People::World
         };
     }
 
+    PixelPoint IsometricProjection::WorldPointToScreen(
+        const WorldPoint world, const LotSize lot, const Camera& camera)
+    {
+        ValidateLot(lot);
+        if (!std::isfinite(camera.zoom) || camera.zoom <= 0.0)
+            throw std::invalid_argument("camera zoom must be finite and positive");
+        if (!std::isfinite(world.x) || !std::isfinite(world.y)
+            || world.x < -0.5 || world.y < -0.5
+            || world.x > static_cast<double>(lot.width) - 0.5
+            || world.y > static_cast<double>(lot.height) - 0.5)
+            throw std::out_of_range("continuous world point is outside the lot boundary");
+
+        const PixelPoint view = RotateContinuous(world.x, world.y, lot, camera.rotation);
+        const PixelPoint projected = ProjectContinuous(
+            view.x, view.y, static_cast<double>(world.floor));
+        return {
+            camera.origin.x + projected.x * camera.zoom,
+            camera.origin.y + projected.y * camera.zoom
+        };
+    }
+
     std::optional<TileCoordinate> IsometricProjection::ScreenToWorld(
         const PixelPoint screen, const LotSize lot, const Camera& camera)
     {

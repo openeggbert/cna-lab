@@ -82,6 +82,7 @@ namespace People::World
         [[nodiscard]] bool RemoveWall(TileCoordinate tile, TileEdge edge);
         [[nodiscard]] bool HasWall(TileCoordinate tile, TileEdge edge) const;
         [[nodiscard]] const std::set<WallEdge>& Walls() const noexcept;
+        [[nodiscard]] std::vector<TileCoordinate> AdjacentTiles(WallEdge wall) const;
 
         [[nodiscard]] bool RoomsDirty(int floor) const;
         void AcknowledgeRoomsRebuilt(int floor);
@@ -89,6 +90,7 @@ namespace People::World
     private:
         [[nodiscard]] std::size_t CellIndex(TileCoordinate tile) const;
         void ValidateFloor(int floor) const;
+        void ValidateWall(WallEdge wall) const;
 
         int width_;
         int height_;

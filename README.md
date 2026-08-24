@@ -22,8 +22,9 @@ The first executable milestone is working on `develop`. People opens through
 CNA, generates and draws a 20 x 20 isometric lot with `SpriteBatch`, supports
 camera pan/zoom, cycles exactly four presentation rotations, and highlights the
 tile under the mouse. Projection, inverse picking, rotation, camera focus, and
-runtime startup are covered by CTest. The lot is currently an intentionally
-asset-free rendering foundation; it has no walls, objects, or residents yet.
+runtime startup are covered by CTest. The lot now contains an original
+procedural warm-wood room with logical edge walls rendered from generated
+textures in all four views. It has no door, catalog objects, or residents yet.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands

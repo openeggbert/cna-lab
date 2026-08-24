@@ -73,11 +73,11 @@ Statuses:
 | PEO-030 | DONE | Lot grid model | Bounded width/height/floor storage validates coordinates and remains renderer-independent |
 | PEO-031 | DONE | Floor tile state | Base terrain and optional floor-covering IDs persist independently from textures and support dirty flags |
 | PEO-032 | DONE | Canonical wall edges | Shared edges normalize to one record; add/remove/query and boundary cases pass tests |
-| PEO-033 | DOING | Procedural wall sprites | Original placeholder wall segments render in correct back/front layers for all views |
+| PEO-033 | DONE | Procedural wall sprites | Original placeholder wall segments render in correct back/front layers for all views |
 | PEO-034 | TODO | Wall placement/removal core | Logical mutations validate funds/topology hooks and mark affected room/render regions dirty |
 | PEO-035 | DONE | Room detection | Flood fill assigns stable room regions from floors/wall boundaries; simple, split, merged, and outside cases pass |
 | PEO-036 | TODO | Incremental room invalidation | Wall edits rebuild only a declared dirty area or intentionally fall back with measurable whole-floor rebuild |
-| PEO-037 | TODO | Door edge model | Door attaches to valid wall edge, exposes route portal/open state, and removes cleanly with topology updates |
+| PEO-037 | DOING | Door edge model | Door attaches to valid wall edge, exposes route portal/open state, and removes cleanly with topology updates |
 | PEO-038 | TODO | Procedural door rendering | Four view-correct closed/open placeholder door sprites align to wall edges |
 | PEO-039 | TODO | Window edge model | Window attaches to valid wall without becoming a route portal and persists its state |
 | PEO-040 | TODO | Wallpaper/paint state | Independent interior/exterior wall finishes are data references and render with placeholder colors |

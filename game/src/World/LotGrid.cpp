@@ -137,6 +137,38 @@ namespace People::World
         return walls_;
     }
 
+    void LotGrid::ValidateWall(const WallEdge wall) const
+    {
+        ValidateFloor(wall.floor);
+        const bool valid = wall.axis == WallAxis::AlongX
+            ? wall.x >= 0 && wall.x < width_ && wall.y >= 0 && wall.y <= height_
+            : wall.x >= 0 && wall.x <= width_ && wall.y >= 0 && wall.y < height_;
+        if (!valid)
+            throw std::out_of_range("canonical wall edge is outside the lot");
+    }
+
+    std::vector<TileCoordinate> LotGrid::AdjacentTiles(const WallEdge wall) const
+    {
+        ValidateWall(wall);
+        std::vector<TileCoordinate> result;
+        result.reserve(2);
+        if (wall.axis == WallAxis::AlongX)
+        {
+            const TileCoordinate positive{wall.x, wall.y, wall.floor};
+            const TileCoordinate negative{wall.x, wall.y - 1, wall.floor};
+            if (Contains(positive)) result.push_back(positive);
+            if (Contains(negative)) result.push_back(negative);
+        }
+        else
+        {
+            const TileCoordinate positive{wall.x, wall.y, wall.floor};
+            const TileCoordinate negative{wall.x - 1, wall.y, wall.floor};
+            if (Contains(positive)) result.push_back(positive);
+            if (Contains(negative)) result.push_back(negative);
+        }
+        return result;
+    }
+
     void LotGrid::ValidateFloor(const int floor) const
     {
         if (floor < 0 || floor >= floorCount_)

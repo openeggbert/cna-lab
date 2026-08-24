@@ -57,6 +57,7 @@ add_subdirectory("${PEOPLE_CNA_ROOT}" "${CMAKE_BINARY_DIR}/_deps/cna")
 
 add_library(people_core STATIC
     game/src/Rendering/RenderOrder.cpp
+    game/src/Rendering/WallPresentation.cpp
     game/src/World/IsometricProjection.cpp
     game/src/World/LotGrid.cpp
     game/src/World/RoomMap.cpp

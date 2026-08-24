@@ -31,8 +31,13 @@ private:
     void ChangeRotation(int clockwiseQuarterTurns);
     void ChangeZoom(double newZoom, People::World::PixelPoint screenFocus);
     void RefreshHoveredTile();
+    void InitializeDemoLot();
     void DrawLot();
+    void DrawTile(People::World::TileCoordinate tile);
+    void DrawWall(People::World::WallEdge wall);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateTileTexture(bool highlight);
+    [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateWallTexture(
+        bool slopesDownRight);
 
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
@@ -43,6 +48,8 @@ private:
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     Microsoft::Xna::Framework::Graphics::Texture2D tileTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D highlightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D wallDownRightTexture_;
+    Microsoft::Xna::Framework::Graphics::Texture2D wallUpRightTexture_;
     People::World::Camera camera_;
     std::optional<People::World::TileCoordinate> hoveredTile_;
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_;

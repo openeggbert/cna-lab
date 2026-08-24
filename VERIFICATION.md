@@ -111,3 +111,22 @@ neighbor normalization, boundary walls, room invalidation, open outside space,
 one enclosed interior cell, a fully enclosed split room, removal-driven merge,
 and floor isolation. Headless and displayed configurations passed 4/4 CTests
 against the dependency snapshots recorded above.
+
+## 2026-08-24: PEO-033 procedural room walls
+
+The demo lot now creates a 7 x 7 warm-wood room through `LotGrid` mutations:
+49 floor-covering IDs and 28 canonical perimeter edges. Runtime-generated wall
+textures contain transparent sloped bounds, plaster panels, base trim, and
+original neutral colors. No image or model asset is loaded.
+
+`WallPresentation` converts each logical segment to two continuous boundary
+points, its in-lot footprint, farthest view anchor, and coarse back/front layer.
+Tests verify segment dimensions and exactly two camera-away/two camera-facing
+perimeter sides in every rotation; the initial documented internal-wall policy
+uses the front layer until segmentation/cutaway work.
+
+Headless and displayed configurations passed 4/4 CTests. Four temporary Xvfb
+captures, one per rotation, were assembled and visually inspected: wall tops,
+shared corners, alpha boundaries, floor contact, warm-wood covering, selection,
+and lot focus stayed aligned in all views. The captures were verification
+artifacts in `/tmp`, not retained or treated as shipping art.

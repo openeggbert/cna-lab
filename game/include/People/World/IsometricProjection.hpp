@@ -51,6 +51,14 @@ namespace People::World
         bool operator==(const PixelPoint&) const = default;
     };
 
+    /** @brief Continuous simulation point, used for edges and sub-tile movement. */
+    struct WorldPoint
+    {
+        double x = 0.0;
+        double y = 0.0;
+        int floor = 0;
+    };
+
     /** @brief Presentation-only camera state. */
     struct Camera
     {
@@ -91,6 +99,10 @@ namespace People::World
         /** @brief Projects a world tile center through rotation, zoom, and camera origin. */
         [[nodiscard]] static PixelPoint WorldToScreen(
             TileCoordinate world, LotSize lot, const Camera& camera);
+
+        /** @brief Projects a bounded continuous world point through presentation state. */
+        [[nodiscard]] static PixelPoint WorldPointToScreen(
+            WorldPoint world, LotSize lot, const Camera& camera);
 
         /**
          * @brief Picks a floor-zero world tile from a screen pixel.
