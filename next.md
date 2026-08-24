@@ -43,7 +43,9 @@ write and verify the clean implementation.
   targets begin with `TamagotchiCna`. No tracked file contains the retired
   product spelling. Save-location compatibility is intentionally retained by
   constructing the pre-rename directory name from two string fragments; the
-  migration test confirms an existing pet still wins over a new slot.
+  migration test confirms an existing pet still wins over a new slot. The
+  temporary filesystem compatibility symlink was removed and the SDL/web
+  build trees were regenerated under the final repository path.
 - The CMake integration was updated for the current sibling `../cna` and its
   modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
   `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
@@ -58,6 +60,16 @@ write and verify the clean implementation.
   intermittently fail while `ar` replaces a static library (observed with both
   two and one job); retry the unchanged incremental build before attributing
   that message to a source or dependency change.
+- The `web` preset now produces a Release Emscripten build with the SDL
+  renderer. It was verified on 2026-08-24 with Emscripten 6.0.3 and emits
+  `TamagotchiCna.html`, `.js`, `.wasm`, and `.data`. The application target
+  explicitly matches CNA's `-fwasm-exceptions` ABI; omitting that target-level
+  option reproduces `__cpp_exception`/`__wasm_lpad_context` link failures.
+  Both icon atlases are preloaded at `/assets`, because copying them beside the
+  page alone does not make them visible through Emscripten's virtual filesystem.
+  The web `Game` instance has static lifetime as required by CNA's asynchronous
+  Emscripten main loop; a stack-local instance leaves its frame callback with a
+  dangling object after `main()` yields.
 - After the complete internal product rename and awake/sleeping Marutchi split,
   SDL CMake regenerated successfully and all eight newly named tests passed on
   2026-08-24.

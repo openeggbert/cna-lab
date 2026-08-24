@@ -88,6 +88,17 @@ endif()
 
 if(EMSCRIPTEN)
     set_target_properties(${TAMAGOTCHI_CNA_TARGET} PROPERTIES SUFFIX ".html")
+    # CNA uses WebAssembly's native exception ABI.  Its directory-scoped flags
+    # do not propagate back to this parent target, so keep the final game link
+    # on the same ABI and package the runtime-loaded icon atlas into the web FS.
+    target_compile_options(${TAMAGOTCHI_CNA_TARGET} PRIVATE
+        -fwasm-exceptions
+        -sWASM_LEGACY_EXCEPTIONS=0)
+    target_link_options(${TAMAGOTCHI_CNA_TARGET} PRIVATE
+        -fwasm-exceptions
+        -sWASM_LEGACY_EXCEPTIONS=0
+        --preload-file
+        "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets")
 endif()
 
 target_include_directories(${TAMAGOTCHI_CNA_TARGET} PRIVATE

@@ -28,10 +28,23 @@
       "cacheVariables": {
         "CNA_GRAPHICS_RENDERER": "HEADLESS"
       }
+    },
+    {
+      "name": "web",
+      "displayName": "Web — Emscripten SDL Renderer",
+      "description": "Release WebAssembly build; configure through emcmake.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-web",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CNA_GRAPHICS_RENDERER": "SDL_RENDERER",
+        "TAMAGOTCHI_CNA_BUILD_TESTS": "OFF"
+      }
     }
   ],
   "buildPresets": [
     { "name": "sdl-renderer", "configurePreset": "sdl-renderer", "targets": ["TamagotchiCna"] },
-    { "name": "headless", "configurePreset": "headless", "targets": ["TamagotchiCna"] }
+    { "name": "headless", "configurePreset": "headless", "targets": ["TamagotchiCna"] },
+    { "name": "web", "configurePreset": "web", "targets": ["TamagotchiCna"] }
   ]
 }

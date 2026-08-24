@@ -298,6 +298,22 @@ cmake --build --preset sdl-renderer --parallel 2
 
 Pass `--smoke-test` to exit after three rendered frames.
 
+For a browser build, first activate an Emscripten SDK, then use the dedicated
+preset. The resulting page and its JavaScript, WebAssembly, and preloaded asset
+bundle are written to `cmake-build-web/`:
+
+```bash
+source "$HOME/emsdk/emsdk_env.sh"
+emcmake cmake --preset web
+cmake --build --preset web --parallel 2
+python3 -m http.server 8000 --directory cmake-build-web
+```
+
+Open `http://127.0.0.1:8000/TamagotchiCna.html`; loading the HTML directly from
+`file://` is not supported by browser WebAssembly fetch rules. The application
+target explicitly uses the same native WebAssembly exception ABI as CNA and
+preloads the two icon atlases under `/assets`.
+
 For an isolated visual check on a headless Linux host, run the SDL build on an
 Xvfb display, forcing X11 rather than the host Wayland session:
 

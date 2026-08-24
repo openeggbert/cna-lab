@@ -40,7 +40,14 @@ int main(const int argc, char* argv[])
         return 2;
     }
 
+#if defined(__EMSCRIPTEN__)
+    // CNA hands control to Emscripten's browser-owned main loop.  Its callback
+    // outlives this invocation of main(), so the Game instance must not live on
+    // main's stack.
+    static TamagotchiCna::Application::TamagotchiCnaGame game(smokeTest, lcdPalette);
+#else
     TamagotchiCna::Application::TamagotchiCnaGame game(smokeTest, lcdPalette);
+#endif
     game.Run();
     return 0;
 }

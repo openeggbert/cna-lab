@@ -194,6 +194,9 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Configure and compile the selected modular framework closure with both
     `SDL_RENDERER` and `HEADLESS`; retain the renderer-specific targets rather
     than restoring CNA's compatibility umbrella.
+  - [x] Add and verify the Emscripten `web` preset, keep its exception ABI
+    aligned with CNA, and package the runtime icon atlases in the browser data
+    bundle.
   - Compare all visible flows against the captured international P1 reference.
   - Document remaining desktop-only safeguards and known deviations clearly.
 
