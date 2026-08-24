@@ -13,50 +13,55 @@ constexpr P1SpriteFrame frame(const std::string_view row0, const std::string_vie
                          "", ""}}};
 }
 
-constexpr P1SpriteFrame expandedEggFrame(const std::string_view row0,
-                                         const std::string_view row1,
-                                         const std::string_view row2,
-                                         const std::string_view row3,
-                                         const std::string_view row4,
-                                         const std::string_view row5,
-                                         const std::string_view row6,
-                                         const std::string_view row7,
-                                         const std::string_view row8,
-                                         const std::string_view row9,
-                                         const std::string_view row10) noexcept
+constexpr P1SpriteFrame wideEggFrame(const std::string_view row0, const std::string_view row1,
+                                     const std::string_view row2, const std::string_view row3,
+                                     const std::string_view row4, const std::string_view row5,
+                                     const std::string_view row6, const std::string_view row7,
+                                     const std::string_view row8, const std::string_view row9,
+                                     const std::string_view row10) noexcept
 {
-    return {8, 2, 11U, {{row0, row1, row2, row3, row4, row5, row6, row7, row8, row9,
-                         row10, ""}}};
+    return {8, 4, 11U, {{row0, row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, ""}}};
+}
+
+constexpr P1SpriteFrame tallEggFrame(const std::string_view row0, const std::string_view row1,
+                                     const std::string_view row2, const std::string_view row3,
+                                     const std::string_view row4, const std::string_view row5,
+                                     const std::string_view row6, const std::string_view row7,
+                                     const std::string_view row8, const std::string_view row9,
+                                     const std::string_view row10,
+                                     const std::string_view row11) noexcept
+{
+    return {
+        8, 3, 12U, {{row0, row1, row2, row3, row4, row5, row6, row7, row8, row9, row10, row11}}};
 }
 
 constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
                           const P1SpriteFrame third,
                           const float idleFrameSeconds = P1Sprite::DefaultIdleFrameSeconds) noexcept
 {
-    return {idleFrameSeconds, {{first, second, third}}};
+    return {idleFrameSeconds, P1Sprite::MaximumIdleFrameCount, {{first, second, third}}};
+}
+
+constexpr P1Sprite twoPhaseSprite(const P1SpriteFrame first, const P1SpriteFrame second,
+                                  const float idleFrameSeconds) noexcept
+{
+    return {idleFrameSeconds, 2U, {{first, second, first}}};
 }
 
 // Each drawing is a hand-transcribed P1 LCD phase.  The phases deliberately
 // alter their silhouette as independent data rather than translating a static
 // contemporary sprite around the field.
-constexpr P1Sprite Egg = sprite(
-    // Manually transcribed from an observed 32x16 P1 LCD idle phase. This
-    // phase begins one logical row above the old fixed cell and reaches row
-    // 12; its irregular lower shell and crack are independent one-bit data.
-    expandedEggFrame(".....####.......", "....#.####......", "...#.###.##.....",
-                     "...#.###..#.....", "..##########....", "..####..####....",
-                     "..####..#.##....", "..##.####.##....", "...#..###.##....",
-                     "....####.#......", "....#######....."),
-    // The remaining frames are intentionally retained as provisional until
-    // their changing lower cells have been independently read from the P1
-    // reference sequence.
-    frame("................", "......####......", "....##....##....", "...##......##...",
-          "...##..#...##...", "...##.###..##...", "....##....##....", ".....########...",
-          "................", "................"),
-    frame("................", "......####......", "....##....##....", "...##.#....##...",
-          "...##.##...##...", "...##..###.##...", "....##....##....", ".....########...",
-          "................", "................"),
-    1.0F);
+constexpr P1Sprite Egg = twoPhaseSprite(
+    // Manually read from the stable cells of a fresh 32x16 reference trace.
+    // The external programme redraws the LCD over several host frames; those
+    // partial writes were excluded from both silhouettes.
+    wideEggFrame(".......###......", ".....#######....", "....#.#####.#...", "...#..#####..#..",
+                 "..##.##########.", "..##.##########.", "..#####...#####.", "..#..##...#####.",
+                 "...#..#####..#..", "....#######.#...", "...###########.."),
+    tallEggFrame("......#####.....", ".....#.#####....", "....#..##..##...", "....#.###...#...",
+                 "...###########..", "...###########..", "...####...####..", "...####...#..#..",
+                 "...#..#####.##..", "....#..######...", ".....###...#....", "....#########..."),
+    0.625F);
 
 constexpr P1Sprite Babytchi = sprite(
     frame("................", "......##........", ".....####.......", "....##..##......",

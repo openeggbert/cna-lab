@@ -65,10 +65,10 @@ Each entry has a confidence status:
 | Hidden international character | Bill | Provisional |
 
 The roster is corroborated by historical character references. The application
-now renders three-phase home animation as hand-authored LCD frame data with an
-explicit origin and height, rather than translating one static picture around
-the screen. One Mametchi idle trace and one egg silhouette were visually
-transcribed from the selected P1 reference. The remaining egg phases, character
+now renders home animation with a per-sequence frame count, hand-authored LCD
+data, and explicit origin and height, rather than translating one static
+picture around the screen. One Mametchi idle trace and both stable egg
+silhouettes were visually transcribed from the selected P1 reference. Character
 redraws, all care-action frames, and every branch condition remain open until
 they are compared frame by frame with the selected target programme. No ROM,
 emulator core, or reference-programme data is included in this project.
@@ -84,23 +84,23 @@ open rather than substitute a plausible modern redraw.
 
 | Form / sequence | Observation and geometry | Catalogue status | Next evidence needed |
 | --- | --- | --- | --- |
-| Egg, first observed idle phase | Hand-read 16 × 11 drawing at `(8, 2)`; its crown, crack, and lower shell have focused regression checks. The phase persisted for a half-second capture and changed at the next one-second sample. | Transcribed; regression checked; 1-second cadence inferred. | Re-observe against a freshly started run after the reference display is relaunched. |
-| Egg, changing alternate idle phase | A visual P1 phase was observed to use a different lower-cell layout, hence `P1SpriteFrame` supports up to 12 rows and its own origin. Its lifecycle position is not yet proven to be a hatch frame. | Observed only; not encoded as a reference phase. | Restart → clock configuration → hatching trace and an independently repeated three-frame capture. |
+| Egg idle sequence | Fresh unaccelerated 30 fps trace: hand-read wide 16 × 11 phase at `(8, 4)` and tall 16 × 12 phase at `(8, 3)`. Stable changes begin every 18–19 host frames, represented as 0.625 seconds per phase; partial LCD-write frames are excluded. | Two phases transcribed; every row, geometry, count, cadence, wrapping, and normal-scale placement checked. | Capture cracking/hatching separately. |
 | Babytchi | No hand transcription is accepted yet. The existing drawing is a provisional placeholder. | Provisional. | Capture immediately after a confirmed hatch and record its idle cadence. |
 | Marutchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe after the Baby → Child transition. |
 | Tamatchi / Kuchitamatchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe one trace for each lineage. |
 | Mametchi | Three independently drawn home phases are retained with a focused distinct-frame test. | Transcribed; regression checked. | Recheck the complete sequence at normal LCD scale. |
 | Ginjirotchi / Maskutchi / Kuchipatchi / Nyorotchi / Tarakotchi / Bill | No selected-reference home sequence has been transcribed. | Provisional. | Capture the relevant qualified evolution path before replacing one form at a time. |
 
-Reference-session note: TamaTool accepts the documented host controls when
-focused under Xvfb (the shell-toggle control was visually confirmed), but an
-Xvfb process is ephemeral between tooling sessions. Relaunch the emulator and
-its virtual display before drawing conclusions from a missing later capture.
-A clean bounded run was still visibly in egg idle animation after one speed
-toggle over 24 seconds and after two toggles over eight seconds. This neither
-invalidates the five-minute lifecycle rule nor identifies a Baby drawing: the
-reference's exact accelerated timebase and reset/activation precondition must
-be established before treating a later phase as a confirmed hatch.
+Reference-session note: a fresh unaccelerated TamaTool process was observed on
+a dedicated Xvfb display. A lossless 30 fps working capture showed two stable
+egg silhouettes; each transition was written over two or three host frames,
+which are not additional animation phases. Stable transition starts were
+18–19 frames apart. Working screenshots and video remain outside this
+repository. An Xvfb process is ephemeral between tooling sessions, so relaunch
+the reference and its virtual display before drawing conclusions from a
+missing later capture. The exact accelerated timebase and activation sequence
+still need to be established before treating a later phase as a confirmed
+hatch or Babytchi observation.
 
 ## Evolution-rule representation
 

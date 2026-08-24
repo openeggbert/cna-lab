@@ -5,12 +5,11 @@
 The active product target is the international English Tamagotchi P1 (1997),
 implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
 is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
-three independent idle frames, so it no longer fakes motion by shifting a
-static creature around the LCD. Most frames use the centred 16 × 10 cell; an
-observed egg phase may use its true larger vertical extent. A Mametchi idle
-sequence and the first asymmetric egg silhouette have been visually
-transcribed from P1 reference traces; the remaining egg phases and other
-character redraws remain provisional.
+an explicit per-sequence frame count, so it no longer fakes motion by shifting
+a static creature around the LCD. Most provisional frames use the centred
+16 × 10 cell. The egg's two stable silhouettes and a Mametchi idle sequence
+have been visually transcribed from P1 reference traces; the other character
+redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
@@ -27,7 +26,7 @@ write and verify the clean implementation.
   closure; this game disables the genuinely unused network/ENet, CNAEXT, and
   device-extension branches before CNA is added.
 - Both supported modular renderer presets configure and build: SDL also passes
-  all nine CTest tests with `--parallel 2`, and a fresh HEADLESS application
+  all ten CTest tests with `--parallel 2`, and a fresh HEADLESS application
   build completed on 2026-08-24. Keep the two-job ceiling. This runner can
   intermittently fail while `ar` replaces a static library (observed with both
   two and one job); retry the unchanged incremental build before attributing
@@ -48,14 +47,21 @@ write and verify the clean implementation.
   TamaLIB, or any other emulator artefact to this repository. The egg rows in
   `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
   imported or algorithmically extracted.
-- The first observed expanded egg phase is now transcribed at `(8, 2)` with
-  eleven rows, a one-second observed cadence, and focused regression checks.
-  Next, complete the changing alternate egg phase from a repeated manual LCD
-  read, then continue the per-form reference ledger before changing further
-  provisional sprites.
-  `P1SpriteFrame` carries an origin and a row count because the reference egg
-  uses a different vertical extent between phases. Retain a focused test for
-  each manually verified row.
+- A freshly started, unaccelerated reference run was recorded at 30 fps. Its
+  stable egg silhouettes changed every 18–19 host frames; the catalogue uses
+  the nearest exact cadence, 0.625 seconds per phase. Two- or three-frame home
+  sequences are represented explicitly so the egg wraps wide → tall → wide
+  without an artificial A/B/A pause.
+- The wide egg phase is a hand-read 16 × 11 cell at `(8, 4)` and the tall phase
+  is a hand-read 16 × 12 cell at `(8, 3)`. Partial LCD writes visible across
+  two or three host frames were excluded. Focused tests protect both bounds,
+  every hand-read row, timing, active frame count, and direct wrapping.
+- A two-second same-display render trace confirmed both phases at normal LCD
+  scale: they remain centred, wrap directly, and stay inside the 32 × 16 game
+  field without touching either permanent icon band. The working capture is
+  outside the repository.
+- Continue the per-form reference ledger with Babytchi before replacing more
+  provisional character sprites.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -79,20 +85,20 @@ shell-control path does not mutate P1 state or framebuffer data.
 
 ## Priority 1 — Make the home LCD visually faithful
 
-1. Complete the egg's remaining idle phases, then create a visual-reference
-   ledger for each P1 home form: egg, Babytchi,
+1. [x] Complete and regression-check the egg's two stable idle phases.
+2. Create a visual-reference ledger for each remaining P1 home form: Babytchi,
    Marutchi, Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
-2. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
+3. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
    count, and the pixel changes between frames. Record uncertainty rather than
    inventing a source value.
-3. Replace the provisional redraw of one form at a time with independently
+4. Replace the provisional redraw of one form at a time with independently
    written 16 × 10 one-bit frame data. Keep the public sprite catalogue free
    from source-ROM data and make no use of frame translation as animation.
-4. Extend `P1SpriteCatalogTests` for every verified sequence: all rows must be
+5. Extend `P1SpriteCatalogTests` for every verified sequence: all rows must be
    sixteen pixels wide, all frames must remain inside the centred LCD cell,
    and the expected frame differences must be explicit.
-5. Compare the rendered result against the P1 reference at normal LCD scale,
+6. Compare the rendered result against the P1 reference at normal LCD scale,
    not only a magnified bitmap. Verify that the character stays centred within
    the 32 × 16 field and does not overwrite the physical face-icon bands.
 

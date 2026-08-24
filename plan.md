@@ -77,9 +77,10 @@ similar emulation core is permitted in the application, build, or test suite.
     P1 idle phases whose LCD origin and height are explicit frame data. One
     captured Mametchi idle trace is represented as one-bit frame data and is
     covered by a focused catalogue test.
-  - [x] Manually transcribe the observed asymmetric first egg silhouette from
-    a visual P1 LCD trace and protect its crown, crack, and lower shell with a
-    catalogue regression test.
+  - [x] Manually transcribe both stable egg silhouettes from a fresh visual P1
+    LCD trace, represent their true two-phase count and 0.625-second cadence,
+    and protect their distinct geometry and rows with catalogue regression
+    tests.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.
@@ -148,9 +149,9 @@ similar emulation core is permitted in the application, build, or test suite.
 
 ## Immediate next task
 
-Follow the ordered visual and behaviour backlog in [next.md](next.md). Begin
-by completing the egg's remaining observed idle phases, then capture and
-compare the remaining international-P1 character idle frames. The fixed-cell
-renderer removes the incorrect bobbing behaviour, but its non-Mametchi redraws
-and all care-action animations still need a frame-by-frame comparison before
+Follow the ordered visual and behaviour backlog in [next.md](next.md). Next,
+capture and compare Babytchi and then the remaining international-P1 character
+idle frames. The explicit-frame renderer removes the incorrect bobbing
+behaviour, but its non-Mametchi character redraws and all care-action
+animations still need a frame-by-frame comparison before
 they can be described as exact.
