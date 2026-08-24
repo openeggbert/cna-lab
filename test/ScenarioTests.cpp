@@ -180,10 +180,13 @@ int main() {
     const auto& answeredPhone = hotspot(world, "s001_emergency_phone_complete");
     const auto& markedDeerPath = hotspot(world, "s003_deer_path");
     const auto& returningDeerPath = hotspot(world, "s005_deer_path_return");
+    const auto& cabinDoor = hotspot(world, "s006_cabin_door");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
     assert(returningDeerPath.visuals.size() >= 5);
+    assert(cabinDoor.visuals.size() >= 4);
+    assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
 
     std::size_t anchors = 0;
     std::size_t animatedRooms = 0;
@@ -243,6 +246,7 @@ int main() {
     take(session, world, "s001_take_patch_cable", "patch_cable");
     take(session, world, "s001_take_field_note", "field_note");
     context(session, world, "s003_deer_path", "deer_path_taken");
+    context(session, world, "s006_cabin_door", "cabin_entered");
     context(session, world, "s007_mara", "met_mara");
     examine(session, world, "s007_mara_desk", "key_revealed");
     take(session, world, "s007_take_brass_key", "brass_key");
@@ -489,7 +493,7 @@ int main() {
     assert(hazardSession.flag("mission_started"));
 
     e2d::AdventureRenderer renderer{world};
-    for (const int number : {1, 14, 25, 39, 52, 64, 76, 91, 104, 124}) {
+    for (const int number : {1, 6, 7, 14, 25, 39, 52, 64, 76, 91, 104, 124}) {
         auto snapshot = session.snapshot();
         snapshot.roomId = std::string{black_pine::content::screens[static_cast<std::size_t>(number - 1)].id};
         snapshot.player.position = {24, 232};

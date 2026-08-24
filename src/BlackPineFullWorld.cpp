@@ -264,6 +264,53 @@ void addTowerArt(e2d::RoomDefinition& result, const int seed) {
     addGround(result, P::brown);
 }
 
+void replaceWithCabinInterior(e2d::RoomDefinition& result) {
+    result.background = P::black;
+    result.decorations.clear();
+    result.decorations.insert(result.decorations.end(), {
+        box(0, 0, 492, 260, P::brown),
+        box(8, 10, 476, 210, P::red),
+        box(18, 20, 456, 190, P::brown),
+        line(18, 69, 474, 69, P::darkGray),
+        line(18, 118, 474, 118, P::darkGray),
+        line(18, 167, 474, 167, P::darkGray),
+        box(0, 220, 492, 40, P::darkGray),
+        line(0, 220, 492, 220, amber),
+
+        // Front door back to the porch.
+        box(8, 126, 52, 134, P::darkGray),
+        box(13, 132, 42, 128, P::red),
+        box(18, 138, 32, 116, P::brown),
+        circle(44, 199, 3, amber),
+        label(15, 145, tr("OUT", "VEN"), pale),
+
+        // Mara's searchable writing desk.
+        box(69, 174, 111, 16, P::darkGray),
+        box(73, 165, 103, 17, P::brown),
+        box(78, 190, 9, 50, P::brown),
+        box(163, 190, 9, 50, P::brown),
+        box(92, 153, 53, 11, P::white),
+        line(97, 157, 137, 157, P::blue),
+        label(101, 197, tr("DESK", "STŮL"), amber),
+
+        // Rainy window, stove and radio shelf establish a real interior.
+        box(204, 82, 92, 62, P::darkGray),
+        box(210, 88, 80, 50, P::blue),
+        line(250, 88, 250, 138, P::brightCyan),
+        line(210, 113, 290, 113, P::brightCyan),
+        line(220, 91, 214, 106, pale),
+        line(270, 93, 263, 109, pale),
+        box(359, 145, 71, 75, P::darkGray),
+        box(366, 153, 57, 60, P::black),
+        circle(394, 183, 18, P::red),
+        circle(394, 183, 10, danger),
+        line(393, 145, 393, 100, P::darkGray),
+        box(334, 72, 119, 13, P::brown),
+        box(345, 51, 28, 21, P::lightGray),
+        line(379, 61, 437, 61, signalBlue),
+    });
+}
+
 enum class Motif {
     trailSign,
     gate,
@@ -1203,6 +1250,39 @@ void addActOne(e2d::WorldDefinition& world) {
             "Iris se vrátí po jelení stezce pod živým přívodem."))},
         {e2d::Mutation::moveTo(std::string{screen(3).id})}, 10, {}, "climb"});
 
+    auto& cabinDoor = ensureHotspot(world, 6, "cabin_door",
+        tr("CARETAKER CABIN DOOR", "DVEŘE SPRÁVCOVSKÉ CHATY"),
+        {235, 145, 80, 115}, e2d::HotspotKind::mechanism, 1);
+    cabinDoor.visuals = {
+        box(245, 163, 49, 97, amber, false),
+        box(249, 167, 41, 89, P::brown, false),
+        circle(284, 210, 4, amber),
+        label(251, 150, tr("ENTER", "VSTUP"), pale),
+    };
+    world.addInteraction({e2d::Verb::context, cabinDoor.id, std::nullopt,
+        {e2d::Condition::notFlag("cabin_entered")},
+        {inspect(tr("Iris opens the caretaker's door and steps into the warm cabin. Mara waits beside the desk.",
+            "Iris otevře dveře a vstoupí do teplé správcovské chaty. Mara čeká vedle stolu."))},
+        {e2d::Mutation::setFlag("cabin_entered"),
+            e2d::Mutation::moveTo(std::string{screen(7).id})}, 30, {}, "unlock"});
+    world.addInteraction({e2d::Verb::context, cabinDoor.id, std::nullopt,
+        {e2d::Condition::flag("cabin_entered")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(7).id})}, 20, {}, "climb"});
+    gateRight(world, 6, {e2d::Condition::flag("cabin_entered")},
+        "The path continues through the cabin. Stand at the highlighted door and press ENTER.",
+        "Cesta pokračuje skrz chatu. Postav se ke zvýrazněným dveřím a stiskni ENTER.");
+
+    replaceWithCabinInterior(room(world, 7));
+    auto& insideDoor = ensureHotspot(world, 7, "cabin_exit",
+        tr("FRONT DOOR TO PORCH", "VCHODOVÉ DVEŘE NA VERANDU"),
+        {0, 132, 67, 128}, e2d::HotspotKind::mechanism, 0);
+    insideDoor.visuals = {
+        box(12, 131, 44, 129, amber, false),
+        circle(44, 199, 3, amber),
+    };
+    world.addInteraction({e2d::Verb::context, insideDoor.id, std::nullopt, {}, {},
+        {e2d::Mutation::moveTo(std::string{screen(6).id})}, 20, {}, "climb"});
+
     addCharacter(world, 7, "mara", "MARA VENN", "MARA VENN", "met_mara", {
         speech(tr("Mara: This should have been a fuse and cable job. The storm is hiding something deliberate.",
             "Mara: Měla to být výměna pojistky a kabelu. Bouře skrývá něco úmyslného.")),
@@ -1221,6 +1301,17 @@ void addActOne(e2d::WorldDefinition& world) {
     addPickup(world, 7, "brass_key", "You peel the reusable brass master key from the logbook.",
         "Odlepíš z deníku opakovaně použitelný mosazný klíč.", 0,
         {e2d::Condition::flag("key_revealed")});
+    auto& brassKeyPickup = ensureHotspot(world, 7, "take_brass_key",
+        world.item("brass_key")->label, {61, 145, 120, 115}, e2d::HotspotKind::item, 0);
+    brassKeyPickup.interactionArea = {61, 145, 120, 115};
+    brassKeyPickup.visuals = {
+        circle(108, 169, 5, amber, false),
+        line(113, 169, 137, 169, amber),
+        line(128, 169, 128, 175, amber),
+        line(136, 169, 136, 173, amber),
+        line(103, 157, 103, 163, pale),
+        line(100, 160, 106, 160, pale),
+    };
     addPickup(world, 8, "site_map", "Mara's annotations name the relay, quarry, dam and lookout.",
         "Mařiny poznámky označují převaděč, lom, přehradu a hlásku.", 0,
         {e2d::Condition::flag("met_mara")});
@@ -2035,8 +2126,10 @@ void addHints(e2d::WorldDefinition& world) {
         "U Výchoziště u bouřkové brány zvedni pulzující nouzový telefon klávesou ENTER.");
     next("taken_patch_cable", "At Storm Gate Trailhead, TAKE the patch cable from the damaged toolbox.",
         "U Výchoziště u bouřkové brány SEBER propojovací kabel z poškozené skříňky.");
-    next("met_mara", "At Lower Switchback use the yellow CABIN sign with ENTER, then reach Mara.",
-        "U Dolní serpentiny použij klávesou ENTER žlutou šipku CHATA a potom dojdi za Marou.");
+    next("cabin_entered", "At Lower Switchback use the yellow CABIN sign, then press ENTER at the highlighted cabin door.",
+        "U Dolní serpentiny použij žlutou šipku CHATA a potom stiskni ENTER u zvýrazněných dveří chaty.");
+    next("met_mara", "Inside the caretaker cabin, walk to Mara and speak with ENTER.",
+        "Uvnitř správcovské chaty dojdi k Maře a promluv klávesou ENTER.");
     next("key_revealed", "EXAMINE Mara's desk after speaking with her.", "Po rozhovoru s Marou PROZKOUMEJ její stůl.");
     next("taken_brass_key", "TAKE the brass yard key revealed on Mara's desk.", "SEBER mosazný klíč odkrytý na Mařině stole.");
     next("vehicle_gate_open", "USE the brass key on the Vehicle Gate.", "U Vjezdové brány POUŽIJ mosazný klíč.");
