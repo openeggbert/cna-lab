@@ -373,6 +373,10 @@ start/end timestamps spanning from `--profile` enablement immediately before `Ga
 report creation immediately after the run. Older incomplete schema-8 diagnostics without this
 object remain readable; complete external VRAM evidence cannot be bound to them because the process
 and measurement interval would be uncorrelated.
+Session and evidence times must use `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`: literal `T`, UTC `Z`, whole
+seconds with an optional one-to-six-digit fraction. Date-only values, a space separator, offsets,
+and sub-microsecond precision are rejected. This matches the producer's microsecond clock and
+prevents a seventh fractional digit from being silently truncated during enclosure comparison.
 
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and

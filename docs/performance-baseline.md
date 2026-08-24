@@ -505,3 +505,9 @@ hardlinked inode, and require the raw profiler artifact to be a non-empty regula
 hardlinks to an input are refused too. Existing CLI coverage now exercises an empty artifact, a
 raw-artifact hardlink to the original profile, and an output hardlink while confirming no source
 bytes change. This is a sanity boundary, not certification of the external tool's semantics.
+
+UTC correlation now accepts one canonical, precision-safe representation only:
+`YYYY-MM-DDTHH:MM:SS[.ffffff]Z`. Python's broader ISO parser otherwise accepts date-only/space
+forms and truncates fractions beyond microseconds; the latter could move an actual evidence
+boundary across a capture boundary without changing the parsed value. Tests reject all three
+cases. Report 7/7, VRAM 6/6, comparator 6/6, and both retained real diagnostics pass.

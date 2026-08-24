@@ -238,6 +238,24 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("must follow started_utc", result.stderr)
 
+            for invalid_timestamp in (
+                "2026-08-24Z",
+                "2026-08-24 10:00:00Z",
+                "2026-08-24T10:00:00.1234567Z",
+            ):
+                with self.subTest(invalid_timestamp=invalid_timestamp):
+                    evidence = evidence_fixture(capture_path, artifact_path)
+                    evidence["measurement"]["started_utc"] = invalid_timestamp
+                    evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+                    result = self.run_binding(
+                        capture_path,
+                        evidence_path,
+                        artifact_path,
+                        output_path,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z", result.stderr)
+
             evidence = evidence_fixture(capture_path, artifact_path)
             evidence["measurement"]["ended_utc"] = evidence["measurement"]["started_utc"]
             evidence_path.write_text(json.dumps(evidence), encoding="utf-8")

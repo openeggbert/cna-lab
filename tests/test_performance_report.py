@@ -371,6 +371,14 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("transitions must match district_load_cpu samples", result.stderr)
 
+        bad_session_time = capture_fixture()
+        bad_session_time["capture_session"]["started_utc"] = (
+            "2026-08-24T10:00:05.1234567Z"
+        )
+        result = self.run_report([bad_session_time], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z", result.stderr)
+
         mismatched_swap = capture_fixture()
         mismatched_swap["swap_interval"]["applied"] = 0
         result = self.run_report([mismatched_swap], "Test hardware")

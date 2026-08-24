@@ -222,6 +222,11 @@ Expanded VRAM CLI coverage rejects an empty artifact, a raw-artifact hardlink to
 profile, and an output hardlink to an input while proving source bytes remain unchanged; 6/6 tests
 pass.
 
+Capture/evidence times now require canonical `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`. Date-only input, a
+space instead of `T`, and seven fractional digits are refused, avoiding Python ISO parsing that
+would otherwise accept reduced forms or truncate sub-microsecond evidence boundaries. Report 7/7,
+VRAM 6/6, comparator 6/6, and both locally retained real Xvfb captures pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

@@ -42,6 +42,9 @@ DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
 IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+UTC_TIMESTAMP_PATTERN = re.compile(
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z"
+)
 HISTOGRAM_BUCKETS = (
     "at_or_below_recommended_budget",
     "above_recommended_at_or_below_minimum_budget",
@@ -181,8 +184,10 @@ def _non_empty_string(value: dict[str, Any], *keys: str) -> str:
 
 def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
     text = _non_empty_string(value, *keys)
-    if not text.endswith("Z"):
-        raise ReportError(f"{'.'.join(keys)} must be an ISO-8601 UTC timestamp ending in Z")
+    if UTC_TIMESTAMP_PATTERN.fullmatch(text) is None:
+        raise ReportError(
+            f"{'.'.join(keys)} must use YYYY-MM-DDTHH:MM:SS[.ffffff]Z UTC format"
+        )
     try:
         return datetime.fromisoformat(text[:-1] + "+00:00")
     except ValueError as error:

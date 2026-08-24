@@ -67,6 +67,14 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 capture/evidence UTC correlation is now precision-safe.** Only
+`YYYY-MM-DDTHH:MM:SS[.ffffff]Z` is accepted; date-only/space-separated forms and fractions beyond
+microseconds are rejected instead of being broadly accepted or silently truncated by Python.
+
+- Report 7/7, VRAM 6/6, and comparator 6/6 pass, including capture-session and external-evidence
+  negative cases. Both retained real Xvfb diagnostics still parse.
+- This removes a boundary-enclosure ambiguity; it does not create the missing physical evidence.
+
 **M12 external-VRAM archives now require physically distinct source roles.** Original profile,
 evidence manifest, and raw profiler artifact may not be the same path or hardlinked inode; the raw
 artifact must be a non-empty regular file. Binder output may not hardlink an input either.
