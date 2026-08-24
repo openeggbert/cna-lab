@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 incomplete VRAM captures now reject binder-only fields.** `tracking_complete=false` could
+previously coexist with stale `logical_tracked_bytes` or `complete_evidence` from an enriched file.
+
+- Only the binder's complete state may carry those two fields. Raw/incomplete captures must use
+  `tracked_bytes` as their logical category sum with neither external-only field present.
+- Two report negatives cover each stale field independently; old diagnostic/qualifying fixtures
+  were normalized to honest raw shapes. Focused suites, both retained diagnostics, and full
+  isolated CTest 8/8 pass with its smoke process inside Xvfb.
+
 **M12 district-boundary maximum now requires a populated global frame bucket.** Subset count/max
 bounds alone still allowed a boundary duration in a bucket containing no frame samples.
 

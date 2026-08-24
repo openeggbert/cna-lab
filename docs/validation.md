@@ -316,6 +316,11 @@ enriched captures retain the exact complete-process-residency and conservative-m
 Two broader false claims exit 2. Focused suites, both retained diagnostics, and full isolated 8/8
 CTest pass; its smoke process remained confined to Xvfb.
 
+Incomplete VRAM state now forbids stale `logical_tracked_bytes` and `complete_evidence`; those
+fields are binder-owned and only valid with `tracking_complete=true`. Two independent stale-field
+cases exit 2, while normalized raw fixtures, focused suites, retained diagnostics, and full isolated
+8/8 CTest pass inside Xvfb.
+
 Process executable identity validation now checks the full path/name for a single printable line
 before accepting its `iron_gang`/`iron_gang.exe` basename. Separate report and VRAM cases reject a
 newline-prefixed path in capture-session and external-manifest data. Focused suites, both retained

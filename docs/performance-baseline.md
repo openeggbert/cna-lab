@@ -685,6 +685,18 @@ VRAM 6/6, and both retained zero-transition Xvfb diagnostics pass without launch
 is followed by full 8/8 CTest with its smoke process isolated inside Xvfb. No physical transition
 capture was added.
 
+## 2026-08-24 — VRAM completeness-state field consistency
+
+The shared schema-8 loader now rejects binder-only `logical_tracked_bytes` and `complete_evidence`
+when `video_memory.tracking_complete=false`. Raw captures use `tracked_bytes` as the logical
+category sum; enriched captures require both complete-state fields and their existing semantic
+validation.
+
+Two report negatives retain one stale field at a time and exit 2. The older incomplete diagnostic
+and comparator fixtures were normalized by removing both enrichment fields rather than only
+flipping the boolean. Report 7/7, comparator 7/7, VRAM 6/6, and both retained raw diagnostics pass.
+Full isolated CTest passes 8/8 inside Xvfb; no capture was added.
+
 ## 2026-08-24 — workload-summary integrity
 
 Schema-8 loading now requires all producer-defined render, physics, AI, and audio workload metrics

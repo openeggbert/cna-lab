@@ -1136,6 +1136,7 @@ def validate_memory_summary(capture: dict[str, Any]) -> None:
             "memory.budget_pass must match the derived peak-resident RAM budget result"
         )
 
+    video_memory = _mapping(_path(capture, "video_memory"), "video_memory")
     tracked_bytes = _integer(capture, "video_memory", "tracked_bytes")
     category_bytes = sum(
         _integer(capture, "video_memory", key)
@@ -1155,11 +1156,18 @@ def validate_memory_summary(capture: dict[str, Any]) -> None:
                 "video_memory.logical_tracked_bytes must equal the sum of the three "
                 "logical VRAM categories"
             )
-    elif tracked_bytes != category_bytes:
-        raise ReportError(
-            "incomplete video_memory.tracked_bytes must equal the sum of the three "
-            "logical VRAM categories"
-        )
+    else:
+        for complete_only_key in ("logical_tracked_bytes", "complete_evidence"):
+            if complete_only_key in video_memory:
+                raise ReportError(
+                    f"video_memory.{complete_only_key} is only permitted when "
+                    "tracking_complete is true"
+                )
+        if tracked_bytes != category_bytes:
+            raise ReportError(
+                "incomplete video_memory.tracked_bytes must equal the sum of the three "
+                "logical VRAM categories"
+            )
 
     tracked_budget_pass = _boolean(capture, "video_memory", "tracked_budget_pass")
     if tracked_budget_pass != (tracked_bytes <= VRAM_BUDGET_BYTES):

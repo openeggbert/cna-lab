@@ -433,10 +433,12 @@ class PerformanceCompareTests(unittest.TestCase):
     def test_qualifying_mode_requires_archived_evidence(self) -> None:
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
-        baseline["video_memory"]["tracking_complete"] = False
-        candidate["video_memory"]["tracking_complete"] = False
-        baseline["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
-        candidate["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
+        for capture in (baseline, candidate):
+            video = capture["video_memory"]
+            video["tracked_bytes"] = video.pop("logical_tracked_bytes")
+            video["tracking_complete"] = False
+            video["coverage"] = LOGICAL_VRAM_COVERAGE
+            video.pop("complete_evidence")
         result = self.run_compare(
             baseline,
             candidate,

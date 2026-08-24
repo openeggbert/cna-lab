@@ -635,8 +635,11 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("lacks a successful platform acknowledgement", result.stdout)
 
         incomplete = capture_fixture()
-        incomplete["video_memory"]["tracking_complete"] = False
-        incomplete["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
+        incomplete_video = incomplete["video_memory"]
+        incomplete_video["tracked_bytes"] = incomplete_video.pop("logical_tracked_bytes")
+        incomplete_video["tracking_complete"] = False
+        incomplete_video["coverage"] = LOGICAL_VRAM_COVERAGE
+        incomplete_video.pop("complete_evidence")
         result = self.run_report([incomplete], "Test diagnostic hardware")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
@@ -881,6 +884,24 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_logical_vram_coverage], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("coverage does not match schema-8 logical", result.stderr)
+
+        stale_complete_evidence = capture_fixture()
+        stale_video = stale_complete_evidence["video_memory"]
+        stale_video["tracked_bytes"] = stale_video.pop("logical_tracked_bytes")
+        stale_video["tracking_complete"] = False
+        stale_video["coverage"] = LOGICAL_VRAM_COVERAGE
+        result = self.run_report([stale_complete_evidence], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("complete_evidence is only permitted", result.stderr)
+
+        stale_logical_total = capture_fixture()
+        stale_video = stale_logical_total["video_memory"]
+        stale_video["tracking_complete"] = False
+        stale_video["coverage"] = LOGICAL_VRAM_COVERAGE
+        stale_video.pop("complete_evidence")
+        result = self.run_report([stale_logical_total], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("logical_tracked_bytes is only permitted", result.stderr)
 
         bad_frame_check = capture_fixture()
         bad_frame_check["checks"]["minimum_frame_rate_pass"] = False

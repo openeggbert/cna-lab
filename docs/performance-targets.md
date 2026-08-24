@@ -453,6 +453,8 @@ must equal whether `peak_resident_bytes` is nonzero; its `budget_pass` and VRAM'
 raw incomplete capture, `tracked_bytes` must equal the three logical categories. After external
 enrichment, `logical_tracked_bytes` must still equal those categories while `tracked_bytes` is the
 conservative logical/external maximum. Any contradiction is malformed evidence (exit 2).
+`logical_tracked_bytes` and `complete_evidence` are complete-state fields: their presence is
+malformed when `tracking_complete=false`, rather than being silently ignored as stale enrichment.
 
 `tracking_complete` nevertheless remains `false`: backend effect programs, swapchain/depth and
 other render-target or transient allocations, driver padding, and physical residency are not
