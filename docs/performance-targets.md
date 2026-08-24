@@ -321,6 +321,17 @@ predate the additive object remain readable, but neither missing evidence nor `a
 can qualify. Conversely, `X11`/`Wayland` availability proves only a usable native handle; the
 controlled physical display/compositor identity remains part of the archived operator evidence.
 
+The additive `graphics_runtime` object records the current EasyGL context's `GL_VENDOR`,
+`GL_RENDERER`, and `GL_VERSION` strings. `identity_known:true` requires all three printable fields
+and an empty `unavailable_reason`; an unknown identity requires empty fields and a printable reason.
+Its proof is fixed to
+`current OpenGL context GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical display proof`.
+Qualification requires a known identity and refuses software implementations including llvmpipe,
+softpipe/swrast, SwiftShader, lavapipe, and Microsoft's basic render driver. Repeated qualifying
+runs must carry identical runtime strings. This is stronger than trusting the CLI label and weaker
+than physical-presentation proof: `AMD Radeon ... radeonsi` identifies real rendering hardware but
+an offscreen surface can still use it without reaching a monitor.
+
 JSON schema 4 makes district loading a per-transition record instead of one opaque stopwatch.
 `district_world_physics_cpu` covers destruction of the old static bodies, construction/activation
 of the target procedural world, target static-body creation, and (for an exit-trigger transition)
@@ -690,7 +701,8 @@ canonical performance contents, and write the release artifact:
 
 `--qualifying-hardware` is an operator assertion, not automatic physical-monitor detection. The
 generator also requires the capture's machine-readable CNA native-window evidence to be present and
-usable, and still rejects labels identifying Xvfb/llvmpipe/software rasterization or
+usable, requires a known non-software current graphics-runtime identity, and still rejects labels
+identifying Xvfb/llvmpipe/software rasterization or
 offscreen/headless/surfaceless presentation and requires Release
 OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
 known RAM, complete VRAM accounting within budget, and a real passing district transition in each

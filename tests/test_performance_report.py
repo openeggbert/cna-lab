@@ -178,6 +178,17 @@ def capture_fixture() -> dict:
                 "compositor proof"
             ),
         },
+        "graphics_runtime": {
+            "identity_known": True,
+            "vendor": "Mesa/X.org",
+            "renderer": "AMD Radeon test GPU",
+            "version": "OpenGL ES 3.2 Mesa test",
+            "proof": (
+                "current OpenGL context GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical "
+                "display proof"
+            ),
+            "unavailable_reason": "",
+        },
         "swap_interval": {
             "requested": 1,
             "apply_result_known": True,
@@ -521,10 +532,12 @@ class PerformanceReportTests(unittest.TestCase):
 
         legacy = capture_fixture()
         legacy.pop("native_window")
+        legacy.pop("graphics_runtime")
         result = self.run_report([legacy], "Legacy diagnostic hardware")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
         self.assertIn("lacks machine-readable native-window evidence", result.stdout)
+        self.assertIn("lacks machine-readable graphics-runtime evidence", result.stdout)
 
     def test_two_complete_physical_captures_pass(self) -> None:
         first = capture_fixture()
@@ -572,6 +585,20 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("CNA reports no usable native graphical window (Headless)", result.stdout)
+        self.assertNotIn("diagnostic software/virtual display", result.stdout)
+
+        software_first = capture_fixture()
+        software_second = independent_capture_fixture()
+        for capture in (software_first, software_second):
+            capture["graphics_runtime"]["renderer"] = "llvmpipe (LLVM test, 256 bits)"
+        result = self.run_report(
+            [software_first, software_second],
+            "Discrete GPU physical-display claim",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("current graphics runtime is software-rendered", result.stdout)
         self.assertNotIn("diagnostic software/virtual display", result.stdout)
 
         short_capture = deepcopy(first)
@@ -1218,6 +1245,19 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([contradictory_native_window], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("native_window.available cannot be true", result.stderr)
+
+        bad_graphics_runtime_proof = capture_fixture()
+        bad_graphics_runtime_proof["graphics_runtime"]["proof"] = "physical GPU proven"
+        result = self.run_report([bad_graphics_runtime_proof], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("graphics_runtime.proof does not match", result.stderr)
+
+        contradictory_graphics_runtime = capture_fixture()
+        contradictory_graphics_runtime["graphics_runtime"]["identity_known"] = False
+        contradictory_graphics_runtime["graphics_runtime"]["unavailable_reason"] = "unavailable"
+        result = self.run_report([contradictory_graphics_runtime], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("identity strings must be empty", result.stderr)
 
         successful_swap_with_reason = capture_fixture()
         successful_swap_with_reason["swap_interval"]["unavailable_reason"] = "contradiction"

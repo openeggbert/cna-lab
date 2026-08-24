@@ -88,6 +88,7 @@ namespace IronGang
         void RecordRenderWorkload();
         void RecordPhysicsWorkload();
         void CaptureSwapIntervalAcceptance();
+        void CaptureGraphicsRuntimeIdentity();
         void RecordDistrictLoadSample(const char* reason,
                                       DistrictId sourceDistrict,
                                       double worldPhysicsMilliseconds,
@@ -164,6 +165,11 @@ namespace IronGang
         bool swapIntervalApplySucceeded_{false};
         std::optional<int> appliedSwapInterval_;
         std::string swapIntervalUnavailableReason_;
+        bool graphicsRuntimeIdentityKnown_{false};
+        std::string graphicsRuntimeVendor_;
+        std::string graphicsRuntimeRenderer_;
+        std::string graphicsRuntimeVersion_;
+        std::string graphicsRuntimeUnavailableReason_;
 
         // Gate M6 vehicle entry/exit animation state (see VehicleTransitionState's own comment).
         VehicleTransitionState vehicleTransitionState_{VehicleTransitionState::None};

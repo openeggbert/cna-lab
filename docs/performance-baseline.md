@@ -1047,3 +1047,19 @@ deliberately changed to `AMD Radeon 780M physical-display claim` still emitted
 `dd680607af0f2da4c43c2e153e22b8478ed3a9450c426e3299ec0df70185544c` for the capture and
 `9bb7b2bfa4da9aff1019cea0b9e3411d670f76604e8e12555a10b7e4752e568d` for the report.
 No visible window or qualifying physical-display evidence was created.
+
+## 2026-08-24 — current OpenGL runtime identity
+
+The schema-8 EasyGL producer now resolves `glGetString` through CNA's current context service and
+stores `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION`. The report and comparator require this additive
+identity for qualification, require repeated runs to agree, and refuse known software runtimes
+without relying on the operator's hardware label. The proof string explicitly excludes physical
+display claims.
+
+A six-draw no-window run on the same AMD path reported vendor `AMD`, renderer
+`AMD Radeon 780M (radeonsi, phoenix, LLVM 19.1.7, DRM 3.61, 6.12.100+deb13-amd64)`, and version
+`OpenGL ES 3.2 Mesa 25.0.7-2+deb13u1`; profile hash `6bbf8127…da2ae0`. A separate six-draw isolated
+Xvfb run reported `Mesa`, `llvmpipe (LLVM 19.1.7, 256 bits)`, and the same API/Mesa version. Its
+profile/report hashes are `b1550832…c8559` and `3f1abf5a…629ad`. Although that report was labelled
+`Discrete GPU physical-display claim`, it still emitted the machine-derived software-renderer
+blocker. Both integrations avoided the visible host display and remain diagnostic.

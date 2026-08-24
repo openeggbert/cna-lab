@@ -527,6 +527,12 @@ physical-display report still blocked it. A separate isolated Xvfb profile emitt
 confirming the two platform paths remain distinct. Neither run used the visible host display or
 supplies physical qualification.
 
+The following M12 runtime-identity pass records `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION` from
+the current EasyGL context. A no-window AMD run reported the Radeon 780M/radeonsi, while isolated
+Xvfb reported Mesa llvmpipe. The latter remained software-blocked under the intentionally misleading
+label `Discrete GPU physical-display claim`, demonstrating that classification no longer depends
+on operator prose. Old diagnostics remain readable but missing runtime identity cannot qualify.
+
 ## Full CNA-linked build status
 
 A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Only `compile-software` has been exercised end to end in this validation environment.

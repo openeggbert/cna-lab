@@ -1086,6 +1086,10 @@ namespace
         context.requestedSwapInterval = 0;
         context.nativeWindowSystem = "X11";
         context.nativeWindowAvailable = true;
+        context.graphicsRuntimeIdentityKnown = true;
+        context.graphicsRuntimeVendor = "Mesa/X.org";
+        context.graphicsRuntimeRenderer = "AMD Radeon test GPU";
+        context.graphicsRuntimeVersion = "OpenGL ES 3.2 test";
         context.swapIntervalApplyResultKnown = true;
         context.swapIntervalApplySucceeded = true;
         context.appliedSwapInterval = 0;
@@ -1195,6 +1199,12 @@ namespace
                     report.find("CNA native-window handle classification; not physical display, vblank, or compositor proof") !=
                         std::string::npos,
                 "performance report must expose machine-readable native-window availability without claiming a physical display");
+        Require(report.find("\"graphics_runtime\": {\"identity_known\": true, \"vendor\": \"Mesa/X.org\"") !=
+                        std::string::npos &&
+                    report.find("\"renderer\": \"AMD Radeon test GPU\"") != std::string::npos &&
+                    report.find("GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical display proof") !=
+                        std::string::npos,
+                "performance report must expose the current graphics context identity without claiming a physical display");
         Require(report.find("\"minimum_frame_rate_pass\": true") != std::string::npos,
                 "19ms p95 must pass the 30 FPS minimum budget");
         Require(report.find("\"recommended_frame_rate_pass\": false") != std::string::npos,

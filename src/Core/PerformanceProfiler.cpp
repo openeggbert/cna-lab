@@ -735,6 +735,14 @@ namespace IronGang
                    << EscapeJson(context.nativeWindowSystem) << "\", \"available\": "
                    << (context.nativeWindowAvailable ? "true" : "false")
                    << ", \"proof\": \"CNA native-window handle classification; not physical display, vblank, or compositor proof\"},\n"
+                   << "  \"graphics_runtime\": {\"identity_known\": "
+                   << (context.graphicsRuntimeIdentityKnown ? "true" : "false")
+                   << ", \"vendor\": \"" << EscapeJson(context.graphicsRuntimeVendor)
+                   << "\", \"renderer\": \"" << EscapeJson(context.graphicsRuntimeRenderer)
+                   << "\", \"version\": \"" << EscapeJson(context.graphicsRuntimeVersion)
+                   << "\", \"proof\": \"current OpenGL context GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical display proof\""
+                   << ", \"unavailable_reason\": \""
+                   << EscapeJson(context.graphicsRuntimeUnavailableReason) << "\"},\n"
                    << "  \"swap_interval\": {\"requested\": " << context.requestedSwapInterval
                    << ", \"apply_result_known\": "
                    << (context.swapIntervalApplyResultKnown ? "true" : "false")

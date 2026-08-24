@@ -138,6 +138,10 @@ profiles also record CNA's machine-readable native-window system and validated h
 qualification requires a usable native graphical window, so a `Headless` offscreen run cannot be
 promoted merely by giving it a physical-sounding hardware label. This remains a conservative
 window-handle check, not proof that X11 or Wayland reaches a physical monitor.
+EasyGL profiles additionally record `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION` from the current
+context. Qualification rejects known software runtimes such as llvmpipe/softpipe/swrast even when
+the CLI hardware label omits those words. The strings identify the active GL implementation; they
+still do not prove which physical display, if any, receives presentation.
 
 When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
 profiler, bind its raw artifact and manifest to the original profile without overwriting it:
@@ -304,6 +308,8 @@ must agree with `timing.vertical_sync_requested`, and a successful `applied` val
 equal the request. Inconsistent hand-edited captures are rejected rather than promoted.
 New captures additionally carry `native_window.system`, `available`, and a fixed proof string.
 Older schema-8 diagnostics without the additive block remain readable but cannot qualify.
+EasyGL captures likewise carry a fixed-scope `graphics_runtime` identity obtained from the current
+context; missing/unknown identities and known software rasterizers cannot qualify.
 Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
 severe counts and percentages, and district-boundary counts must agree with the underlying bucket
 and district-load sample counts. Every measurement also enforces coherent zero/one-sample and

@@ -55,6 +55,17 @@ def capture_fixture() -> dict:
                 "compositor proof"
             ),
         },
+        "graphics_runtime": {
+            "identity_known": True,
+            "vendor": "Mesa/X.org",
+            "renderer": "AMD Radeon test GPU",
+            "version": "OpenGL ES 3.2 Mesa test",
+            "proof": (
+                "current OpenGL context GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical "
+                "display proof"
+            ),
+            "unavailable_reason": "",
+        },
         "swap_interval": {
             "requested": 1,
             "apply_result_known": True,
@@ -410,6 +421,12 @@ class PerformanceCompareTests(unittest.TestCase):
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 2)
         self.assertIn("native_window.proof does not match", result.stderr)
+
+        candidate = deepcopy(baseline)
+        candidate["graphics_runtime"]["proof"] = "physical GPU proven"
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("graphics_runtime.proof does not match", result.stderr)
 
         candidate = deepcopy(baseline)
         candidate["budgets"]["minimum_frame_p95_ms"] = 40.0

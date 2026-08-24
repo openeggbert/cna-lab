@@ -101,6 +101,18 @@ NATIVE_WINDOW_SYSTEMS = frozenset(
     }
 )
 NATIVE_WINDOW_CAPABLE_SYSTEMS = frozenset({"Win32", "X11", "Wayland", "Cocoa", "Android"})
+GRAPHICS_RUNTIME_PROOF = (
+    "current OpenGL context GL_VENDOR/GL_RENDERER/GL_VERSION strings; not physical display proof"
+)
+SOFTWARE_GRAPHICS_RUNTIME_TERMS = (
+    "llvmpipe",
+    "softpipe",
+    "swrast",
+    "software rasterizer",
+    "swiftshader",
+    "lavapipe",
+    "microsoft basic render driver",
+)
 FRAME_PACING_SCOPE = (
     "wall-clock intervals between consecutive BeginFrame calls; the first frame establishes a "
     "baseline and has no sample"
@@ -619,6 +631,53 @@ def native_window_evidence(capture: dict[str, Any]) -> tuple[str, bool] | None:
     if _single_line_string(native_window, "proof") != NATIVE_WINDOW_PROOF:
         raise ReportError("native_window.proof does not match schema-8 evidence scope")
     return system, available
+
+
+def graphics_runtime_evidence(
+    capture: dict[str, Any],
+) -> tuple[bool, str, str, str] | None:
+    """Validate additive schema-8 current-context identity evidence, if present."""
+    if "graphics_runtime" not in capture:
+        return None
+    graphics_runtime = _mapping(capture["graphics_runtime"], "graphics_runtime")
+    known = _boolean(graphics_runtime, "identity_known")
+    vendor = _path(graphics_runtime, "vendor")
+    renderer = _path(graphics_runtime, "renderer")
+    version = _path(graphics_runtime, "version")
+    reason = _path(graphics_runtime, "unavailable_reason")
+    for name, value in (
+        ("vendor", vendor),
+        ("renderer", renderer),
+        ("version", version),
+        ("unavailable_reason", reason),
+    ):
+        if not isinstance(value, str):
+            raise ReportError(f"graphics_runtime.{name} must be a string")
+    if _single_line_string(graphics_runtime, "proof") != GRAPHICS_RUNTIME_PROOF:
+        raise ReportError("graphics_runtime.proof does not match schema-8 evidence scope")
+    if known:
+        _single_line_text(vendor, "graphics_runtime.vendor")
+        _single_line_text(renderer, "graphics_runtime.renderer")
+        _single_line_text(version, "graphics_runtime.version")
+        if reason != "":
+            raise ReportError(
+                "graphics_runtime.unavailable_reason must be empty when identity is known"
+            )
+    else:
+        if vendor != "" or renderer != "" or version != "":
+            raise ReportError(
+                "graphics_runtime identity strings must be empty when identity is unknown"
+            )
+        _single_line_text(reason, "graphics_runtime.unavailable_reason")
+    return known, vendor, renderer, version
+
+
+def graphics_runtime_is_software(capture: dict[str, Any]) -> bool:
+    evidence = graphics_runtime_evidence(capture)
+    if evidence is None or not evidence[0]:
+        return False
+    lowered = f"{evidence[1]} {evidence[2]} {evidence[3]}".lower()
+    return any(term in lowered for term in SOFTWARE_GRAPHICS_RUNTIME_TERMS)
 
 
 def _require_schema_number(
@@ -1312,6 +1371,7 @@ def load_capture(path: Path) -> dict[str, Any]:
     validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
     native_window_evidence(capture)
+    graphics_runtime_evidence(capture)
     validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)
     return capture
@@ -1372,6 +1432,17 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
     elif not native_window[1]:
         blockers.append(
             prefix + f"CNA reports no usable native graphical window ({native_window[0]})"
+        )
+
+    graphics_runtime = graphics_runtime_evidence(capture)
+    if graphics_runtime is None:
+        blockers.append(prefix + "capture lacks machine-readable graphics-runtime evidence")
+    elif not graphics_runtime[0]:
+        blockers.append(prefix + "capture has no current graphics-runtime identity")
+    elif graphics_runtime_is_software(capture):
+        blockers.append(
+            prefix
+            + f"current graphics runtime is software-rendered ({graphics_runtime[2]})"
         )
 
     frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
@@ -1457,6 +1528,17 @@ def qualification_repeatability_blockers(
             blockers.append(
                 f"{candidate_path.name}: repeatability policy does not match "
                 f"{reference_path.name} at native_window"
+            )
+        reference_graphics_runtime = graphics_runtime_evidence(reference)
+        candidate_graphics_runtime = graphics_runtime_evidence(candidate)
+        if (
+            reference_graphics_runtime is not None
+            and candidate_graphics_runtime is not None
+            and reference_graphics_runtime != candidate_graphics_runtime
+        ):
+            blockers.append(
+                f"{candidate_path.name}: repeatability policy does not match "
+                f"{reference_path.name} at graphics_runtime"
             )
     for left_index, (left_path, left) in enumerate(mixed):
         for right_path, right in mixed[left_index + 1 :]:
@@ -1603,8 +1685,8 @@ def build_markdown(
             "",
             "## Capture summary",
             "",
-            "| Capture | Scenario | Resolution | Native window | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap ack | Local result |",
-            "| --- | --- | ---: | --- | ---: | :---: | :---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
+            "| Capture | Scenario | Resolution | Native window | GL renderer | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap ack | Local result |",
+            "| --- | --- | ---: | --- | --- | ---: | :---: | :---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
         ]
     )
     for path, capture, local_blockers in zip(capture_paths, captures, per_capture_blockers):
@@ -1636,6 +1718,12 @@ def build_markdown(
             if native_window is None
             else f"{native_window[0]} / {'yes' if native_window[1] else 'no'}"
         )
+        graphics_runtime = graphics_runtime_evidence(capture)
+        graphics_runtime_text = (
+            "—"
+            if graphics_runtime is None or not graphics_runtime[0]
+            else graphics_runtime[2]
+        )
         minimum_pass = _boolean(capture, "checks", "minimum_frame_rate_pass")
         recommended = (
             width >= RECOMMENDED_WIDTH
@@ -1645,6 +1733,7 @@ def build_markdown(
         lines.append(
             f"| {_markdown_code(path.name)} | {_escape(_path(capture, 'scenario'))} | "
             f"{width}x{height} | {_escape(native_window_text)} | "
+            f"{_escape(graphics_runtime_text)} | "
             f"{frame_p95:.3f} ms | {'yes' if minimum_pass else 'no'} | "
             f"{'yes' if recommended else 'no'} | {cpu_p95} ms | {gpu_present} | {load_text} | "
             f"{hitches} | {severe} | {boundary_text} | "
@@ -1666,7 +1755,8 @@ def build_markdown(
             "| Presentation evidence | Usable CNA native window and successful platform swap-interval acknowledgement | Controlled physical vblank/compositor |",
             "",
             "The report generator never promotes a capture without a usable machine-reported "
-            "native window, an unlabelled capture, virtual/offscreen/headless "
+            "native window and non-software current graphics identity, an unlabelled capture, "
+            "virtual/offscreen/headless "
             "presentation, software rasterization, or incomplete VRAM accounting to a qualifying "
             "pass.",
             "The provenance hashes identify the exact files read; qualifying bundle hashes were also reconstructed and verified before evaluation.",

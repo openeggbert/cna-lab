@@ -67,6 +67,24 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 profiles now identify the graphics runtime from the current GL context.** The hardware label
+could previously hide Xvfb's software renderer just as it could hide an offscreen window system.
+The EasyGL producer now records the standard `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION` strings
+with a proof scope that explicitly excludes physical-display claims.
+
+- Qualification requires the additive runtime block to be known and refuses software identities
+  including `llvmpipe`, `softpipe`, `swrast`, SwiftShader, and lavapipe. Qualifying repeated runs
+  must agree; old schema-8 diagnostics remain readable but cannot be promoted.
+- A real no-window AMD run reported `AMD / AMD Radeon 780M (radeonsi, phoenix, ...) / OpenGL ES
+  3.2 Mesa 25.0.7`; its profile hash is `6bbf8127…da2ae0`. An isolated Xvfb run independently
+  reported `Mesa / llvmpipe (LLVM 19.1.7, 256 bits)`; its profile/report hashes are
+  `b1550832…c8559` and `3f1abf5a…629ad`.
+- The Xvfb report used the deliberately misleading label `Discrete GPU physical-display claim`.
+  It still emitted `current graphics runtime is software-rendered`, proving the blocker comes from
+  the active context rather than operator prose. Neither integration touched the visible display or
+  supplies physical M12 evidence.
+- Report 7/7, comparator 7/7, the EasyGL build, and full isolated CTest 8/8 pass.
+
 **M12 profiles now carry machine-readable native-window evidence.** Hardware-label filtering alone
 could reject an honestly named offscreen run, but it could not detect an offscreen capture renamed
 as a physical display. The schema-8 producer now writes CNA's native-window system and validated
@@ -1683,10 +1701,10 @@ scenarios, direct Present/GPU timing, and public-resource VRAM accounting now ex
 automation in this workspace must stay on isolated Xvfb (never the visible host display). The
 remaining code-side residency seam is now closed by the external complete-residency evidence
 contract; do not duplicate the CNJ buffer/texture, GPU timer, render-workload, swap-acknowledgement,
-or evidence-binding work now completed. The next
+graphics-runtime identity, or evidence-binding work now completed. The next
 physical-hardware capture should first require `swap_interval.apply_succeeded`, then use
 the capture's `native_window.available=true` evidence (while remembering that X11/Wayland alone is
-not proof of a physical monitor), then use
+not proof of a physical monitor), confirm `graphics_runtime` names a real hardware renderer, then use
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside

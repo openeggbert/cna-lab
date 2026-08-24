@@ -30,6 +30,8 @@ from performance_report import (
     _single_line_text,
     _write_text_atomic,
     _verify_report_inputs_unchanged,
+    graphics_runtime_evidence,
+    graphics_runtime_is_software,
     load_capture,
     native_window_evidence,
     representative_sample_blocker,
@@ -211,12 +213,28 @@ def require_compatible(
                     f"{label} qualifying capture has no usable native graphical window "
                     f"({native_window[0]})"
                 )
+            graphics_runtime = graphics_runtime_evidence(capture)
+            if graphics_runtime is None:
+                raise ReportError(
+                    f"{label} qualifying capture lacks machine-readable graphics-runtime evidence"
+                )
+            if not graphics_runtime[0]:
+                raise ReportError(
+                    f"{label} qualifying capture has no current graphics-runtime identity"
+                )
+            if graphics_runtime_is_software(capture):
+                raise ReportError(
+                    f"{label} qualifying capture uses a software graphics runtime "
+                    f"({graphics_runtime[2]})"
+                )
             if not _boolean(capture, "memory", "known"):
                 raise ReportError(f"{label} qualifying capture has unknown RAM")
             if not _boolean(capture, "video_memory", "tracking_complete"):
                 raise ReportError(f"{label} qualifying capture has incomplete VRAM tracking")
         if native_window_evidence(baseline) != native_window_evidence(candidate):
             raise ReportError("incompatible native_window evidence between qualifying captures")
+        if graphics_runtime_evidence(baseline) != graphics_runtime_evidence(candidate):
+            raise ReportError("incompatible graphics_runtime evidence between qualifying captures")
 
     for path in COMPATIBILITY_PATHS:
         baseline_value = _path(baseline, *path)

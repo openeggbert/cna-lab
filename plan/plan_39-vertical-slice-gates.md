@@ -73,6 +73,11 @@ rather than being a one-time final check.
     Missing or unavailable evidence blocks qualification, and qualifying comparisons require both
     runs to agree. A real AMD offscreen run reported `Headless/false` and remained blocked even under
     a misleading physical-display hardware label; no visible window or physical capture was added.*
+    *Graphics-runtime follow-up: EasyGL captures now record current-context GL vendor/renderer/
+    version strings; missing/unknown identities and known software rasterizers block qualification,
+    and repeated qualifying runs must agree. Real no-window AMD identified Radeon 780M/radeonsi;
+    isolated Xvfb identified llvmpipe and stayed blocked under a misleading discrete-GPU label. No
+    visible window or physical capture was added.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

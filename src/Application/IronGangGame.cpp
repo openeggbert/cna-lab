@@ -195,6 +195,11 @@ namespace IronGang
             getWindowProperty().GetNativeWindowHandleEXT();
         context.nativeWindowSystem = CNA::Platform::ToString(nativeWindow.system);
         context.nativeWindowAvailable = CNA::Platform::HasNativeWindow(nativeWindow);
+        context.graphicsRuntimeIdentityKnown = graphicsRuntimeIdentityKnown_;
+        context.graphicsRuntimeVendor = graphicsRuntimeVendor_;
+        context.graphicsRuntimeRenderer = graphicsRuntimeRenderer_;
+        context.graphicsRuntimeVersion = graphicsRuntimeVersion_;
+        context.graphicsRuntimeUnavailableReason = graphicsRuntimeUnavailableReason_;
         context.swapIntervalApplyResultKnown = swapIntervalApplyResultKnown_;
         context.swapIntervalApplySucceeded = swapIntervalApplySucceeded_;
         context.appliedSwapInterval = appliedSwapInterval_;
@@ -255,6 +260,67 @@ namespace IronGang
         }
 #else
         swapIntervalUnavailableReason_ = "the active graphics backend does not use the OpenGL swap-interval seam";
+#endif
+    }
+
+    void IronGangGame::CaptureGraphicsRuntimeIdentity()
+    {
+        graphicsRuntimeIdentityKnown_ = false;
+        graphicsRuntimeVendor_.clear();
+        graphicsRuntimeRenderer_.clear();
+        graphicsRuntimeVersion_.clear();
+        graphicsRuntimeUnavailableReason_.clear();
+
+#if defined(CNA_RENDERER_EASYGL)
+        CNA::Platform::IPlatformGlContext* glContext = GetPlatformEXT().GetGlContext();
+        if (glContext == nullptr)
+        {
+            graphicsRuntimeUnavailableReason_ =
+                "the active platform exposes no OpenGL context service";
+            return;
+        }
+#if defined(_WIN32)
+        using GlGetString = const unsigned char* (__stdcall*)(unsigned int);
+#else
+        using GlGetString = const unsigned char* (*)(unsigned int);
+#endif
+        const auto glGetString = reinterpret_cast<GlGetString>(glContext->GetProcAddress("glGetString"));
+        if (glGetString == nullptr)
+        {
+            graphicsRuntimeUnavailableReason_ = "the current OpenGL context exposes no glGetString";
+            return;
+        }
+
+        constexpr unsigned int kGlVendor = 0x1F00;
+        constexpr unsigned int kGlRenderer = 0x1F01;
+        constexpr unsigned int kGlVersion = 0x1F02;
+        const unsigned char* vendor = glGetString(kGlVendor);
+        const unsigned char* renderer = glGetString(kGlRenderer);
+        const unsigned char* version = glGetString(kGlVersion);
+        if (vendor == nullptr || renderer == nullptr || version == nullptr)
+        {
+            graphicsRuntimeUnavailableReason_ =
+                "the current OpenGL context returned an incomplete identity";
+            return;
+        }
+
+        graphicsRuntimeVendor_ = reinterpret_cast<const char*>(vendor);
+        graphicsRuntimeRenderer_ = reinterpret_cast<const char*>(renderer);
+        graphicsRuntimeVersion_ = reinterpret_cast<const char*>(version);
+        if (graphicsRuntimeVendor_.empty() || graphicsRuntimeRenderer_.empty() ||
+            graphicsRuntimeVersion_.empty())
+        {
+            graphicsRuntimeVendor_.clear();
+            graphicsRuntimeRenderer_.clear();
+            graphicsRuntimeVersion_.clear();
+            graphicsRuntimeUnavailableReason_ =
+                "the current OpenGL context returned an empty identity field";
+            return;
+        }
+        graphicsRuntimeIdentityKnown_ = true;
+#else
+        graphicsRuntimeUnavailableReason_ =
+            "the active graphics backend does not expose OpenGL context identity strings";
 #endif
     }
 
@@ -340,6 +406,7 @@ namespace IronGang
         if (performanceProfiler_.IsEnabled())
         {
             CaptureSwapIntervalAcceptance();
+            CaptureGraphicsRuntimeIdentity();
             gpuFrameTimer_ = std::make_unique<GpuFrameTimer>(getGraphicsDeviceProperty());
         }
         districtManager_.Initialize(physics_);

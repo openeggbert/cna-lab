@@ -223,6 +223,11 @@ namespace IronGang
         int requestedSwapInterval{1};
         std::string nativeWindowSystem{"Unknown"};
         bool nativeWindowAvailable{false};
+        bool graphicsRuntimeIdentityKnown{false};
+        std::string graphicsRuntimeVendor;
+        std::string graphicsRuntimeRenderer;
+        std::string graphicsRuntimeVersion;
+        std::string graphicsRuntimeUnavailableReason{"graphics runtime identity was not captured"};
         bool swapIntervalApplyResultKnown{false};
         bool swapIntervalApplySucceeded{false};
         std::optional<int> appliedSwapInterval;
