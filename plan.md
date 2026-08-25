@@ -561,6 +561,33 @@ versioned, validated and safely replaced format. Additional settings remain.
 
 ## M10 — procedural/roguelite mode
 
+Status: started. `PROCEDURAL RUN` on the title screen builds an endless sequence of
+sectors at run time. A run is two integers -- a seed and a depth -- so any sector can
+be rebuilt rather than stored, and the same pair always yields the same level.
+
+`src/SectorGenerator.cpp` is the C++ port of the authoring tool that rebuilt the
+shipped sectors, which means one set of layout rules serves both. Generation is
+accept-or-retry: a candidate that fails the invariants is discarded and the next seed
+tried, and `IsAcceptableSector` is exposed so the tests audit generated levels the
+same way the authored ones are audited -- 64x64, connectivity with no unreachable
+cell, one three-sided elevator, paired objectives, two health pickups, a patrol and an
+ambush, props in open floor, and an objective route between 90 and 130 cells.
+
+The difficulty curve is depth-driven: more guards, hounds, troopers and heavy units,
+and less ammunition, the deeper a run goes. Target times lengthen with depth too.
+
+Two constraints found while fitting it. The generator's own audit originally required
+the whole 3x3 block around a prop to be plain floor, including the centre -- which the
+prop itself occupies, so no sector could ever pass; only the ring may be checked. And
+the walkable band had to be widened well beyond the authoring tool's, because the
+reachability prune can leave a small component and the resulting spread is far wider
+than the Python version's.
+
+Not yet done: run saves. A save records a campaign sector index and rebuilds from the
+authored file, so a procedural save would load back an authored level carrying
+procedural progress. Saving is refused with a message rather than writing something
+wrong; storing the seed and depth in a bumped run-save format is the fix.
+
 Only begin after handcrafted level rules are stable.
 
 - deterministic seed;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -24,6 +25,7 @@
 #include "ExplorationMap.hpp"
 #include "HudStatus.hpp"
 #include "RunSave.hpp"
+#include "SectorGenerator.hpp"
 #include "RunRules.hpp"
 #include "Scoring.hpp"
 
@@ -206,6 +208,11 @@ namespace WolfCna
         bool quickSaveWasDown_ = false;
         bool quickLoadWasDown_ = false;
         int saveSlot_ = 0;
+        // Procedural mode. A run is two integers: the seed and how deep it has gone, so a
+        // sector can always be rebuilt rather than stored.
+        bool proceduralRun_ = false;
+        std::uint32_t proceduralSeed_ = 0;
+        int proceduralDepth_ = 0;
         std::string pauseStatusMessage_;
         int soundVolumeStep_ = 4;
         int fieldOfViewDegrees_ = 72;
@@ -243,6 +250,9 @@ namespace WolfCna
         void TryMove(float dx, float dz);
         void ResetRun();
         void LoadCampaignLevel(int index);
+        void StartProceduralRun();
+        void LoadProceduralSector(int depth);
+        [[nodiscard]] std::string ProceduralSectorCode() const;
         void AdvanceCampaign();
         void UnlockNextLevel();
         void CompleteLevel(CampaignExitRoute route = CampaignExitRoute::Standard);

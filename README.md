@@ -32,6 +32,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - level loaded from a validated text file
 - sectors follow the 1992 room-and-door grammar: 39-41% open floor carved into many small rooms joined by 45-56 doors each, laid out by `tools/generate_sector.py` and accepted only when every sector audit passes
 - a short `GEAR UP` screen with a filling bar announces each sector's chapter, name and code before play begins
+- `PROCEDURAL RUN` builds an endless sequence of sectors at run time from a seed and a depth, each accepted only after passing the same invariants the authored sectors are audited against; deeper sectors carry more enemies and less ammunition
 - five progressively unlocked authored bunker sectors plus a discoverable hidden sector, deterministic return route, original boss encounter and campaign-ending screen
 - original transparent pixel-art guard, hound, rapid-trooper, heavy-unit and Bunker Warden sprites rendered as camera-facing polygons in the 3D world
 - idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway

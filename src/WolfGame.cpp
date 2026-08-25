@@ -1589,7 +1589,12 @@ namespace WolfCna
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(label) / 2, panelY + 17, label, labelColor);
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(value) / 2, panelY + 47, value, valueColor);
         };
-        drawReadout(0, "LEVEL", std::string(GetCampaignSector(levelIndex_).displayCode));
+        drawReadout(
+            0,
+            "LEVEL",
+            proceduralRun_
+                ? ProceduralSectorCode()
+                : std::string(GetCampaignSector(levelIndex_).displayCode));
         drawReadout(1, "SCORE", std::to_string(score_));
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
@@ -2214,8 +2219,9 @@ namespace WolfCna
         {
             centered(top + 22, "MAIN MENU", title);
             centered(top + 50, "BUNKER OPERATIONS", normal);
-            const std::array<std::string, 7> options{
+            const std::array<std::string, 8> options{
                 "START RUN",
+                "PROCEDURAL RUN",
                 "LOAD SLOT " + std::to_string(saveSlot_ + 1),
                 "SELECT SLOT " + std::to_string(saveSlot_ + 1),
                 "CONTROLS",
@@ -2547,6 +2553,11 @@ namespace WolfCna
         lastFirearm_ = Weapon::Sidearm;
         hasRepeater_ = false;
         hasHeavyWeapon_ = false;
+        if (proceduralRun_)
+        {
+            LoadProceduralSector(proceduralDepth_);
+            return;
+        }
         LoadCampaignLevel(SelectableCampaignSectors[static_cast<std::size_t>(selectedLevelIndex_)]);
     }
 
@@ -2592,8 +2603,79 @@ namespace WolfCna
         objectiveMessageSeconds_ = 0.0f;
     }
 
+    std::string WolfGame::ProceduralSectorCode() const
+    {
+        return "P" + std::to_string(proceduralDepth_ + 1);
+    }
+
+    void WolfGame::StartProceduralRun()
+    {
+        proceduralRun_ = true;
+        // Derived from the profile so a fresh run differs from the last, while a sector
+        // stays reproducible from the seed and depth alone.
+        proceduralSeed_ = static_cast<std::uint32_t>(
+            highestUnlockedLevel_ * 2654435761u + score_ * 40503u + 0x9e3779b9u +
+            static_cast<std::uint32_t>(soundVolumeStep_) * 2246822519u);
+        proceduralDepth_ = 0;
+        ResetRun();
+    }
+
+    void WolfGame::LoadProceduralSector(int depth)
+    {
+        proceduralDepth_ = std::max(0, depth);
+        const GeneratedSector sector = GenerateSector(proceduralSeed_, proceduralDepth_);
+        if (!sector.valid)
+        {
+            // Never strand the player: fall back to the authored starter rather than
+            // presenting an unfinished level.
+            proceduralRun_ = false;
+            LoadCampaignLevel(0);
+            objectiveMessage_ = "GENERATOR FELL BACK";
+            objectiveMessageSeconds_ = 3.0f;
+            return;
+        }
+
+        UpdateSectorMusic();
+        level_ = LevelDefinition::Parse(sector.grid, "procedural.level");
+        world_ = World(level_, difficulty_);
+        exploration_.Reset(level_);
+        world_.Upload(getGraphicsDeviceProperty());
+        if (atlas_)
+            CreateProceduralAtlas();
+        playerPosition_ = world_.PlayerStart();
+        static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
+        yaw_ = 0.0f;
+        accessMask_ = 0;
+        completed_ = false;
+        completedExitRoute_ = CampaignExitRoute::Standard;
+        completionScore_ = {};
+        levelElapsedSeconds_ = 0.0f;
+        sectorEntryScore_ = score_;
+        sectorEntryNextExtraLifeScore_ = nextExtraLifeScore_;
+        screen_ = Screen::Loading;
+        loadingSeconds_ = LoadingScreenSeconds;
+        pauseMenuSelection_ = 0;
+        actionWasDown_ = false;
+        attackWasDown_ = false;
+        weaponFlashSeconds_ = 0.0f;
+        playerImpactFlashSeconds_ = 0.0f;
+        playerFireCooldownSeconds_ = 0.0f;
+        combatShotSequence_ = 0;
+        pauseStatusMessage_.clear();
+        cheatMessageSeconds_ = 0.0f;
+        objectiveMessage_.clear();
+        objectiveMessageSeconds_ = 0.0f;
+    }
+
     void WolfGame::AdvanceCampaign()
     {
+        if (proceduralRun_)
+        {
+            // Endless by design: a procedural run ends when the player does.
+            LoadProceduralSector(proceduralDepth_ + 1);
+            return;
+        }
+
         const std::optional<int> destination = CampaignDestination(
             levelIndex_,
             completedExitRoute_);
@@ -2647,7 +2729,9 @@ namespace WolfCna
             stats.foundSecrets,
             stats.totalSecrets,
             levelElapsedSeconds_,
-            GetCampaignSector(levelIndex_).targetSeconds);
+            proceduralRun_
+                ? ProceduralTargetSeconds(proceduralDepth_)
+                : GetCampaignSector(levelIndex_).targetSeconds);
         AwardScore(completionScore_.totalBonus);
         if (exitSound_)
             static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
@@ -2676,6 +2760,11 @@ namespace WolfCna
         hasHeavyWeapon_ = false;
         accessMask_ = 0;
         defeatTransitionSeconds_ = 0.0f;
+        if (proceduralRun_)
+        {
+            LoadProceduralSector(proceduralDepth_);
+            return;
+        }
         LoadCampaignLevel(levelIndex_);
     }
 
@@ -2801,6 +2890,17 @@ namespace WolfCna
 
     bool WolfGame::SaveRunToSelectedSlot()
     {
+        if (proceduralRun_)
+        {
+            // A run save records a campaign sector index and rebuilds the world from the
+            // authored file. Writing one here would load back an authored level carrying
+            // procedural progress, so refuse plainly instead of saving something wrong.
+            pauseStatusMessage_ = "PROCEDURAL RUNS ARE NOT SAVED";
+            objectiveMessage_ = pauseStatusMessage_;
+            objectiveMessageSeconds_ = 2.0f;
+            return false;
+        }
+
         std::string error;
         if (!RunSave::SaveFile(SaveSlotPath(saveSlot_), CaptureRunSaveState(), error))
         {
@@ -2880,27 +2980,33 @@ namespace WolfCna
         }
         else if (screen_ == Screen::Title)
         {
+            constexpr int titleItemCount = 8;
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + 6) % 7;
+                menuSelection_ = (menuSelection_ + titleItemCount - 1) % titleItemCount;
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % 7;
+                menuSelection_ = (menuSelection_ + 1) % titleItemCount;
             if (confirmIsDown && !confirmWasDown_)
             {
                 if (menuSelection_ == 0)
                 {
+                    proceduralRun_ = false;
                     screen_ = Screen::SectorSelect;
                     menuSelection_ = selectedLevelIndex_;
                 }
                 else if (menuSelection_ == 1)
                 {
-                    static_cast<void>(LoadRunFromSelectedSlot());
+                    StartProceduralRun();
                 }
                 else if (menuSelection_ == 2)
+                {
+                    static_cast<void>(LoadRunFromSelectedSlot());
+                }
+                else if (menuSelection_ == 3)
                 {
                     saveSlot_ = (saveSlot_ + 1) % SaveSlotCount;
                     pauseStatusMessage_.clear();
                 }
-                else if (menuSelection_ == 3)
+                else if (menuSelection_ == 4)
                 {
                     screen_ = Screen::Controls;
                     menuSelection_ = 0;
@@ -2908,14 +3014,14 @@ namespace WolfCna
                     bindingKeysHeld_ = pressedKeys;
                     controlsStatusMessage_.clear();
                 }
-                else if (menuSelection_ == 4)
+                else if (menuSelection_ == 5)
                 {
                     soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
                     SoundEffect::setMasterVolumeProperty(
                         static_cast<float>(soundVolumeStep_) / 4.0f);
                     SaveCampaignProfile();
                 }
-                else if (menuSelection_ == 5)
+                else if (menuSelection_ == 6)
                 {
                     fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
                         ? 60
@@ -3060,13 +3166,13 @@ namespace WolfCna
                     else
                     {
                         screen_ = Screen::Title;
-                        menuSelection_ = 3;
+                        menuSelection_ = 4;
                     }
                 }
                 if (escapeIsDown && !escapeWasDown_)
                 {
                     screen_ = Screen::Title;
-                    menuSelection_ = 3;
+                    menuSelection_ = 4;
                 }
             }
         }

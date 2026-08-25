@@ -21,6 +21,7 @@
 #include "ExplorationMap.hpp"
 #include "HudStatus.hpp"
 #include "RunSave.hpp"
+#include "SectorGenerator.hpp"
 #include "RunRules.hpp"
 #include "Scoring.hpp"
 #include "SpatialAudio.hpp"
@@ -1316,6 +1317,53 @@ int main()
         }
         return shots;
     };
+    // Procedural mode: every generated sector must satisfy the same invariants the
+    // authored ones are audited against, and the same seed must rebuild it exactly.
+    {
+        int generated = 0;
+        int totalAttempts = 0;
+        for (std::uint32_t runSeed = 1; runSeed <= 12; ++runSeed)
+        {
+            for (int depth = 0; depth < 4; ++depth)
+            {
+                const WolfCna::GeneratedSector sector =
+                    WolfCna::GenerateSector(runSeed * 1000u, depth);
+                Expect(sector.valid, "the generator produces a sector for every seed and depth");
+                std::string reason;
+                Expect(
+                    WolfCna::IsAcceptableSector(sector.grid, reason),
+                    "a generated sector passes its own audit");
+                const WolfCna::LevelDefinition level =
+                    WolfCna::LevelDefinition::Parse(sector.grid, "generated.level");
+                const WolfCna::World world(level, WolfCna::Difficulty::Operative);
+                Expect(
+                    world.GetExitPosition().has_value() &&
+                        world.GetDifficultyBalance().activeEnemies >= 4,
+                    "a generated sector loads with an exit and a garrison");
+                Expect(
+                    sector.objectiveRoute >= 90 && sector.objectiveRoute <= 130,
+                    "a generated objective route is substantial but bounded");
+                ++generated;
+                totalAttempts += sector.attempts;
+            }
+        }
+        Expect(generated == 48, "every requested sector was generated");
+        Expect(
+            totalAttempts < 48 * 200,
+            "generation converges quickly enough to run inside a level transition");
+
+        const WolfCna::GeneratedSector first = WolfCna::GenerateSector(4242u, 3);
+        const WolfCna::GeneratedSector again = WolfCna::GenerateSector(4242u, 3);
+        const WolfCna::GeneratedSector other = WolfCna::GenerateSector(4242u, 4);
+        Expect(
+            first.grid == again.grid && !first.grid.empty(),
+            "the same run seed and depth rebuild an identical sector");
+        Expect(first.grid != other.grid, "a deeper sector is a different sector");
+        Expect(
+            WolfCna::ProceduralTargetSeconds(0) < WolfCna::ProceduralTargetSeconds(5),
+            "deeper procedural sectors allow more time");
+    }
+
     // The compass needs a goal to point at in every sector, and the position has to be
     // the elevator itself rather than its approach cell.
     for (const WolfCna::CampaignSector& compassSector : WolfCna::CampaignSectors)
