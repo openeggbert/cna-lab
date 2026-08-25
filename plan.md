@@ -885,14 +885,15 @@ single-ranged-attacker throttle is now a per-difficulty limit: previously only o
 enemy could ever fire at a time on every difficulty, so extra spawns added health to
 grind through but never additional incoming fire.
 
-Ten solid bunker props now furnish the sectors: steel drum, water cistern, supply
+Eleven solid bunker props now furnish the sectors: steel drum, water cistern, supply
 crates, floor lamp, ration tins, valve assembly, laboratory bench, equipment rack,
-empty pressure suit and archive cabinet. They are billboards like the plant
+empty pressure suit, archive cabinet and a rubble pile. They are billboards like the plant
 landmarks but, unlike decorations, they block movement, sharing the authored
 table's cell-blocking path through `IsSolidPropSymbol` so player collision, enemy
 navigation and hitscan all agree without a second mechanism.
 
-Digits `0`-`9` are their level symbols; letters were nearly exhausted. Placement
+Digits `0`-`9` are the first ten level symbols and `s` continues the run, because the
+digit range filled up; letters were already nearly exhausted. Placement
 only accepts an interior floor cell with at least three open neighbours, so a prop
 can never plug a one-cell doorway, and the existing route audits confirm every
 sector stays walkable end to end.
@@ -903,6 +904,18 @@ cleared — straight-alpha blending would otherwise let the sheet's dark vignett
 bleed into an edge, the same class of problem recorded for the muzzle flashes.
 Three sprites depict something other than the prompt asked for and are named for
 what they actually are; `ASSET_PROVENANCE.md` records that alongside each prompt.
+
+The rubble pile has no generated sprite: the generator answered that prompt with an
+equipment rack. Its texture is therefore project-generated at runtime, built from a
+dozen shaded concrete chunks with bent reinforcing bar rather than from noise, since
+a broken-block silhouette is what reads as rubble at billboard size. It is visibly
+cruder than the nine painted sprites and is meant to be replaced by dropping a PNG
+into `assets/props` and loading it alongside the others.
+
+One correction worth keeping: the billboard quad runs from y=0 to y=1, so its origin
+is its own bottom edge. Placing props at half their height, as if the origin were
+central, left every one of them hovering above the floor. A test now pins the
+position to the floor.
 
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 

@@ -1299,13 +1299,18 @@ int main()
         WolfCna::World::PropTypeForSymbol('0') == WolfCna::World::PropType::SteelDrum &&
             WolfCna::World::PropTypeForSymbol('9') ==
                 WolfCna::World::PropType::ArchiveCabinet &&
+            WolfCna::World::PropTypeForSymbol('s') ==
+                WolfCna::World::PropType::RubblePile &&
             !WolfCna::World::PropTypeForSymbol('.').has_value() &&
-            !WolfCna::World::PropTypeForSymbol('G').has_value(),
-        "prop digits map to prop types and nothing else does");
+            !WolfCna::World::PropTypeForSymbol('G').has_value() &&
+            !WolfCna::World::PropTypeForSymbol('S').has_value(),
+        "prop symbols map to prop types and nothing else does");
     Expect(
         WolfCna::World::IsSolidPropSymbol('0') && WolfCna::World::IsSolidPropSymbol('9') &&
             WolfCna::World::IsSolidPropSymbol('Y') &&
+            WolfCna::World::IsSolidPropSymbol('s') &&
             !WolfCna::World::IsSolidPropSymbol('.') &&
+            !WolfCna::World::IsSolidPropSymbol('S') &&
             !WolfCna::World::IsSolidPropSymbol('H'),
         "props block like the authored table while floor and pickups stay walkable");
 
@@ -1321,6 +1326,12 @@ int main()
         propWorld.Collides(3.5f, 1.5f, 0.22f) &&
             !propWorld.Collides(1.5f, 2.5f, 0.22f),
         "a prop cell blocks the player while the floor beside it stays clear");
+    // The billboard quad runs from y=0 to y=1, so its origin is its bottom edge and the
+    // prop position must be the floor. Offsetting by half the height left every prop
+    // hovering in mid-air.
+    Expect(
+        propWorld.Props().front().position.Y == 0.0f,
+        "props stand on the floor rather than floating above it");
 
     // Placement must never plug a corridor: every authored sector still has to be
     // walkable end to end, which the route audits above already prove, so this only
@@ -1330,9 +1341,16 @@ int main()
         const WolfCna::LevelDefinition sectorLevel =
             WolfCna::LevelDefinition::LoadFromFile(std::string(propSector.file));
         const WolfCna::World sectorWorld(sectorLevel, WolfCna::Difficulty::Operative);
+        const std::size_t rubble = static_cast<std::size_t>(std::count_if(
+            sectorWorld.Props().begin(),
+            sectorWorld.Props().end(),
+            [](const WolfCna::World::Prop& prop)
+            {
+                return prop.type == WolfCna::World::PropType::RubblePile;
+            }));
         Expect(
-            sectorWorld.Props().size() >= 4,
-            "every campaign sector is furnished with solid props");
+            sectorWorld.Props().size() >= 6 && rubble >= 2,
+            "every campaign sector is furnished with solid props including rubble");
     }
 
     // A wide room whose guards sit beyond the base engagement range, so this measures the

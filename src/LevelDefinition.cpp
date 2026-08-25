@@ -106,7 +106,9 @@ namespace WolfCna
                 case '>':
                 case 'v':
                 case '<':
-                // Digits 0-9 are the solid bunker props; see World::PropTypeForSymbol.
+                // Digits 0-9 and 's' are the solid bunker props; see
+                // World::PropTypeForSymbol.
+                case 's':
                 case '0':
                 case '1':
                 case '2':

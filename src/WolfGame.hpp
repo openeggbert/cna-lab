@@ -260,6 +260,7 @@ namespace WolfCna
         void CreateProceduralAtlas();
         void CreateProceduralBloodDecal();
         void CreateProceduralDecorationTextures();
+        void CreateProceduralRubbleTexture();
         void CreateProceduralEnemyImpactTexture();
         void CreateHudResources();
         void CreateProceduralHudPortraits();

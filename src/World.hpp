@@ -45,6 +45,7 @@ namespace WolfCna
             EquipmentRack,
             EmptyPressureSuit,
             ArchiveCabinet,
+            RubblePile,
             Count
         };
 

@@ -220,9 +220,13 @@ namespace WolfCna
 
     std::optional<World::PropType> World::PropTypeForSymbol(char symbol)
     {
-        if (symbol < '0' || symbol > '9')
-            return std::nullopt;
-        return static_cast<PropType>(symbol - '0');
+        // Digits cover the first ten props; the letters continue from there because the
+        // digit range is full.
+        if (symbol >= '0' && symbol <= '9')
+            return static_cast<PropType>(symbol - '0');
+        if (symbol == 's')
+            return PropType::RubblePile;
+        return std::nullopt;
     }
 
     bool World::IsSolidPropSymbol(char symbol)
@@ -245,6 +249,7 @@ namespace WolfCna
         case PropType::EquipmentRack: return 1.24f;
         case PropType::EmptyPressureSuit: return 1.3f;
         case PropType::ArchiveCabinet: return 1.02f;
+        case PropType::RubblePile: return 0.46f;
         case PropType::Count: break;
         }
         return 0.8f;
@@ -2445,12 +2450,13 @@ namespace WolfCna
             {
                 if (const std::optional<PropType> prop = PropTypeForSymbol(map_[z][x]))
                 {
-                    // Sits on the floor at the cell centre; PropHeight decides how tall the
-                    // billboard stands, and the cell blocks through IsSolidPropSymbol.
+                    // The billboard quad runs from y=0 to y=1, so its origin is its own
+                    // bottom edge: the position is the floor itself, not the prop's centre.
+                    // Offsetting by half the height here would leave every prop hovering.
                     props_.push_back({
                         Vector3(
                             static_cast<float>(x) + 0.5f,
-                            PropHeight(*prop) * 0.5f,
+                            0.0f,
                             static_cast<float>(z) + 0.5f),
                         *prop});
                 }
