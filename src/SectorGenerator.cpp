@@ -520,6 +520,18 @@ namespace WolfCna
                     }
                     if (open != 1)
                         continue;
+                    // The approach must itself sit in a room or corridor, not in a dead
+                    // pocket: an elevator reachable only through a blind alley is one the
+                    // player walks past without ever seeing its open face.
+                    int approachNeighbours = 0;
+                    for (const auto [ax, az] : steps)
+                    {
+                        if (grid[static_cast<std::size_t>(openZ + az)]
+                                [static_cast<std::size_t>(openX + ax)] != Wall)
+                            ++approachNeighbours;
+                    }
+                    if (approachNeighbours < 3)
+                        continue;
                     const int distance = reach[static_cast<std::size_t>(openZ)][static_cast<std::size_t>(openX)];
                     if (distance > bestDistance)
                     {

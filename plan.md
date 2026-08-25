@@ -987,6 +987,13 @@ into that ring afterwards breaks it.
 Result: 39 to 41 percent open floor and 45 to 56 doors per sector, against 46 to 76
 percent and 3 to 10 before.
 
+The compass bears on the elevator's **approach** cell, not the cabin. Reported from
+play: following it led to the elevator and there was nothing there. The cabin is
+recessed into a wall on three sides, so pointing at its centre walks the player into
+the blank face and leaves them beside an elevator they cannot see. The generator now
+also refuses a cabin whose approach sits in a dead pocket, since an elevator reachable
+only down a blind alley is invisible until you are standing in it.
+
 A compass was added with them. Rooms joined by fifty doors are far easier to get lost
 in than one open hall, so a needle above the HUD bears on the elevator and prints the
 distance in cells. It is not a 1992 feature, but it reveals nothing the automap does

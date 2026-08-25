@@ -1534,7 +1534,16 @@ namespace WolfCna
         // Compass. The rebuilt sectors are a warren of small rooms rather than open
         // halls, so a bearing to the elevator keeps the player oriented without revealing
         // the route -- the automap already marks the goal, so this shows nothing new.
-        if (const std::optional<Vector3> exitPosition = world_.GetExitPosition())
+        // Bear on the approach cell, not the elevator itself. The cabin is recessed into a
+        // wall on three sides, so pointing at its centre walks the player into the blank
+        // face and leaves them standing next to an elevator they cannot see.
+        const std::optional<Vector3> compassTarget = [this]() -> std::optional<Vector3>
+        {
+            if (const std::optional<World::ExitApproach> approach = world_.GetExitApproach())
+                return approach->position;
+            return world_.GetExitPosition();
+        }();
+        if (const std::optional<Vector3> exitPosition = compassTarget)
         {
             constexpr int radius = 21;
             const int compassX = viewport.getXProperty() + viewport.getWidthProperty() - radius - 14;

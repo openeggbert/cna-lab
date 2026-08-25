@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <filesystem>
 #include <iostream>
 #include <queue>
@@ -1348,6 +1349,56 @@ int main()
             }
         }
         Expect(generated == 48, "every requested sector was generated");
+
+        // Reported from play: the compass led to the elevator and there was nothing
+        // there. The cabin is recessed on three sides, so its approach must itself open
+        // into a room -- an elevator reachable only down a blind alley is invisible until
+        // the player is standing in it.
+        for (std::uint32_t runSeed = 1; runSeed <= 6; ++runSeed)
+        {
+            const WolfCna::GeneratedSector sector = WolfCna::GenerateSector(runSeed * 31u, 1);
+            Expect(sector.valid, "the approach audit still leaves the generator solvable");
+            const WolfCna::LevelDefinition level =
+                WolfCna::LevelDefinition::Parse(sector.grid, "approach.level");
+            const std::vector<std::string>& approachRows = level.Rows();
+            int exitX = -1;
+            int exitZ = -1;
+            for (int z = 0; z < 64 && exitX < 0; ++z)
+            {
+                const std::size_t at = approachRows[static_cast<std::size_t>(z)].find('E');
+                if (at != std::string::npos)
+                {
+                    exitX = static_cast<int>(at);
+                    exitZ = z;
+                }
+            }
+            Expect(exitX > 0 && exitZ > 0, "a generated sector places its elevator");
+            int openSides = 0;
+            int approachX = 0;
+            int approachZ = 0;
+            for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                    std::pair{0, 1}, std::pair{0, -1}})
+            {
+                if (approachRows[static_cast<std::size_t>(exitZ + dz)]
+                        [static_cast<std::size_t>(exitX + dx)] != '#')
+                {
+                    ++openSides;
+                    approachX = exitX + dx;
+                    approachZ = exitZ + dz;
+                }
+            }
+            int approachOpen = 0;
+            for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                    std::pair{0, 1}, std::pair{0, -1}})
+            {
+                if (approachRows[static_cast<std::size_t>(approachZ + dz)]
+                        [static_cast<std::size_t>(approachX + dx)] != '#')
+                    ++approachOpen;
+            }
+            Expect(
+                openSides == 1 && approachOpen >= 3,
+                "a generated elevator opens onto a room, not a blind pocket");
+        }
         Expect(
             totalAttempts < 48 * 200,
             "generation converges quickly enough to run inside a level transition");

@@ -57,7 +57,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, both access colors, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
-- a compass above the HUD bears on the sector elevator and shows the distance in cells; it points but never reveals the route, and the automap already marks the same goal
+- a compass above the HUD bears on the elevator's approach — the side it can actually be used from — and shows the distance in cells; it points but never reveals the route, and the automap already marks the same goal
 - holding the map key (`Tab` by default) shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin whose side-retracted gate allows immediate Wolf-like action activation or physical entry
 
