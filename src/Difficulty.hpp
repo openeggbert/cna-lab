@@ -105,7 +105,7 @@ namespace WolfCna
                 .enemySpeedMultiplier = 1.25f,
                 .enemyAttackIntervalMultiplier = 0.65f,
                 .ammunitionMultiplier = 0.7f,
-                .maximumEnemySpawnTier = 2,
+                .maximumEnemySpawnTier = 3,
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.45f,
                 .hearingRangeMultiplier = 1.5f,

@@ -2066,7 +2066,14 @@ namespace WolfCna
         // Authored row-major encounter order supplies stable difficulty tiers:
         // two encounters per group are available to Scout, one more to Operative,
         // and the fourth is a Veteran reinforcement.
-        constexpr std::array spawnTiers{0, 1, 0, 2};
+        // Positional encounter tiers, cycled over the authored enemies in map order. The
+        // cycle length decides what share of a level each difficulty faces, so extending it
+        // is the only way to give a fourth rung more enemies without authoring new ones.
+        // This eight-step cycle leaves Scout at 1/2 and Operative at 3/4 exactly as before,
+        // moves Veteran from the whole roster to 7/8, and reserves the full roster for the
+        // top rung. The top-rung slot sits at index 5 rather than 7 so that levels with
+        // only a handful of freely-tiered encounters still contain one.
+        constexpr std::array spawnTiers{0, 1, 0, 2, 0, 3, 0, 1};
         std::size_t encounterIndex = 0;
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
         {
@@ -2109,10 +2116,16 @@ namespace WolfCna
                     }
                     const bool authoredBehaviorEncounter = ambushSymbol || symbol == 'Z' ||
                         patrolDirectionX != 0 || patrolDirectionZ != 0;
-                    const int spawnTier = authoredBehaviorEncounter
-                        ? 0
-                        : spawnTiers[encounterIndex % spawnTiers.size()];
-                    ++encounterIndex;
+                    // Ambushes, patrols and the boss are always present, so they must not
+                    // consume a cycle slot: letting them advance the index skewed which
+                    // tiers a level actually contained, and left some levels with no
+                    // top-rung-only encounter at all.
+                    int spawnTier = 0;
+                    if (!authoredBehaviorEncounter)
+                    {
+                        spawnTier = spawnTiers[encounterIndex % spawnTiers.size()];
+                        ++encounterIndex;
+                    }
                     if (spawnTier > difficultyProfile_.maximumEnemySpawnTier)
                         continue;
 

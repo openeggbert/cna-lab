@@ -1161,25 +1161,27 @@ int main()
         const int operativeClearRounds =
             (operative.totalEnemyHealth + operative.activeEnemies) / 2;
         const int veteranClearRounds = (veteran.totalEnemyHealth + veteran.activeEnemies) / 2;
+        // A margin, not a bare pass. The budget used to land exactly on zero for Veteran,
+        // which left no room to tune the ladder upwards: one extra enemy or a slightly
+        // lower multiplier immediately made a sector unclearable.
         Expect(
-            scoutSupply >= scoutClearRounds && operativeSupply >= operativeClearRounds &&
-                veteranSupply >= veteranClearRounds,
-            "each difficulty supplies enough rounds for its rebalanced close-sidearm health budget");
+            scoutSupply >= scoutClearRounds + 15 &&
+                operativeSupply >= operativeClearRounds + 15 &&
+                veteranSupply >= veteranClearRounds + 15,
+            "every difficulty keeps a working margin over its close-sidearm clear budget");
 
-        // Phantom deliberately shares Veteran's roster and supplies: Veteran already spawns
-        // every authored encounter tier, so a fourth rung can only escalate behaviour. This
-        // pins that intent, and keeps the clear budget above valid for Phantom too.
+        // The eight-step tier cycle reserves the full authored roster for the top rung, so
+        // enemy count now rises across all four rungs and each must keep its own margin.
         const WolfCna::World phantomWorld(*campaignLevel, WolfCna::Difficulty::Phantom);
         const WolfCna::World::DifficultyBalance phantom = phantomWorld.GetDifficultyBalance();
         const int phantomSupply = phantomProfile.startingAmmunition +
             phantom.fixedAmmunition + phantom.potentialDroppedAmmunition;
         const int phantomClearRounds = (phantom.totalEnemyHealth + phantom.activeEnemies) / 2;
         Expect(
-            phantom.activeEnemies == veteran.activeEnemies &&
-                phantom.totalEnemyHealth == veteran.totalEnemyHealth &&
-                phantom.fixedAmmunition == veteran.fixedAmmunition &&
-                phantomSupply >= phantomClearRounds,
-            "phantom keeps veteran's roster and supply while staying clearable");
+            phantom.activeEnemies > veteran.activeEnemies &&
+                phantom.totalEnemyHealth > veteran.totalEnemyHealth &&
+                phantomSupply >= phantomClearRounds + 15,
+            "the top rung faces the whole roster and keeps a working margin");
         Expect(
             scoutBehavior.patrollingEnemies >= 1 && operativeBehavior.patrollingEnemies >= 1 &&
                 veteranBehavior.patrollingEnemies >= 1 &&
@@ -1256,11 +1258,11 @@ int main()
                 veteranProfile.maximumRangedAttackers,
         "phantom escalates every behavioural lever beyond veteran");
     Expect(
-        phantomProfile.maximumEnemySpawnTier == veteranProfile.maximumEnemySpawnTier &&
-            phantomProfile.enemyHealthMultiplier == veteranProfile.enemyHealthMultiplier &&
-            phantomProfile.ammunitionMultiplier == veteranProfile.ammunitionMultiplier &&
-            phantomProfile.startingAmmunition == veteranProfile.startingAmmunition,
-        "phantom shares veteran's roster and resources because no higher spawn tier exists");
+        phantomProfile.maximumEnemySpawnTier > veteranProfile.maximumEnemySpawnTier &&
+            veteranProfile.maximumEnemySpawnTier >
+                operativeProfile.maximumEnemySpawnTier &&
+            operativeProfile.maximumEnemySpawnTier > scoutProfile.maximumEnemySpawnTier,
+        "every rung faces a strictly larger share of each level's authored encounters");
     Expect(
         scoutProfile.reactionDelayMultiplier > operativeProfile.reactionDelayMultiplier &&
             operativeProfile.reactionDelayMultiplier >
