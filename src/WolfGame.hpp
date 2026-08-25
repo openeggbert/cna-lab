@@ -168,6 +168,7 @@ namespace WolfCna
             Difficulty,
             Controls,
             MouseSetup,
+            Loading,
             Playing,
             Map,
             Paused,
@@ -218,6 +219,7 @@ namespace WolfCna
         float playerFireCooldownSeconds_ = 0.0f;
         std::uint32_t combatShotSequence_ = 0;
         float defeatTransitionSeconds_ = 0.0f;
+        float loadingSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
@@ -225,6 +227,7 @@ namespace WolfCna
         static constexpr float KeyboardTurnSpeed = 1.65f;
         static constexpr int MaxAmmo = 99;
         static constexpr int HudPanelHeight = 84;
+        static constexpr float LoadingScreenSeconds = 1.1f;
 
         [[nodiscard]] Microsoft::Xna::Framework::Rectangle WorldViewBounds();
 

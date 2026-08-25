@@ -30,6 +30,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - grid collision with wall sliding
 - full-cell polygonal push walls slide away from the player by up to two safe cells, pause before overlapping actors and permanently expose their passage
 - level loaded from a validated text file
+- a short `GEAR UP` screen with a filling bar announces each sector's chapter, name and code before play begins
 - five progressively unlocked authored bunker sectors plus a discoverable hidden sector, deterministic return route, original boss encounter and campaign-ending screen
 - original transparent pixel-art guard, hound, rapid-trooper, heavy-unit and Bunker Warden sprites rendered as camera-facing polygons in the 3D world
 - idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway

@@ -2138,6 +2138,53 @@ namespace WolfCna
             // this baseline keep the last line clear of the bottom border at top+257.
             centeredSmall(top + 240, prompt, waitingForBinding_ ? selected : normal);
         }
+        else if (screen_ == Screen::Loading)
+        {
+            // The original showed a short braced-for-action screen with a filling bar
+            // between levels. The wording here is wolf-cna's own, per the originality rule.
+            const CampaignSector& sector = GetCampaignSector(levelIndex_);
+            centered(top + 62, "GEAR UP", title);
+            const auto centeredSmall = [&](int y, std::string_view text, Color color)
+            {
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    left + 160 - HudTextWidth(text, 1) / 2,
+                    y,
+                    text,
+                    color,
+                    1);
+            };
+            centeredSmall(top + 92, sector.chapterName, normal);
+            centeredSmall(top + 106, sector.menuName, selected);
+
+            constexpr int barWidth = 240;
+            constexpr int barHeight = 14;
+            const int barLeft = left + 160 - barWidth / 2;
+            const int barTop = top + 140;
+            const float filled = std::clamp(
+                1.0f - loadingSeconds_ / LoadingScreenSeconds,
+                0.0f,
+                1.0f);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(barLeft - 2, barTop - 2, barWidth + 4, barHeight + 4),
+                border);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(barLeft, barTop, barWidth, barHeight),
+                Color(10, 24, 54, 255));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(
+                    barLeft,
+                    barTop,
+                    std::max(0, static_cast<int>(std::lround(
+                        static_cast<float>(barWidth) * filled))),
+                    barHeight),
+                selected);
+            centeredSmall(top + 176, sector.displayCode, normal);
+        }
         else if (screen_ == Screen::MouseSetup)
         {
             centered(top + 15, "MOUSE SETUP", title);
@@ -2281,7 +2328,8 @@ namespace WolfCna
         levelElapsedSeconds_ = 0.0f;
         sectorEntryScore_ = score_;
         sectorEntryNextExtraLifeScore_ = nextExtraLifeScore_;
-        screen_ = Screen::Playing;
+        screen_ = Screen::Loading;
+        loadingSeconds_ = LoadingScreenSeconds;
         pauseMenuSelection_ = 0;
         actionWasDown_ = false;
         attackWasDown_ = false;
@@ -2923,7 +2971,8 @@ namespace WolfCna
         // yaw_ on return.
         const bool desired = controlSettings_.mouseEnabled &&
             getIsActiveProperty() &&
-            (screen_ == Screen::Playing || screen_ == Screen::Map) &&
+            (screen_ == Screen::Playing || screen_ == Screen::Map ||
+                screen_ == Screen::Loading) &&
             !completed_;
         if (desired == mouseLookActive_)
             return;
@@ -3467,6 +3516,15 @@ namespace WolfCna
             return;
         }
 
+        if (screen_ == Screen::Loading)
+        {
+            loadingSeconds_ = std::max(0.0f, loadingSeconds_ - clampedElapsed);
+            if (loadingSeconds_ <= 0.0f)
+                screen_ = Screen::Playing;
+            Game::Update(gameTime);
+            return;
+        }
+
         if (screen_ == Screen::Defeated)
         {
             defeatTransitionSeconds_ = std::max(
@@ -3757,7 +3815,7 @@ namespace WolfCna
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
-            screen_ == Screen::MouseSetup ||
+            screen_ == Screen::MouseSetup || screen_ == Screen::Loading ||
             screen_ == Screen::Initials || screen_ == Screen::CampaignComplete)
             DrawMenu();
         else
