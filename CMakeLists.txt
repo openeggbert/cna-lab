@@ -278,6 +278,46 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/props/power-relay.png"
     COPYONLY)
 configure_file(
+    assets/props/steel-drum.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/steel-drum.png"
+    COPYONLY)
+configure_file(
+    assets/props/water-cistern.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/water-cistern.png"
+    COPYONLY)
+configure_file(
+    assets/props/supply-crates.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/supply-crates.png"
+    COPYONLY)
+configure_file(
+    assets/props/floor-lamp.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/floor-lamp.png"
+    COPYONLY)
+configure_file(
+    assets/props/ration-tins.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/ration-tins.png"
+    COPYONLY)
+configure_file(
+    assets/props/valve-assembly.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/valve-assembly.png"
+    COPYONLY)
+configure_file(
+    assets/props/laboratory-bench.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/laboratory-bench.png"
+    COPYONLY)
+configure_file(
+    assets/props/equipment-rack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/equipment-rack.png"
+    COPYONLY)
+configure_file(
+    assets/props/empty-pressure-suit.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/empty-pressure-suit.png"
+    COPYONLY)
+configure_file(
+    assets/props/archive-cabinet.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/archive-cabinet.png"
+    COPYONLY)
+configure_file(
     assets/props/sector-exit.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/props/sector-exit.png"
     COPYONLY)

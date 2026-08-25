@@ -83,50 +83,23 @@
 
 ## Current handoff
 
-- Work is on `develop`; do not modify `main`.
-- Native `build-cnanext` compiles `wolf-cna` and `level-definition-tests`; the focused test suite passes.
-- Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were rebuilt from a clean configure against explicit `cnanext`/`sharp-runtimenext` paths and served successfully over local HTTP.
-- Firefox 140.10.1 ESR completed a clean-profile headless smoke test without a page exception and rendered the 800×480 Wolf CNA title screen; manual audio/fullscreen testing still needs an interactive browser.
-- Mouse control has not been played yet. It is covered by unit tests for the yaw
-  conversion, the per-frame clamp and profile migration, and the game starts and
-  runs, but capture, cursor release and pointer feel need a real window. Browser
-  pointer lock is entirely unverified.
-- Control setup now holds fifteen rows plus its prompt in the 260px panel, so the
-  row step dropped to 13px. The arithmetic leaves the last line clear of the
-  bottom border, but the screen has not been looked at; it is worth one glance.
-- The web target now also builds and passes `level-definition-tests.js` under
-  node. Attempts to screenshot the game under Xvfb produced blank captures, so
-  automated visual checks of menus are not currently possible that way.
-- The stale `build-web-cna-old-20260824/` directory was deleted.
-
-## Difficulty scaling
-
-The ladder now has the classic four rungs: Scout, Operative, Veteran, Phantom.
-Phantom shares Veteran's roster and supply and escalates only behaviour, because
-Veteran already spawns the highest authored encounter tier and its ammunition
-already equals its clear budget exactly. Adding enemies or removing rounds at a
-fourth rung therefore needs new level authoring first.
-
-An audit traced every difficulty field to a runtime effect. The system is real, not
-a stub: enemy counts (`World.cpp` spawn-tier `continue`), enemy health, move speed,
-firing cadence, incoming damage and ammunition all scale, and difficulty is
-correctly re-derived on every level load, life loss and save load. Three gaps
-remain, in priority order:
-
-1. ~~Reaction time does not scale.~~ Fixed: `reactionDelayMultiplier` (1.4 / 1.0 /
-   0.65) and `hearingRangeMultiplier` (0.75 / 1.0 / 1.3) now scale hesitation and
-   how far gunfire carries. `viewDotThreshold` and the global `EnemyWakeRange` are
-   still difficulty-independent, which is a smaller remaining gap.
-2. ~~Only one ranged enemy may fire at a time.~~ Fixed: `maximumRangedAttackers`
-   is 1 / 1 / 2, and the turn goes to the nearest N eligible shooters rather than
-   the single nearest. Veteran's extra spawns now translate into extra incoming
-   fire, which is what made the higher tiers feel flat.
-3. **Player health never scales**: 100 HP, 3 lives and 25/10 HP pickups are
-   identical on all three. Still open — deliberately, since it moves the clear
-   budget the campaign audits pin down.
-
-Also worth knowing: the incoming-damage multiplier is only asserted at the constant
-table level in the tests, never end to end to `health_`.
+- Work is on `develop`; do not modify `main`. Everything through the prop work is
+  pushed.
+- Native `build-cnanext` compiles `wolf-cna` and `level-definition-tests`; the suite
+  passes. The web target in `build-web-cnanext` rebuilds and its WASM test suite
+  passes under node when run from that directory.
+- Mouse control, the four-rung ladder, the props and the reworked hound voices have
+  all been played by the user on a real display. Browser pointer lock is still
+  entirely unverified.
+- The rubble pile is the one prop without a generated sprite; its texture is drawn
+  procedurally at runtime and looks cruder than the other ten. Replacing it means
+  dropping a PNG into `assets/props`, adding its `configure_file` line and loading
+  it beside the others.
+- Two bugs from this round are worth remembering, because both passed their audits:
+  props plugged corridors while every cell stayed reachable, and ten new sprites had
+  no `configure_file` entry, which the native build hid because it runs from the
+  source tree and reads `assets/` directly. Adding an asset now means adding its
+  copy rule too, or only the web build breaks.
 
 ## Next tasks
 
