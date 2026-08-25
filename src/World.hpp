@@ -62,6 +62,9 @@ namespace WolfCna
         [[nodiscard]] static bool IsSolidPropSymbol(char symbol);
         [[nodiscard]] static float PropHeight(PropType type);
         [[nodiscard]] const std::vector<Prop>& Props() const { return props_; }
+        // Returns the Material enumerator as an int so this can sit above the enum's
+        // own declaration; tests only need to compare cells, not name the family.
+        [[nodiscard]] int WallMaterialIndexAt(int x, int z) const;
 
         enum class InteractionResult
         {
@@ -568,6 +571,10 @@ namespace WolfCna
         // without the constructor needing a theme argument.
         int materialBias_ = 0;
         int materialDominant_ = 0;
+        // Wall material per cell, resolved once from room membership so a room's four
+        // walls agree. A grid-based rule cuts rooms wherever its regions happen to fall.
+        std::vector<std::vector<Material>> wallMaterials_;
+        void BuildWallMaterials();
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> bloodPoolVertices_;

@@ -90,6 +90,8 @@ namespace WolfCna
         materialBias_ = static_cast<int>(signature % 4u);
         materialDominant_ = static_cast<int>((signature >> 8) % 4u);
 
+        BuildWallMaterials();
+
         impacts_.reserve(MaxImpactCount);
         BuildDoors();
         BuildEnemies();
@@ -332,26 +334,89 @@ namespace WolfCna
         return symbol == 'E' || symbol == 'X';
     }
 
-    World::Material World::WallMaterialForCell(int x, int z) const
+    void World::BuildWallMaterials()
     {
         constexpr std::array materials = {
             Material::WallStone,
             Material::WallBrick,
             Material::WallSteel,
             Material::WallLab};
-        constexpr int materialRegionSize = 8;
-        const int regionX = std::max(0, x) / materialRegionSize;
-        const int regionZ = std::max(0, z) / materialRegionSize;
 
-        // A third of the regions take the level's dominant family, so a sector reads as
-        // one place rather than an even checkerboard of all four; the rest alternate from
-        // a rotated start. Both come from the map's own contents, which is what makes two
-        // levels look unlike each other.
-        if ((regionX * 7 + regionZ * 11 + materialBias_) % 3 == 0)
-            return materials[static_cast<std::size_t>(materialDominant_)];
-        const std::size_t index = static_cast<std::size_t>(
-            (regionX * 3 + regionZ * 5 + materialBias_) % static_cast<int>(materials.size()));
-        return materials[index];
+        const int height = static_cast<int>(map_.size());
+        const int width = height > 0 ? static_cast<int>(map_[0].size()) : 0;
+        wallMaterials_.assign(
+            static_cast<std::size_t>(height),
+            std::vector<Material>(static_cast<std::size_t>(width), materials[0]));
+
+        // Label rooms. Doors separate them, which is what makes a doorway the boundary
+        // between two materials rather than an arbitrary line across a floor.
+        std::vector<std::vector<int>> room(
+            static_cast<std::size_t>(height),
+            std::vector<int>(static_cast<std::size_t>(width), -1));
+        const auto isRoomCell = [this](int x, int z)
+        {
+            const char cell = map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+            return cell != '#' && cell != 'D' && cell != 'Q' && cell != 'q' &&
+                cell != 'E' && cell != 'X';
+        };
+
+        int nextRoom = 0;
+        for (int z = 0; z < height; ++z)
+        {
+            for (int x = 0; x < width; ++x)
+            {
+                if (room[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] >= 0 ||
+                    !isRoomCell(x, z))
+                    continue;
+                std::vector<std::pair<int, int>> stack{{x, z}};
+                room[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] = nextRoom;
+                while (!stack.empty())
+                {
+                    const auto [cx, cz] = stack.back();
+                    stack.pop_back();
+                    for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                            std::pair{0, 1}, std::pair{0, -1}})
+                    {
+                        const int nx = cx + dx;
+                        const int nz = cz + dz;
+                        if (nx < 0 || nz < 0 || nx >= width || nz >= height)
+                            continue;
+                        if (room[static_cast<std::size_t>(nz)][static_cast<std::size_t>(nx)] >= 0 ||
+                            !isRoomCell(nx, nz))
+                            continue;
+                        room[static_cast<std::size_t>(nz)][static_cast<std::size_t>(nx)] = nextRoom;
+                        stack.emplace_back(nx, nz);
+                    }
+                }
+                ++nextRoom;
+            }
+        }
+
+        // One family per level, not per room. On a tile grid a wall between two rooms
+        // carries a single texture, so per-room families and shared walls are in direct
+        // tension: whichever room loses sees a foreign wall. Accent rooms were tried and
+        // measured -- they left one corner in eight showing two families, which is the
+        // very thing this was meant to fix. Variety now comes from level to level, which
+        // is what the sectors lacked, and within a level from doors, props and lighting.
+        const Material levelMaterial = materials[static_cast<std::size_t>(materialDominant_)];
+
+        for (int z = 0; z < height; ++z)
+            for (int x = 0; x < width; ++x)
+                wallMaterials_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] =
+                    levelMaterial;
+    }
+
+    int World::WallMaterialIndexAt(int x, int z) const
+    {
+        return static_cast<int>(WallMaterialForCell(x, z));
+    }
+
+    World::Material World::WallMaterialForCell(int x, int z) const
+    {
+        if (z < 0 || z >= static_cast<int>(wallMaterials_.size()) ||
+            x < 0 || x >= static_cast<int>(wallMaterials_[static_cast<std::size_t>(z)].size()))
+            return Material::WallStone;
+        return wallMaterials_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
     }
 
     bool World::HasEnemyInDoorway(const Door& door) const

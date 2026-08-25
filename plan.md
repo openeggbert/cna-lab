@@ -583,10 +583,16 @@ untouched. Large rooms sometimes gain a pillar, placed strictly inside so it can
 block a doorway and there is always a way round it. Measured across six floors of one
 run, corridor cells range from four to ten percent of the open floor.
 
-Wall materials are no longer a fixed function of position. The mix now comes from a
-hash of the map itself, with a third of the regions taking the level's dominant family
-so a sector reads as one place rather than an even checkerboard. This needed no API
-change and gives the authored sectors distinct looks too, which they never had.
+Wall materials are no longer a fixed function of position, which used to give a room
+straddling an 8x8 boundary two different families. Each level now picks one family from
+a hash of its own map.
+
+Per-room families were tried first and measured, then dropped. On a tile grid a wall
+between two rooms carries a single texture, so per-room families and shared walls are
+in direct tension: whichever room loses sees a foreign wall. With accent rooms, one
+corner in eight still showed two families -- the very thing the change was meant to
+fix. One family per level gives complete consistency, still solves the real complaint
+that every sector looked alike, and leaves variety to doors, props and lighting.
 
 Depth also changes a sector's character rather than only its counts. Five themes
 rotate, each leaning on a different archetype -- rank and file, kennels, laboratory

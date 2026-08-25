@@ -5,6 +5,7 @@
 #include <exception>
 #include <fstream>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <queue>
 #include <string>
@@ -1531,6 +1532,46 @@ int main()
                     "an authored elevator opens onto a room, not a blind pocket");
             }
         }
+    }
+
+    // Wall families follow rooms, not a grid. The old rule picked by 8x8 region, so a
+    // room straddling a region boundary had walls of two families -- reported from play.
+    // A wall tile carries one texture, so a wall between two rooms is necessarily foreign
+    // to one of them; what this checks is that such walls stay the exception.
+    for (const WolfCna::CampaignSector& materialSector : WolfCna::CampaignSectors)
+    {
+        const WolfCna::LevelDefinition materialLevel =
+            WolfCna::LevelDefinition::LoadFromFile(std::string(materialSector.file));
+        const WolfCna::World materialWorld(materialLevel, WolfCna::Difficulty::Operative);
+        const std::vector<std::string>& materialRows = materialLevel.Rows();
+        int sampled = 0;
+        int matching = 0;
+        for (int z = 1; z < 63; ++z)
+        {
+            for (int x = 1; x < 63; ++x)
+            {
+                if (materialRows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != '.')
+                    continue;
+                // Compare the walls a player standing here would see facing each way.
+                std::vector<int> seen;
+                for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                        std::pair{0, 1}, std::pair{0, -1}})
+                {
+                    if (materialRows[static_cast<std::size_t>(z + dz)]
+                            [static_cast<std::size_t>(x + dx)] == '#')
+                        seen.push_back(materialWorld.WallMaterialIndexAt(x + dx, z + dz));
+                }
+                if (seen.size() < 2)
+                    continue;
+                ++sampled;
+                if (std::adjacent_find(seen.begin(), seen.end(), std::not_equal_to<>()) ==
+                    seen.end())
+                    ++matching;
+            }
+        }
+        Expect(
+            sampled >= 50 && matching == sampled,
+            "every wall a player can see from one spot shares the level's family");
     }
 
     // The sight cone was the last perception parameter that ignored difficulty.
