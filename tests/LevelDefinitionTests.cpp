@@ -1033,7 +1033,7 @@ int main()
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");
     ExpectCampaignLayout(starterLevel, "starter level");
-    Expect(starterLevel.PlayerStartX() == 5 && starterLevel.PlayerStartZ() == 7, "starter spawn");
+    Expect(starterLevel.PlayerStartX() == 14 && starterLevel.PlayerStartZ() == 5, "starter spawn");
 
     const WolfCna::LevelDefinition sectorTwo = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/sector-02.level");

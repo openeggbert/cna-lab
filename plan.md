@@ -926,6 +926,39 @@ is its own bottom edge. Placing props at half their height, as if the origin wer
 central, left every one of them hovering above the floor. A test now pins the
 position to the floor.
 
+### Sector layouts rebuilt in the 1992 room-and-door grammar
+
+The shipped sectors did not follow the grammar they were meant to imitate. Measured:
+46 to 76 percent open floor, almost no corridor cells, and three doors per main
+sector. The original is the opposite — a level is mostly wall, carved into many small
+rooms joined by doors. The two largest sectors were effectively open arenas.
+
+`tools/generate_sector.py` now lays out that structure: a BSP partition into small
+rectangular rooms, a spanning tree of doors so the level is connected, extra doors so
+it has loops, and every entity the sector audits require. It is an authoring tool, not
+a runtime feature; its output is an ordinary `.level` file and the engine is untouched.
+
+The audits are the oracle. A seed that fails any of them — footprint, connectivity,
+three-sided elevator cabin, one relay and one terminal, three plants, two tables, a
+patrol marker and an ambush, early and late recovery, the 90–130 cell objective route,
+the clear-budget margin, props in open floor — is rejected and the next seed is tried.
+That is what makes generated layouts safe to ship as authored content: the same checks
+that guarded the hand-made maps guard these.
+
+Two things were learned while fitting it. Splitting the wider side first shrinks rooms
+into narrow slots, because the height never gets a turn inside the round budget; the
+partition has to cut the longer side. And props have to be placed last, since their
+audit demands a clear 3x3 of plain floor in the *finished* level and anything dropped
+into that ring afterwards breaks it.
+
+Result: 39 to 41 percent open floor and 45 to 56 doors per sector, against 46 to 76
+percent and 3 to 10 before. The starter spawn moved, so the assertion pinning it was
+updated — that assertion records an authored coordinate, not an invariant.
+
+Note that the original's own levels were not generated at all: all sixty were drawn by
+hand in TED5, id's tile editor. Generating *in* its grammar is the achievable goal;
+generating *like* it is a category error.
+
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 
 The adjustable view size was implemented by restricting the device viewport around
