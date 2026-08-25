@@ -325,6 +325,19 @@ add_test(NAME level-definition-tests COMMAND level-definition-tests)
 set_tests_properties(level-definition-tests PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
+if(EMSCRIPTEN)
+    # The tests open level files by relative path, which needs a preloaded filesystem;
+    # without one the web build linked a binary that could only ever abort on its first
+    # LoadFromFile. Only the levels are packaged, since the tests read nothing else and
+    # the full asset set would attach a 68 MB data file to a logic-only suite.
+    target_compile_options(level-definition-tests PRIVATE -fexceptions)
+    target_link_options(level-definition-tests PRIVATE
+        -fexceptions
+        -sDISABLE_EXCEPTION_CATCHING=0
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets/levels@/assets/levels"
+        -sALLOW_MEMORY_GROWTH=1)
+endif()
+
 if(TARGET SDL3::SDL3main)
     target_link_libraries(wolf-cna PRIVATE SDL3::SDL3main)
 endif()
