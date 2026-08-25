@@ -501,6 +501,54 @@ int main()
                 diagonalMovement.strafe * diagonalMovement.strafe - 1.0f) < 0.0001f,
         "diagonal run and strafe input is normalized to direct movement speed");
 
+    const WolfCna::ControlSettings defaultMouse;
+    Expect(
+        defaultMouse.mouseEnabled &&
+            defaultMouse.mouseSensitivityStep == WolfCna::DefaultMouseSensitivityStep &&
+            WolfCna::MouseSensitivityPercent(defaultMouse.mouseSensitivityStep) == 100,
+        "mouse control defaults to enabled at unscaled sensitivity");
+    Expect(
+        WolfCna::MouseYawDeltaRadians(120, defaultMouse) > 0.0f &&
+            WolfCna::MouseYawDeltaRadians(-120, defaultMouse) ==
+                -WolfCna::MouseYawDeltaRadians(120, defaultMouse) &&
+            WolfCna::MouseYawDeltaRadians(0, defaultMouse) == 0.0f,
+        "mouse yaw follows pointer direction symmetrically around a still pointer");
+    WolfCna::ControlSettings slowMouse = defaultMouse;
+    slowMouse.mouseSensitivityStep = 0;
+    WolfCna::ControlSettings fastMouse = defaultMouse;
+    fastMouse.mouseSensitivityStep = WolfCna::MaximumMouseSensitivityStep;
+    Expect(
+        WolfCna::MouseYawDeltaRadians(120, slowMouse) <
+                WolfCna::MouseYawDeltaRadians(120, defaultMouse) &&
+            WolfCna::MouseYawDeltaRadians(120, defaultMouse) <
+                WolfCna::MouseYawDeltaRadians(120, fastMouse) &&
+            WolfCna::MouseSensitivityPercent(0) == 40 &&
+            WolfCna::MouseSensitivityPercent(WolfCna::MaximumMouseSensitivityStep) == 160,
+        "every mouse sensitivity step strictly increases the yaw one count produces");
+    WolfCna::ControlSettings disabledMouse = defaultMouse;
+    disabledMouse.mouseEnabled = false;
+    Expect(
+        WolfCna::MouseYawDeltaRadians(400, disabledMouse) == 0.0f,
+        "disabling mouse control leaves the keyboard turn keys as the only yaw source");
+    Expect(
+        WolfCna::MouseYawDeltaRadians(100000, defaultMouse) ==
+                WolfCna::MouseYawDeltaRadians(
+                    WolfCna::MaximumMouseCountsPerFrame, defaultMouse) &&
+            WolfCna::MouseYawDeltaRadians(-100000, defaultMouse) ==
+                WolfCna::MouseYawDeltaRadians(
+                    -WolfCna::MaximumMouseCountsPerFrame, defaultMouse) &&
+            std::abs(WolfCna::MouseYawDeltaRadians(100000, fastMouse)) < 3.14159f,
+        "a focus-change displacement spike is clamped below a half turn in one frame");
+    WolfCna::ControlSettings invalidMouse = defaultMouse;
+    invalidMouse.mouseSensitivityStep = WolfCna::MaximumMouseSensitivityStep + 1;
+    WolfCna::ControlSettings negativeMouse = defaultMouse;
+    negativeMouse.mouseSensitivityStep = -1;
+    Expect(
+        !WolfCna::AreValidControlSettings(invalidMouse) &&
+            !WolfCna::AreValidControlSettings(negativeMouse) &&
+            WolfCna::AreValidControlSettings(defaultMouse),
+        "out-of-range mouse sensitivity is rejected alongside the other control settings");
+
     Expect(WolfCna::CompletionPercentage(3, 4) == 75, "completion percentage uses integer progress");
     Expect(WolfCna::CompletionPercentage(0, 0) == 100, "empty completion categories count as perfect");
     const WolfCna::CompletionScore mixedCompletion = WolfCna::CalculateCompletionScore(
@@ -685,6 +733,59 @@ int main()
         duplicateControlProfile.highestUnlocked == 0 &&
             duplicateControlProfile.controls == WolfCna::ControlSettings{},
         "duplicate persisted bindings invalidate the profile and restore classic controls");
+
+    constexpr std::string_view classicBindings =
+        "0 38\n1 40\n2 37\n3 39\n4 65\n5 68\n6 160\n7 32\n8 162\n9 9\n";
+    const WolfCna::CampaignProfile controlOnlyProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-6\n2\n4\n1\n72\n3\n10\n") +
+            std::string(classicBindings) + "1\nACE 4200\n",
+        3);
+    WolfCna::ControlSettings migratedControls;
+    migratedControls.turnSensitivityStep = 3;
+    Expect(
+        controlOnlyProfile.highestUnlocked == 2 &&
+            controlOnlyProfile.controls == migratedControls &&
+            controlOnlyProfile.controls.mouseEnabled &&
+            controlOnlyProfile.controls.mouseSensitivityStep ==
+                WolfCna::DefaultMouseSensitivityStep &&
+            controlOnlyProfile.highScores ==
+                std::vector<WolfCna::HighScoreEntry>{{"ACE", 4200}},
+        "version six profiles keep their bindings and adopt the default mouse settings");
+    WolfCna::ControlSettings mouseControls;
+    mouseControls.turnSensitivityStep = 3;
+    mouseControls.mouseEnabled = false;
+    mouseControls.mouseSensitivityStep = 4;
+    const WolfCna::CampaignProfile mouseProfile = WolfCna::CampaignProgress::Parse(
+        WolfCna::CampaignProgress::Serialize(
+            WolfCna::CampaignProfile{
+                .highestUnlocked = 1,
+                .soundVolume = 2,
+                .difficulty = 0,
+                .fieldOfView = 96,
+                .controls = mouseControls,
+                .highScores = {}},
+            3),
+        3);
+    Expect(
+        mouseProfile.controls == mouseControls &&
+            !mouseProfile.controls.mouseEnabled &&
+            mouseProfile.controls.mouseSensitivityStep == 4 &&
+            mouseProfile.fieldOfView == 96,
+        "a disabled mouse and its sensitivity survive a profile round trip");
+    const WolfCna::CampaignProfile invalidMouseFlagProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n2\n2\n10\n") +
+            std::string(classicBindings) + "0\n",
+        3);
+    const WolfCna::CampaignProfile invalidMouseSpeedProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n1\n9\n10\n") +
+            std::string(classicBindings) + "0\n",
+        3);
+    Expect(
+        invalidMouseFlagProfile.highestUnlocked == 0 &&
+            invalidMouseFlagProfile.controls == WolfCna::ControlSettings{} &&
+            invalidMouseSpeedProfile.highestUnlocked == 0 &&
+            invalidMouseSpeedProfile.controls == WolfCna::ControlSettings{},
+        "corrupt mouse fields invalidate the profile instead of loading a broken sensitivity");
 
     Expect(WolfCna::CampaignSectors.size() == 6, "campaign includes its hidden sector");
     Expect(

@@ -44,6 +44,18 @@ namespace WolfCna
     inline constexpr std::size_t ControlActionCount = BindableControlActions.size();
     inline constexpr int DefaultTurnSensitivityStep = 2;
     inline constexpr int MaximumTurnSensitivityStep = 4;
+    inline constexpr int DefaultMouseSensitivityStep = 2;
+    inline constexpr int MaximumMouseSensitivityStep = 4;
+
+    // Yaw applied by one mouse count at 100%. A full turn takes roughly 2,850 counts,
+    // which matches the travel a 1992-style mouse needed for a 360-degree spin.
+    inline constexpr float BaseMouseYawRadiansPerCount = 0.0022f;
+
+    // A single frame never yaws by more than this many counts. Relative mouse deltas
+    // accumulate while the window is unfocused or the compositor warps the pointer, so
+    // without a bound one frame could spin the player through several full turns. This
+    // mirrors WolfGame's clamped frame step for the same reason.
+    inline constexpr int MaximumMouseCountsPerFrame = 160;
 
     struct ControlSettings final
     {
@@ -59,6 +71,8 @@ namespace WolfCna
             Keys::LeftControl,
             Keys::Tab};
         int turnSensitivityStep = DefaultTurnSensitivityStep;
+        bool mouseEnabled = true;
+        int mouseSensitivityStep = DefaultMouseSensitivityStep;
 
         bool operator==(const ControlSettings&) const = default;
     };
@@ -106,6 +120,11 @@ namespace WolfCna
     {
         if (settings.turnSensitivityStep < 0 ||
             settings.turnSensitivityStep > MaximumTurnSensitivityStep)
+        {
+            return false;
+        }
+        if (settings.mouseSensitivityStep < 0 ||
+            settings.mouseSensitivityStep > MaximumMouseSensitivityStep)
         {
             return false;
         }
@@ -193,6 +212,31 @@ namespace WolfCna
     [[nodiscard]] constexpr float TurnSensitivityMultiplier(int step)
     {
         return static_cast<float>(TurnSensitivityPercent(step)) / 100.0f;
+    }
+
+    [[nodiscard]] constexpr int MouseSensitivityPercent(int step)
+    {
+        return 40 + std::clamp(step, 0, MaximumMouseSensitivityStep) * 30;
+    }
+
+    [[nodiscard]] constexpr int ClampMouseCounts(int counts)
+    {
+        return std::clamp(counts, -MaximumMouseCountsPerFrame, MaximumMouseCountsPerFrame);
+    }
+
+    // Mouse yaw is frame-rate independent by construction: relative counts already
+    // describe distance moved, so unlike keyboard turning it must not be scaled by
+    // elapsed time.
+    [[nodiscard]] constexpr float MouseYawDeltaRadians(
+        int counts,
+        const ControlSettings& settings)
+    {
+        if (!settings.mouseEnabled)
+            return 0.0f;
+        return static_cast<float>(ClampMouseCounts(counts)) *
+            BaseMouseYawRadiansPerCount *
+            (static_cast<float>(MouseSensitivityPercent(settings.mouseSensitivityStep)) /
+                100.0f);
     }
 
     [[nodiscard]] constexpr std::string_view ControlActionName(ControlAction action)

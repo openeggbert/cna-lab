@@ -16,7 +16,8 @@ namespace WolfCna
         constexpr std::string_view VolumeHeader = "WOLF-CNA-PROGRESS-3";
         constexpr std::string_view FieldOfViewHeader = "WOLF-CNA-PROGRESS-4";
         constexpr std::string_view HighScoreHeader = "WOLF-CNA-PROGRESS-5";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-6";
+        constexpr std::string_view ControlHeader = "WOLF-CNA-PROGRESS-6";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-7";
         constexpr std::array SupportedFieldOfView = {60, 72, 84, 96};
 
         bool IsSupportedFieldOfView(int fieldOfView)
@@ -131,18 +132,34 @@ namespace WolfCna
                 return {};
             profile.highScores = NormalizeHighScores(std::move(profile.highScores));
         }
-        else if (header == Header)
+        else if (header == ControlHeader || header == Header)
         {
-            std::size_t bindingCount = 0;
+            // Version 6 shares every field with version 7 except the mouse settings, which
+            // migrate to the classic-feel defaults rather than disabling mouse control.
+            const bool hasMouseSettings = header == Header;
             if (!(input >> profile.soundVolume >> profile.difficulty >>
-                    profile.fieldOfView >> profile.controls.turnSensitivityStep >> bindingCount) ||
+                    profile.fieldOfView >> profile.controls.turnSensitivityStep) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
                 profile.difficulty < 0 || profile.difficulty > 2 ||
-                !IsSupportedFieldOfView(profile.fieldOfView) ||
-                bindingCount != ControlActionCount)
+                !IsSupportedFieldOfView(profile.fieldOfView))
             {
                 return {};
             }
+
+            if (hasMouseSettings)
+            {
+                int mouseEnabled = 1;
+                if (!(input >> mouseEnabled >> profile.controls.mouseSensitivityStep) ||
+                    (mouseEnabled != 0 && mouseEnabled != 1))
+                {
+                    return {};
+                }
+                profile.controls.mouseEnabled = mouseEnabled != 0;
+            }
+
+            std::size_t bindingCount = 0;
+            if (!(input >> bindingCount) || bindingCount != ControlActionCount)
+                return {};
 
             for (std::size_t index = 0; index < bindingCount; ++index)
             {
@@ -205,6 +222,8 @@ namespace WolfCna
             << std::clamp(profile.difficulty, 0, 2) << '\n'
             << fieldOfView << '\n'
             << controls.turnSensitivityStep << '\n'
+            << (controls.mouseEnabled ? 1 : 0) << '\n'
+            << controls.mouseSensitivityStep << '\n'
             << controls.bindings.size() << '\n';
         for (std::size_t index = 0; index < controls.bindings.size(); ++index)
             output << index << ' ' << static_cast<int>(controls.bindings[index]) << '\n';

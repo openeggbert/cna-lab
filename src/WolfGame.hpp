@@ -196,6 +196,7 @@ namespace WolfCna
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
         bool mouseWasDown_ = false;
+        bool mouseLookActive_ = false;
         bool quickSaveWasDown_ = false;
         bool quickLoadWasDown_ = false;
         int saveSlot_ = 0;
@@ -223,6 +224,7 @@ namespace WolfCna
 
         void HandleInput(float elapsedSeconds);
         void HandleMenuInput();
+        void UpdateMouseLookMode();
         void TryMove(float dx, float dz);
         void ResetRun();
         void LoadCampaignLevel(int index);

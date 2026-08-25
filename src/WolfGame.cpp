@@ -479,6 +479,10 @@ namespace WolfCna
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
+        // The menus are pointer-driven, so start from a visible cursor rather than the
+        // hidden XNA default. UpdateMouseLookMode hides it again whenever play captures it.
+        setIsMouseVisibleProperty(true);
+
         Game::Initialize();
     }
 
@@ -2062,7 +2066,7 @@ namespace WolfCna
             };
             for (std::size_t index = 0; index < ControlActionCount; ++index)
             {
-                const int y = top + 43 + static_cast<int>(index) * 15;
+                const int y = top + 40 + static_cast<int>(index) * 14;
                 const bool isSelected = menuSelection_ == static_cast<int>(index);
                 const std::string option = std::string(ControlActionName(BindableControlActions[index])) +
                     "  " + ControlKeyName(controlSettings_.bindings[index]);
@@ -2072,15 +2076,18 @@ namespace WolfCna
             }
 
             constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
-            const std::array<std::string, 3> trailingOptions{
+            const std::array<std::string, 5> trailingOptions{
                 "TURN SPEED  " + std::to_string(
                     TurnSensitivityPercent(controlSettings_.turnSensitivityStep)) + "%",
+                std::string("MOUSE  ") + (controlSettings_.mouseEnabled ? "ON" : "OFF"),
+                "MOUSE SPEED  " + std::to_string(
+                    MouseSensitivityPercent(controlSettings_.mouseSensitivityStep)) + "%",
                 "RESTORE DEFAULTS",
                 "BACK"};
             for (int index = 0; index < static_cast<int>(trailingOptions.size()); ++index)
             {
                 const int selection = sensitivityIndex + index;
-                const int y = top + 193 + index * 16;
+                const int y = top + 182 + index * 14;
                 const bool isSelected = menuSelection_ == selection;
                 if (isSelected)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
@@ -2092,7 +2099,7 @@ namespace WolfCna
                 : controlsStatusMessage_.empty()
                     ? "ENTER REBIND  ARROWS SELECT"
                     : std::string_view(controlsStatusMessage_);
-            centeredSmall(top + 243, prompt, waitingForBinding_ ? selected : normal);
+            centeredSmall(top + 250, prompt, waitingForBinding_ ? selected : normal);
         }
         hudSpriteBatch_->End();
     }
@@ -2568,7 +2575,9 @@ namespace WolfCna
         else if (screen_ == Screen::Controls)
         {
             constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
-            constexpr int restoreIndex = sensitivityIndex + 1;
+            constexpr int mouseToggleIndex = sensitivityIndex + 1;
+            constexpr int mouseSpeedIndex = mouseToggleIndex + 1;
+            constexpr int restoreIndex = mouseSpeedIndex + 1;
             constexpr int backIndex = restoreIndex + 1;
             constexpr int itemCount = backIndex + 1;
 
@@ -2625,6 +2634,24 @@ namespace WolfCna
                     controlsStatusMessage_ = "TURN SPEED UPDATED";
                     SaveCampaignProfile();
                 }
+                if (menuSelection_ == mouseToggleIndex && (decrease || increase))
+                {
+                    controlSettings_.mouseEnabled = !controlSettings_.mouseEnabled;
+                    controlsStatusMessage_ = controlSettings_.mouseEnabled
+                        ? "MOUSE ENABLED"
+                        : "MOUSE DISABLED";
+                    SaveCampaignProfile();
+                }
+                if (menuSelection_ == mouseSpeedIndex && (decrease || increase))
+                {
+                    const int direction = increase ? 1 : -1;
+                    controlSettings_.mouseSensitivityStep =
+                        (controlSettings_.mouseSensitivityStep + MaximumMouseSensitivityStep + 1 +
+                            direction) %
+                        (MaximumMouseSensitivityStep + 1);
+                    controlsStatusMessage_ = "MOUSE SPEED UPDATED";
+                    SaveCampaignProfile();
+                }
 
                 if (confirmIsDown && !confirmWasDown_)
                 {
@@ -2640,6 +2667,22 @@ namespace WolfCna
                             (controlSettings_.turnSensitivityStep + 1) %
                             (MaximumTurnSensitivityStep + 1);
                         controlsStatusMessage_ = "TURN SPEED UPDATED";
+                        SaveCampaignProfile();
+                    }
+                    else if (menuSelection_ == mouseToggleIndex)
+                    {
+                        controlSettings_.mouseEnabled = !controlSettings_.mouseEnabled;
+                        controlsStatusMessage_ = controlSettings_.mouseEnabled
+                            ? "MOUSE ENABLED"
+                            : "MOUSE DISABLED";
+                        SaveCampaignProfile();
+                    }
+                    else if (menuSelection_ == mouseSpeedIndex)
+                    {
+                        controlSettings_.mouseSensitivityStep =
+                            (controlSettings_.mouseSensitivityStep + 1) %
+                            (MaximumMouseSensitivityStep + 1);
+                        controlsStatusMessage_ = "MOUSE SPEED UPDATED";
                         SaveCampaignProfile();
                     }
                     else if (menuSelection_ == restoreIndex)
@@ -2690,9 +2733,41 @@ namespace WolfCna
         mouseWasDown_ = mouseIsDown;
     }
 
+    void WolfGame::UpdateMouseLookMode()
+    {
+        // Relative mode is confined to live gameplay. CNA reports relative displacement
+        // through the same MouseState x/y fields the menus read as absolute cursor
+        // coordinates, so leaving it enabled would break every clickable menu button.
+        const bool desired = controlSettings_.mouseEnabled &&
+            screen_ == Screen::Playing &&
+            !completed_;
+        if (desired == mouseLookActive_)
+            return;
+
+        mouseLookActive_ = desired;
+        Mouse::setIsRelativeMouseModeEXTProperty(desired);
+        setIsMouseVisibleProperty(!desired);
+        if (desired)
+        {
+            // Relative displacement is consume-on-read and accumulates while the cursor is
+            // free, so discard the menu's travel instead of snapping the view on entry.
+            static_cast<void>(Mouse::GetState());
+        }
+    }
+
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
+        // Consume-on-read: this is the only Mouse::GetState call on the gameplay path, and
+        // it must stay that way or the second reader would silently eat the frame's motion.
+        const MouseState mouse = mouseLookActive_ ? Mouse::GetState() : MouseState{};
+        const float mouseYawDelta = mouseLookActive_
+            ? MouseYawDeltaRadians(mouse.getXProperty(), controlSettings_)
+            : 0.0f;
+        const bool mouseAttackIsDown = mouseLookActive_ &&
+            mouse.getLeftButtonProperty() == ButtonState::Pressed;
+        const bool mouseActionIsDown = mouseLookActive_ &&
+            mouse.getRightButtonProperty() == ButtonState::Pressed;
         const bool ilmIsDown =
             keyboard.IsKeyDown(Keys::I) &&
             keyboard.IsKeyDown(Keys::L) &&
@@ -2705,7 +2780,8 @@ namespace WolfCna
         const bool mapIsDown = !ilmIsDown && !goalCheatIsDown &&
             IsControlDown(keyboard, controlSettings_, ControlAction::Map);
         const bool actionIsDown = !ilmIsDown && !goalCheatIsDown &&
-            IsControlDown(keyboard, controlSettings_, ControlAction::Action);
+            (IsControlDown(keyboard, controlSettings_, ControlAction::Action) ||
+                mouseActionIsDown);
         const bool confirmIsDown = actionIsDown || keyboard.IsKeyDown(Keys::Enter);
         const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
@@ -3009,7 +3085,8 @@ namespace WolfCna
         const bool attackIsDown = IsControlDown(
             keyboard,
             controlSettings_,
-            ControlAction::Attack);
+            ControlAction::Attack) ||
+            mouseAttackIsDown;
         const bool automaticWeapon = GetWeaponSpec(weapon_).automatic;
         const bool attackTriggered = attackIsDown &&
             playerFireCooldownSeconds_ <= 0.0f &&
@@ -3105,6 +3182,10 @@ namespace WolfCna
         if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnRight))
             yaw_ += turnStep;
 
+        // Mouse yaw is additive with the keyboard turn keys, which stay available as the
+        // fallback whenever mouse control is switched off.
+        yaw_ += mouseYawDelta;
+
         MovementInput movement;
         if (IsControlDown(keyboard, controlSettings_, ControlAction::MoveForward))
             movement.forward += 1.0f;
@@ -3145,6 +3226,10 @@ namespace WolfCna
         if (fullScreenIsDown && !fullScreenWasDown_)
             graphics_->ToggleFullScreen();
         fullScreenWasDown_ = fullScreenIsDown;
+
+        // Capture follows the screen the previous frame settled on, so Escape into the pause
+        // menu always releases the cursor before that menu reads absolute coordinates.
+        UpdateMouseLookMode();
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
