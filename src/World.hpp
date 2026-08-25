@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -28,6 +30,37 @@ namespace WolfCna
         static constexpr int CyanAccess = 1;
         static constexpr int AmberAccess = 2;
         static constexpr int AllAccess = CyanAccess | AmberAccess;
+
+        // Solid, floor-standing scenery. Unlike Decoration these block movement, so they
+        // read as furniture rather than wallpaper.
+        enum class PropType : int
+        {
+            SteelDrum,
+            WaterCistern,
+            SupplyCrates,
+            FloorLamp,
+            RationTins,
+            ValveAssembly,
+            LaboratoryBench,
+            EquipmentRack,
+            EmptyPressureSuit,
+            ArchiveCabinet,
+            Count
+        };
+
+        static constexpr std::size_t PropTypeCount =
+            static_cast<std::size_t>(PropType::Count);
+
+        struct Prop
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            PropType type = PropType::SteelDrum;
+        };
+
+        [[nodiscard]] static std::optional<PropType> PropTypeForSymbol(char symbol);
+        [[nodiscard]] static bool IsSolidPropSymbol(char symbol);
+        [[nodiscard]] static float PropHeight(PropType type);
+        [[nodiscard]] const std::vector<Prop>& Props() const { return props_; }
 
         enum class InteractionResult
         {
@@ -283,6 +316,9 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& ceilingLampTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& lampLightTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& plantSprite,
+            const std::array<
+                Microsoft::Xna::Framework::Graphics::Texture2D*,
+                PropTypeCount>& propSprites,
             const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
@@ -525,6 +561,7 @@ namespace WolfCna
         std::vector<Relay> relays_;
         std::vector<Exit> exits_;
         std::vector<Decoration> decorations_;
+        std::vector<Prop> props_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> bloodPoolVertices_;

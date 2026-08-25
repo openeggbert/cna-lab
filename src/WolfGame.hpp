@@ -92,6 +92,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> foundryPlantSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> labsPlantSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> archivePlantSprite_;
+        std::array<
+            std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D>,
+            World::PropTypeCount> propSprites_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> titleBackground_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;

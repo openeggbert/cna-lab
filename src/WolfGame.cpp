@@ -583,6 +583,20 @@ namespace WolfCna
         foundryPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/foundry-plant.png", device);
         labsPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/labs-plant.png", device);
         archivePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/archive-plant.png", device);
+        constexpr std::array<const char*, World::PropTypeCount> propFiles{
+            "assets/props/steel-drum.png",
+            "assets/props/water-cistern.png",
+            "assets/props/supply-crates.png",
+            "assets/props/floor-lamp.png",
+            "assets/props/ration-tins.png",
+            "assets/props/valve-assembly.png",
+            "assets/props/laboratory-bench.png",
+            "assets/props/equipment-rack.png",
+            "assets/props/empty-pressure-suit.png",
+            "assets/props/archive-cabinet.png"};
+        for (std::size_t index = 0; index < propFiles.size(); ++index)
+            propSprites_[index] = std::make_unique<Texture2D>(propFiles[index], device);
+
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
@@ -3747,6 +3761,9 @@ namespace WolfCna
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
             storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_ && archivePlantSprite_)
         {
+            std::array<Texture2D*, World::PropTypeCount> propSpritePointers{};
+            for (std::size_t index = 0; index < propSpritePointers.size(); ++index)
+                propSpritePointers[index] = propSprites_[index].get();
             world_.Draw(
                 device,
                 *effect_,
@@ -3800,6 +3817,7 @@ namespace WolfCna
                     : levelIndex_ == 1
                         ? *foundryPlantSprite_
                         : levelIndex_ == 2 ? *labsPlantSprite_ : *archivePlantSprite_,
+                propSpritePointers,
                 playerPosition_);
         }
 

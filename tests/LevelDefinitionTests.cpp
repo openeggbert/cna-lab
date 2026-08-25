@@ -1295,6 +1295,46 @@ int main()
         }
         return shots;
     };
+    Expect(
+        WolfCna::World::PropTypeForSymbol('0') == WolfCna::World::PropType::SteelDrum &&
+            WolfCna::World::PropTypeForSymbol('9') ==
+                WolfCna::World::PropType::ArchiveCabinet &&
+            !WolfCna::World::PropTypeForSymbol('.').has_value() &&
+            !WolfCna::World::PropTypeForSymbol('G').has_value(),
+        "prop digits map to prop types and nothing else does");
+    Expect(
+        WolfCna::World::IsSolidPropSymbol('0') && WolfCna::World::IsSolidPropSymbol('9') &&
+            WolfCna::World::IsSolidPropSymbol('Y') &&
+            !WolfCna::World::IsSolidPropSymbol('.') &&
+            !WolfCna::World::IsSolidPropSymbol('H'),
+        "props block like the authored table while floor and pickups stay walkable");
+
+    const WolfCna::LevelDefinition propLevel = WolfCna::LevelDefinition::Parse(
+        "#####\n#P.0#\n#...#\n#####\n",
+        "prop.level");
+    const WolfCna::World propWorld(propLevel, WolfCna::Difficulty::Operative);
+    Expect(
+        propWorld.Props().size() == 1 &&
+            propWorld.Props().front().type == WolfCna::World::PropType::SteelDrum,
+        "a prop symbol becomes exactly one placed prop");
+    Expect(
+        propWorld.Collides(3.5f, 1.5f, 0.22f) &&
+            !propWorld.Collides(1.5f, 2.5f, 0.22f),
+        "a prop cell blocks the player while the floor beside it stays clear");
+
+    // Placement must never plug a corridor: every authored sector still has to be
+    // walkable end to end, which the route audits above already prove, so this only
+    // pins that props are actually present in every one of them.
+    for (const WolfCna::CampaignSector& propSector : WolfCna::CampaignSectors)
+    {
+        const WolfCna::LevelDefinition sectorLevel =
+            WolfCna::LevelDefinition::LoadFromFile(std::string(propSector.file));
+        const WolfCna::World sectorWorld(sectorLevel, WolfCna::Difficulty::Operative);
+        Expect(
+            sectorWorld.Props().size() >= 4,
+            "every campaign sector is furnished with solid props");
+    }
+
     // A wide room whose guards sit beyond the base engagement range, so this measures the
     // whole package -- reach, reaction, cadence, damage and simultaneous shooters -- rather
     // than any single multiplier. The top rungs must land clearly more damage here, which is

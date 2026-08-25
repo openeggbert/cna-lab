@@ -896,3 +896,149 @@ Lighting/mood: controlled warm glints and a subtle amber internal glow
 Color palette: amber crystal, aged gold, muted teal accent, deep navy shadows
 Constraints: genuinely transparent background and preserved alpha, no text, no logos, no watermark, no religious, military, extremist or national symbols, entirely original design
 ```
+
+## WOLF-049 bunker prop sprites
+
+These ten original project assets were generated on 2026-08-25 with OpenAI's image
+generation tool from the prompts recorded below. No third-party reference image or
+third-party pixel was used, and no pixels derive from Wolfenstein 3D or any other
+game.
+
+The generator returned all ten props on a single 1536x1024 contact sheet rather than
+as separate files. The sheet was split into the individual sprites below by locating
+the fully transparent gaps between objects, cropping each object's alpha bounding box
+with proportional padding, and then clearing the RGB of every fully transparent pixel
+so the sheet's dark vignette cannot bleed into an edge under straight-alpha blending.
+No other pixel was altered. Each committed PNG was visually inspected and verified to
+contain genuine non-opaque alpha.
+
+Three sprites differ from what the prompt asked for and are named for what they
+actually depict: the requested rubble pile came back as a standing equipment rack,
+the specimen cabinet as a laboratory bench, and the archive column as a filing
+cabinet. All three suit the bunker setting, so they were kept rather than regenerated.
+
+### `assets/props/steel-drum.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original sealed steel storage drum standing upright on a bunker floor, two raised rolling ribs around its body, a plain bolted lid, light rust staining near the base, no logos or lettering of any kind
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, restrained specular highlights on the ribs
+Color palette: cool gunmetal grey body, muted teal band, dull orange rust, deep navy shadows
+```
+
+### `assets/props/water-cistern.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original circular water cistern built of fitted stone blocks, a low parapet wall, a simple iron crossbar over the opening with a hanging chain, still dark water visible inside, no bucket
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool damp underground lighting, faint reflected glint on the water surface
+Color palette: cold grey stone, dark iron, near-black water with a single pale highlight, deep navy shadows
+```
+
+### `assets/props/supply-crates.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original stack of three sealed wooden supply crates of slightly different sizes, plain planks with visible grain, simple metal corner brackets and banding straps, completely unmarked with no stencils, symbols or text
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered stack, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, warm bounce on the upper faces
+Color palette: warm dark-oak planks, dull steel brackets, muted olive straps, deep navy shadows
+```
+
+### `assets/props/floor-lamp.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original freestanding industrial floor lamp, a heavy weighted tripod base, a plain vertical post and a wide conical metal shade with a caged bulb glowing warmly beneath it
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: the lamp is its own light source, warm glow concentrated under the shade, the post and base falling into shadow
+Color palette: dull olive-grey metal, warm amber bulb glow, brass cage ring, deep navy shadows
+```
+
+### `assets/props/ration-tins.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original small pile of sealed ration tins and a folded cloth sack of dry stores resting beside them, plain cylindrical tins with ring pulls, no labels, brands, symbols or lettering
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered arrangement, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, gentle highlights on the tin rims
+Color palette: pale tin-grey, muted olive sackcloth, warm tan rope tie, deep navy shadows
+```
+
+### `assets/props/valve-assembly.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original floor-mounted pipe and valve assembly, two thick vertical pipes joined by a horizontal spool, a large spoked handwheel on the front, bolted flanges and a small pressure gauge with an unreadable dial
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool industrial lighting, hard highlights along the pipe tops
+Color palette: teal-painted pipework, bare steel handwheel, dull brass gauge, deep navy shadows
+```
+
+### `assets/props/laboratory-bench.png`
+
+Returned in answer to the specimen-cabinet prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original laboratory specimen cabinet, a metal frame with two glazed shelves holding plain sealed glass flasks and stoppered jars of clear and pale liquid, a closed lower cupboard, nothing organic or biological inside
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cold clinical lighting, crisp highlights on the glass edges
+Color palette: pale laboratory grey-green panels, clear glass with cyan tint, chrome frame, deep navy shadows
+```
+
+### `assets/props/equipment-rack.png`
+
+Returned in answer to the rubble-pile prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original low pile of collapsed masonry, broken concrete blocks with exposed bent reinforcing bar, loose grit and dust settled around the base, no debris resembling remains
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered pile, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, dusty diffuse shading
+Color palette: cool concrete grey, pale dust, rust-brown reinforcing bar, deep navy shadows
+```
+
+### `assets/props/empty-pressure-suit.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original empty pressure suit hanging on an upright maintenance stand, the visor dark and hollow, arms hanging slack, hoses coiled at the base; the suit is clearly unoccupied equipment, with no body, bones, remains or figure of any kind
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: dim storage lighting, the dark visor reading as an empty void
+Color palette: faded canvas ochre suit, dull steel stand, near-black visor, deep navy shadows
+```
+
+### `assets/props/archive-cabinet.png`
+
+Returned in answer to the archive-column prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original narrow archive storage column, a tall metal cabinet of six shallow drawers with plain recessed pull handles and blank card holders, one drawer very slightly ajar, no text or numbering anywhere
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool archive lighting, soft vertical falloff down the drawer faces
+Color palette: muted violet-grey cabinet, dull bronze handles, pale ivory card holders, deep navy shadows
+```

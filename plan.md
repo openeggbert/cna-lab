@@ -854,25 +854,55 @@ new M8-style extras, are:
 
 1. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay;
-3. an adjustable viewport size, currently fixed at a third of the window height
-   (attempted and reverted, see the CNA finding below);
-4. a wider set of blocking static props, which is still only four decoration kinds
-   plus tables.
+2. an adjustable viewport size, currently fixed at a third of the window height
+   (attempted and reverted, see the CNA finding below).
 
 The classic four-rung ladder is complete: Scout, Operative, Veteran and Phantom.
-Phantom deliberately shares Veteran's roster, health and ammunition and escalates
-only behaviour — 160% incoming damage, faster movement and cadence, a much shorter
-reaction delay, longer hearing and a third simultaneous shooter. Two constraints
-forced that shape. Veteran already selects `maximumEnemySpawnTier = 2`, the highest
-authored tier, so a fourth rung cannot add enemies without authoring new encounters;
-and Veteran's ammunition supply already equals its clear budget exactly, with zero
-slack, so taking rounds away would make the campaign unclearable rather than harder.
+Phantom hits at 160%, moves and fires faster, reacts far sooner, hears further,
+fields a third simultaneous shooter, starts with two lives instead of three and
+finds health pickups worth 70%.
+
+Both of the constraints that originally forced Phantom to share Veteran's roster
+have since been removed. Spawn tiers are positional, cycled over the authored
+enemies in map order, and the old four-step cycle already gave Veteran the entire
+roster — so raising the tier limit alone would have changed nothing. The cycle is
+now eight steps, `{0,1,0,2,0,3,0,1}`, which holds Scout at half a level and
+Operative at three quarters exactly as before, moves Veteran to seven eighths and
+reserves the full roster for the top rung; the top-rung slot sits at index 5 rather
+than 7 so the two smallest levels contain one too. Ambushes, patrols and the boss no
+longer consume a cycle slot, since they are present at every difficulty and were
+skewing which tiers a level actually contained.
+
+The ammunition budget had no slack at all — Veteran's supply equalled its clear
+budget exactly in the starter sector — which is why the ladder could not be tuned
+upwards. Three ammunition pickups per level lift every rung to a margin of 18 to 38
+rounds, and the audit now demands a margin rather than a bare pass so it cannot
+silently return to zero.
 
 Enemy aggression itself was extended first, because the three existing rungs did not
 differ as much as they claimed. Reaction delay and hearing range now scale, and the
 single-ranged-attacker throttle is now a per-difficulty limit: previously only one
 enemy could ever fire at a time on every difficulty, so extra spawns added health to
 grind through but never additional incoming fire.
+
+Ten solid bunker props now furnish the sectors: steel drum, water cistern, supply
+crates, floor lamp, ration tins, valve assembly, laboratory bench, equipment rack,
+empty pressure suit and archive cabinet. They are billboards like the plant
+landmarks but, unlike decorations, they block movement, sharing the authored
+table's cell-blocking path through `IsSolidPropSymbol` so player collision, enemy
+navigation and hitscan all agree without a second mechanism.
+
+Digits `0`-`9` are their level symbols; letters were nearly exhausted. Placement
+only accepts an interior floor cell with at least three open neighbours, so a prop
+can never plug a one-cell doorway, and the existing route audits confirm every
+sector stays walkable end to end.
+
+The generator returned all ten on one contact sheet rather than as ten files, so
+they were split on the transparent gaps and the RGB of fully transparent pixels was
+cleared — straight-alpha blending would otherwise let the sheet's dark vignette
+bleed into an edge, the same class of problem recorded for the muzzle flashes.
+Three sprites depict something other than the prompt asked for and are named for
+what they actually are; `ASSET_PROVENANCE.md` records that alongside each prompt.
 
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 

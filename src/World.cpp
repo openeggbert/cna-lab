@@ -218,11 +218,43 @@ namespace WolfCna
         return false;
     }
 
+    std::optional<World::PropType> World::PropTypeForSymbol(char symbol)
+    {
+        if (symbol < '0' || symbol > '9')
+            return std::nullopt;
+        return static_cast<PropType>(symbol - '0');
+    }
+
+    bool World::IsSolidPropSymbol(char symbol)
+    {
+        // 'Y' is the authored table, which predates these and blocks the same way.
+        return symbol == 'Y' || PropTypeForSymbol(symbol).has_value();
+    }
+
+    float World::PropHeight(PropType type)
+    {
+        switch (type)
+        {
+        case PropType::SteelDrum: return 0.82f;
+        case PropType::WaterCistern: return 0.66f;
+        case PropType::SupplyCrates: return 0.72f;
+        case PropType::FloorLamp: return 1.32f;
+        case PropType::RationTins: return 0.38f;
+        case PropType::ValveAssembly: return 0.94f;
+        case PropType::LaboratoryBench: return 0.9f;
+        case PropType::EquipmentRack: return 1.24f;
+        case PropType::EmptyPressureSuit: return 1.3f;
+        case PropType::ArchiveCabinet: return 1.02f;
+        case PropType::Count: break;
+        }
+        return 0.8f;
+    }
+
     bool World::IsBlockedCell(int x, int z) const
     {
         if (IsStaticWallCell(x, z))
             return true;
-        if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y')
+        if (IsSolidPropSymbol(map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]))
             return true;
 
         for (const Exit& exit : exits_)
@@ -249,7 +281,7 @@ namespace WolfCna
     {
         if (IsStaticWallCell(x, z))
             return true;
-        if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y' ||
+        if (IsSolidPropSymbol(map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]) ||
             IsExitCell(x, z))
             return true;
 
@@ -340,7 +372,8 @@ namespace WolfCna
                 return true;
             if (cellZ < 0 || cellZ >= static_cast<int>(map_.size()) ||
                 cellX < 0 || cellX >= static_cast<int>(map_[static_cast<std::size_t>(cellZ)].size()) ||
-                map_[static_cast<std::size_t>(cellZ)][static_cast<std::size_t>(cellX)] == 'Y')
+                IsSolidPropSymbol(
+                    map_[static_cast<std::size_t>(cellZ)][static_cast<std::size_t>(cellX)]))
                 return true;
             for (const Exit& exit : exits_)
             {
@@ -2405,6 +2438,25 @@ namespace WolfCna
 
     void World::BuildDecorations()
     {
+        props_.clear();
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                if (const std::optional<PropType> prop = PropTypeForSymbol(map_[z][x]))
+                {
+                    // Sits on the floor at the cell centre; PropHeight decides how tall the
+                    // billboard stands, and the cell blocks through IsSolidPropSymbol.
+                    props_.push_back({
+                        Vector3(
+                            static_cast<float>(x) + 0.5f,
+                            PropHeight(*prop) * 0.5f,
+                            static_cast<float>(z) + 0.5f),
+                        *prop});
+                }
+            }
+        }
+
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
@@ -2898,6 +2950,7 @@ namespace WolfCna
         Texture2D& ceilingLampTexture,
         Texture2D& lampLightTexture,
         Texture2D& plantSprite,
+        const std::array<Texture2D*, PropTypeCount>& propSprites,
         const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
@@ -2957,6 +3010,38 @@ namespace WolfCna
 
             device.SetVertexBuffer(billboardVertexBuffer_.get());
             device.setIndicesProperty(billboardIndexBuffer_.get());
+            for (const Prop& prop : props_)
+            {
+                Texture2D* sprite = propSprites[static_cast<std::size_t>(prop.type)];
+                if (sprite == nullptr)
+                    continue;
+
+                const float height = PropHeight(prop.type);
+                const float aspect = static_cast<float>(sprite->getWidthProperty()) /
+                    static_cast<float>(std::max(1, sprite->getHeightProperty()));
+                effect.setTextureProperty(sprite);
+                effect.setWorldProperty(
+                    Matrix::CreateScale(height * aspect, height, 1.0f) *
+                    Matrix::CreateConstrainedBillboard(
+                        prop.position,
+                        cameraPosition,
+                        Vector3::Up,
+                        std::nullopt,
+                        std::nullopt));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(billboardVertices_.size()),
+                        0,
+                        static_cast<int>(billboardIndices_.size() / 3));
+                }
+            }
+
             for (const Decoration& decoration : decorations_)
             {
                 if (decoration.type == Decoration::Type::CeilingLamp)

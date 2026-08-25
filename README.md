@@ -40,6 +40,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - every surviving enemy briefly switches to its own non-gory recoil pose when hit
 - every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal
 - authored rooms include procedural framed paintings, peace-symbol banners, ceiling lamps with warm floor-light pools, wood-textured polygonal tables and three sector-specific freestanding plant landmarks
+- ten original solid bunker props — steel drum, water cistern, supply crates, floor lamp, ration tins, valve assembly, laboratory bench, equipment rack, empty pressure suit and archive cabinet — block the player and enemies like the authored tables, placed five per sector by theme
 - room-scale wall regions use four original generated material families: cool bunker stone, dark industrial brick, teal riveted steel and cold laboratory panels
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
 - the original Bunker Warden boss has a dedicated health bar, 48-point base health, four generated visual states and a deterministic three-projectile fan attack
