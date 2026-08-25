@@ -856,14 +856,22 @@ new M8-style extras, are:
 2. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay;
 3. an adjustable viewport size, currently fixed at a third of the window height;
-4. separate music and sound-effect volume instead of one master step;
-5. an inter-sector loading screen;
-6. a wider set of blocking static props, which is still only four decoration kinds
+4. an inter-sector loading screen;
+5. a wider set of blocking static props, which is still only four decoration kinds
    plus tables.
 
-Note that the explored-area automap (WOLF-018) has no 1992 counterpart, so the
-project already carries deliberate additions; the ordering preference above is
-about finishing the classic core first, not about refusing extras.
+An earlier revision of this list also claimed separate music and sound-effect
+volume as a classic gap. That was wrong and has been removed: the 1992 sound menu
+selected an audio *device* — PC Speaker, AdLib or Sound Blaster — and had no
+volume control at all. Per-channel volume is a later convention, so adding it
+would be an addition like any other, not a restoration.
+
+Note that the explored-area automap (WOLF-018) has no 1992 counterpart either, and
+neither do the dedicated `A`/`D` strafe keys: the original strafed by holding a
+modifier and turning. So the project already carries deliberate additions; the
+ordering preference above is about finishing the classic core first, not about
+refusing extras. Verify such claims against the released id Software source rather
+than from memory — that is how this entry was found to be wrong.
 
 Keep task IDs stable after they are introduced.
 
