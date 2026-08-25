@@ -82,6 +82,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - `1` / `2` / `3` / `4`: knife / sidearm / repeater / heavy automatic; weapons 3 and 4 must be found first, and each automatic projectile consumes exactly one round
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
+- the pause menu cycles `VIEW SIZE` through five steps; the smaller ones shrink the 3D window inside the area above the HUD and leave the classic border, and the weapon scales and sits with that window
 - `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
 - `F8`: safely save the current run to the selected slot through a temporary file
 - `F9`: quick-load the selected slot; the pause and title menus also select, save and load slots 1–3
@@ -112,7 +113,7 @@ After the campaign finale, a qualifying score enters three initials and joins a
 validated, descending table of the best eight results shown on the ending screen.
 Unlocked sectors and high scores are stored in `wolf-cna-progress.dat` in the launch
 working directory. Invalid progress data safely falls back to sector 1 with an empty
-score table; profile versions 1–8 migrate into the current version 9 format. Each
+score table; profile versions 1–9 migrate into the current version 10 format. Each
 version appends to the previous one, so an older profile keeps every setting it
 stored and adopts the defaults for whatever it predates.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.

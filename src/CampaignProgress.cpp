@@ -21,11 +21,8 @@ namespace WolfCna
         constexpr std::string_view ControlHeader = "WOLF-CNA-PROGRESS-6";
         constexpr std::string_view MouseHeader = "WOLF-CNA-PROGRESS-7";
         constexpr std::string_view MouseModelHeader = "WOLF-CNA-PROGRESS-8";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-9";
-        // Version 10 briefly persisted a view-size step for a feature that had to be
-        // reverted. Profiles in that format already exist on disk, so it is still read and
-        // the extra field is discarded rather than resetting everyone's settings.
-        constexpr std::string_view RevertedViewSizeHeader = "WOLF-CNA-PROGRESS-10";
+        constexpr std::string_view AlternateBindingHeader = "WOLF-CNA-PROGRESS-9";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-10";
         constexpr std::array SupportedFieldOfView = {60, 72, 84, 96};
 
         bool IsSupportedFieldOfView(int fieldOfView)
@@ -141,19 +138,18 @@ namespace WolfCna
             profile.highScores = NormalizeHighScores(std::move(profile.highScores));
         }
         else if (header == ControlHeader || header == MouseHeader ||
-            header == MouseModelHeader || header == Header ||
-            header == RevertedViewSizeHeader)
+            header == MouseModelHeader || header == AlternateBindingHeader ||
+            header == Header)
         {
             // Each version adds fields to the end of the previous one, so an older profile
             // simply stops early and keeps the defaults for everything it never stored.
             // Version 6 predates the mouse entirely; version 7 has look settings but no
             // vertical-axis choice or button assignments.
             const bool hasMouseSettings = header != ControlHeader;
-            const bool hasMouseModel = header == MouseModelHeader || header == Header ||
-                header == RevertedViewSizeHeader;
+            const bool hasMouseModel = header == MouseModelHeader || header == Header;
             const bool hasAlternateBindings =
-                header == Header || header == RevertedViewSizeHeader;
-            const bool hasRevertedViewSize = header == RevertedViewSizeHeader;
+                header == AlternateBindingHeader || header == Header;
+            const bool hasViewSize = header == Header;
             if (!(input >> profile.soundVolume >> profile.difficulty >>
                     profile.fieldOfView >> profile.controls.turnSensitivityStep) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
@@ -253,11 +249,14 @@ namespace WolfCna
             if (!AreValidControlSettings(profile.controls))
                 return {};
 
-            if (hasRevertedViewSize)
+            if (hasViewSize)
             {
-                int discardedViewSizeStep = 0;
-                if (!(input >> discardedViewSizeStep))
+                if (!(input >> profile.viewSizeStep) ||
+                    profile.viewSizeStep < 0 ||
+                    profile.viewSizeStep > MaximumViewSizeStep)
+                {
                     return {};
+                }
             }
 
             std::size_t highScoreCount = 0;
@@ -322,6 +321,7 @@ namespace WolfCna
             output << index << ' '
                 << static_cast<int>(controls.alternateBindings[index]) << '\n';
         }
+        output << std::clamp(profile.viewSizeStep, 0, MaximumViewSizeStep) << '\n';
         output << highScores.size() << '\n';
         for (const HighScoreEntry& entry : highScores)
             output << entry.initials << ' ' << entry.score << '\n';

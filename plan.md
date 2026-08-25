@@ -853,9 +853,7 @@ The remaining gaps against the 1992 DOS grammar, which should be preferred over
 new M8-style extras, are:
 
 1. attract-mode demo playback from an idle title screen, which needs deterministic
-   input recording and replay;
-2. an adjustable viewport size, currently fixed at a third of the window height
-   (attempted and reverted, see the CNA finding below).
+   input recording and replay.
 
 The classic four-rung ladder is complete: Scout, Operative, Veteran and Phantom.
 Phantom hits at 160%, moves and fires faster, reacts far sooner, hears further,
@@ -1009,9 +1007,14 @@ screen.
   so a game-set viewport bypasses whatever makes full screen present correctly.
 - Can the game continue without a workaround: yes, by not setting a viewport. The
   feature is parked rather than faked.
-- Status: the project owner reports this is fixable in `cnanext`. Once the public
-  setter applies the logical-to-physical mapping, the adjustable view size can be
-  restored by reverting the revert; the mechanism itself was correct.
+- Status: **resolved**. `cnanext` commit `b773a8a7c` makes `setViewportProperty` map
+  the rectangle through `MapLogicalRectToPresentation` before handing it to the
+  renderer, while keeping the logical rectangle in the public cache so a game reads
+  back what it assigned. `ScissorRectangle` had the same defect and was fixed with it.
+  The adjustable view size was restored by reverting the revert; the game-side
+  mechanism had been correct all along, which is why nothing about it needed changing.
+  Worth keeping as a record: the symptom appeared only after the 3D world was drawn,
+  because the menus are centred panels on a dark ground and hid the shrunken drawable.
 
 A second, smaller finding surfaced while diagnosing this:
 `GraphicsAdapter::queryCurrentDisplayMode` returns a hardcoded

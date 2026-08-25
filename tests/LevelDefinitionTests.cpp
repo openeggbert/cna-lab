@@ -891,22 +891,31 @@ int main()
             mouseProfile.controls.mouseSensitivityStep == 4 &&
             mouseProfile.fieldOfView == 96,
         "a disabled mouse and its sensitivity survive a profile round trip");
-    // Version 10 shipped a view-size step whose feature was reverted. Profiles in that
-    // format exist on disk, so it must still load with everything else intact.
-    const WolfCna::CampaignProfile revertedViewSizeProfile = WolfCna::CampaignProgress::Parse(
-        std::string("WOLF-CNA-PROGRESS-10\n1\n3\n2\n84\n2\n1\n2\n0\n3\n1\n3\n2\n10\n") +
-            std::string(classicBindings) +
-            "10\n0 87\n1 83\n2 0\n3 0\n4 0\n5 0\n6 0\n7 0\n8 0\n9 0\n" + "2\n0\n",
+    Expect(
+        WolfCna::ViewSizeScale(WolfCna::MaximumViewSizeStep) == 1.0f &&
+            WolfCna::ViewSizeScale(0) == 0.5f &&
+            WolfCna::ViewSizeScale(1) < WolfCna::ViewSizeScale(2) &&
+            WolfCna::ViewSizeScale(-3) == WolfCna::ViewSizeScale(0) &&
+            WolfCna::ViewSizeScale(99) == WolfCna::ViewSizeScale(WolfCna::MaximumViewSizeStep),
+        "the largest view size fills the play area and smaller steps shrink it monotonically");
+    WolfCna::CampaignProfile viewSizeSource;
+    viewSizeSource.highestUnlocked = 1;
+    viewSizeSource.viewSizeStep = 1;
+    const WolfCna::CampaignProfile viewSizeProfile = WolfCna::CampaignProgress::Parse(
+        WolfCna::CampaignProgress::Serialize(viewSizeSource, 3),
         3);
     Expect(
-        revertedViewSizeProfile.highestUnlocked == 1 &&
-            revertedViewSizeProfile.soundVolume == 3 &&
-            revertedViewSizeProfile.difficulty == 2 &&
-            revertedViewSizeProfile.fieldOfView == 84 &&
-            revertedViewSizeProfile.controls.alternateBindings[
-                WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
-                WolfCna::Keys::W,
-        "a profile written by the reverted view-size version still loads its settings");
+        viewSizeProfile.viewSizeStep == 1,
+        "a reduced view size survives a profile round trip");
+    const WolfCna::CampaignProfile invalidViewSizeProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-10\n1\n4\n1\n72\n2\n1\n2\n0\n3\n1\n3\n2\n10\n") +
+            std::string(classicBindings) + "10\n" +
+            "0 87\n1 83\n2 0\n3 0\n4 0\n5 0\n6 0\n7 0\n8 0\n9 0\n" + "9\n0\n",
+        3);
+    Expect(
+        invalidViewSizeProfile.highestUnlocked == 0 &&
+            invalidViewSizeProfile.viewSizeStep == WolfCna::MaximumViewSizeStep,
+        "an out-of-range view size invalidates the profile and restores the full view");
 
     // Version 8 stored primaries but no secondaries. A profile that already moved forward
     // with W must not also receive W as a secondary somewhere else.
