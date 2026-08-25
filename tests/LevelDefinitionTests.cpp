@@ -1293,6 +1293,37 @@ int main()
         }
         return shots;
     };
+    // A wide room whose guards sit beyond the base engagement range, so this measures the
+    // whole package -- reach, reaction, cadence, damage and simultaneous shooters -- rather
+    // than any single multiplier. The top rungs must land clearly more damage here, which is
+    // the complaint this pins: Phantom looked harsher on paper without feeling harder.
+    const WolfCna::LevelDefinition pressureLevel = WolfCna::LevelDefinition::Parse(
+        "##############\n#P...G...G..G#\n#....G...G..G#\n##############\n",
+        "difficulty-pressure.level");
+    const auto measurePressure = [&pressureLevel](WolfCna::Difficulty difficulty)
+    {
+        WolfCna::World pressureWorld(pressureLevel, difficulty);
+        const Microsoft::Xna::Framework::Vector3 target(1.5f, 0.62f, 1.5f);
+        int damage = 0;
+        for (int tick = 0; tick < 200; ++tick)
+            damage += pressureWorld.Update(0.05f, target);
+        return damage;
+    };
+    const int operativePressure = measurePressure(WolfCna::Difficulty::Operative);
+    const int veteranPressure = measurePressure(WolfCna::Difficulty::Veteran);
+    const int phantomPressure = measurePressure(WolfCna::Difficulty::Phantom);
+    Expect(
+        operativePressure < veteranPressure &&
+            phantomPressure > veteranPressure * 3 / 2,
+        "each rung lands clearly more damage under sustained pressure");
+    Expect(
+        phantomProfile.startingLives < veteranProfile.startingLives &&
+            phantomProfile.healthPickupMultiplier <
+                veteranProfile.healthPickupMultiplier &&
+            veteranProfile.wakeRangeMultiplier > operativeProfile.wakeRangeMultiplier &&
+            phantomProfile.wakeRangeMultiplier > veteranProfile.wakeRangeMultiplier,
+        "the top rungs also cut the player's margin and engage from further out");
+
     const int operativeCrossfire = countCrossfireShots(WolfCna::Difficulty::Operative);
     const int veteranCrossfire = countCrossfireShots(WolfCna::Difficulty::Veteran);
     Expect(

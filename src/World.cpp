@@ -43,6 +43,7 @@ namespace WolfCna
         constexpr float ImpactHalfSize = 0.075f;
         constexpr float ImpactSurfaceOffset = 0.003f;
         constexpr float EnemyWakeRange = 7.0f;
+        // Scaled per difficulty through World::WakeRange(); the constant is the baseline.
         constexpr float EnemyCloseAwarenessRange = 0.8f;
         constexpr float EnemySearchSeconds = 2.0f;
         constexpr float HoundAttackRange = 0.85f;
@@ -1457,7 +1458,7 @@ namespace WolfCna
             const float sightDx = playerPosition.X - enemy.position.X;
             const float sightDz = playerPosition.Z - enemy.position.Z;
             const bool activeSight =
-                sightDx * sightDx + sightDz * sightDz <= EnemyWakeRange * EnemyWakeRange &&
+                sightDx * sightDx + sightDz * sightDz <= WakeRange() * WakeRange() &&
                 HasLineOfSight(enemy.position, playerPosition);
             const bool canSeePlayer = passivelyObserving
                 ? HasDirectionalSight(enemy, playerPosition)
@@ -1514,7 +1515,7 @@ namespace WolfCna
             const float dz = playerPosition.Z - enemy.position.Z;
             const float distanceSquared = dx * dx + dz * dz;
             if (distanceSquared > enemy.attackRange * enemy.attackRange ||
-                distanceSquared > EnemyWakeRange * EnemyWakeRange ||
+                distanceSquared > WakeRange() * WakeRange() ||
                 !HasLineOfSight(enemy.position, playerPosition))
                 continue;
 
@@ -1549,7 +1550,7 @@ namespace WolfCna
             const float dz = playerPosition.Z - enemy.position.Z;
             const float distanceSquared = dx * dx + dz * dz;
             const bool canSeePlayer =
-                distanceSquared <= EnemyWakeRange * EnemyWakeRange &&
+                distanceSquared <= WakeRange() * WakeRange() &&
                 HasLineOfSight(enemy.position, playerPosition);
 
             if (enemy.state == EnemyState::Patrol)
@@ -2285,6 +2286,12 @@ namespace WolfCna
                     amount = ScalePositiveAmount(amount, difficultyProfile_.ammunitionMultiplier);
                     fixedAmmunition_ += amount;
                 }
+                else if (symbol == 'H' || symbol == 'h')
+                {
+                    amount = ScalePositiveAmount(
+                        amount,
+                        difficultyProfile_.healthPickupMultiplier);
+                }
                 pickups_.push_back({
                     Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
                     type,
@@ -2378,6 +2385,11 @@ namespace WolfCna
         }
     }
 
+    float World::WakeRange() const
+    {
+        return EnemyWakeRange * difficultyProfile_.wakeRangeMultiplier;
+    }
+
     void World::BuildDecorations()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -2464,7 +2476,7 @@ namespace WolfCna
         const float dx = target.X - enemy.position.X;
         const float dz = target.Z - enemy.position.Z;
         const float distanceSquared = dx * dx + dz * dz;
-        if (distanceSquared > EnemyWakeRange * EnemyWakeRange ||
+        if (distanceSquared > WakeRange() * WakeRange() ||
             !HasLineOfSight(enemy.position, target))
             return false;
         if (distanceSquared <= EnemyCloseAwarenessRange * EnemyCloseAwarenessRange)

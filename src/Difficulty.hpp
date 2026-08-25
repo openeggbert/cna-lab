@@ -46,6 +46,13 @@ namespace WolfCna
         float reactionDelayMultiplier = 1.0f;
         float hearingRangeMultiplier = 1.0f;
 
+        // Player resilience, and how far an enemy will engage from. Neither scaled before,
+        // which is why the top rungs did not feel harder in real corridors: the extra
+        // shooters the limit below allows only matter if that many enemies actually engage.
+        int startingLives = 3;
+        float healthPickupMultiplier = 1.0f;
+        float wakeRangeMultiplier = 1.0f;
+
         // How many ranged enemies may fire at once. The single-attacker throttle is what
         // kept extra Veteran spawns from ever producing extra incoming fire, so the higher
         // tiers stopped feeling harder however many enemies they added.
@@ -81,6 +88,7 @@ namespace WolfCna
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.65f,
                 .hearingRangeMultiplier = 1.3f,
+                .wakeRangeMultiplier = 1.15f,
                 .maximumRangedAttackers = 2};
         case Difficulty::Phantom:
             // Veteran already spawns every authored encounter tier, so a fourth rung
@@ -101,6 +109,9 @@ namespace WolfCna
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.45f,
                 .hearingRangeMultiplier = 1.5f,
+                .startingLives = 2,
+                .healthPickupMultiplier = 0.7f,
+                .wakeRangeMultiplier = 1.4f,
                 .maximumRangedAttackers = 3};
         }
         return {};

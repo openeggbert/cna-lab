@@ -581,6 +581,7 @@ namespace WolfCna
         void BuildRelays();
         void BuildExits();
         void BuildDecorations();
+        [[nodiscard]] float WakeRange() const;
         void BuildBillboardGeometry();
         void BuildBloodPoolGeometry();
         [[nodiscard]] bool HasLineOfSight(
