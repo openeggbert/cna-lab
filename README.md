@@ -16,6 +16,13 @@ behavioral and architectural references only.
 `People` is a working public title. A proper name and trademark clearance must
 be completed before a serious public or commercial release.
 
+## Screenshot
+
+![People running on CNA: a procedural isometric lot with walls, a door, furniture, and the resident Mara Vale](screenshot.png)
+
+The current `develop` build: a 20 x 20 isometric lot with an original
+procedural room, furniture, and one resident.
+
 ## Current maturity
 
 The first executable milestone is working on `develop`. People opens through
