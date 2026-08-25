@@ -2066,7 +2066,7 @@ namespace WolfCna
             };
             for (std::size_t index = 0; index < ControlActionCount; ++index)
             {
-                const int y = top + 40 + static_cast<int>(index) * 14;
+                const int y = top + 38 + static_cast<int>(index) * 13;
                 const bool isSelected = menuSelection_ == static_cast<int>(index);
                 const std::string option = std::string(ControlActionName(BindableControlActions[index])) +
                     "  " + ControlKeyName(controlSettings_.bindings[index]);
@@ -2087,7 +2087,7 @@ namespace WolfCna
             for (int index = 0; index < static_cast<int>(trailingOptions.size()); ++index)
             {
                 const int selection = sensitivityIndex + index;
-                const int y = top + 182 + index * 14;
+                const int y = top + 172 + index * 13;
                 const bool isSelected = menuSelection_ == selection;
                 if (isSelected)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
@@ -2099,7 +2099,9 @@ namespace WolfCna
                 : controlsStatusMessage_.empty()
                     ? "ENTER REBIND  ARROWS SELECT"
                     : std::string_view(controlsStatusMessage_);
-            centeredSmall(top + 250, prompt, waitingForBinding_ ? selected : normal);
+            // Fifteen rows plus the prompt share the 260px panel, so the 13px step and this
+            // baseline are what keep the last line clear of the bottom border at top+257.
+            centeredSmall(top + 240, prompt, waitingForBinding_ ? selected : normal);
         }
         hudSpriteBatch_->End();
     }

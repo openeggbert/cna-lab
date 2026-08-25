@@ -88,9 +88,15 @@
 - Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were rebuilt from a clean configure against explicit `cnanext`/`sharp-runtimenext` paths and served successfully over local HTTP.
 - Firefox 140.10.1 ESR completed a clean-profile headless smoke test without a page exception and rendered the 800×480 Wolf CNA title screen; manual audio/fullscreen testing still needs an interactive browser.
 - Mouse control has not been played yet. It is covered by unit tests for the yaw
-  conversion, the per-frame clamp and profile migration, but capture, cursor
-  release and pointer feel need a real window; the web build has not been
-  rebuilt since, so pointer lock in the browser is entirely unverified.
+  conversion, the per-frame clamp and profile migration, and the game starts and
+  runs, but capture, cursor release and pointer feel need a real window. Browser
+  pointer lock is entirely unverified.
+- Control setup now holds fifteen rows plus its prompt in the 260px panel, so the
+  row step dropped to 13px. The arithmetic leaves the last line clear of the
+  bottom border, but the screen has not been looked at; it is worth one glance.
+- The web target now also builds and passes `level-definition-tests.js` under
+  node. Attempts to screenshot the game under Xvfb produced blank captures, so
+  automated visual checks of menus are not currently possible that way.
 - The stale `build-web-cna-old-20260824/` directory was deleted.
 
 ## Next tasks
@@ -116,4 +122,12 @@ cmake -S . -B build -DCNA_GRAPHICS_RENDERER=OPENGLES3
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ./build/wolf-cna
+```
+
+The web target reuses `build-web-cnanext` and needs the emsdk on `PATH`:
+
+```bash
+source ~/emsdk/emsdk_env.sh
+cmake --build build-web-cnanext -j
+node build-web-cnanext/level-definition-tests.js
 ```
