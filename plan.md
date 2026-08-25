@@ -915,12 +915,11 @@ bleed into an edge, the same class of problem recorded for the muzzle flashes.
 Three sprites depict something other than the prompt asked for and are named for
 what they actually are; `ASSET_PROVENANCE.md` records that alongside each prompt.
 
-The rubble pile has no generated sprite: the generator answered that prompt with an
-equipment rack. Its texture is therefore project-generated at runtime, built from a
-dozen shaded concrete chunks with bent reinforcing bar rather than from noise, since
-a broken-block silhouette is what reads as rubble at billboard size. It is visibly
-cruder than the nine painted sprites and is meant to be replaced by dropping a PNG
-into `assets/props` and loading it alongside the others.
+The rubble pile was generated separately, after the contact sheet answered its prompt
+with an equipment rack. Its prompt was rewritten as prose rather than the field-style
+record `ASSET_PROVENANCE.md` stores: that format is how a prompt is *recorded*, not a
+usable chat instruction, and pasting it verbatim is what produced unrelated images on
+the first attempt. The stopgap procedural texture it briefly used has been removed.
 
 One correction worth keeping: the billboard quad runs from y=0 to y=1, so its origin
 is its own bottom edge. Placing props at half their height, as if the origin were

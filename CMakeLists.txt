@@ -318,6 +318,10 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/props/archive-cabinet.png"
     COPYONLY)
 configure_file(
+    assets/props/rubble-pile.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/rubble-pile.png"
+    COPYONLY)
+configure_file(
     assets/props/sector-exit.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/props/sector-exit.png"
     COPYONLY)

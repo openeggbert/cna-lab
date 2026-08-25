@@ -583,7 +583,7 @@ namespace WolfCna
         foundryPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/foundry-plant.png", device);
         labsPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/labs-plant.png", device);
         archivePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/archive-plant.png", device);
-        constexpr std::array<const char*, 10> propFiles{
+        constexpr std::array<const char*, World::PropTypeCount> propFiles{
             "assets/props/steel-drum.png",
             "assets/props/water-cistern.png",
             "assets/props/supply-crates.png",
@@ -593,10 +593,10 @@ namespace WolfCna
             "assets/props/laboratory-bench.png",
             "assets/props/equipment-rack.png",
             "assets/props/empty-pressure-suit.png",
-            "assets/props/archive-cabinet.png"};
+            "assets/props/archive-cabinet.png",
+            "assets/props/rubble-pile.png"};
         for (std::size_t index = 0; index < propFiles.size(); ++index)
             propSprites_[index] = std::make_unique<Texture2D>(propFiles[index], device);
-        CreateProceduralRubbleTexture();
 
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
@@ -833,89 +833,6 @@ namespace WolfCna
         }
 
         bloodDecal_->SetData(pixels.data(), static_cast<int>(pixels.size()));
-    }
-
-    void WolfGame::CreateProceduralRubbleTexture()
-    {
-        // The generator returned an equipment rack instead of the requested rubble, so
-        // this pile is project-generated for now. It is deliberately built from a handful
-        // of solid chunks rather than noise: a broken-concrete silhouette is what reads as
-        // rubble at billboard size. Replacing it later only means dropping a PNG into
-        // assets/props and loading it alongside the others.
-        constexpr int width = 128;
-        constexpr int height = 96;
-        auto& device = getGraphicsDeviceProperty();
-        std::vector<Color> pixels(
-            static_cast<std::size_t>(width * height),
-            Color(0, 0, 0, 0));
-
-        struct Chunk { int x; int y; int w; int h; int shade; };
-        constexpr std::array<Chunk, 13> chunks{{
-            {8, 74, 26, 18, 0}, {30, 68, 30, 24, 1}, {56, 76, 24, 16, 0},
-            {74, 66, 28, 26, 2}, {96, 78, 24, 14, 1},
-            {22, 54, 24, 20, 2}, {46, 50, 26, 22, 0}, {70, 52, 22, 18, 1},
-            {36, 36, 24, 20, 1}, {58, 32, 22, 22, 2},
-            {46, 20, 20, 16, 0}, {14, 66, 14, 12, 2}, {104, 68, 16, 12, 0}}};
-        const std::array<Color, 3> body{
-            Color(126, 128, 130, 255),
-            Color(104, 106, 110, 255),
-            Color(142, 143, 144, 255)};
-
-        for (const Chunk& chunk : chunks)
-        {
-            for (int y = chunk.y; y < chunk.y + chunk.h; ++y)
-            {
-                for (int x = chunk.x; x < chunk.x + chunk.w; ++x)
-                {
-                    if (x < 0 || x >= width || y < 0 || y >= height)
-                        continue;
-                    const bool topEdge = y < chunk.y + 2;
-                    const bool bottomEdge = y >= chunk.y + chunk.h - 2;
-                    const bool sideEdge = x < chunk.x + 2 || x >= chunk.x + chunk.w - 2;
-                    Color colour = body[static_cast<std::size_t>(chunk.shade)];
-                    const int r = static_cast<int>(colour.getRProperty());
-                    const int g = static_cast<int>(colour.getGProperty());
-                    const int b = static_cast<int>(colour.getBProperty());
-                    if (topEdge)
-                        colour = Color(
-                            std::min(255, r + 26),
-                            std::min(255, g + 26),
-                            std::min(255, b + 24),
-                            255);
-                    else if (bottomEdge || sideEdge)
-                        colour = Color(
-                            std::max(0, r - 34),
-                            std::max(0, g - 34),
-                            std::max(0, b - 32),
-                            255);
-                    pixels[static_cast<std::size_t>(y * width + x)] = colour;
-                }
-            }
-        }
-
-        // Bent reinforcing bar poking out of the pile.
-        constexpr std::array<std::pair<int, int>, 3> barStarts{{{40, 34}, {66, 30}, {88, 60}}};
-        for (const auto [barX, barY] : barStarts)
-        {
-            for (int step = 0; step < 20; ++step)
-            {
-                const int x = barX + step - step * step / 26;
-                const int y = barY - step + step * step / 30;
-                for (int thickness = 0; thickness < 2; ++thickness)
-                {
-                    const int px = x + thickness;
-                    if (px < 0 || px >= width || y < 0 || y >= height)
-                        continue;
-                    pixels[static_cast<std::size_t>(y * width + px)] =
-                        Color(128, 76, 44, 255);
-                }
-            }
-        }
-
-        propSprites_[static_cast<std::size_t>(World::PropType::RubblePile)] =
-            std::make_unique<Texture2D>(device, width, height);
-        propSprites_[static_cast<std::size_t>(World::PropType::RubblePile)]
-            ->SetData(pixels.data(), static_cast<int>(pixels.size()));
     }
 
     void WolfGame::CreateProceduralDecorationTextures()

@@ -899,7 +899,7 @@ Constraints: genuinely transparent background and preserved alpha, no text, no l
 
 ## WOLF-049 bunker prop sprites
 
-These ten original project assets were generated on 2026-08-25 with OpenAI's image
+These eleven original project assets were generated on 2026-08-25 with OpenAI's image
 generation tool from the prompts recorded below. No third-party reference image or
 third-party pixel was used, and no pixels derive from Wolfenstein 3D or any other
 game.
@@ -1001,6 +1001,33 @@ Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired 
 Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
 Lighting/mood: cold clinical lighting, crisp highlights on the glass edges
 Color palette: pale laboratory grey-green panels, clear glass with cyan tint, chrome frame, deep navy shadows
+```
+
+### `assets/props/rubble-pile.png`
+
+Generated separately on 2026-08-25 after the contact sheet answered the rubble prompt
+with an equipment rack. It arrived as a single 1536x1024 image with genuine alpha and
+needed no splitting; only the RGB of its fully transparent pixels was cleared, which
+removed the warm halo the generator had left behind the object. The prompt was
+rewritten as prose rather than the field-style record below, because the field format
+is how this file stores a prompt and is not itself a usable chat instruction.
+
+```text
+An original pile of collapsed masonry rubble, drawn as a single game prop on a
+fully transparent background. Broken concrete blocks of different sizes heaped in
+a low mound, chipped edges, a few bent rust-brown reinforcing bars poking out of
+the top, loose grit and dust settled around the base. Nothing resembling bones or
+remains.
+
+Sharp high-resolution hand-painted pixel art in the style of a late-1980s retro
+first-person shooter sprite: crisp clustered pixels, readable at small size, cool
+concrete grey with pale dust highlights and deep navy shadows, soft neutral
+lighting from above.
+
+Single centred object seen from a three-quarter front view, complete silhouette,
+generous transparent padding on all sides. Landscape image, roughly 1536 by 1024.
+Transparent background, no ground plane, no shadow cast onto the background, no
+text, no logos, no watermark.
 ```
 
 ### `assets/props/equipment-rack.png`

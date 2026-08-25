@@ -91,10 +91,8 @@
 - Mouse control, the four-rung ladder, the props and the reworked hound voices have
   all been played by the user on a real display. Browser pointer lock is still
   entirely unverified.
-- The rubble pile is the one prop without a generated sprite; its texture is drawn
-  procedurally at runtime and looks cruder than the other ten. Replacing it means
-  dropping a PNG into `assets/props`, adding its `configure_file` line and loading
-  it beside the others.
+- All eleven props now use generated sprites; the stopgap procedural rubble texture
+  has been removed.
 - Two bugs from this round are worth remembering, because both passed their audits:
   props plugged corridors while every cell stayed reachable, and ten new sprites had
   no `configure_file` entry, which the native build hid because it runs from the
