@@ -1029,6 +1029,25 @@ second loop repeats often enough to grate. The second half reuses the same chord
 with the lead figure displaced by three steps and lifted an octave, which turns a
 repeat into a variation and doubles the length without doubling the material.
 
+### Findability is not reachability
+
+Two bugs this round produced maps that passed every reachability check and were still
+unplayable: props sealed a corridor while every cell stayed reachable by another
+route, and a generated elevator hid in a blind pocket the compass pointed straight
+through. Both were reported from play, not caught by an audit, because the audits ask
+whether a cell can be reached rather than whether a player can find it.
+
+Three checks now guard the class. Props must stand in a clear 3x3 of plain floor.
+Every elevator, authored or generated, must have exactly one open side whose approach
+cell itself opens onto a room. And the compass bears on that approach rather than on
+the cabin. The authored sectors already satisfied the elevator rule -- nothing had
+ever written it down.
+
+The sight cone was also the last perception parameter ignoring difficulty:
+`viewConeMultiplier` is 1.3 / 1.0 / 0.8 / 0.6, multiplying the dot-product threshold
+so a lower value is a wider cone. Hounds see in every direction at threshold zero and
+are unaffected, which is why it multiplies rather than subtracts.
+
 ### CNA finding: relative mouse motion is scaled down on the web — `BACKEND`
 
 Mouse turning in the browser is far slower than the desktop build for the same hand

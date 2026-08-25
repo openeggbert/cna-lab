@@ -2270,6 +2270,9 @@ namespace WolfCna
                     enemy.attackInterval *= difficultyProfile_.enemyAttackIntervalMultiplier;
                     enemy.reactionDuration *= difficultyProfile_.reactionDelayMultiplier;
                     enemy.hearingRange *= difficultyProfile_.hearingRangeMultiplier;
+                    // Hounds already see in every direction at threshold zero; scaling
+                    // leaves that alone rather than turning it negative.
+                    enemy.viewDotThreshold *= difficultyProfile_.viewConeMultiplier;
                     if (enemy.ammunitionDrop > 0)
                     {
                         enemy.ammunitionDrop = ScalePositiveAmount(

@@ -46,6 +46,11 @@ namespace WolfCna
         float reactionDelayMultiplier = 1.0f;
         float hearingRangeMultiplier = 1.0f;
 
+        // Widens the sight cone. The threshold is a dot product, so a lower value is a
+        // wider cone: this multiplies it, and a multiplier below one means an enemy
+        // notices the player further off its own centre line.
+        float viewConeMultiplier = 1.0f;
+
         // Player resilience, and how far an enemy will engage from. Neither scaled before,
         // which is why the top rungs did not feel harder in real corridors: the extra
         // shooters the limit below allows only matter if that many enemies actually engage.
@@ -76,6 +81,7 @@ namespace WolfCna
                 .startingAmmunition = 16,
                 .reactionDelayMultiplier = 1.4f,
                 .hearingRangeMultiplier = 0.75f,
+                .viewConeMultiplier = 1.3f,
                 .startingLives = 4,
                 .healthPickupMultiplier = 1.3f,
                 .maximumRangedAttackers = 1};
@@ -92,6 +98,7 @@ namespace WolfCna
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.65f,
                 .hearingRangeMultiplier = 1.3f,
+                .viewConeMultiplier = 0.8f,
                 .healthPickupMultiplier = 0.85f,
                 .wakeRangeMultiplier = 1.15f,
                 .maximumRangedAttackers = 2};
@@ -114,6 +121,7 @@ namespace WolfCna
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.45f,
                 .hearingRangeMultiplier = 1.5f,
+                .viewConeMultiplier = 0.6f,
                 .startingLives = 2,
                 .healthPickupMultiplier = 0.7f,
                 .wakeRangeMultiplier = 1.4f,

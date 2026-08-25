@@ -77,6 +77,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
 - `MOUSE SETUP` is its own screen: mouse on/off, 40/70/100/130/160% mouse speed, the vertical axis, and an assignable action for each of the three buttons — none, attack, strafe, use or run — mirroring the original's `buttonmouse[]`
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
+- enemy perception scales across the ladder: reaction delay, hearing range, engagement range and the width of the sight cone
 - four difficulty rungs: Scout has fewer, weaker and slower enemies, more ammunition, a fourth life and 130% health kits; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while cutting ammunition and health kits and applying 130% incoming damage; Phantom faces the whole authored roster, hits at 160%, reacts far sooner, hears further, lets a third enemy fire at once and allows only two lives with 70% health kits
 - `Space`: open the door in front of you, deliberately close a fully open ordinary door, or activate a faced sector elevator (doors close after four seconds unless the player, an enemy or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife

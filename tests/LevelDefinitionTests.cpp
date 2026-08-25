@@ -1439,6 +1439,83 @@ int main()
         Expect(themes.size() == 5, "five consecutive floors use five different themes");
     }
 
+    // Findability, not just reachability. Two bugs this round were maps that passed every
+    // reachability check and were still unplayable: props sealed a corridor while every
+    // cell stayed reachable, and an elevator hid in a blind pocket. The authored sectors
+    // have always satisfied this rule; nothing enforced it until now.
+    for (const WolfCna::CampaignSector& findable : WolfCna::CampaignSectors)
+    {
+        const WolfCna::LevelDefinition findableLevel =
+            WolfCna::LevelDefinition::LoadFromFile(std::string(findable.file));
+        const std::vector<std::string>& findableRows = findableLevel.Rows();
+        for (int z = 1; z < 63; ++z)
+        {
+            for (int x = 1; x < 63; ++x)
+            {
+                if (findableRows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != 'E')
+                    continue;
+                int openSides = 0;
+                int approachX = 0;
+                int approachZ = 0;
+                for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                        std::pair{0, 1}, std::pair{0, -1}})
+                {
+                    if (findableRows[static_cast<std::size_t>(z + dz)]
+                            [static_cast<std::size_t>(x + dx)] != '#')
+                    {
+                        ++openSides;
+                        approachX = x + dx;
+                        approachZ = z + dz;
+                    }
+                }
+                int approachOpen = 0;
+                for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{-1, 0},
+                        std::pair{0, 1}, std::pair{0, -1}})
+                {
+                    if (findableRows[static_cast<std::size_t>(approachZ + dz)]
+                            [static_cast<std::size_t>(approachX + dx)] != '#')
+                        ++approachOpen;
+                }
+                Expect(
+                    openSides == 1 && approachOpen >= 3,
+                    "an authored elevator opens onto a room, not a blind pocket");
+            }
+        }
+    }
+
+    // The sight cone was the last perception parameter that ignored difficulty.
+    Expect(
+        scoutProfile.viewConeMultiplier > operativeProfile.viewConeMultiplier &&
+            operativeProfile.viewConeMultiplier > veteranProfile.viewConeMultiplier &&
+            veteranProfile.viewConeMultiplier > phantomProfile.viewConeMultiplier,
+        "the sight cone widens as difficulty rises");
+
+    // End to end, not the constant: one melee hit has to reach health_ scaled. This was
+    // recorded as a gap -- the multiplier was only ever asserted at the table level.
+    const WolfCna::LevelDefinition biteLevel = WolfCna::LevelDefinition::Parse(
+        "#####\n#PK.#\n#####\n",
+        "damage-scaling.level");
+    const auto firstBite = [&biteLevel](WolfCna::Difficulty difficulty)
+    {
+        WolfCna::World biteWorld(biteLevel, difficulty);
+        const Microsoft::Xna::Framework::Vector3 target(1.5f, 0.62f, 1.5f);
+        for (int tick = 0; tick < 400; ++tick)
+        {
+            const int damage = biteWorld.Update(0.05f, target);
+            if (damage > 0)
+                return damage;
+        }
+        return 0;
+    };
+    const int scoutBite = firstBite(WolfCna::Difficulty::Scout);
+    const int operativeBite = firstBite(WolfCna::Difficulty::Operative);
+    const int veteranBite = firstBite(WolfCna::Difficulty::Veteran);
+    const int phantomBite = firstBite(WolfCna::Difficulty::Phantom);
+    Expect(
+        scoutBite > 0 && scoutBite < operativeBite && operativeBite < veteranBite &&
+            veteranBite < phantomBite,
+        "one bite lands strictly harder on each rung, all the way to the player");
+
     // The compass needs a goal to point at in every sector, and the position has to be
     // the elevator itself rather than its approach cell.
     for (const WolfCna::CampaignSector& compassSector : WolfCna::CampaignSectors)

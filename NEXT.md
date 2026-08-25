@@ -122,6 +122,10 @@ life loss and save load. All three gaps the audit found are now closed:
    1 / 1 / 2 / 3 and the turn goes to the nearest N eligible shooters rather than
    the single nearest. This mattered less than expected until the engagement range
    scaled too: three shooters almost never met in the authored corridors.
+0. ~~The sight cone ignores difficulty.~~ Fixed: `viewConeMultiplier`
+   (1.3 / 1.0 / 0.8 / 0.6) widens it as difficulty rises. Hounds already see in every
+   direction at threshold zero and are unaffected, which is why scaling multiplies
+   rather than subtracts.
 3. ~~Player health never scales.~~ Fixed: health kits are worth 130 / 100 / 85 / 70
    percent and a run allows 4 / 3 / 3 / 2 lives. Starting health stays at 100 on
    every rung, as in 1992. A behavioural test measures what one authored kit
@@ -134,8 +138,9 @@ steps and reserves the full roster for the top rung. Ammunition had no slack at 
 lift every rung to a margin of 18 to 38 rounds, and the audit now demands a margin
 rather than a bare pass.
 
-Still asserted only at the constant-table level, never end to end: the
-incoming-damage multiplier reaching `health_`.
+Everything the audit found is now closed, including the incoming-damage multiplier,
+which is asserted end to end: one hound bite has to land strictly harder on each rung
+all the way through to the value the player loses.
 
 ## Next tasks
 
