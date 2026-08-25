@@ -76,6 +76,20 @@ namespace WolfCna
             static_cast<float>(level.PlayerStartZ()) + 0.5f)
         , difficultyProfile_(GetDifficultyProfile(difficulty))
     {
+        // Hash the map so the wall mix is a property of the level, not of the grid
+        // coordinates: two sectors of the same shape would otherwise look identical.
+        std::uint32_t signature = 0x811c9dc5u;
+        for (const std::string& row : map_)
+        {
+            for (const char cell : row)
+            {
+                signature ^= static_cast<std::uint32_t>(static_cast<unsigned char>(cell));
+                signature *= 16777619u;
+            }
+        }
+        materialBias_ = static_cast<int>(signature % 4u);
+        materialDominant_ = static_cast<int>((signature >> 8) % 4u);
+
         impacts_.reserve(MaxImpactCount);
         BuildDoors();
         BuildEnemies();
@@ -328,8 +342,15 @@ namespace WolfCna
         constexpr int materialRegionSize = 8;
         const int regionX = std::max(0, x) / materialRegionSize;
         const int regionZ = std::max(0, z) / materialRegionSize;
+
+        // A third of the regions take the level's dominant family, so a sector reads as
+        // one place rather than an even checkerboard of all four; the rest alternate from
+        // a rotated start. Both come from the map's own contents, which is what makes two
+        // levels look unlike each other.
+        if ((regionX * 7 + regionZ * 11 + materialBias_) % 3 == 0)
+            return materials[static_cast<std::size_t>(materialDominant_)];
         const std::size_t index = static_cast<std::size_t>(
-            (regionX * 3 + regionZ * 5) % static_cast<int>(materials.size()));
+            (regionX * 3 + regionZ * 5 + materialBias_) % static_cast<int>(materials.size()));
         return materials[index];
     }
 

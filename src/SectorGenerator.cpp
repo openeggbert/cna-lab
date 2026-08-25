@@ -409,9 +409,45 @@ namespace WolfCna
                 Room carved{room.x0 + inset, room.z0 + inset, room.x1 - inset, room.z1 - inset};
                 if (carved.Width() < 2 || carved.Height() < 2)
                     carved = room;
+
+                // Corridors as their own element rather than just small rooms: an
+                // elongated leaf is sometimes cut down to a one or two cell strip along
+                // its long axis. It stays a rectangle, so door placement is unaffected.
+                const bool elongated = carved.Width() >= 6 || carved.Height() >= 6;
+                if (elongated && rng.Unit() < 0.42f)
+                {
+                    const int width = rng.Unit() < 0.6f ? 1 : 2;
+                    if (carved.Width() >= carved.Height())
+                    {
+                        const int mid = (carved.z0 + carved.z1) / 2;
+                        carved = {carved.x0, mid,
+                            carved.x1, std::min(carved.z1, mid + width)};
+                    }
+                    else
+                    {
+                        const int mid = (carved.x0 + carved.x1) / 2;
+                        carved = {mid, carved.z0,
+                            std::min(carved.x1, mid + width), carved.z1};
+                    }
+                }
+
                 for (int z = carved.z0; z < carved.z1; ++z)
                     for (int x = carved.x0; x < carved.x1; ++x)
                         grid[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] = Floor;
+
+                // A pillar breaks up a large room without risking connectivity: it sits
+                // strictly inside, so no doorway is blocked and there is always a way
+                // round it.
+                if (carved.Width() >= 7 && carved.Height() >= 7 && rng.Unit() < 0.45f)
+                {
+                    const int px = rng.Range(carved.x0 + 2, carved.x1 - 3);
+                    const int pz = rng.Range(carved.z0 + 2, carved.z1 - 3);
+                    const int size = rng.Unit() < 0.5f ? 1 : 2;
+                    for (int z = pz; z < std::min(pz + size, carved.z1 - 1); ++z)
+                        for (int x = px; x < std::min(px + size, carved.x1 - 1); ++x)
+                            grid[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] = Wall;
+                }
+
                 kept.push_back(carved);
             }
             if (kept.size() < 12) { continue; }
@@ -490,7 +526,7 @@ namespace WolfCna
                 for (int x = 0; x < Size; ++x)
                     if (grid[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != Wall)
                         ++walkable;
-            if (walkable < 1520 || walkable > 1980) { continue; }
+            if (walkable < 1505 || walkable > 1980) { continue; }
 
             reach = Distances(grid, startX, startZ);
 

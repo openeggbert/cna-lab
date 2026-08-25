@@ -1350,6 +1350,56 @@ int main()
         }
         Expect(generated == 48, "every requested sector was generated");
 
+        // Corridors have to exist as their own element, not just as small rooms, and the
+        // amount must differ between floors -- otherwise every depth is the same BSP with
+        // a different garrison.
+        const auto corridorCells = [](const std::string& grid)
+        {
+            std::vector<std::string> rows;
+            std::size_t begin = 0;
+            while (begin < grid.size())
+            {
+                const std::size_t end = grid.find('\n', begin);
+                if (end == std::string::npos)
+                    break;
+                rows.push_back(grid.substr(begin, end - begin));
+                begin = end + 1;
+            }
+            int corridors = 0;
+            for (int z = 1; z < 63; ++z)
+            {
+                for (int x = 1; x < 63; ++x)
+                {
+                    if (rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == '#')
+                        continue;
+                    const bool north = rows[static_cast<std::size_t>(z - 1)]
+                        [static_cast<std::size_t>(x)] != '#';
+                    const bool south = rows[static_cast<std::size_t>(z + 1)]
+                        [static_cast<std::size_t>(x)] != '#';
+                    const bool west = rows[static_cast<std::size_t>(z)]
+                        [static_cast<std::size_t>(x - 1)] != '#';
+                    const bool east = rows[static_cast<std::size_t>(z)]
+                        [static_cast<std::size_t>(x + 1)] != '#';
+                    const int open = static_cast<int>(north) + static_cast<int>(south) +
+                        static_cast<int>(west) + static_cast<int>(east);
+                    if (open == 2 && ((north && south) || (west && east)))
+                        ++corridors;
+                }
+            }
+            return corridors;
+        };
+        std::vector<int> corridorCounts;
+        for (int depth = 0; depth < 6; ++depth)
+            corridorCounts.push_back(
+                corridorCells(WolfCna::GenerateSector(4242u, depth).grid));
+        const int leastCorridors =
+            *std::min_element(corridorCounts.begin(), corridorCounts.end());
+        const int mostCorridors =
+            *std::max_element(corridorCounts.begin(), corridorCounts.end());
+        Expect(
+            leastCorridors >= 20 && mostCorridors >= leastCorridors * 2,
+            "generated floors contain corridors and differ in how many");
+
         // Reported from play: the compass led to the elevator and there was nothing
         // there. The cabin is recessed on three sides, so its approach must itself open
         // into a room -- an elevator reachable only down a blind alley is invisible until

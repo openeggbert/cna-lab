@@ -564,6 +564,10 @@ namespace WolfCna
         std::vector<Exit> exits_;
         std::vector<Decoration> decorations_;
         std::vector<Prop> props_;
+        // Derived from the map itself, so every distinct level gets its own wall mix
+        // without the constructor needing a theme argument.
+        int materialBias_ = 0;
+        int materialDominant_ = 0;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> bloodPoolVertices_;

@@ -576,6 +576,18 @@ ambush, props in open floor, and an objective route between 90 and 130 cells.
 The difficulty curve is depth-driven: more guards, hounds, troopers and heavy units,
 and less ammunition, the deeper a run goes. Target times lengthen with depth too.
 
+The layout itself varies, not only the garrison. Elongated leaves are sometimes cut
+down to a one or two cell strip along their long axis, which makes corridors their own
+element rather than just small rooms; they stay rectangles, so door placement is
+untouched. Large rooms sometimes gain a pillar, placed strictly inside so it can never
+block a doorway and there is always a way round it. Measured across six floors of one
+run, corridor cells range from four to ten percent of the open floor.
+
+Wall materials are no longer a fixed function of position. The mix now comes from a
+hash of the map itself, with a third of the regions taking the level's dominant family
+so a sector reads as one place rather than an even checkerboard. This needed no API
+change and gives the authored sectors distinct looks too, which they never had.
+
 Depth also changes a sector's character rather than only its counts. Five themes
 rotate, each leaning on a different archetype -- rank and file, kennels, laboratory
 troopers, an archive garrison, the core -- and each drives its own music track and
