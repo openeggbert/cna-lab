@@ -47,4 +47,22 @@ namespace People::Rendering
         return sprites.directions[static_cast<std::size_t>(
             PresentedDirection(facing, viewRotation))];
     }
+
+    std::size_t ResidentPresentation::WalkFrameIndex(
+        const std::uint32_t travelledUnits) noexcept
+    {
+        return static_cast<std::size_t>(
+            (travelledUnits / WalkUnitsPerFrame) % ResidentWalkSpriteSet::FrameCount);
+    }
+
+    const ResidentSpriteReference& ResidentPresentation::SelectWalkSprite(
+        const ResidentWalkSpriteSet& sprites,
+        const Simulation::ResidentFacing facing,
+        const World::ViewRotation viewRotation,
+        const std::uint32_t travelledUnits)
+    {
+        return sprites.frames[WalkFrameIndex(travelledUnits)]
+                             [static_cast<std::size_t>(
+                                 PresentedDirection(facing, viewRotation))];
+    }
 }

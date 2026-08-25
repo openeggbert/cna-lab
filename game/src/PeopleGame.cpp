@@ -268,10 +268,14 @@ namespace
 
 }
 
-PeopleGame::PeopleGame(const int smokeFrames, const bool smokeRotations)
+PeopleGame::PeopleGame(
+    const int smokeFrames,
+    const bool smokeRotations,
+    const bool smokeWalk)
     : graphics_(this),
       smokeFrames_(std::max(0, smokeFrames)),
-      smokeRotations_(smokeRotations)
+      smokeRotations_(smokeRotations),
+      smokeWalk_(smokeWalk)
 {
     graphics_.setPreferredBackBufferWidthProperty(1280);
     graphics_.setPreferredBackBufferHeightProperty(720);
@@ -613,7 +617,9 @@ Texture2D PeopleGame::CreateFurnitureTexture(
     return texture;
 }
 
-Texture2D PeopleGame::CreateResidentTexture(const SpriteDirection direction)
+Texture2D PeopleGame::CreateResidentTexture(
+    const SpriteDirection direction,
+    const int walkPhase)
 {
     constexpr int width = 64;
     constexpr int height = 96;
@@ -633,8 +639,18 @@ Texture2D PeopleGame::CreateResidentTexture(const SpriteDirection direction)
     const int lean = turn == static_cast<int>(SpriteDirection::East)
         ? 3 : (turn == static_cast<int>(SpriteDirection::West) ? -3 : 0);
 
-    const RasterPoint leftFoot{footAnchor.x - stride, footAnchor.y};
-    const RasterPoint rightFoot{footAnchor.x + stride, footAnchor.y - 1};
+    // Walk frames swing legs and arms in opposition around the shared anchor.
+    // The contact foot keeps the anchor row so the resident never floats or
+    // sinks when the runtime switches between the idle and walk clips.
+    if (walkPhase < -1 || walkPhase >= static_cast<int>(
+            People::Rendering::ResidentWalkSpriteSet::FrameCount))
+        throw std::invalid_argument("resident walk phase must be idle or an authored frame");
+    const int swing = walkPhase < 0 ? 0 : (walkPhase == 0 ? 5 : -5);
+    const int leftLift = swing < 0 ? 3 : 0;
+    const int rightLift = swing > 0 ? 3 : 0;
+
+    const RasterPoint leftFoot{footAnchor.x - stride + swing, footAnchor.y - leftLift};
+    const RasterPoint rightFoot{footAnchor.x + stride - swing, footAnchor.y - 1 - rightLift};
     const RasterPoint leftHip{footAnchor.x - 5 + lean, 64};
     const RasterPoint rightHip{footAnchor.x + 5 + lean, 64};
     canvas.DrawLine(leftHip, leftFoot, 3, trousers);
@@ -648,8 +664,8 @@ Texture2D PeopleGame::CreateResidentTexture(const SpriteDirection direction)
     canvas.FillPolygon(torso, shirt);
     for (std::size_t index = 0; index < torso.size(); ++index)
         canvas.DrawLine(torso[index], torso[(index + 1) % torso.size()], 1, outline);
-    canvas.DrawLine({21 + lean, 48}, {16 + lean, 64}, 3, skin);
-    canvas.DrawLine({42 + lean, 48}, {47 + lean, 63}, 3, skin);
+    canvas.DrawLine({21 + lean, 48}, {16 + lean - swing, 64 - (swing < 0 ? -swing : swing) / 2}, 3, skin);
+    canvas.DrawLine({42 + lean, 48}, {47 + lean + swing, 63 - (swing < 0 ? -swing : swing) / 2}, 3, skin);
 
     const RasterPoint head{32 + lean, 32};
     canvas.FillEllipse(head, 11, 13, skin);
@@ -711,12 +727,21 @@ void PeopleGame::LoadContent()
         }
     }
     demoResidentSprites_ = People::Content::DemoResident::MaraIdleSprites();
+    demoResidentWalkSprites_ = People::Content::DemoResident::MaraWalkSprites();
     for (int directionIndex = 0; directionIndex < 4; ++directionIndex)
     {
         const auto direction = static_cast<SpriteDirection>(directionIndex);
-        const People::Rendering::ResidentSpriteReference& sprite =
-            demoResidentSprites_.directions[static_cast<std::size_t>(directionIndex)];
-        residentTextures_.emplace(sprite.assetId, CreateResidentTexture(direction));
+        const auto index = static_cast<std::size_t>(directionIndex);
+        residentTextures_.emplace(
+            demoResidentSprites_.directions[index].assetId,
+            CreateResidentTexture(direction, -1));
+        for (std::size_t frame = 0;
+             frame < People::Rendering::ResidentWalkSpriteSet::FrameCount; ++frame)
+        {
+            residentTextures_.emplace(
+                demoResidentWalkSprites_.frames[frame][index].assetId,
+                CreateResidentTexture(direction, static_cast<int>(frame)));
+        }
     }
 
     const auto& viewport = device.getViewportProperty();
@@ -1086,12 +1111,27 @@ void PeopleGame::DrawResident(const People::Simulation::ResidentId residentId)
     const People::Simulation::ResidentState* resident = residents_.Find(residentId);
     if (resident == nullptr)
         throw std::logic_error("render queue refers to a missing resident");
-    const People::Rendering::ResidentSpriteReference& sprite =
-        ResidentPresentation::SelectIdleSprite(
+    // Presentation only reads inspectable movement progress; selecting a frame
+    // can never advance, complete, or cancel the route it is drawing.
+    const std::optional<People::Simulation::ResidentMovementProgress> progress =
+        movement_.ProgressFor(residentId);
+    const bool walking = progress.has_value() && progress->moving;
+    const People::Rendering::ResidentSpriteReference& sprite = walking
+        ? ResidentPresentation::SelectWalkSprite(
+            demoResidentWalkSprites_, resident->facing, camera_.rotation,
+            progress->travelledUnits)
+        : ResidentPresentation::SelectIdleSprite(
             demoResidentSprites_, resident->facing, camera_.rotation);
     const auto texture = residentTextures_.find(sprite.assetId);
     if (texture == residentTextures_.end())
-        throw std::logic_error("resident idle metadata has no generated texture");
+        throw std::logic_error("resident sprite metadata has no generated texture");
+    if (smokeWalk_)
+    {
+        std::cout << "People: walk trace frame=" << drawnFrames_
+                  << "; moving=" << (walking ? "yes" : "no")
+                  << "; travelled=" << (progress.has_value() ? progress->travelledUnits : 0)
+                  << "; sprite=" << sprite.assetId << '\n';
+    }
 
     const std::optional<People::World::WorldPoint> worldPosition =
         movement_.PositionFor(residentId);
@@ -1166,6 +1206,11 @@ void PeopleGame::Draw(const GameTime& gameTime)
     DrawLot();
 
     ++drawnFrames_;
+    if (smokeWalk_ && !smokeWalkStarted_)
+    {
+        smokeWalkStarted_ = true;
+        IssueDemoMove({12, 5, 0});
+    }
     if (smokeRotations_ && drawnFrames_ < smokeFrames_)
         ChangeRotation(1);
     if (smokeFrames_ > 0 && drawnFrames_ >= smokeFrames_)

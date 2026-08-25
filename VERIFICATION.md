@@ -516,3 +516,118 @@ is claimed. This is an environment evidence gap, not a failed build and not a
 recorded CNA blocker. `PEO-277` is complete at its explicit feasibility scope;
 a future connected-browser validation remains part of the eventual Web release
 gate.
+
+## 2026-08-25: PEO-072 resident walk animation
+
+Mara Vale now plays an original two-frame procedural walk clip while a route is
+active. The frame is a pure function of inspectable simulation state:
+`MovementState::travelledUnits` counts movement units since the route began and
+is never rewound, not even by a replan, so the gait stays continuous across
+tile and detour boundaries. `ResidentPresentation::WalkFrameIndex` divides that
+counter by `WalkUnitsPerFrame` (500) modulo the authored frame count, which
+makes one full cycle exactly one traversed tile and puts every frame change on
+a fixed 125-unit simulation tick rather than on a render frame.
+
+Presentation reads movement through `MovementExecutor::ProgressFor`, a
+`const noexcept` accessor returning a value copy. Selection therefore cannot
+advance, complete, cancel, or replan the route it draws; a dedicated test reads
+progress and position repeatedly and asserts that every movement field is
+unchanged afterwards.
+
+`DemoResident::MaraWalkSprites` authors eight new asset IDs
+(`people.generated.resident.mara_vale.walk.<direction>.<frame>`) that reuse the
+idle `(32,88)` foot anchor and 64 x 96 canvas, so switching clips never shifts
+the resident. `PeopleGame::CreateResidentTexture` gained a `walkPhase`
+parameter: `-1` draws the previous idle stance unchanged, `0` and `1` swing the
+legs and arms in opposition while the contact foot keeps the anchor row.
+
+### Build configuration
+
+Both desktop configurations were reconfigured and rebuilt from the repository
+build directories with ccache launchers. This checkout does not sit beside its
+dependencies, so both roots were passed explicitly:
+
+```text
+-DPEOPLE_CNA_ROOT=/rv/data/development/github.com/openeggbert/cnanext
+-DPEOPLE_SHARP_RUNTIME_ROOT=/rv/data/development/github.com/openeggbert/sharp-runtimenext
+```
+
+That override previously could not work. `CMakeLists.txt` computed both roots
+with `get_filename_component` before the `set(... CACHE PATH ...)` calls, which
+created normal variables that shadowed the cache entries, so a `-D` value was
+silently discarded and configure failed with the very message that recommends
+it. The defaults are now computed only when the variable is not already set.
+
+### Commands and actual results
+
+```bash
+cmake -S . -B build-headless -DBUILD_TESTING=ON \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCNA_GRAPHICS_RENDERER=HEADLESS -DCNA_PLATFORM=HEADLESS \
+  -DCNA_AUDIO_PLATFORM=NULL \
+  -DPEOPLE_CNA_ROOT=... -DPEOPLE_SHARP_RUNTIME_ROOT=... \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+cmake --build build-headless -j12
+ctest --test-dir build-headless --output-on-failure
+
+cmake -S . -B build -DBUILD_TESTING=ON \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCNA_GRAPHICS_RENDERER=SDL_RENDERER -DCNA_PLATFORM=SDL3 \
+  -DCNA_AUDIO_PLATFORM=NULL \
+  -DPEOPLE_CNA_ROOT=... -DPEOPLE_SHARP_RUNTIME_ROOT=... \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+cmake --build build -j12
+xvfb-run -a -s '-screen 0 1280x720x24' \
+  env SDL_VIDEODRIVER=x11 ctest --test-dir build --output-on-failure
+```
+
+- HEADLESS: configure, build, and **15/15 CTests passed**.
+- SDL_RENDERER/SDL3 under Xvfb X11: configure, build, and **15/15 CTests
+  passed**. `SDL_VIDEODRIVER=offscreen` also passed 15/15 without Xvfb.
+- New coverage lives in the existing suites, so no CTest registration changed:
+  `people_resident_presentation_tests` gained walk metadata, phase-boundary, and
+  all-direction/all-view selection cases; `people_movement_executor_tests`
+  gained travelled-unit, replan-continuity, and presentation-purity cases.
+
+### Observed movement
+
+`--smoke-walk` is a new bounded developer smoke flag. It issues one route to a
+free in-room tile on the first drawn frame and traces the sprite the renderer
+actually selected. It exists because the acceptance criterion requires an
+observed movement check and the smoke session takes no interactive input.
+
+Headless, `./build-headless/People --smoke-frames 300 --smoke-walk`, 9-tile
+route from `9,10` to `12,5`:
+
+```text
+frame=0;   moving=no;  travelled=0;    sprite=...idle.south
+frame=1;   moving=yes; travelled=0;    sprite=...walk.east.0
+frame=8;   moving=yes; travelled=375;  sprite=...walk.east.0
+frame=18;  moving=yes; travelled=750;  sprite=...walk.east.1
+frame=28;  moving=yes; travelled=1125; sprite=...walk.north.0
+frame=98;  moving=yes; travelled=4125; sprite=...walk.east.0
+frame=299; moving=no;  travelled=0;    sprite=...idle.east
+```
+
+The trace confirms the authored boundary in the real runtime: frame `0` holds
+below 500 travelled units, frame `1` from 500 to 999, and the cycle restarts at
+1000 while facing follows each cardinal segment. Arrival returns to the idle
+clip with the final facing preserved.
+
+The same command against the displayed `SDL_RENDERER/SDL3` binary produced the
+identical clip sequence, first with `SDL_VIDEODRIVER=offscreen` and then under
+Xvfb X11. A screenshot taken mid-route under Xvfb shows the resident between
+tiles inside the furnished room; that image was a throwaway QA capture and is
+not a shipping asset.
+
+### Dependency state
+
+- CNA: branch `next`, HEAD `126ef4e7ce62f08dae1e19db210c31dcbe3fcf99`, working
+  tree **clean** at the final rebuild and test run. CNA advanced twice during
+  this session while another agent worked in it; both configurations were
+  rebuilt and re-tested against this clean revision so the recorded result is
+  exact for that SHA.
+- sharp-runtime: branch `next`, HEAD
+  `768a8034a0c5942c27395b636293b369e7dd7d12`, working tree clean.
+- Neither dependency checkout was edited by People work.
+- No web build was rerun for this task; the `PEO-277` result stands unchanged.

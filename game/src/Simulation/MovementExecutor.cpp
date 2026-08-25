@@ -145,6 +145,7 @@ namespace People::Simulation
 
         state.progressUnits = static_cast<std::uint16_t>(
             state.progressUnits + ProgressUnitsPerTick);
+        state.travelledUnits += ProgressUnitsPerTick;
         if (state.progressUnits < ProgressUnitsPerTile)
         {
             return {
@@ -217,6 +218,20 @@ namespace People::Simulation
     {
         const auto found = movements_.find(requestId);
         return found == movements_.end() ? nullptr : &found->second;
+    }
+
+    std::optional<ResidentMovementProgress> MovementExecutor::ProgressFor(
+        const ResidentId residentId) const noexcept
+    {
+        const ResidentState* resident = residents_.Find(residentId);
+        if (resident == nullptr)
+            return std::nullopt;
+        if (!resident->movementRequest.has_value())
+            return ResidentMovementProgress{false, 0};
+        const MovementState* state = Find(*resident->movementRequest);
+        if (state == nullptr)
+            return ResidentMovementProgress{false, 0};
+        return ResidentMovementProgress{true, state->travelledUnits};
     }
 
     std::optional<World::WorldPoint> MovementExecutor::PositionFor(

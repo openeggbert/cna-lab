@@ -2,6 +2,7 @@
 #include "People/Simulation/MovementExecutor.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -131,6 +132,87 @@ namespace
               "final segment updates facing toward destination");
     }
 
+    void TestTravelledUnitsFeedWalkAnimation()
+    {
+        LotGrid lot(4, 3);
+        ObjectWorld objects(lot);
+        ResidentRegistry residents(lot);
+        (void)residents.Add(MakeResident());
+        MovementExecutor movement(residents);
+        StaticNavigationGrid grid = StaticNavigationGrid::Build(lot, objects, 0);
+
+        Check(movement.ProgressFor(100)
+                  == std::optional<ResidentMovementProgress>({false, 0}),
+              "a resident with no route reports a still walk phase");
+        Check(!movement.ProgressFor(999).has_value(),
+              "an unknown resident has no inspectable movement progress");
+
+        const PathResult initial = AStarPathfinder::FindPath(grid, {0, 1, 0}, {3, 1, 0});
+        (void)movement.Begin(700, 100, initial.tiles, grid);
+        Check(movement.ProgressFor(100)
+                  == std::optional<ResidentMovementProgress>({true, 0}),
+              "a route starts at the beginning of the walk cycle");
+
+        for (int tick = 1; tick <= 8; ++tick)
+        {
+            (void)movement.Advance(700, grid);
+            const std::optional<ResidentMovementProgress> progress =
+                movement.ProgressFor(100);
+            Check(progress.has_value()
+                      && progress->travelledUnits
+                          == static_cast<std::uint32_t>(tick)
+                              * MovementExecutor::ProgressUnitsPerTick,
+                  "travelled units advance by exactly one tick of movement");
+        }
+
+        const MovementState* before = movement.Find(700);
+        const std::uint32_t beforeReplan = before->travelledUnits;
+        Check(beforeReplan == MovementExecutor::ProgressUnitsPerTile,
+              "one traversed tile equals one full walk cycle of travelled units");
+
+        (void)lot.AddWall({1, 1, 0}, TileEdge::MaxX);
+        grid = StaticNavigationGrid::Build(lot, objects, 0);
+        const MovementTickResult replanned = movement.Advance(700, grid);
+        const MovementState* after = movement.Find(700);
+        Check(replanned.status == MovementTickStatus::Replanned
+                  && after != nullptr && after->nextTileIndex == 1,
+              "the replan rebuilt the remaining path");
+        Check(after != nullptr
+                  && after->travelledUnits
+                      == beforeReplan + MovementExecutor::ProgressUnitsPerTick,
+              "a replan never rewinds the walk cycle");
+
+        // Reading progress is what a renderer does every frame; it must not
+        // advance, complete, or otherwise mutate the route.
+        const std::vector<TileCoordinate> pathBefore = after->path;
+        const std::uint16_t progressBefore = after->progressUnits;
+        for (int read = 0; read < 5; ++read)
+        {
+            (void)movement.ProgressFor(100);
+            (void)movement.PositionFor(100);
+        }
+        const MovementState* unchanged = movement.Find(700);
+        Check(unchanged != nullptr
+                  && unchanged->path == pathBefore
+                  && unchanged->progressUnits == progressBefore
+                  && unchanged->travelledUnits
+                      == beforeReplan + MovementExecutor::ProgressUnitsPerTick,
+              "presentation reads leave every movement field untouched");
+
+        MovementTickResult result = replanned;
+        int safetyTicks = 0;
+        while (result.status != MovementTickStatus::Completed && safetyTicks < 40)
+        {
+            result = movement.Advance(700, grid);
+            ++safetyTicks;
+        }
+        Check(result.status == MovementTickStatus::Completed,
+              "the walk-animation route still completes");
+        Check(movement.ProgressFor(100)
+                  == std::optional<ResidentMovementProgress>({false, 0}),
+              "an arrived resident reports a still walk phase again");
+    }
+
     void TestNoReplanPathAndCancellation()
     {
         LotGrid lot(3, 1);
@@ -212,6 +294,7 @@ int main()
 {
     TestFixedTickProgressAndExactArrival();
     TestDeterministicObstructionReplan();
+    TestTravelledUnitsFeedWalkAnimation();
     TestNoReplanPathAndCancellation();
     TestStartValidationAndDeletionSafety();
 

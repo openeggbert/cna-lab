@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
 {
     int smokeFrames = 0;
     bool smokeRotations = false;
+    bool smokeWalk = false;
     for (int index = 1; index < argc; ++index)
     {
         const std::string_view argument(argv[index]);
@@ -27,6 +28,10 @@ int main(int argc, char* argv[])
         {
             smokeFrames = 4;
             smokeRotations = true;
+        }
+        else if (argument == "--smoke-walk")
+        {
+            smokeWalk = true;
         }
         else if (argument == "--smoke-frames" && index + 1 < argc)
         {
@@ -44,7 +49,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    PeopleGame game(smokeFrames, smokeRotations);
+    PeopleGame game(smokeFrames, smokeRotations, smokeWalk);
     game.Run();
     return 0;
 }

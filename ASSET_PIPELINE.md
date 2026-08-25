@@ -150,6 +150,17 @@ foot anchor `(32,88)`; `PeopleGame::CreateResidentTexture` rasterizes original
 64 x 96 front, side, and back variations at runtime. It was authored as new
 People project code on 2026-08-24 with no external or AI-generated source.
 
+Mara Vale's walk clip extends that same generator rather than introducing a new
+asset source. `DemoResident::MaraWalkSprites` declares eight further unique
+`people.generated.resident.mara_vale.walk.<direction>.<frame>` references, and
+every frame reuses the identical `(32,88)` foot anchor and 64 x 96 canvas so a
+resident never shifts when the runtime switches clips. The two frames swing the
+legs and arms in opposition around the anchor while the contact foot keeps the
+anchor row. Authored as new People project code on 2026-08-25; no external
+source material, no AI model, no downloaded asset, MIT project license. The
+clip deliberately stays at the two-frame minimum of the version 1 character
+progression until reviewed owned art replaces the procedural resident.
+
 ## Reproducible tooling roadmap
 
 - `tools/render-object/`: validate rig, invoke optional headless Blender,

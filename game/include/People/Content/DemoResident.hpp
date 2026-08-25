@@ -14,5 +14,6 @@ namespace People::Content
 
         [[nodiscard]] static Simulation::ResidentState MaraState();
         [[nodiscard]] static Rendering::ResidentIdleSpriteSet MaraIdleSprites();
+        [[nodiscard]] static Rendering::ResidentWalkSpriteSet MaraWalkSprites();
     };
 }

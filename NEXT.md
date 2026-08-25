@@ -1,48 +1,63 @@
 # Next People development context
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Immediate task
 
-`PEO-072` walk animation is the only `DOING` task. Add at least two original
-procedural walk frames for every resident presentation direction, with the
-frame selected from inspectable simulation movement progress and facing.
-Rendering must never advance, complete, cancel, or otherwise mutate a route.
+No task is `DOING`. Start `PEO-089`, the resident movement gate: direct the
+resident across the furnished room in every one of the four camera views and
+confirm that simulation coordinates never rotate with the presentation. The
+walk clip, routing, and movement executor it depends on are all `DONE`, so the
+gate is an exercise-and-record task rather than new subsystem work.
 
-Keep the first increment narrow: reuse the existing Mara placeholder palette,
-canvas size, and `(32,88)` foot anchor; add metadata/presentation tests for all
-directions and deterministic phase boundaries; then make the runtime choose
-idle versus walk without adding an animation graph or avatar customization.
-Run the headless and displayed 15-test baselines plus the new test and perform
-an actual movement visual check before marking it `DONE`.
+`--smoke-walk` already routes the demo resident on the first drawn frame and
+traces the selected sprite; combining it with `--smoke-test` rotation cycling
+is the cheapest way to gather the four-view evidence.
+
+After that gate, the next real subsystem is the action foundation:
+`PEO-079` explicit action states, `PEO-080` per-resident action queue, and
+`PEO-082` the native interaction contract. Do not start `PEO-090` energy or
+`PEO-091` bed sleep before `PEO-058`/`PEO-059` reservations and cleanup exist.
 
 ## Current verified state
 
 - Branch: `develop`.
-- `PEO-078` is committed and pushed as `e9336cc`.
-- `PEO-277` has a successful Emscripten 6.0.3/CANVAS Release build and is the
-  completed task recorded by this handoff.
-- Web outputs: `build-web/People.html` (19,601 bytes), `People.js` (235,688
-  bytes), and `People.wasm` (5,105,329 bytes). Build trees are ignored.
-- `node --check` passed for `People.js`; Binaryen `wasm-opt --all-features`
-  accepted `People.wasm` with no transformation pass.
-- The session browser-testing surface reported no available browser. The local
-  HTTP server started successfully and was stopped, but no Canvas frame or web
-  input result is claimed.
+- `PEO-072` walk animation is committed and pushed; it is the completed task
+  recorded by this handoff.
 - HEADLESS: configure/build and 15/15 CTests passed.
-- SDL_RENDERER/SDL3: configure/build and 15/15 CTests passed under isolated
-  X11; direct SDL offscreen also passed 15/15.
-- CNA: branch `next`, HEAD
-  `14ff4be7c9690ead2030a02878c6be39802f6863`, with five external uncommitted
-  ContentManager/SDL3 platform paths observed at final verification. The final
-  incremental web build recompiled the changed platform source and relinked.
-- sharp-runtime: branch `next`, clean
-  `54578590b328aa9612fe38bfddca9fd8ca795144`.
-- CNA consumed `../sharp-runtimenext` in desktop and web build caches.
+- SDL_RENDERER/SDL3: configure/build and 15/15 CTests passed under Xvfb X11;
+  `SDL_VIDEODRIVER=offscreen` also passed 15/15 without Xvfb.
+- Observed movement: the real runtime selects `walk.<direction>.0` below 500
+  travelled units, `walk.<direction>.1` from 500 to 999, restarts the cycle at
+  1000, and returns to the idle clip on arrival. Confirmed in both the headless
+  and the displayed binary, plus a mid-route Xvfb screenshot.
+- CNA: branch `next`, HEAD `126ef4e7ce62f08dae1e19db210c31dcbe3fcf99`, working
+  tree clean at the final rebuild.
+- sharp-runtime: branch `next`, HEAD
+  `768a8034a0c5942c27395b636293b369e7dd7d12`, working tree clean.
 - No People/CNA/sharp-runtime blocker is open.
 
-Recheck both dependency HEADs and worktrees before any build or commit because
-another agent advances CNA concurrently. Never roll either checkout backward.
+Recheck both dependency HEADs and worktrees before any build or commit. CNA
+advanced twice during the previous session while another agent worked in it.
+Never roll either checkout backward.
+
+## This checkout is not beside its dependencies
+
+`people-cna` currently lives in `.../openeggbert/_other/`, while `cnanext` and
+`sharp-runtimenext` live one level up in `.../openeggbert/`. The documented
+sibling layout therefore does not resolve here and both roots must be passed
+explicitly:
+
+```bash
+-DPEOPLE_CNA_ROOT=/rv/data/development/github.com/openeggbert/cnanext
+-DPEOPLE_SHARP_RUNTIME_ROOT=/rv/data/development/github.com/openeggbert/sharp-runtimenext
+```
+
+That override was broken until this session: `CMakeLists.txt` computed the
+defaults with `get_filename_component` before the `set(... CACHE PATH ...)`
+calls, so a normal variable shadowed the cache entry and any `-D` value was
+discarded. Configure failed with the exact message that recommends the flag.
+The defaults are now computed only when the variable is not already set.
 
 ## Desktop commands that passed
 
@@ -51,65 +66,48 @@ cmake -S . -B build-headless -DBUILD_TESTING=ON \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCNA_GRAPHICS_RENDERER=HEADLESS \
   -DCNA_PLATFORM=HEADLESS \
-  -DCNA_AUDIO_PLATFORM=NULL
-cmake --build build-headless --parallel 2
+  -DCNA_AUDIO_PLATFORM=NULL \
+  -DPEOPLE_CNA_ROOT=/rv/data/development/github.com/openeggbert/cnanext \
+  -DPEOPLE_SHARP_RUNTIME_ROOT=/rv/data/development/github.com/openeggbert/sharp-runtimenext \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+cmake --build build-headless -j12
 ctest --test-dir build-headless --output-on-failure
 
 cmake -S . -B build -DBUILD_TESTING=ON \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCNA_GRAPHICS_RENDERER=SDL_RENDERER \
   -DCNA_PLATFORM=SDL3 \
-  -DCNA_AUDIO_PLATFORM=NULL
-cmake --build build --parallel 2
+  -DCNA_AUDIO_PLATFORM=NULL \
+  -DPEOPLE_CNA_ROOT=/rv/data/development/github.com/openeggbert/cnanext \
+  -DPEOPLE_SHARP_RUNTIME_ROOT=/rv/data/development/github.com/openeggbert/sharp-runtimenext \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+cmake --build build -j12
 xvfb-run -a -s '-screen 0 1280x720x24' \
   env SDL_VIDEODRIVER=x11 ctest --test-dir build --output-on-failure
+
+./build-headless/People --smoke-frames 300 --smoke-walk
 ```
 
-The first sandboxed Xvfb attempt could not expose X11 to SDL. The same command
-outside that restricted sandbox passed; `SDL_VIDEODRIVER=offscreen` also passed
-without Xvfb. This is an execution-environment detail, not a recorded CNA
-blocker.
-
-## Web commands that passed
-
-The exact verification used absolute emsdk paths rooted at
-`/home/robertvokac/emsdk`; the portable equivalents are:
-
-```bash
-emcmake cmake -S . -B build-web -G Ninja \
-  -DBUILD_TESTING=OFF \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCNA_GRAPHICS_RENDERER=CANVAS \
-  -DCNA_PLATFORM=SDL3 \
-  -DCNA_AUDIO_PLATFORM=NULL \
-  -DCNA_ENABLE_DRACO=OFF \
-  -DZLIB_LIBRARY="$EMSDK/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libz.a" \
-  -DZLIB_INCLUDE_DIR="$EMSDK/upstream/emscripten/cache/sysroot/include" \
-  -DCMAKE_CXX_FLAGS="-Wno-error=unused-function"
-cmake --build build-web --target People --parallel 2
-node --check build-web/People.js
-wasm-opt --all-features build-web/People.wasm -o /tmp/people-cna-People-validated.wasm
-```
-
-The sandbox initially denied Emscripten's lock file in its SDK cache. Repeating
-the final link with normal cache write access succeeded. Do not misreport that
-environment permission as a CNA linker failure.
+Build directories are `build/` and `build-headless/` inside the repository and
+are git-ignored. Both are warm; reuse them instead of reconfiguring. ccache is
+installed and both launchers are set.
 
 ## Architecture and known limitations
 
 - Movement is renderer-independent fixed-point state: 1000 units/tile,
   125 units/tick, eight ticks/tile at 20 Hz.
-- A logical tile commits only on arrival; presentation derives continuous
-  position and cannot mutate movement.
-- Newly blocked next edges replan deterministically to the original target.
-- Right-click is a temporary direct movement command. Busy residents reject a
-  second click until `PEO-079`/`PEO-080` establish action semantics.
-- The resident uses only idle sprites while moving; this is exactly the current
-  `PEO-072` scope.
-- Emscripten uses CNA's 2D `CANVAS` renderer plus SDL3 platform and NULL audio.
-  People contains no conditional web backend code; only CMake emits an HTML
-  shell and allows WASM memory growth.
+- `MovementState::travelledUnits` is monotone for a whole route and survives a
+  replan, so the walk cycle never snaps backward. Presentation reads it through
+  the `const noexcept` `ProgressFor` accessor and can never mutate a route.
+- The walk clip is deliberately the two-frame minimum of the version 1
+  character progression. There is no animation graph, no blending, and no
+  avatar customization.
+- `--smoke-walk` is a temporary developer control, like right-click routing and
+  the `F` door toggle. It hard-codes destination `12,5`, a free tile in the
+  demo room, and traces one line per drawn frame.
+- Right-click remains a direct movement command. Busy residents reject a second
+  click until `PEO-079`/`PEO-080` establish action semantics.
 - The runtime is still one lot, one floor, one resident, five procedural
   objects, with no motives, real interactions, autonomy, build/buy, or saves.
 - All runtime art remains project-owned procedural placeholders recorded in
-  `ASSET_PIPELINE.md`; this task adds no external or generated asset.
+  `ASSET_PIPELINE.md`; this task added no external or generated asset.

@@ -65,6 +65,24 @@ namespace People::Simulation
         std::size_t nextTileIndex = 1;
         std::uint16_t progressUnits = 0;
         std::uint32_t replanCount = 0;
+
+        /**
+         * @brief Movement units travelled since this route began.
+         *
+         * Monotone for the whole route: a replan rebuilds the path but never
+         * rewinds this counter, so a presentation walk cycle derived from it
+         * stays continuous instead of snapping back at a replan boundary.
+         */
+        std::uint32_t travelledUnits = 0;
+    };
+
+    /** @brief Read-only movement facts a renderer may consume for one resident. */
+    struct ResidentMovementProgress
+    {
+        bool moving = false;
+        std::uint32_t travelledUnits = 0;
+
+        bool operator==(const ResidentMovementProgress&) const = default;
     };
 
     /** @brief Deterministic fixed-tick resident movement independent of rendering. */
@@ -88,6 +106,8 @@ namespace People::Simulation
 
         [[nodiscard]] const MovementState* Find(MovementRequestId requestId) const noexcept;
         [[nodiscard]] std::optional<World::WorldPoint> PositionFor(
+            ResidentId residentId) const noexcept;
+        [[nodiscard]] std::optional<ResidentMovementProgress> ProgressFor(
             ResidentId residentId) const noexcept;
         [[nodiscard]] const std::map<MovementRequestId, MovementState>& Active() const noexcept;
 

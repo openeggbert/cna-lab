@@ -1,6 +1,6 @@
 # People development plan
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 This is the stable implementation ledger. IDs are never removed or renumbered.
 Completed entries remain in place. New work receives a new ID in the relevant
@@ -122,7 +122,7 @@ Statuses:
 |---|---|---|---|
 | PEO-070 | DONE | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
 | PEO-071 | DONE | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
-| PEO-072 | DOING | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
+| PEO-072 | DONE | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
 | PEO-073 | DONE | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
 | PEO-074 | DONE | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
 | PEO-075 | DONE | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
@@ -366,14 +366,11 @@ reproduction demonstrates actual behavior.
 
 ## Immediate execution queue
 
-1. Complete `PEO-072`: deterministic four-direction procedural walk frames
-   selected from movement presentation state, followed by headless and
-   displayed verification.
-2. Close `PEO-089` by exercising directed resident movement across the
+1. Close `PEO-089` by exercising directed resident movement across the
    furnished room in all four camera views without rotating simulation state.
-3. Build the explicit action foundation in `PEO-079`, `PEO-080`, and
+2. Build the explicit action foundation in `PEO-079`, `PEO-080`, and
    `PEO-082`; keep direct right-click routing only as a temporary developer
    control until player commands can enqueue interactions.
-4. Add `PEO-058`/`PEO-059` reservations and cleanup before implementing the
+3. Add `PEO-058`/`PEO-059` reservations and cleanup before implementing the
    `PEO-090` energy motive and `PEO-091` bed sleep interaction.
-5. Preserve a runnable build and one coherent verified commit per task.
+4. Preserve a runnable build and one coherent verified commit per task.

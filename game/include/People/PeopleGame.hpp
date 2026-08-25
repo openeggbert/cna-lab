@@ -28,7 +28,10 @@ class PeopleGame final : public Microsoft::Xna::Framework::Game
 {
 public:
     /** @brief Creates an interactive game, or a bounded smoke run when frames is positive. */
-    explicit PeopleGame(int smokeFrames = 0, bool smokeRotations = false);
+    explicit PeopleGame(
+        int smokeFrames = 0,
+        bool smokeRotations = false,
+        bool smokeWalk = false);
 
     GetTypeNameHPP()
 
@@ -57,8 +60,12 @@ private:
         bool slopesDownRight, bool open);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateFurnitureTexture(
         std::string_view definitionId, People::Rendering::SpriteDirection direction);
+    /**
+     * @param walkPhase -1 draws the idle stance; 0 and 1 draw the walk frames.
+     */
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateResidentTexture(
-        People::Rendering::SpriteDirection direction);
+        People::Rendering::SpriteDirection direction,
+        int walkPhase);
 
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
@@ -82,6 +89,7 @@ private:
     std::map<std::string, Microsoft::Xna::Framework::Graphics::Texture2D, std::less<>>
         objectTextures_;
     People::Rendering::ResidentIdleSpriteSet demoResidentSprites_;
+    People::Rendering::ResidentWalkSpriteSet demoResidentWalkSprites_;
     std::map<std::string, Microsoft::Xna::Framework::Graphics::Texture2D, std::less<>>
         residentTextures_;
     std::optional<People::World::WallEdge> demoDoor_;
@@ -99,4 +107,7 @@ private:
     int smokeFrames_ = 0;
     int drawnFrames_ = 0;
     bool smokeRotations_ = false;
+    /** @brief Bounded developer smoke that routes the demo resident and traces frames. */
+    bool smokeWalk_ = false;
+    bool smokeWalkStarted_ = false;
 };

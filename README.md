@@ -42,8 +42,10 @@ resident, Mara Vale, now exists in the active-lot simulation and renders from
 an original procedural four-direction idle sprite set. Right-clicking a free
 floor tile now finds a deterministic A* route and moves the resident through
 fixed-tick sub-tile positions; changed static obstructions trigger a stable
-replan. Walk animation, action queues, motives, and autonomy are still future
-milestones.
+replan. A moving resident plays an original two-frame procedural walk clip in
+every direction, selected purely from the route's monotone travelled-unit
+counter, so presentation can never advance or cancel the movement it draws.
+Action queues, motives, and autonomy are still future milestones.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
@@ -75,6 +77,14 @@ parent/
 People intentionally targets `../cnanext` and configures CNA to consume
 `../sharp-runtimenext`. The older sibling directories `../cna` and
 `../sharp-runtime` are not the project dependencies.
+
+A checkout that does not sit beside its dependencies configures explicitly:
+
+```bash
+cmake -S . -B build-headless \
+  -DPEOPLE_CNA_ROOT=/path/to/cnanext \
+  -DPEOPLE_SHARP_RUNTIME_ROOT=/path/to/sharp-runtimenext
+```
 
 Development tracks the newest local commits in both `*next` checkouts. Recorded
 SHAs are verification snapshots, not requests to roll either dependency back;
@@ -166,7 +176,9 @@ placeholder textures keep early builds self-contained.
 
 `./build/People --smoke-test` draws four bounded frames, one in each world
 orientation, then exits. `--smoke-frames N` runs a bounded interactive smoke
-session without automatic rotation.
+session without automatic rotation. `--smoke-walk` additionally routes the demo
+resident on the first drawn frame and traces the sprite the renderer selected,
+which makes walk animation observable without interactive input.
 
 ## Documentation
 
