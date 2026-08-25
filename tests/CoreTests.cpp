@@ -3,6 +3,7 @@
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
+#include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
@@ -33,6 +34,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <numbers>
 #include <regex>
 #include <stdexcept>
@@ -848,6 +850,85 @@ namespace
 
         std::filesystem::remove(savePath);
         std::filesystem::remove(path);
+    }
+
+    // plan_04 IG-04-003/004/007: the simulation clock clamps a stall instead of letting it
+    // teleport the world, refuses to run backwards on a broken timer, and keeps monotonic
+    // simulation time that owes nothing to the wall clock.
+    void TestSimulationClockClampsStallsAndStaysMonotonic()
+    {
+        IronGang::SimulationClock clock;
+        Require(std::fabs(clock.GetMaximumStepSeconds() -
+                          IronGang::SimulationClock::kDefaultMaximumStepSeconds) < 1e-6F,
+                "the clock must start at its documented maximum step");
+
+        // An ordinary frame passes through untouched.
+        const float ordinary = clock.Advance(1.0F / 60.0F);
+        Require(std::fabs(ordinary - 1.0F / 60.0F) < 1e-6F, "an ordinary delta must pass through unchanged");
+        Require(clock.GetClampedStepCount() == 0 && clock.GetDroppedSeconds() == 0.0,
+                "an ordinary delta must not count as a stall");
+
+        // A stall is clamped, and the time the world refused to take is accounted for rather than
+        // quietly vanishing.
+        const float stalled = clock.Advance(2.5F);
+        Require(std::fabs(stalled - IronGang::SimulationClock::kDefaultMaximumStepSeconds) < 1e-6F,
+                "a stall must be clamped to the maximum step");
+        Require(clock.GetClampedStepCount() == 1, "the clamp must be counted");
+        Require(std::fabs(clock.GetDroppedSeconds() -
+                          (2.5 - IronGang::SimulationClock::kDefaultMaximumStepSeconds)) < 1e-4,
+                "the wall time the simulation refused must be reported, not discarded silently");
+
+        // Elapsed simulation time is the sum of what actually ran -- not of what was asked for.
+        Require(std::fabs(clock.GetElapsedSeconds() -
+                          (1.0 / 60.0 + IronGang::SimulationClock::kDefaultMaximumStepSeconds)) < 1e-4,
+                "elapsed time must be the sum of the deltas the simulation took");
+        Require(clock.GetFrameCount() == 2, "every advanced frame must be counted");
+
+        // A broken timer must not run the world backwards or poison the totals.
+        const double elapsedBefore = clock.GetElapsedSeconds();
+        Require(clock.Advance(-1.0F) == 0.0F, "a negative delta must yield no movement");
+        Require(clock.Advance(std::numeric_limits<float>::quiet_NaN()) == 0.0F,
+                "a NaN delta must yield no movement");
+        Require(clock.Advance(std::numeric_limits<float>::infinity()) == 0.0F,
+                "an infinite delta must yield no movement");
+        Require(clock.Advance(0.0F) == 0.0F, "a zero delta must yield no movement");
+        Require(std::fabs(clock.GetElapsedSeconds() - elapsedBefore) < 1e-9,
+                "a broken delta must leave elapsed time exactly where it was");
+        Require(clock.GetFrameCount() == 6, "a refused frame still happened and must be counted");
+        Require(clock.GetClampedStepCount() == 1, "a refused frame is not a clamped one");
+
+        // Monotonicity across a long run of mixed good and broken deltas.
+        double previous = clock.GetElapsedSeconds();
+        for (int frame = 0; frame < 200; ++frame)
+        {
+            const float delta = (frame % 17 == 0) ? 3.0F : (frame % 5 == 0) ? -0.5F : 1.0F / 60.0F;
+            const float taken = clock.Advance(delta);
+            Require(taken >= 0.0F, "the clock must never hand back a negative step");
+            Require(taken <= clock.GetMaximumStepSeconds() + 1e-6F,
+                    "the clock must never hand back more than the maximum step");
+            const double now = clock.GetElapsedSeconds();
+            Require(now >= previous, "simulation time must never go backwards");
+            previous = now;
+        }
+
+        // The maximum is configurable, and a nonsensical one is ignored rather than freezing time.
+        clock.Configure(0.25F);
+        Require(std::fabs(clock.GetMaximumStepSeconds() - 0.25F) < 1e-6F,
+                "a sensible maximum must apply");
+        Require(std::fabs(clock.Advance(10.0F) - 0.25F) < 1e-6F, "the configured maximum must be used");
+        clock.Configure(0.0F);
+        clock.Configure(-1.0F);
+        clock.Configure(std::numeric_limits<float>::quiet_NaN());
+        Require(std::fabs(clock.GetMaximumStepSeconds() - 0.25F) < 1e-6F,
+                "a maximum of zero, negative, or NaN must be ignored -- a clock that cannot advance "
+                "is not a configuration anyone means to ask for");
+
+        clock.Reset();
+        Require(clock.GetElapsedSeconds() == 0.0 && clock.GetDroppedSeconds() == 0.0 &&
+                    clock.GetFrameCount() == 0 && clock.GetClampedStepCount() == 0,
+                "Reset must clear every total");
+        Require(std::fabs(clock.GetMaximumStepSeconds() - 0.25F) < 1e-6F,
+                "Reset must keep the configured maximum -- it is a setting, not a total");
     }
 
     // plan_04 IG-04-002: severity ordering, category filtering, the exact line format, and the
@@ -2881,6 +2962,7 @@ int main()
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
+        TestSimulationClockClampsStallsAndStaysMonotonic();
         TestLogSeverityAndCategoryFiltering();
         TestGameConfigLoadsValidatesAndFallsBack();
         TestAutosaveSchedulingAvoidsUnsafeMoments();

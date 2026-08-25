@@ -577,6 +577,48 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## A simulation clock between CNA and the world (2026-08-25)
+
+plan_04 `IG-04-003`/`004`/`005`/`007` closed.
+
+**What changed.** `IronGangGame::Update` took `GameTime`'s raw elapsed value and fed it straight to
+physics, movement, AI, the mission, and the autosave scheduler. `SimulationClock`
+(`include/IronGang/Core/SimulationClock.hpp`, `src/Core/SimulationClock.cpp`) now sits in between
+and does exactly two things:
+
+* **Clamps an extreme delta** to 100 ms. A stall then costs smoothness — the world runs slower than
+  wall time — instead of costing correctness: the player teleporting through a wall, the sedan
+  skipping its trigger, a mission condition that was only briefly true being missed. The refused
+  wall time is accumulated in `GetDroppedSeconds()` rather than silently vanishing, and the game
+  logs the first clamp **once**, not on every frame after it.
+* **Stays monotonic**: elapsed simulation time is the sum of the deltas actually taken, so a
+  negative, NaN, or infinite delta from a broken or wrapped platform timer advances the world by 0
+  rather than backwards — while still counting the frame as having happened.
+
+It deliberately clamps rather than subdividing, because CNA already drives `Update()` on a fixed
+step and subdividing here would step the world twice per engine step.
+
+**Stated honestly, because reading the CNA source changed the claim:** `Game.cpp`'s fixed-step loop
+hands `Update()` a constant `TargetElapsedTime` (16.67 ms) and catches up by calling `Update()`
+repeatedly, so **this clamp never fires in the current configuration**. It is a guard, not an active
+correction — and it becomes load-bearing the moment the game runs variable-step, where CNA's own cap
+is `Game::MaxElapsedTime` = 500 ms, five times more than this game's movement and physics can absorb
+in a single step. The plan entry and the header both say so rather than implying a bug was fixed.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestSimulationClockClampsStallsAndStaysMonotonic` covers an ordinary delta passing through, a 2.5 s
+stall clamped with the refused time accounted for, elapsed time being the sum of what ran,
+negative/NaN/infinite/zero deltas each yielding 0 and leaving elapsed time untouched while counting
+the frame, a 200-frame mixed run asserting monotonicity and step bounds every frame, a configurable
+maximum, a zero/negative/NaN maximum ignored rather than freezing time, and `Reset()` clearing the
+totals while keeping the configured maximum. `scripts/check-syntax.sh` and `git diff --check` clean;
+a `--smoke 120` run logs no clamp warning, which is the expected result given the fixed step above.
+The fixed/variable-step split is now documented in `docs/architecture.md`.
+
+**Boundaries.** No interpolation between fixed steps for rendering, so the picture is only as smooth
+as the step; no pause/time-scale (a cutscene still runs the world at 1×); the clamp threshold is a
+compile-time constant rather than a `game.json` tunable, since nothing has needed to change it.
+
 ## Structured logging replaces 24 ad-hoc stderr lines (2026-08-25)
 
 plan_04 `IG-04-002`/`017` closed; `IG-04-008` advanced. Every previous entry in this session added

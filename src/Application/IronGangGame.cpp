@@ -1106,8 +1106,20 @@ namespace IronGang
         };
 
         Game::Update(gameTime);
-        const float deltaSeconds = static_cast<float>(
+        // plan_04 IG-04-003/004: the simulation runs on its own monotonic clock, not on whatever
+        // the platform hands back after a stall. A delta big enough to teleport the player through
+        // a wall is clamped, so the world runs slower than wall time instead of breaking.
+        const float rawDeltaSeconds = static_cast<float>(
             gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty());
+        const float deltaSeconds = simulationClock_.Advance(rawDeltaSeconds);
+        if (simulationClock_.GetClampedStepCount() > 0 && !reportedClockStall_)
+        {
+            reportedClockStall_ = true;
+            Log::Warning(LogCategory::Application,
+                         "a frame delta of " + std::to_string(rawDeltaSeconds) +
+                             " s was clamped to " + std::to_string(simulationClock_.GetMaximumStepSeconds()) +
+                             " s; the simulation is running behind wall time (reported once)");
+        }
         const KeyboardState keyboard = Keyboard::GetState();
 
         if (keyboard.IsKeyDown(Keys::Escape))

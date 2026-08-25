@@ -32,4 +32,22 @@ The current prototype includes a small but real vertical path:
 - Save/load using sharp-runtime `System::IO`.
 - Core tests that run without creating a window.
 
+## Fixed step and variable step
+
+CNA owns the fixed step: `IronGangGame::Initialize` sets a 60 Hz target elapsed time, and CNA's loop
+calls `Update()` once per step, catching up after a stall by calling it **repeatedly** rather than
+by handing it a bigger delta.
+
+That fixes the responsibilities (plan_04 `IG-04-005`):
+
+| Half | Who | Rule |
+| --- | --- | --- |
+| Fixed step | `IronGangGame::Update` | The only place the world advances: physics, controllers, ambient AI, the mission, the autosave scheduler. |
+| Variable step | `IronGangGame::Draw` / `EndDraw` | **Reads** state to present it. Never advances it. |
+
+`SimulationClock` sits between the two and is the single place a frame delta is sanitized: it clamps
+an extreme delta (so a stall costs smoothness rather than correctness) and keeps monotonic
+simulation time that owes nothing to the wall clock. See its header for why it clamps rather than
+subdividing, and what that means while CNA runs fixed-step.
+
 The procedural renderer is intentionally temporary. Future production geometry should flow from MC3 through glTF/GLB into CNJ and be loaded through CNA content APIs. Game-specific streaming, physics, navigation, traffic, missions, dialogue, and cinematics remain outside CNA itself.

@@ -92,6 +92,28 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A simulation clock between CNA and the world (plan_04)
+
+`Update` fed `GameTime`'s raw delta straight to physics, movement, AI, the mission, and autosave.
+`SimulationClock` (`Core/SimulationClock.hpp`) now sits in between: it **clamps** an extreme delta to
+100 ms (a stall costs smoothness, not correctness -- no teleporting through walls, no skipped
+trigger, no missed briefly-true mission condition) and keeps **monotonic** simulation time, so a
+negative/NaN/infinite delta from a broken timer advances the world by 0 rather than backwards. The
+refused wall time is accounted for in `GetDroppedSeconds()`, and the first clamp is logged once.
+
+**Worth knowing before trusting it:** reading `cnanext`'s `Game.cpp` showed the fixed-step loop hands
+`Update()` a constant 16.67 ms and catches up by calling `Update()` **repeatedly**, so the clamp
+never fires in the current configuration. It is a guard, and it becomes load-bearing if the game
+runs variable-step, where CNA's own cap is `Game::MaxElapsedTime` = 500 ms -- five times more than
+this game's movement and physics can absorb in one step. The plan entry, the header, and
+`docs/validation.md` all say so rather than implying a bug was fixed.
+
+Closed `IG-04-003`/`004`/`005`/`007`. The fixed-step vs variable-step split (`Update` advances the
+world; `Draw` only reads it) is now written down in `docs/architecture.md`.
+
+Not done: no interpolation between fixed steps, no pause or time scale (a cutscene runs the world at
+1x), and the clamp threshold is a constant rather than a `game.json` tunable.
+
 ### Structured logging replaces the 24 ad-hoc stderr lines (plan_04)
 
 Every entry below added another hand-written `std::cerr << "[IronGang] …"`; there were 24, with no

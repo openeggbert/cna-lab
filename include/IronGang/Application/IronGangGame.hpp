@@ -3,6 +3,7 @@
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
+#include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -172,6 +173,10 @@ namespace IronGang
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).
         GameConfig config_;
+        SimulationClock simulationClock_;
+        // Set once the clock has first refused a frame's delta, so a stall is reported once
+        // instead of on every frame that follows it.
+        bool reportedClockStall_{false};
         std::optional<LogSeverity> logSeverityOverride_;
         AutosaveScheduler autosave_;
         std::optional<WorldStateSnapshot> missionCheckpointWorld_;
