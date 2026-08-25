@@ -2740,28 +2740,51 @@ namespace WolfCna
         // Relative mode is confined to live gameplay. CNA reports relative displacement
         // through the same MouseState x/y fields the menus read as absolute cursor
         // coordinates, so leaving it enabled would break every clickable menu button.
+        // The held map view keeps capture: the world is frozen and it reads no absolute
+        // coordinate, so releasing would warp the cursor on every glance at the map.
+        // Losing window focus must release, otherwise alt-tabbing out of play strands the
+        // cursor inside the window and the displacement accumulated while away lands in
+        // yaw_ on return.
         const bool desired = controlSettings_.mouseEnabled &&
-            screen_ == Screen::Playing &&
+            getIsActiveProperty() &&
+            (screen_ == Screen::Playing || screen_ == Screen::Map) &&
             !completed_;
         if (desired == mouseLookActive_)
             return;
 
-        mouseLookActive_ = desired;
-        Mouse::setIsRelativeMouseModeEXTProperty(desired);
-        setIsMouseVisibleProperty(!desired);
-        if (desired)
+        try
         {
-            // Relative displacement is consume-on-read and accumulates while the cursor is
-            // free, so discard the menu's travel instead of snapping the view on entry.
-            static_cast<void>(Mouse::GetState());
+            Mouse::setIsRelativeMouseModeEXTProperty(desired);
+        }
+        catch (const std::exception&)
+        {
+            // CNA throws when the window cannot be captured, e.g. while the device is being
+            // torn down. Staying uncaptured is recoverable; letting it escape Update is not.
+        }
+
+        // Trust the platform rather than the request. CNA silently declines capture when it
+        // has no window, and believing the request there would feed the absolute cursor x
+        // into the yaw delta and spin the view permanently, with no path back through the
+        // early-out above.
+        mouseLookActive_ = Mouse::getIsRelativeMouseModeEXTProperty();
+        setIsMouseVisibleProperty(!mouseLookActive_);
+        if (mouseLookActive_)
+        {
+            // Buttons are not consume-on-read, so seed their edge state: one already held
+            // as capture begins must not register as a fresh press on the next frame.
+            const MouseState entry = Mouse::GetState();
+            attackWasDown_ = entry.getLeftButtonProperty() == ButtonState::Pressed;
+            actionWasDown_ = entry.getRightButtonProperty() == ButtonState::Pressed;
         }
     }
 
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
-        // Consume-on-read: this is the only Mouse::GetState call on the gameplay path, and
-        // it must stay that way or the second reader would silently eat the frame's motion.
+        // Consume-on-read: this is the only Mouse::GetState call that reads motion on the
+        // gameplay path, and it must stay that way or a second reader would silently eat
+        // the frame's displacement. UpdateMouseLookMode's capture-edge read is safe because
+        // CNA flushes displacement as part of the transition itself.
         const MouseState mouse = mouseLookActive_ ? Mouse::GetState() : MouseState{};
         const float mouseYawDelta = mouseLookActive_
             ? MouseYawDeltaRadians(mouse.getXProperty(), controlSettings_)
@@ -3186,7 +3209,7 @@ namespace WolfCna
 
         // Mouse yaw is additive with the keyboard turn keys, which stay available as the
         // fallback whenever mouse control is switched off.
-        yaw_ += mouseYawDelta;
+        yaw_ = WrapYawRadians(yaw_ + mouseYawDelta);
 
         MovementInput movement;
         if (IsControlDown(keyboard, controlSettings_, ControlAction::MoveForward))

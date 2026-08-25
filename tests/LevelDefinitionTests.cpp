@@ -532,13 +532,27 @@ int main()
         "disabling mouse control leaves the keyboard turn keys as the only yaw source");
     Expect(
         WolfCna::MouseYawDeltaRadians(100000, defaultMouse) ==
-                WolfCna::MouseYawDeltaRadians(
-                    WolfCna::MaximumMouseCountsPerFrame, defaultMouse) &&
-            WolfCna::MouseYawDeltaRadians(-100000, defaultMouse) ==
-                WolfCna::MouseYawDeltaRadians(
-                    -WolfCna::MaximumMouseCountsPerFrame, defaultMouse) &&
-            std::abs(WolfCna::MouseYawDeltaRadians(100000, fastMouse)) < 3.14159f,
-        "a focus-change displacement spike is clamped below a half turn in one frame");
+                WolfCna::MaximumMouseYawRadiansPerFrame &&
+            WolfCna::MouseYawDeltaRadians(-100000, fastMouse) ==
+                -WolfCna::MaximumMouseYawRadiansPerFrame,
+        "a displacement spike cannot turn more than half a circle in a single frame");
+    // A 180-degree flick is ~1428 counts. Splitting it across frames must deliver the same
+    // rotation as one burst, or fast aiming would silently lose travel and the maximum turn
+    // rate would depend on the frame rate.
+    const float flickInOneFrame = WolfCna::MouseYawDeltaRadians(1428, defaultMouse);
+    float flickAcrossFrames = 0.0f;
+    for (int frame = 0; frame < 6; ++frame)
+        flickAcrossFrames += WolfCna::MouseYawDeltaRadians(238, defaultMouse);
+    Expect(
+        std::abs(flickInOneFrame - 3.14159f) < 0.01f &&
+            std::abs(flickAcrossFrames - flickInOneFrame) < 0.001f,
+        "equal hand travel yaws equally whether it arrives in one frame or across six");
+    Expect(
+        std::abs(WolfCna::WrapYawRadians(
+                100.0f * WolfCna::MaximumMouseYawRadiansPerFrame + 0.25f) - 0.25f) < 0.001f &&
+            std::abs(WolfCna::WrapYawRadians(-0.25f) + 0.25f) < 0.001f &&
+            std::abs(WolfCna::WrapYawRadians(0.25f) - 0.25f) < 0.001f,
+        "yaw wraps to a bounded range so long sessions keep constant aim precision");
     WolfCna::ControlSettings invalidMouse = defaultMouse;
     invalidMouse.mouseSensitivityStep = WolfCna::MaximumMouseSensitivityStep + 1;
     WolfCna::ControlSettings negativeMouse = defaultMouse;
