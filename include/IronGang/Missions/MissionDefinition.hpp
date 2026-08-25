@@ -39,12 +39,26 @@ namespace IronGang
         std::string message;     // Log: the text to write
     };
 
+    // plan_24 IG-24-002: what reaching a state means for the mission as a whole. A state with an
+    // outcome other than None is terminal -- it ends the run, successfully or not -- which is why
+    // the loader requires such a state to declare no condition and no "next".
+    enum class MissionOutcome
+    {
+        None,
+        Completed,
+        Failed,
+    };
+
+    [[nodiscard]] const char* MissionOutcomeName(MissionOutcome outcome) noexcept;
+    [[nodiscard]] bool ParseMissionOutcome(const std::string& name, MissionOutcome& out);
+
     // One state in a mission's graph: what to show the player, what to do on arrival, what to
     // wait for, and where to go next.
     struct MissionStateDefinition
     {
         std::string id;
         std::string objective;
+        MissionOutcome outcome{MissionOutcome::None};
         // Bool expression evaluated every frame while this state is current. Empty means a
         // terminal state with no automatic transition.
         MissionExpression condition;
@@ -68,6 +82,8 @@ namespace IronGang
 
         // Returns the state with the given id, or nullptr if none matches.
         [[nodiscard]] const MissionStateDefinition* FindState(const std::string& stateId) const;
+        // The outcome of the named state, or None for an unknown one.
+        [[nodiscard]] MissionOutcome GetOutcome(const std::string& stateId) const;
     };
 
     // Parses and validates a mission definition from @p path.
@@ -80,7 +96,8 @@ namespace IronGang
     // Validation: supported schema version; unique non-empty state ids; initialState and every
     // non-empty "next" refer to a real state; each variable has a known type and a value of that
     // type; each condition is a bool expression; a terminal state (empty "next") declares no
-    // condition; each action is well formed and assigns a declared variable a matching type.
+    // condition; an outcome state is terminal; at least one state ends the mission; each action is
+    // well formed and assigns a declared variable a matching type.
     // Returns false with errorMessage set on any failure -- callers should fall back to a known
     // good default (see PrototypeMission) rather than run with a partially-valid mission.
     [[nodiscard]] bool LoadMissionDefinition(const std::string& path,

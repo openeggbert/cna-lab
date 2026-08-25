@@ -11,7 +11,10 @@ namespace IronGang
 {
     struct SaveSnapshot
     {
-        PrototypeMissionState missionState{PrototypeMissionState::Introduction};
+        // The mission's current state id (plan_24 IG-24-018). Older saves stored a fixed
+        // 0-4 int in a "mission_state" field instead; SaveGame::Read migrates those, so a save
+        // written before mission states became free-form still loads.
+        std::string missionStateId;
         Vector3 playerPosition{};
         float playerYaw{0.0F};
         Vector3 vehiclePosition{};

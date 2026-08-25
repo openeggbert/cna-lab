@@ -768,7 +768,7 @@ namespace IronGang
     void IronGangGame::SavePrototype()
     {
         SaveSnapshot snapshot;
-        snapshot.missionState = mission_.GetState();
+        snapshot.missionStateId = mission_.GetStateId();
         snapshot.playerPosition = player_.GetPosition();
         snapshot.playerYaw = player_.GetYaw();
         snapshot.vehiclePosition = vehicle_.GetPosition();
@@ -828,7 +828,15 @@ namespace IronGang
                                      videoMemoryBytesBefore);
         }
 
-        mission_.SetState(snapshot->missionState);
+        if (!mission_.SetStateId(snapshot->missionStateId))
+        {
+            // The save names a state the currently loaded mission file does not define. Resuming
+            // there would strand the mission with no objective and no way out, so keep the state
+            // the mission already has and say so (plan_24 IG-24-019).
+            std::cerr << "[IronGang] save file mission state \"" << snapshot->missionStateId
+                      << "\" is not defined by the loaded mission; keeping \"" << mission_.GetStateId()
+                      << "\".\n";
+        }
         // plan_24 IG-24-029: variables are restored, but entry actions deliberately are not
         // re-run (SetState's own comment). A variable the current mission file no longer declares
         // is reported and skipped rather than failing the load (IG-24-019).
@@ -995,7 +1003,7 @@ namespace IronGang
 
         const bool missionEntersVehicle =
             performanceScenario_ == PerformanceScenario::Mission &&
-            mission_.GetState() == PrototypeMissionState::EnterVehicle &&
+            mission_.IsInState("enter_vehicle") &&
             vehicleTransitionState_ == VehicleTransitionState::None &&
             !playerDriving_;
         if ((missionEntersVehicle || WasPressed(keyboard, Keys::E)) &&

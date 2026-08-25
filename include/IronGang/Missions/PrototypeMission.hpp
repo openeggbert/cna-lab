@@ -8,21 +8,6 @@
 
 namespace IronGang
 {
-    // Kept as a fixed enum (rather than a free-form string) purely for SaveGame's existing
-    // int-based mission_state field and public-API compatibility (gate M7,
-    // plan_24-mission-framework-and-scripting.md IG-24-001 -- "preserve current behavior"). The
-    // states themselves, their objective text, transition conditions, entry actions, and the
-    // state graph are data (see MissionDefinition) -- this enum only names the fixed set of state
-    // ids a mission file loaded by PrototypeMission is allowed to use; see LoadMission.
-    enum class PrototypeMissionState : int
-    {
-        Introduction = 0,
-        ReachVehicle = 1,
-        EnterVehicle = 2,
-        DriveToWarehouse = 3,
-        Completed = 4
-    };
-
     // The engine facts this prototype exposes to mission expressions (plan_24 IG-24-006), each at
     // a neutral initial value:
     //     dialogue_finished                 bool   the opening dialogue has been read to the end
@@ -49,12 +34,10 @@ namespace IronGang
     public:
         PrototypeMission();
 
-        // Loads and validates a mission definition from path (see LoadMissionDefinition), and
-        // additionally requires every state id in it to be one of PrototypeMissionState's fixed
-        // values (this prototype's save format is int-enum-based, see SaveGame). On success,
-        // replaces the current definition (the hardcoded default, or a previously loaded one) and
-        // its variables; on failure, errorMessage is set and the current definition is left
-        // unchanged. Call Reset() afterwards to start the loaded mission.
+        // Loads and validates a mission definition from path (see LoadMissionDefinition). On
+        // success, replaces the current definition (the hardcoded default, or a previously loaded
+        // one) and its variables; on failure, errorMessage is set and the current definition is
+        // left unchanged. Call Reset() afterwards to start the loaded mission.
         [[nodiscard]] bool LoadMission(const std::string& path, std::string& errorMessage);
 
         // Returns to the initial state, restores every mission variable to its declared value, and
@@ -66,16 +49,26 @@ namespace IronGang
                     bool playerDriving,
                     const TriggerZone& warehouseGoal);
 
-        [[nodiscard]] PrototypeMissionState GetState() const noexcept { return state_; }
+        // The current state's id. This is the authoritative state -- there is no fixed enum of
+        // allowed states any more, so a mission file may name its states whatever it likes
+        // (plan_24 IG-24-018 lifted the five-id restriction the int-based save format imposed).
+        [[nodiscard]] const std::string& GetStateId() const noexcept { return stateId_; }
+        [[nodiscard]] bool IsInState(const std::string& stateId) const { return stateId_ == stateId; }
         [[nodiscard]] std::string GetObjectiveText() const;
-        [[nodiscard]] bool IsCompleted() const noexcept { return state_ == PrototypeMissionState::Completed; }
+
+        // What reaching the current state means for the run (IG-24-002/009). A mission is over
+        // when GetOutcome() is not None; which of the two it is decides success from failure.
+        [[nodiscard]] MissionOutcome GetOutcome() const;
+        [[nodiscard]] bool IsCompleted() const { return GetOutcome() == MissionOutcome::Completed; }
+        [[nodiscard]] bool IsFailed() const { return GetOutcome() == MissionOutcome::Failed; }
+        [[nodiscard]] bool IsFinished() const { return GetOutcome() != MissionOutcome::None; }
+
         // Restores a state without re-running its entry actions: loading a save resumes a mission
         // that already ran them, and running them again would double every counter they touch.
-        void SetState(PrototypeMissionState state) noexcept
-        {
-            state_ = state;
-            conditionFaultLogged_ = false;
-        }
+        // Returns false, leaving the mission untouched, for an id the loaded mission does not
+        // define -- a save written against a different mission file must not strand the mission in
+        // a state that has no objective, condition, or way out (IG-24-019).
+        [[nodiscard]] bool SetStateId(const std::string& stateId);
 
         // Mission variables (IG-24-005/029/039). CaptureVariables() is what SaveGame writes;
         // ApplyVariables() restores it, ignoring -- and reporting through @p warnings, when given
@@ -89,7 +82,7 @@ namespace IronGang
         [[nodiscard]] const MissionDefinition& GetDefinition() const noexcept { return definition_; }
 
     private:
-        void EnterState(PrototypeMissionState state);
+        void EnterState(const std::string& stateId);
         void RefreshFacts(bool dialogueFinished,
                           const Vector3& playerPosition,
                           const Vector3& vehiclePosition,
@@ -104,6 +97,6 @@ namespace IronGang
         // Live symbol values for this run: a copy of definition_.declaredContext whose facts are
         // refreshed every Update() and whose variables the mission's own actions write.
         MissionContext context_;
-        PrototypeMissionState state_{PrototypeMissionState::Introduction};
+        std::string stateId_;
     };
 }

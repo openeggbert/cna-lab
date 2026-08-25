@@ -89,7 +89,7 @@ namespace
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.IsInState("drive_to_warehouse"),
                 "mission did not reach the save checkpoint");
     }
 
@@ -99,7 +99,7 @@ namespace
     {
         AdvanceMissionToDriving(mission, world);
         IronGang::SaveSnapshot snapshot;
-        snapshot.missionState = mission.GetState();
+        snapshot.missionStateId = mission.GetStateId();
         snapshot.playerPosition = world.GetVehicleSpawn();
         snapshot.vehiclePosition = world.GetVehicleSpawn();
         snapshot.playerDriving = true;
@@ -110,12 +110,12 @@ namespace
                 "save write failed during soak: " + error);
         const std::optional<IronGang::SaveSnapshot> loaded = IronGang::SaveGame::Read(savePath.string(), error);
         Require(loaded.has_value(), "save read failed during soak: " + error);
-        Require(loaded->missionState == IronGang::PrototypeMissionState::DriveToWarehouse &&
+        Require(loaded->missionStateId == "drive_to_warehouse" &&
                     loaded->districtId == IronGang::DistrictId::WarehouseBlock && loaded->playerDriving,
                 "save/load changed mission, district, or driving state during soak");
 
         IronGang::PrototypeMission resumed;
-        resumed.SetState(loaded->missionState);
+        Require(resumed.SetStateId(loaded->missionStateId), "restoring the saved mission state must succeed");
         resumed.Update(true,
                        world.GetWarehouseGoal().bounds.center,
                        world.GetWarehouseGoal().bounds.center,
@@ -124,7 +124,7 @@ namespace
         Require(resumed.IsCompleted(), "loaded mission could not complete during soak");
 
         mission.Reset();
-        Require(mission.GetState() == IronGang::PrototypeMissionState::Introduction,
+        Require(mission.IsInState("introduction"),
                 "mission reset failed during soak");
     }
 

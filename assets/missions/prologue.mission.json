@@ -43,6 +43,7 @@
     {
       "id": "completed",
       "objective": "Prototype mission complete",
+      "outcome": "completed",
       "onEnter": [
         { "action": "set", "variable": "deliveries_made", "value": "deliveries_made + 1" },
         { "action": "log", "message": "delivery complete" }

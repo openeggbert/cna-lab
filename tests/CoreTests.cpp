@@ -187,13 +187,13 @@ namespace
         IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
+        Require(mission.IsInState("reach_vehicle"),
                 "dialogue completion must start reach-vehicle objective");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
+        Require(mission.IsInState("enter_vehicle"),
                 "reaching the car must request entry");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.IsInState("drive_to_warehouse"),
                 "entering the car must start driving objective");
         mission.Update(true,
                        world.GetWarehouseGoal().bounds.center,
@@ -219,13 +219,13 @@ namespace
         mission.Reset();
 
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
+        Require(mission.IsInState("reach_vehicle"),
                 "loaded mission: dialogue completion must start reach-vehicle objective");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
+        Require(mission.IsInState("enter_vehicle"),
                 "loaded mission: reaching the car must request entry");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.IsInState("drive_to_warehouse"),
                 "loaded mission: entering the car must start driving objective");
         mission.Update(true,
                        world.GetWarehouseGoal().bounds.center,
@@ -324,6 +324,26 @@ namespace
 
         // One well-formed, minimal two-state mission must still succeed after all the rejections
         // above -- proves failures didn't corrupt LoadMissionDefinition's own state.
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","outcome":"cancelled"}]})JSON");
+        Require(!load(), "an unknown outcome must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","outcome":"completed","next":"b"},{"id":"b"}]})JSON");
+        Require(!load(), "an outcome state with a \"next\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":1,"initialState":"a","states":[{"id":"a","outcome":"completed"}]})JSON");
+        Require(!load(), "declaring an outcome in a version-1 file must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","objective":"Nowhere"}]})JSON");
+        Require(!load(), "a mission no state can end must be rejected");
+
+        // One well-formed, minimal two-state mission must still succeed after all the rejections
+        // above -- proves failures didn't corrupt LoadMissionDefinition's own state. Neither state
+        // is called "completed", so this also proves state ids are no longer a fixed set and that
+        // "outcome" is what ends a mission (IG-24-002/018).
         WriteTempJson(path, R"JSON({
             "id": "test_mission",
             "version": 2,
@@ -332,10 +352,11 @@ namespace
             "states": [
                 { "id": "start", "objective": "Go", "when": "player_driving && crates > 0", "next": "done",
                   "onEnter": [ { "action": "set", "variable": "crates", "value": "crates + 1" } ] },
-                { "id": "done", "objective": "Done" }
+                { "id": "done", "objective": "Done", "outcome": "completed" }
             ]
         })JSON");
-        Require(load(), "a well-formed minimal mission must load successfully: " + error);
+        const bool loaded = load();
+        Require(loaded, "a well-formed minimal mission must load successfully: " + error);
         Require(definition.initialState == "start", "initialState must round-trip correctly");
         Require(definition.version == 2, "version must round-trip correctly");
         Require(definition.states.size() == 2, "both states must be parsed");
@@ -352,10 +373,119 @@ namespace
         const IronGang::MissionStateDefinition* done = definition.FindState("done");
         Require(done != nullptr && done->next.empty() && done->condition.IsEmpty(),
                 "a state with no \"next\"/\"when\" fields must default to terminal/no-condition");
+        Require(done != nullptr && done->outcome == IronGang::MissionOutcome::Completed,
+                "a declared outcome must round-trip correctly");
+        Require(start != nullptr && start->outcome == IronGang::MissionOutcome::None,
+                "a state with no outcome must not end the mission");
         IronGang::MissionValue crates;
         Require(definition.declaredContext.TryGetValue("crates", crates) &&
                     crates.GetType() == IronGang::MissionValueType::Int && crates.AsInt() == 2,
                 "a declared variable must keep its declared type and initial value");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-018: mission state ids are no longer a fixed five-value enum. A mission may
+    // name its states anything, declare which one ends the run and how, and those ids -- not an
+    // int index -- are what the save file stores.
+    void TestMissionStateIdsAreNotAFixedSet()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_free_states.json";
+        WriteTempJson(path, R"JSON({
+            "id": "night_stakeout",
+            "version": 2,
+            "initialState": "briefing",
+            "states": [
+                { "id": "briefing", "objective": "Hear the plan", "when": "dialogue_finished",
+                  "next": "stakeout" },
+                { "id": "stakeout", "objective": "Sit on the car", "when": "player_driving",
+                  "next": "escaped" },
+                { "id": "escaped", "objective": "You made it", "outcome": "completed" },
+                { "id": "caught", "objective": "They got you", "outcome": "failed" }
+            ]
+        })JSON");
+
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
+        std::string error;
+        Require(mission.LoadMission(path.string(), error),
+                "a mission using ids outside the old fixed set must load: " + error);
+        mission.Reset();
+        Require(mission.IsInState("briefing"), "the mission must start in its own initial state");
+        Require(!mission.IsFinished(), "a mission in a non-outcome state must not be finished");
+
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.IsInState("stakeout"), "an arbitrary state id must still transition normally");
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
+        Require(mission.IsInState("escaped"), "the mission must reach its own terminal state");
+        Require(mission.IsCompleted() && mission.IsFinished() && !mission.IsFailed(),
+                "an \"outcome\": \"completed\" state must report completion");
+
+        // A failure outcome is what ends the run unsuccessfully (IG-24-002/009's groundwork).
+        Require(mission.SetStateId("caught"), "restoring a declared state must succeed");
+        Require(mission.IsFailed() && mission.IsFinished() && !mission.IsCompleted(),
+                "an \"outcome\": \"failed\" state must report failure, not completion");
+
+        // A state the loaded mission does not define must be refused, leaving the mission put.
+        Require(!mission.SetStateId("drive_to_warehouse"),
+                "restoring an undefined state id must fail rather than strand the mission");
+        Require(mission.IsInState("caught"), "a refused restore must leave the state unchanged");
+
+        // The id, not an index, is what the save file carries.
+        const std::filesystem::path savePath =
+            std::filesystem::current_path() / "iron_gang_free_states.save";
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionStateId = mission.GetStateId();
+        Require(IronGang::SaveGame::Write(savePath.string(), snapshot, error),
+                "writing a free-form state id must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> restored =
+            IronGang::SaveGame::Read(savePath.string(), error);
+        Require(restored.has_value() && restored->missionStateId == "caught",
+                "a free-form state id must survive the save round trip");
+
+        std::filesystem::remove(savePath);
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-018: a save written before mission states became free-form stored a 0-4 index
+    // into a fixed enum. Those saves must still load, mapped onto the ids they meant.
+    void TestSaveMigratesLegacyMissionState()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_legacy.save";
+        const std::string body =
+            "player_position=1,1.7,2\n"
+            "player_yaw=0\n"
+            "vehicle_position=3,0.65,4\n"
+            "vehicle_yaw=0\n"
+            "vehicle_speed=0\n"
+            "player_driving=0\n";
+
+        WriteTempJson(path, "format=iron-gang-save-v1\nmission_state=3\n" + body);
+        std::string error;
+        std::optional<IronGang::SaveSnapshot> loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "a legacy save must still load: " + error);
+        Require(loaded->missionStateId == "drive_to_warehouse",
+                "a legacy mission_state index must map onto the id it meant");
+
+        WriteTempJson(path, "format=iron-gang-save-v1\nmission_state=0\n" + body);
+        loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value() && loaded->missionStateId == "introduction",
+                "the first legacy state must map to introduction");
+
+        WriteTempJson(path, "format=iron-gang-save-v1\nmission_state=9\n" + body);
+        Require(!IronGang::SaveGame::Read(path.string(), error).has_value(),
+                "an out-of-range legacy mission_state must be rejected, not silently clamped");
+
+        WriteTempJson(path, "format=iron-gang-save-v1\n" + body);
+        Require(!IronGang::SaveGame::Read(path.string(), error).has_value(),
+                "a save with no mission state at all must be rejected");
+
+        // A new-format save wins over a legacy field if both are somehow present.
+        WriteTempJson(path,
+                      "format=iron-gang-save-v1\nmission_state=0\nmission_state_id=enter_vehicle\n" + body);
+        loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value() && loaded->missionStateId == "enter_vehicle",
+                "mission_state_id must take precedence over the legacy index");
 
         std::filesystem::remove(path);
     }
@@ -629,7 +759,7 @@ namespace
                 "entry actions must not re-run while the state is unchanged");
 
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
+        Require(mission.IsInState("reach_vehicle"),
                 "the expression condition must advance the mission");
         Require(mission.TryGetVariable("entries", value) && value.AsInt() == 11,
                 "the entered state's action must run exactly once, after the transition");
@@ -640,7 +770,7 @@ namespace
 
         // Reset is a retry: declared values come back and the initial actions run again.
         mission.Reset();
-        Require(mission.GetState() == IronGang::PrototypeMissionState::Introduction,
+        Require(mission.IsInState("introduction"),
                 "Reset must return to the initial state");
         Require(mission.TryGetVariable("entries", value) && value.AsInt() == 1,
                 "Reset must restore declared values before re-running the initial actions");
@@ -667,7 +797,7 @@ namespace
                 "reaching reach_vehicle must set briefing_read");
 
         IronGang::SaveSnapshot snapshot;
-        snapshot.missionState = mission.GetState();
+        snapshot.missionStateId = mission.GetStateId();
         snapshot.missionVariables = mission.CaptureVariables();
         Require(snapshot.missionVariables.size() == 4,
                 "every declared variable must be captured for the save file");
@@ -694,7 +824,7 @@ namespace
                                      error),
                 "the committed mission must load again: " + error);
         reloaded.Reset();
-        reloaded.SetState(restored->missionState);
+        Require(reloaded.SetStateId(restored->missionStateId), "restoring the saved mission state must succeed");
         std::vector<std::string> warnings;
         reloaded.ApplyVariables(restored->missionVariables, &warnings);
         Require(warnings.empty(), "restoring a matching save must not warn");
@@ -1169,12 +1299,12 @@ namespace
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.IsInState("drive_to_warehouse"),
                 "setup: mission must reach DriveToWarehouse before saving");
 
         const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_playthrough_test.save";
         IronGang::SaveSnapshot snapshot;
-        snapshot.missionState = mission.GetState();
+        snapshot.missionStateId = mission.GetStateId();
         snapshot.playerPosition = world.GetVehicleSpawn();
         snapshot.vehiclePosition = world.GetVehicleSpawn();
         snapshot.playerDriving = true;
@@ -1186,8 +1316,8 @@ namespace
         Require(loaded.has_value(), "save read failed: " + error);
 
         IronGang::PrototypeMission resumedMission;
-        resumedMission.SetState(loaded->missionState);
-        Require(resumedMission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(resumedMission.SetStateId(loaded->missionStateId), "restoring the saved mission state must succeed");
+        Require(resumedMission.IsInState("drive_to_warehouse"),
                 "the loaded mission state must match what was saved");
 
         // Continuing from the loaded state must still complete the mission correctly.
@@ -1219,7 +1349,7 @@ namespace
         IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
+        Require(mission.IsInState("reach_vehicle"),
                 "mission progression must work normally immediately after a cutscene is skipped");
     }
 
@@ -1237,11 +1367,11 @@ namespace
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.IsInState("drive_to_warehouse"),
                 "setup: mission must be mid-flight before retrying");
 
         mission.Reset();
-        Require(mission.GetState() == IronGang::PrototypeMissionState::Introduction,
+        Require(mission.IsInState("introduction"),
                 "Reset() must return a mid-mission run to the mission's own initial state");
 
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
@@ -1263,7 +1393,7 @@ namespace
         const std::filesystem::path path =
             std::filesystem::current_path() / "iron_gang_vehicle_recovery_test.save";
         IronGang::SaveSnapshot snapshot;
-        snapshot.missionState = IronGang::PrototypeMissionState::ReachVehicle;
+        snapshot.missionStateId = "reach_vehicle";
         snapshot.playerPosition = {50.0F, 1.70F, -10.0F}; // far from the vehicle
         snapshot.playerYaw = 1.2F;
         snapshot.vehiclePosition = {0.0F, 0.65F, 11.0F};
@@ -1298,7 +1428,7 @@ namespace
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
+        Require(mission.IsInState("enter_vehicle"),
                 "setup: mission must be mid-flight before transitioning districts");
 
         IronGang::Physics::PhysicsWorld physics;
@@ -1311,7 +1441,7 @@ namespace
             districts.Update(1.0F / 60.0F);
         }
         Require(districts.ConsumeArrival(), "arrival must be reported once the loading screen finishes");
-        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
+        Require(mission.IsInState("enter_vehicle"),
                 "leaving the district must not disturb the mission's state");
 
         districts.RequestTransition(physics); // Countryside -> WarehouseBlock
@@ -1320,7 +1450,7 @@ namespace
             districts.Update(1.0F / 60.0F);
         }
         Require(districts.ConsumeArrival(), "arrival must be reported once the return trip's loading screen finishes");
-        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
+        Require(mission.IsInState("enter_vehicle"),
                 "returning to the original district must not disturb the mission's state either");
     }
 
@@ -1328,7 +1458,7 @@ namespace
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_core_test.save";
         IronGang::SaveSnapshot source;
-        source.missionState = IronGang::PrototypeMissionState::DriveToWarehouse;
+        source.missionStateId = "drive_to_warehouse";
         source.playerPosition = {1.0F, 1.7F, 2.0F};
         source.playerYaw = 0.25F;
         source.vehiclePosition = {3.0F, 0.65F, 4.0F};
@@ -1341,7 +1471,7 @@ namespace
         Require(IronGang::SaveGame::Write(path.string(), source, error), "save write failed: " + error);
         const auto loaded = IronGang::SaveGame::Read(path.string(), error);
         Require(loaded.has_value(), "save read failed: " + error);
-        Require(loaded->missionState == source.missionState, "mission state round-trip failed");
+        Require(loaded->missionStateId == source.missionStateId, "mission state round-trip failed");
         Require(std::abs(loaded->vehicleSpeed - source.vehicleSpeed) < 0.001F,
                 "vehicle speed round-trip failed");
         Require(loaded->playerDriving, "driving flag round-trip failed");
@@ -1708,6 +1838,8 @@ int main()
         TestMissionFlow();
         TestMissionLoadsCommittedFile();
         TestMissionValidationRejectsMalformedData();
+        TestMissionStateIdsAreNotAFixedSet();
+        TestSaveMigratesLegacyMissionState();
         TestMissionExpressionEvaluatesTypedOperations();
         TestMissionExpressionRejectsMalformedInput();
         TestMissionVariablesEnforceTypes();

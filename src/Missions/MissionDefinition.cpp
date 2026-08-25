@@ -11,6 +11,31 @@ namespace IronGang
     using System::Text::Json::JsonElement;
     using System::Text::Json::JsonValueKind;
 
+    const char* MissionOutcomeName(MissionOutcome outcome) noexcept
+    {
+        switch (outcome)
+        {
+            case MissionOutcome::None: return "none";
+            case MissionOutcome::Completed: return "completed";
+            case MissionOutcome::Failed: return "failed";
+        }
+        return "none";
+    }
+
+    bool ParseMissionOutcome(const std::string& name, MissionOutcome& out)
+    {
+        if (name == "none") { out = MissionOutcome::None; return true; }
+        if (name == "completed") { out = MissionOutcome::Completed; return true; }
+        if (name == "failed") { out = MissionOutcome::Failed; return true; }
+        return false;
+    }
+
+    MissionOutcome MissionDefinition::GetOutcome(const std::string& stateId) const
+    {
+        const MissionStateDefinition* state = FindState(stateId);
+        return state != nullptr ? state->outcome : MissionOutcome::None;
+    }
+
     const MissionStateDefinition* MissionDefinition::FindState(const std::string& stateId) const
     {
         for (const MissionStateDefinition& state : states)
@@ -351,6 +376,19 @@ namespace IronGang
                 }
                 state.objective = GetOptionalString(stateElement, "objective");
                 state.next = GetOptionalString(stateElement, "next");
+                const std::string outcomeName = GetOptionalString(stateElement, "outcome");
+                if (!outcomeName.empty() && !ParseMissionOutcome(outcomeName, state.outcome))
+                {
+                    errorMessage = "Mission state \"" + state.id + "\" has an unknown outcome \"" +
+                                   outcomeName + "\" (expected completed/failed): " + path;
+                    return false;
+                }
+                if (!outcomeName.empty() && definition.version < 2)
+                {
+                    errorMessage = "Mission state \"" + state.id +
+                                   "\" declares \"outcome\", which requires \"version\": 2: " + path;
+                    return false;
+                }
                 if (!ParseStateCondition(stateElement, state.id, definition.declaredContext, state.condition,
                                          errorMessage) ||
                     !ParseStateActions(stateElement, state.id, definition.version, definition.declaredContext,
@@ -406,6 +444,41 @@ namespace IronGang
                                "\") but no \"next\" state, so the condition could never do anything: " + path;
                 return false;
             }
+            if (state.outcome != MissionOutcome::None && !state.next.empty())
+            {
+                errorMessage = "Mission state \"" + state.id + "\" declares outcome \"" +
+                               MissionOutcomeName(state.outcome) +
+                               "\" and a \"next\" state; an outcome ends the mission: " + path;
+                return false;
+            }
+        }
+
+        // Compatibility with schema version 1 and with version-2 files that never say which state
+        // ends the mission: a terminal state literally named "completed" is treated as the success
+        // outcome, which is what every mission file written before "outcome" existed relies on.
+        // The rule applies only when the file declares no outcome of its own, so a file that opts
+        // in keeps full control.
+        bool declaresOutcome = false;
+        for (const MissionStateDefinition& state : definition.states)
+        {
+            declaresOutcome = declaresOutcome || state.outcome != MissionOutcome::None;
+        }
+        if (!declaresOutcome)
+        {
+            for (MissionStateDefinition& state : definition.states)
+            {
+                if (state.id == "completed" && state.next.empty())
+                {
+                    state.outcome = MissionOutcome::Completed;
+                    declaresOutcome = true;
+                }
+            }
+        }
+        if (!declaresOutcome)
+        {
+            errorMessage = "Mission file has no state that ends the mission: give one state "
+                           "\"outcome\": \"completed\" (or name a terminal state \"completed\"): " + path;
+            return false;
         }
 
         out = std::move(definition);

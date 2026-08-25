@@ -92,6 +92,31 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Mission states are no longer a fixed set; outcomes and save migration (plan_24)
+
+Immediately after the entry below, which had left `PrototypeMission` still restricting mission files
+to the five state ids its int-based save format encoded:
+
+- `PrototypeMissionState` is **deleted**. The state is a `std::string` id; the API is
+  `GetStateId()` / `IsInState(id)` / `SetStateId(id)`. `SetStateId` refuses an id the loaded mission
+  does not define and leaves the mission untouched, so a save written against a different mission
+  file cannot strand it.
+- A state may declare `"outcome": "completed"` or `"failed"`. `IsCompleted()`/`IsFailed()`/
+  `IsFinished()` read that instead of comparing against a hardcoded state. An outcome state must be
+  terminal; a mission with nothing that can end it is a load error; a file declaring no outcome at
+  all falls back to "a terminal state named `completed` is success", so version-1 files still load.
+- The save writes `mission_state_id=<id>` and migrates the old 0-4 index on read (out-of-range or
+  missing is rejected, not clamped). That is `IG-24-018` closed, both halves.
+
+**A mission with new states can now be authored** -- that was the blocker named at the end of the
+entry below. What is still missing before real failure/retry gameplay: a failure *reason*, a retry
+policy, checkpoints distinct from a plain save (`IG-24-009`/`010`/`041`-`045`), and anything in the
+prologue mission that can actually fail.
+
+Verified: strict build clean, CTest 11/11, 2 new core tests plus 4 new rejection cases,
+`--profile-scenario mission` still completes the mission through the real game loop, check-syntax
+clean, asset registry re-verified. Details in `docs/validation.md`.
+
 ### Mission variables and a real condition/action expression evaluator (plan_24)
 
 The mission runtime no longer treats a condition as one fixed engine signal named by a string.

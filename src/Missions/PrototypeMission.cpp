@@ -76,6 +76,7 @@ namespace IronGang
             MissionStateDefinition completed;
             completed.id = "completed";
             completed.objective = "Prototype mission complete";
+            completed.outcome = MissionOutcome::Completed;
 
             definition.states.push_back(std::move(introduction));
             definition.states.push_back(std::move(reachVehicle));
@@ -85,32 +86,6 @@ namespace IronGang
             return definition;
         }
 
-        // Bidirectional mapping between PrototypeMissionState (kept for SaveGame's int-based
-        // mission_state field, see PrototypeMissionState's own header comment) and the state ids
-        // a mission JSON file uses. Fixed to exactly these 5 names -- LoadMission() rejects any
-        // mission file using a different state id.
-        const char* EnumToStateId(PrototypeMissionState state)
-        {
-            switch (state)
-            {
-                case PrototypeMissionState::Introduction: return "introduction";
-                case PrototypeMissionState::ReachVehicle: return "reach_vehicle";
-                case PrototypeMissionState::EnterVehicle: return "enter_vehicle";
-                case PrototypeMissionState::DriveToWarehouse: return "drive_to_warehouse";
-                case PrototypeMissionState::Completed: return "completed";
-            }
-            return "introduction";
-        }
-
-        bool StateIdToEnum(const std::string& id, PrototypeMissionState& out)
-        {
-            if (id == "introduction") { out = PrototypeMissionState::Introduction; return true; }
-            if (id == "reach_vehicle") { out = PrototypeMissionState::ReachVehicle; return true; }
-            if (id == "enter_vehicle") { out = PrototypeMissionState::EnterVehicle; return true; }
-            if (id == "drive_to_warehouse") { out = PrototypeMissionState::DriveToWarehouse; return true; }
-            if (id == "completed") { out = PrototypeMissionState::Completed; return true; }
-            return false;
-        }
     }
 
     MissionContext CreatePrototypeMissionFacts()
@@ -135,6 +110,7 @@ namespace IronGang
     PrototypeMission::PrototypeMission() : definition_(BuildFallbackMissionDefinition())
     {
         context_ = definition_.declaredContext;
+        stateId_ = definition_.initialState;
     }
 
     bool PrototypeMission::LoadMission(const std::string& path, std::string& errorMessage)
@@ -145,43 +121,39 @@ namespace IronGang
             return false;
         }
 
-        // This prototype's save format is the fixed int enum above, not a free-form string --
-        // reject a mission file that introduces a state id outside that fixed set rather than
-        // silently losing save compatibility (see PrototypeMissionState's own header comment).
-        for (const MissionStateDefinition& state : loaded.states)
-        {
-            PrototypeMissionState ignored;
-            if (!StateIdToEnum(state.id, ignored))
-            {
-                errorMessage = "Mission state id \"" + state.id +
-                               "\" is not one of the ids PrototypeMission's save format supports "
-                               "(introduction/reach_vehicle/enter_vehicle/drive_to_warehouse/completed): " +
-                               path;
-                return false;
-            }
-        }
-
         definition_ = std::move(loaded);
         context_ = definition_.declaredContext;
+        stateId_ = definition_.initialState;
         return true;
     }
 
     void PrototypeMission::Reset()
     {
         context_.ResetVariables();
-        PrototypeMissionState initial = PrototypeMissionState::Introduction;
-        if (!StateIdToEnum(definition_.initialState, initial))
-        {
-            initial = PrototypeMissionState::Introduction; // unreachable post-LoadMission validation
-        }
-        state_ = initial;
-        EnterState(initial);
+        stateId_ = definition_.initialState;
+        EnterState(stateId_);
     }
 
-    void PrototypeMission::EnterState(PrototypeMissionState state)
+    bool PrototypeMission::SetStateId(const std::string& stateId)
+    {
+        if (definition_.FindState(stateId) == nullptr)
+        {
+            return false;
+        }
+        stateId_ = stateId;
+        conditionFaultLogged_ = false;
+        return true;
+    }
+
+    MissionOutcome PrototypeMission::GetOutcome() const
+    {
+        return definition_.GetOutcome(stateId_);
+    }
+
+    void PrototypeMission::EnterState(const std::string& stateId)
     {
         conditionFaultLogged_ = false;
-        const MissionStateDefinition* definition = definition_.FindState(EnumToStateId(state));
+        const MissionStateDefinition* definition = definition_.FindState(stateId);
         if (definition == nullptr)
         {
             return;
@@ -249,7 +221,7 @@ namespace IronGang
     {
         RefreshFacts(dialogueFinished, playerPosition, vehiclePosition, playerDriving, warehouseGoal);
 
-        const MissionStateDefinition* current = definition_.FindState(EnumToStateId(state_));
+        const MissionStateDefinition* current = definition_.FindState(stateId_);
         if (current == nullptr || current->condition.IsEmpty() || current->next.empty())
         {
             return;
@@ -274,22 +246,18 @@ namespace IronGang
             return;
         }
 
-        PrototypeMissionState nextState;
-        if (!StateIdToEnum(current->next, nextState))
-        {
-            return;
-        }
         // IG-24-016: every transition goes through the game's existing logging path, naming the
         // condition that fired, so a mission that advances unexpectedly can be traced from a log.
-        LogMission(definition_.id + ": " + current->id + " -> " + current->next + " (" +
+        const std::string nextStateId = current->next;
+        LogMission(definition_.id + ": " + current->id + " -> " + nextStateId + " (" +
                    current->condition.GetSource() + ")");
-        state_ = nextState;
-        EnterState(nextState);
+        stateId_ = nextStateId;
+        EnterState(stateId_);
     }
 
     std::string PrototypeMission::GetObjectiveText() const
     {
-        const MissionStateDefinition* current = definition_.FindState(EnumToStateId(state_));
+        const MissionStateDefinition* current = definition_.FindState(stateId_);
         return current != nullptr ? current->objective : "Unknown objective";
     }
 

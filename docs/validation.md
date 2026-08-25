@@ -577,6 +577,50 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Free-form mission state ids, outcomes, and save migration (2026-08-25)
+
+plan_24 `IG-24-018` closed; `IG-24-002`/`009`/`019`/`029` advanced. Follows directly from the
+expression-evaluator entry below, which left `PrototypeMission` still restricting a mission file to
+the five state ids the int-based save format encoded — so no mission with a new state could be
+authored. That restriction is gone.
+
+**What changed.**
+
+* `PrototypeMissionState` (the fixed `Introduction`…`Completed` enum) is **deleted**. The mission's
+  authoritative state is now `std::string stateId_`; the API is `GetStateId()`, `IsInState(id)`, and
+  `SetStateId(id)` — the last of which returns false, leaving the mission untouched, for an id the
+  loaded mission does not define, rather than stranding it in a state with no objective, condition,
+  or way out.
+* A state may declare `"outcome": "completed"` or `"failed"` (schema version 2). `IsCompleted()`,
+  `IsFailed()`, and `IsFinished()` read that — no engine code keys off a particular state id any
+  more, and a mission can now *fail*, which is the groundwork `IG-24-009`/`010` needed. An outcome
+  state must be terminal, and a mission with no state that can end it is a load error. A file that
+  declares no outcome at all falls back to the pre-`outcome` rule (a terminal state named
+  `completed` counts as success), so every version-1 file still loads.
+* The save writes `mission_state_id=<id>`. A save in the earlier format (a 0-4 index into the
+  deleted enum) is migrated on read through that enum's exact mapping; an out-of-range index, or a
+  save with neither field, is rejected rather than silently clamped to state 0. This is `IG-24-018`'s
+  persisted-state half.
+* `IronGangGame`'s one remaining enum comparison became `mission_.IsInState("enter_vehicle")` (the
+  deterministic mission profiling scenario), and its load path reports a save state the loaded
+  mission does not define.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests —
+`TestMissionStateIdsAreNotAFixedSet` (a mission whose states are `briefing`/`stakeout`/`escaped`/
+`caught` loads, transitions, reports `completed` then `failed` outcomes, refuses an undefined state
+id, and round-trips its free-form id through the save) and `TestSaveMigratesLegacyMissionState`
+(legacy index 3 → `drive_to_warehouse`, index 0 → `introduction`, out-of-range rejected, no-state
+rejected, `mission_state_id` wins over a legacy index) — plus four new rejection cases in
+`TestMissionValidationRejectsMalformedData` (unknown outcome, outcome with a `next`, outcome in a
+version-1 file, a mission nothing can end). The `--profile-scenario mission` run still completes the
+whole mission through the real game loop. `scripts/check-syntax.sh` clean; asset-registry notice
+verified after the prologue mission's hash changed again (it now declares `"outcome": "completed"`
+explicitly rather than relying on the compatibility rule).
+
+**Boundaries.** A failure *reason*, a retry policy, and checkpoints distinct from a plain save are
+still open (`IG-24-009`/`010`/`041`-`045`), and nothing in the prologue mission can fail yet, so the
+failure path is exercised by tests rather than by gameplay.
+
 ## Mission variables and the condition/action expression evaluator (2026-08-25)
 
 plan_24 `IG-24-013`/`014`/`016`/`029`/`030`/`031`/`032`/`033`/`035` closed; `IG-24-002`/`005`/`006`/

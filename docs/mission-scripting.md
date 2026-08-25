@@ -48,11 +48,26 @@ halfway through a playthrough.
 | `version` | Schema version. `1` is gate M7's original shape (a `condition` naming one engine signal); `2` adds `variables`, `when`, and `onEnter`. Version 1 files still load unchanged. |
 | `initialState` | Must name a state in `states`. |
 | `variables` | This mission's own typed state — see below. Version 2 only. |
-| `states[].id` | Unique within the mission. `PrototypeMission` additionally restricts the whole set to the five ids its save format encodes; see its header. |
+| `states[].id` | Unique within the mission. Any identifier you like — the save file stores this id, so states are not a fixed set. |
 | `states[].objective` | The objective line the HUD shows while this state is current. |
 | `states[].onEnter` | Actions run once, in file order, when the mission enters this state. Version 2 only. |
 | `states[].when` | Bool expression evaluated every frame; when it becomes true the mission moves to `next`. `condition` is the version-1 spelling of the same field — a state must not use both. |
 | `states[].next` | The state to move to. A state with no `next` is terminal and must not declare a condition. |
+| `states[].outcome` | `completed` or `failed` — what reaching this state means for the run. An outcome state ends the mission and must therefore have no `next`. Version 2 only. |
+
+## Ending a mission
+
+Every mission must have at least one state that ends it. Say so explicitly:
+
+```json
+{ "id": "escaped", "objective": "You made it", "outcome": "completed" },
+{ "id": "caught",  "objective": "They got you", "outcome": "failed" }
+```
+
+`PrototypeMission::IsCompleted()` / `IsFailed()` / `IsFinished()` read the current state's outcome —
+nothing keys off a particular state id. For compatibility, a file that declares no outcome at all
+falls back to the pre-`outcome` rule: a terminal state literally named `completed` counts as the
+success outcome. A file with neither is a load error, because nothing in it could ever finish.
 
 ## Variables
 
@@ -75,7 +90,9 @@ declared type is a load error, as is a name that collides with an engine fact.
 Variables are per mission, live for one run, and:
 
 * are restored to their declared values by a retry (`PrototypeMission::Reset()`);
-* are written to the save file as `mission_var.<name>=<type>:<value>` lines and restored on load;
+* are written to the save file as `mission_var.<name>=<type>:<value>` lines and restored on load
+  (the save also stores the current state as `mission_state_id=<id>`; a save from before free-form
+  state ids stored a `mission_state=<0-4>` index instead and is migrated on read);
 * keep their value across a district transition (the mission is not reloaded).
 
 A save naming a variable the mission no longer declares — or whose type changed — is not a load
@@ -193,6 +210,9 @@ is, rather than advancing or silently failing.
 | `Mission state "x" assigns a float expression to int variable "y"` | Types must match exactly; write `1` rather than `1.0` for an `int`. |
 | `Mission file declares "variables", which requires "version": 2` | Bump `version` to 2. |
 | `Mission state "x" declares a condition … but no "next" state` | A terminal state must not have a condition. |
+| `Mission file has no state that ends the mission` | Give one state `"outcome": "completed"`. |
+| `Mission state "x" declares outcome "completed" and a "next" state` | An outcome ends the mission; drop the `next`. |
+| `save file mission state "x" is not defined by the loaded mission` | The save was written against a different mission file. The mission keeps its current state rather than resuming into a state that does not exist. |
 | The game logs `… -- using built-in fallback mission.` | The file failed to load; the message above it says why. The game keeps running on the hardcoded prologue. |
 
 ## Tests
@@ -200,5 +220,6 @@ is, rather than advancing or silently failing.
 `tests/CoreTests.cpp`: `TestMissionValidationRejectsMalformedData`,
 `TestMissionExpressionEvaluatesTypedOperations`, `TestMissionExpressionRejectsMalformedInput`,
 `TestMissionVariablesEnforceTypes`, `TestMissionEntryActionsRunOncePerEntry`,
-`TestMissionVariablesSurviveSaveLoad`, plus the flow tests `TestMissionFlow` and
+`TestMissionVariablesSurviveSaveLoad`, `TestMissionStateIdsAreNotAFixedSet`,
+`TestSaveMigratesLegacyMissionState`, plus the flow tests `TestMissionFlow` and
 `TestMissionLoadsCommittedFile`.

@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <sstream>
 #include <unordered_map>
 
@@ -72,7 +73,7 @@ namespace IronGang
 
             std::ostringstream text;
             text << "format=iron-gang-save-v1\n";
-            text << "mission_state=" << static_cast<int>(snapshot.missionState) << "\n";
+            text << "mission_state_id=" << snapshot.missionStateId << "\n";
             text << "player_position=" << VectorToText(snapshot.playerPosition) << "\n";
             text << "player_yaw=" << snapshot.playerYaw << "\n";
             text << "vehicle_position=" << VectorToText(snapshot.vehiclePosition) << "\n";
@@ -142,7 +143,33 @@ namespace IronGang
             }
 
             SaveSnapshot snapshot;
-            snapshot.missionState = static_cast<PrototypeMissionState>(std::stoi(values.at("mission_state")));
+            const auto missionStateIdIt = values.find("mission_state_id");
+            if (missionStateIdIt != values.end())
+            {
+                snapshot.missionStateId = missionStateIdIt->second;
+            }
+            else
+            {
+                // Migration from the pre-IG-24-018 format, whose mission_state was an index into a
+                // fixed five-state enum. A save from that era can only have been written by the
+                // prologue mission, so the mapping is exact rather than a guess.
+                const auto legacyIt = values.find("mission_state");
+                if (legacyIt == values.end())
+                {
+                    errorMessage = "Save file has neither mission_state_id nor mission_state";
+                    return std::nullopt;
+                }
+                static constexpr const char* kLegacyMissionStateIds[] = {
+                    "introduction", "reach_vehicle", "enter_vehicle", "drive_to_warehouse", "completed"};
+                const int legacyState = std::stoi(legacyIt->second);
+                if (legacyState < 0 ||
+                    static_cast<std::size_t>(legacyState) >= std::size(kLegacyMissionStateIds))
+                {
+                    errorMessage = "Save file has an out-of-range legacy mission_state: " + legacyIt->second;
+                    return std::nullopt;
+                }
+                snapshot.missionStateId = kLegacyMissionStateIds[legacyState];
+            }
             if (!ParseVector(values.at("player_position"), snapshot.playerPosition) ||
                 !ParseVector(values.at("vehicle_position"), snapshot.vehiclePosition))
             {
