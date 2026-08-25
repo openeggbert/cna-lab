@@ -221,65 +221,115 @@ namespace WolfCna
             return pcm;
         }
 
-        std::vector<SharpRuntime::bytecs> MakeHoundVoice(bool whimper)
+        // Shared PCM16 mono tail for the generated hound voices.
+        void AppendSample(std::vector<SharpRuntime::bytecs>& pcm, float signal)
+        {
+            const auto sample = static_cast<std::int16_t>(
+                std::clamp(signal, -1.0f, 1.0f) * 28500.0f);
+            pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+            pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+        }
+
+        // A bark is a transient: near-instant attack, fast decay, and a steep downward pitch
+        // sweep in the first few tens of milliseconds. The earlier version swelled over a
+        // 190 ms half-sine, which is why it read as a huff rather than a bark.
+        std::vector<SharpRuntime::bytecs> MakeHoundBark()
         {
             constexpr float sampleRate = 22050.0f;
-            const int sampleCount = static_cast<int>(
-                sampleRate * (whimper ? 0.85f : 0.46f));
+            constexpr float duration = 0.44f;
+            constexpr std::array<float, 2> burstStarts{0.0f, 0.225f};
+            const int sampleCount = static_cast<int>(sampleRate * duration);
             std::vector<SharpRuntime::bytecs> pcm;
-            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
-            std::uint32_t noiseState = whimper ? 0x91c53a7bu : 0x42de7189u;
+            pcm.reserve(static_cast<std::size_t>(sampleCount) * 2);
+            std::uint32_t noiseState = 0x42de7189u;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float rawNoise = static_cast<float>(
+                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+
+                float signal = 0.0f;
+                for (std::size_t burst = 0; burst < burstStarts.size(); ++burst)
+                {
+                    const float local = time - burstStarts[burst];
+                    if (local < 0.0f || local > 0.19f)
+                        continue;
+
+                    // 4 ms attack, then a fast exponential decay.
+                    const float attack = std::min(1.0f, local / 0.004f);
+                    const float decay = std::exp(-local * 26.0f);
+                    const float envelope = attack * decay *
+                        (burst == 0 ? 1.0f : 0.86f);
+
+                    // The characteristic "woof": ~430 Hz collapsing to ~150 Hz within 55 ms.
+                    const float sweep = std::exp(-local * 34.0f);
+                    const float frequency = 150.0f + 280.0f * sweep;
+                    const float phase = 2.0f * MathHelper::Pi * frequency * local;
+                    const float voice = std::sin(phase) * 0.55f +
+                        std::sin(phase * 2.0f) * 0.26f +
+                        std::sin(phase * 3.0f) * 0.13f;
+
+                    // Short breath transient at the onset only.
+                    const float transient = rawNoise * 0.38f * std::exp(-local * 90.0f);
+                    signal += (voice + transient) * envelope;
+                }
+                AppendSample(pcm, signal);
+            }
+            return pcm;
+        }
+
+        // A whimper is a chain of short high yelps that slide downward and fade, with heavy
+        // vibrato. The earlier version was one long near-pure sine, which read as a tone.
+        std::vector<SharpRuntime::bytecs> MakeHoundWhimper()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr float duration = 0.78f;
+            constexpr std::array<float, 3> yelpStarts{0.0f, 0.2f, 0.42f};
+            const int sampleCount = static_cast<int>(sampleRate * duration);
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount) * 2);
+            std::uint32_t noiseState = 0x91c53a7bu;
             float filteredNoise = 0.0f;
 
             for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
             {
                 noiseState = noiseState * 1664525u + 1013904223u;
                 const float rawNoise = static_cast<float>(
-                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) /
-                    32768.0f;
-                filteredNoise = filteredNoise * 0.82f + rawNoise * 0.18f;
-                const float progress = static_cast<float>(sampleIndex) /
-                    static_cast<float>(sampleCount);
+                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
+                filteredNoise = filteredNoise * 0.86f + rawNoise * 0.14f;
                 const float time = static_cast<float>(sampleIndex) / sampleRate;
+
                 float signal = 0.0f;
-                if (whimper)
+                for (std::size_t yelp = 0; yelp < yelpStarts.size(); ++yelp)
                 {
-                    const float frequency = 690.0f - progress * 170.0f +
-                        std::sin(2.0f * MathHelper::Pi * 8.0f * time) * 34.0f;
-                    const float voice = std::sin(2.0f * MathHelper::Pi * frequency * time);
-                    const float overtone = std::sin(
-                        2.0f * MathHelper::Pi * frequency * 2.0f * time);
-                    const float attack = std::min(1.0f, time / 0.045f);
-                    const float release = std::min(
-                        1.0f,
-                        (0.85f - time) / 0.24f);
-                    signal = (voice * 0.82f + overtone * 0.13f + filteredNoise * 0.025f) *
-                        attack * std::max(0.0f, release);
+                    const float local = time - yelpStarts[yelp];
+                    if (local < 0.0f || local > 0.26f)
+                        continue;
+
+                    const float progress = local / 0.26f;
+                    // Each yelp is quieter and lower than the last, so the animal reads as
+                    // giving up rather than repeating one note.
+                    const float yelpFade = 1.0f - static_cast<float>(yelp) * 0.27f;
+                    const float attack = std::min(1.0f, local / 0.018f);
+                    const float release = std::min(1.0f, (0.26f - local) / 0.12f);
+                    const float envelope = attack * std::max(0.0f, release) * yelpFade;
+
+                    // Rises briefly, then slides down: the shape of a whine.
+                    const float contour = std::sin(MathHelper::Pi * std::min(progress, 1.0f));
+                    const float base = 880.0f - static_cast<float>(yelp) * 150.0f;
+                    const float vibrato =
+                        std::sin(2.0f * MathHelper::Pi * 15.0f * local) * 42.0f;
+                    const float frequency = base - progress * 240.0f + contour * 90.0f +
+                        vibrato;
+                    const float phase = 2.0f * MathHelper::Pi * frequency * local;
+                    const float voice = std::sin(phase) * 0.6f +
+                        std::sin(phase * 2.0f) * 0.22f +
+                        std::sin(phase * 3.0f) * 0.08f;
+                    signal += (voice + filteredNoise * 0.05f) * envelope;
                 }
-                else
-                {
-                    const float firstBurst = time < 0.19f
-                        ? std::sin(MathHelper::Pi * time / 0.19f)
-                        : 0.0f;
-                    const float secondTime = time - 0.245f;
-                    const float secondBurst = secondTime >= 0.0f && secondTime < 0.19f
-                        ? std::sin(MathHelper::Pi * secondTime / 0.19f)
-                        : 0.0f;
-                    const float envelope = std::max(firstBurst, secondBurst * 0.84f);
-                    const float burstProgress = secondTime >= 0.0f
-                        ? secondTime / 0.19f
-                        : time / 0.19f;
-                    const float frequency = 205.0f -
-                        std::clamp(burstProgress, 0.0f, 1.0f) * 82.0f;
-                    const float voice = std::sin(2.0f * MathHelper::Pi * frequency * time);
-                    const float growl = std::sin(
-                        2.0f * MathHelper::Pi * frequency * 0.5f * time);
-                    signal = (voice * 0.58f + growl * 0.19f + filteredNoise * 0.32f) * envelope;
-                }
-                const auto sample = static_cast<std::int16_t>(
-                    std::clamp(signal, -1.0f, 1.0f) * 28500.0f);
-                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
-                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+                AppendSample(pcm, signal);
             }
             return pcm;
         }
@@ -1127,7 +1177,7 @@ namespace WolfCna
             22050,
             AudioChannels::Mono);
         houndBarkSound_ = std::make_unique<SoundEffect>(
-            MakeHoundVoice(false),
+            MakeHoundBark(),
             22050,
             AudioChannels::Mono);
         houndAttackSound_ = std::make_unique<SoundEffect>(
@@ -1135,7 +1185,7 @@ namespace WolfCna
             22050,
             AudioChannels::Mono);
         houndWhimperSound_ = std::make_unique<SoundEffect>(
-            MakeHoundVoice(true),
+            MakeHoundWhimper(),
             22050,
             AudioChannels::Mono);
         extraLifeSound_ = std::make_unique<SoundEffect>(
@@ -2250,7 +2300,7 @@ namespace WolfCna
         health_ = 100;
         ammo_ = GetDifficultyProfile(difficulty_).startingAmmunition;
         score_ = 0;
-        lives_ = 3;
+        lives_ = GetDifficultyProfile(difficulty_).startingLives;
         nextExtraLifeScore_ = 40000;
         weapon_ = Weapon::Sidearm;
         lastFirearm_ = Weapon::Sidearm;
