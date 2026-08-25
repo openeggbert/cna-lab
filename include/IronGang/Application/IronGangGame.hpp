@@ -11,6 +11,7 @@
 #include "IronGang/Graphics/GpuFrameTimer.hpp"
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
+#include "IronGang/Persistence/AutosavePolicy.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/World/DistrictManager.hpp"
@@ -67,6 +68,14 @@ namespace IronGang
         void HandleInteraction();
         void SavePrototype();
         void LoadPrototype();
+        // Writes the autosave file (a slot of its own, so an autosave never overwrites a save the
+        // player made by hand) and reports what triggered it.
+        void WriteAutosave(AutosaveTrigger trigger);
+        // Everything a save records about where things are right now.
+        [[nodiscard]] WorldStateSnapshot CaptureWorldState() const;
+        [[nodiscard]] SaveSnapshot CaptureSnapshot() const;
+        // Why saving would be unsafe this frame, or None (plan_29 IG-29-010/011).
+        [[nodiscard]] SaveBlockReason CurrentSaveBlockReason() const;
         void ResetPrototype();
         // plan_24 IG-24-010/043: R after a mission failure returns to the mission's last
         // checkpoint -- state and variables from PrototypeMission, player/vehicle/district from
@@ -86,6 +95,7 @@ namespace IronGang
                              int viewportHeight) const;
         void UpdateWindowTitle(float deltaSeconds);
         [[nodiscard]] std::string SavePath() const;
+        [[nodiscard]] std::string AutosavePath() const;
         // Checks the current district's exit trigger against whichever of player/vehicle is
         // active and requests a transition if it was entered (plan_13 IG-13-002/006).
         void CheckDistrictExit();
@@ -156,6 +166,7 @@ namespace IronGang
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).
+        AutosaveScheduler autosave_;
         std::optional<WorldStateSnapshot> missionCheckpointWorld_;
         std::string missionCheckpointWorldStateId_;
         float titleRefreshTimer_{0.0F};

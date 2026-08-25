@@ -7,6 +7,11 @@ saves people already have. Implemented in `include/IronGang/Persistence/SaveGame
 
 ## Files
 
+There are two save slots: the manual save the player writes with F5, and an autosave the game
+writes on its own (`runtime/iron_gang_prototype.save` and `…prototype.autosave`). They never
+overwrite each other. F9 loads whichever is **newer**, because "load" means "resume"; the status
+line says which one it was.
+
 A save at `<path>` owns three names:
 
 | File | Purpose |
@@ -87,6 +92,43 @@ message saying so, instead of being read for the fields that happen to be recogn
 **Named failures.** A missing required field is reported by name (`Save file is missing
 "player_position"`), not as whatever exception the parse happened to throw.
 
+## When the game saves on its own
+
+`AutosaveScheduler` (`include/IronGang/Persistence/AutosavePolicy.hpp`) decides *when*; the game
+decides what to write. Three things trigger it:
+
+| Trigger | When |
+| --- | --- |
+| `Checkpoint` | The mission recorded a new checkpoint. A checkpoint the player cannot reload is only half a checkpoint. |
+| `DistrictArrival` | A district transition finished. |
+| `Interval` | 180 seconds since the last save, as a backstop between the other two. |
+
+Two rules matter more than the triggers:
+
+* **A request made at an unsafe moment is held, not dropped.** An autosave asked for during a
+  cutscene happens the instant the cutscene ends, so a checkpoint is never lost to bad timing.
+* **Triggers that land together produce one save.** A minimum spacing (20 s) keeps a checkpoint
+  reached moments after a periodic autosave from writing the same state again — and the second
+  request is deferred, not discarded.
+
+A manual save, a load, and a prototype reset all restart the interval: the player just did what it
+exists to do, or the state it would have saved is gone.
+
+## When the game refuses to save
+
+Saving is blocked whenever the game holds state the save format does not carry, because a save
+taken there would come back wrong:
+
+| Reason | Why |
+| --- | --- |
+| A cutscene is playing | The camera is not the gameplay camera. |
+| A conversation is in progress | The dialogue line index is not saved. |
+| The district is still loading | The world being written is the one being unloaded. |
+| Getting in or out of the car | The player is neither on foot nor driving. |
+
+F5 during one of these says `Can't save: <reason>` rather than writing the save or silently doing
+nothing. Autosaves wait, as above.
+
 ## Versions
 
 | Version | Written by | Notes |
@@ -115,6 +157,6 @@ versions the conversion is a branch in `ReadOne()`. Add the registry when a thir
 
 ## Not implemented yet
 
-Profiles and save slots (`IG-29-006`/`032`), autosave scheduling (`IG-29-010`/`036`), settings kept
+Profiles and save slots (`IG-29-006`/`032`), settings kept
 separate from campaign data (`IG-29-005`), thumbnails (`IG-29-013`), a CLI inspection tool
 (`IG-29-019`), and per-district persistence of world entities (`IG-29-008`/`034`).

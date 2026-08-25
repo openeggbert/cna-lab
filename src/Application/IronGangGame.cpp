@@ -775,29 +775,63 @@ namespace IronGang
         pendingDistrictResidentBytesBefore_ = 0;
         pendingDistrictVideoMemoryBytesBefore_ = 0;
         RespawnTrafficAndPedestrians();
+        autosave_.Request(AutosaveTrigger::DistrictArrival);
         transientStatus_ = "Arrived";
         transientStatusSeconds_ = 2.0F;
     }
 
-    void IronGangGame::SavePrototype()
+    WorldStateSnapshot IronGangGame::CaptureWorldState() const
+    {
+        WorldStateSnapshot world;
+        world.playerPosition = player_.GetPosition();
+        world.playerYaw = player_.GetYaw();
+        world.vehiclePosition = vehicle_.GetPosition();
+        world.vehicleYaw = vehicle_.GetYaw();
+        world.vehicleSpeed = vehicle_.GetSpeed();
+        world.playerDriving = playerDriving_;
+        world.districtId = districtManager_.GetWorld().GetId();
+        return world;
+    }
+
+    SaveSnapshot IronGangGame::CaptureSnapshot() const
     {
         SaveSnapshot snapshot;
+        static_cast<WorldStateSnapshot&>(snapshot) = CaptureWorldState();
         snapshot.missionStateId = mission_.GetStateId();
-        snapshot.playerPosition = player_.GetPosition();
-        snapshot.playerYaw = player_.GetYaw();
-        snapshot.vehiclePosition = vehicle_.GetPosition();
-        snapshot.vehicleYaw = vehicle_.GetYaw();
-        snapshot.vehicleSpeed = vehicle_.GetSpeed();
-        snapshot.playerDriving = playerDriving_;
-        snapshot.districtId = districtManager_.GetWorld().GetId();
         snapshot.missionVariables = mission_.CaptureVariables();
         snapshot.missionCheckpoint = mission_.GetCheckpoint();
         snapshot.missionCheckpointWorld = missionCheckpointWorld_;
+        return snapshot;
+    }
+
+    SaveBlockReason IronGangGame::CurrentSaveBlockReason() const
+    {
+        SaveConditions conditions;
+        conditions.cutsceneActive = cutscene_.IsActive();
+        conditions.dialogueActive = dialogue_.IsActive();
+        conditions.districtTransitioning = districtManager_.IsTransitioning();
+        conditions.vehicleTransitionActive = vehicleTransitionState_ != VehicleTransitionState::None;
+        return FindSaveBlockReason(conditions);
+    }
+
+    void IronGangGame::SavePrototype()
+    {
+        // plan_29 IG-29-011: refusing with a reason beats writing a save that would come back
+        // wrong, and beats silently doing nothing.
+        const SaveBlockReason blocked = CurrentSaveBlockReason();
+        if (blocked != SaveBlockReason::None)
+        {
+            transientStatus_ = std::string("Can't save: ") + DescribeSaveBlockReason(blocked);
+            transientStatusSeconds_ = 3.0F;
+            return;
+        }
 
         std::string error;
-        if (SaveGame::Write(SavePath(), snapshot, error))
+        if (SaveGame::Write(SavePath(), CaptureSnapshot(), error))
         {
             transientStatus_ = "Saved prototype state";
+            // A manual save resets the periodic timer: the player just did what it exists to do.
+            autosave_.Reset();
         }
         else
         {
@@ -806,11 +840,30 @@ namespace IronGang
         transientStatusSeconds_ = 3.0F;
     }
 
+    void IronGangGame::WriteAutosave(AutosaveTrigger trigger)
+    {
+        std::string error;
+        if (SaveGame::Write(AutosavePath(), CaptureSnapshot(), error))
+        {
+            transientStatus_ = std::string("Autosaved (") + DescribeAutosaveTrigger(trigger) + ")";
+            transientStatusSeconds_ = 2.0F;
+            return;
+        }
+        // An autosave the player did not ask for must not steal the status line on failure any
+        // more than it does on success, but it must not fail silently either.
+        std::cerr << "[IronGang] autosave failed: " << error << "\n";
+    }
+
     void IronGangGame::LoadPrototype()
     {
         std::string error;
         SaveReadDiagnostics saveDiagnostics;
-        const std::optional<SaveSnapshot> snapshot = SaveGame::Read(SavePath(), error, &saveDiagnostics);
+        // "Load" means "resume", so the newest save wins whether the player wrote it or the
+        // autosave did (plan_29 IG-29-010). SaveGame::Read still falls back to that file's own
+        // backup if it turns out to be damaged.
+        const std::string chosen = SaveGame::ChooseMostRecent({SavePath(), AutosavePath()});
+        const std::string loadPath = chosen.empty() ? SavePath() : chosen;
+        const std::optional<SaveSnapshot> snapshot = SaveGame::Read(loadPath, error, &saveDiagnostics);
         if (!snapshot)
         {
             transientStatus_ = "Load failed: " + error;
@@ -883,7 +936,13 @@ namespace IronGang
             std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
         }
         ApplyWorldSnapshot(*snapshot);
-        transientStatus_ = saveDiagnostics.usedBackup ? "Loaded backup save" : "Loaded prototype state";
+        const bool loadedAutosave = loadPath == AutosavePath();
+        transientStatus_ = saveDiagnostics.usedBackup
+                               ? "Loaded backup save"
+                               : (loadedAutosave ? "Loaded autosave" : "Loaded prototype state");
+        // The loaded state is now the newest thing worth keeping; start the interval afresh so an
+        // autosave does not fire seconds later over a game the player has not played yet.
+        autosave_.Reset();
         transientStatusSeconds_ = 3.0F;
     }
 
@@ -907,6 +966,8 @@ namespace IronGang
         world.districtId = districtManager_.GetWorld().GetId();
         missionCheckpointWorld_ = world;
         missionCheckpointWorldStateId_ = checkpoint.stateId;
+        // A checkpoint the player never gets to reload is only half a checkpoint.
+        autosave_.Request(AutosaveTrigger::Checkpoint);
     }
 
     void IronGangGame::ApplyWorldSnapshot(const WorldStateSnapshot& snapshot)
@@ -949,6 +1010,7 @@ namespace IronGang
     {
         missionCheckpointWorld_.reset();
         missionCheckpointWorldStateId_.clear();
+        autosave_.Reset();
         const DistrictId sourceDistrict = districtManager_.GetWorld().GetId();
         const std::uint64_t residentBytesBefore = performanceProfiler_.IsEnabled()
             ? PerformanceProfiler::ReadCurrentResidentBytes()
@@ -992,6 +1054,11 @@ namespace IronGang
     std::string IronGangGame::SavePath() const
     {
         return "runtime/iron_gang_prototype.save";
+    }
+
+    std::string IronGangGame::AutosavePath() const
+    {
+        return "runtime/iron_gang_prototype.autosave";
     }
 
     void IronGangGame::Update(GameTime& gameTime)
@@ -1382,6 +1449,14 @@ namespace IronGang
                 // contaminate this dedicated mission workload with a district transition.
                 Exit();
             }
+        }
+
+        // plan_29 IG-29-010: one place decides when an autosave happens, and it holds the request
+        // rather than dropping it while the game is somewhere a save would come back wrong.
+        const AutosaveTrigger autosaveTrigger = autosave_.Update(deltaSeconds, CurrentSaveBlockReason());
+        if (autosaveTrigger != AutosaveTrigger::None)
+        {
+            WriteAutosave(autosaveTrigger);
         }
 
         if (transientStatusSeconds_ > 0.0F)

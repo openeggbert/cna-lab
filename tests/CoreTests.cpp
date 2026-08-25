@@ -10,6 +10,7 @@
 #include "IronGang/Missions/MissionDefinition.hpp"
 #include "IronGang/Missions/MissionExpression.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
+#include "IronGang/Persistence/AutosavePolicy.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/Graphics/LightmapMesh.hpp"
@@ -23,7 +24,9 @@
 
 #include "Microsoft/Xna/Framework/Graphics/SurfaceFormat.hpp"
 
+#include <chrono>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -843,6 +846,164 @@ namespace
 
         std::filesystem::remove(savePath);
         std::filesystem::remove(path);
+    }
+
+    // plan_29 IG-29-010/011/037: when an autosave is allowed to happen. The two behaviours worth
+    // protecting are that a request made at an unsafe moment is held rather than dropped, and that
+    // two triggers landing together produce one save rather than two.
+    void TestAutosaveSchedulingAvoidsUnsafeMoments()
+    {
+        IronGang::AutosaveScheduler scheduler;
+        scheduler.Configure(100.0F, 10.0F);
+
+        // The interval fires when it elapses, not before.
+        Require(scheduler.Update(99.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::None,
+                "the interval must not fire early");
+        Require(scheduler.Update(1.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Interval,
+                "the interval must fire once it elapses");
+        Require(scheduler.GetSecondsSinceLastSave() < 1e-4F, "saving must restart the interval");
+        Require(scheduler.Update(1.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::None,
+                "the interval must not fire again immediately");
+
+        // A request during an unsafe moment is held, not dropped, and fires the instant it is safe.
+        scheduler.Reset();
+        scheduler.Request(IronGang::AutosaveTrigger::Checkpoint);
+        for (int frame = 0; frame < 60; ++frame)
+        {
+            Require(scheduler.Update(1.0F, IronGang::SaveBlockReason::Cutscene) ==
+                        IronGang::AutosaveTrigger::None,
+                    "no autosave may happen during a cutscene");
+        }
+        Require(scheduler.GetPendingTrigger() == IronGang::AutosaveTrigger::Checkpoint,
+                "the request must still be pending after the block");
+        Require(scheduler.Update(0.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
+                "the held request must fire the moment saving is safe again");
+
+        // Minimum spacing collapses two triggers that land together into one save, and the second
+        // request is still held until the spacing has passed rather than being thrown away.
+        scheduler.Reset();
+        scheduler.Request(IronGang::AutosaveTrigger::DistrictArrival);
+        Require(scheduler.Update(11.0F, IronGang::SaveBlockReason::None) ==
+                    IronGang::AutosaveTrigger::DistrictArrival,
+                "the first request must be served once the spacing has passed");
+        scheduler.Request(IronGang::AutosaveTrigger::Checkpoint);
+        Require(scheduler.Update(1.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::None,
+                "a second trigger inside the minimum spacing must not write again immediately");
+        Require(scheduler.GetPendingTrigger() == IronGang::AutosaveTrigger::Checkpoint,
+                "the deferred request must be kept");
+        Require(scheduler.Update(9.5F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
+                "the deferred request must fire once the spacing has passed");
+
+        // A higher-priority trigger takes over the label; the file written is the same either way.
+        scheduler.Reset();
+        scheduler.Request(IronGang::AutosaveTrigger::Interval);
+        scheduler.Request(IronGang::AutosaveTrigger::Checkpoint);
+        scheduler.Request(IronGang::AutosaveTrigger::DistrictArrival);
+        Require(scheduler.Update(20.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
+                "the highest-priority pending trigger must be the one reported");
+
+        // Requesting every frame while a condition holds must not queue up saves.
+        scheduler.Reset();
+        for (int frame = 0; frame < 5; ++frame)
+        {
+            scheduler.Request(IronGang::AutosaveTrigger::Checkpoint);
+        }
+        Require(scheduler.Update(20.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
+                "a repeated request must be served once");
+        Require(scheduler.Update(20.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::None,
+                "a repeated request must not be served twice");
+
+        // Reset abandons a pending request: whatever was worth saving is gone.
+        scheduler.Request(IronGang::AutosaveTrigger::Checkpoint);
+        scheduler.Reset();
+        Require(scheduler.GetPendingTrigger() == IronGang::AutosaveTrigger::None,
+                "Reset must abandon the pending request");
+        Require(scheduler.Update(1000.0F, IronGang::SaveBlockReason::Dialogue) ==
+                    IronGang::AutosaveTrigger::None,
+                "a blocked interval must not fire either");
+
+        // Periodic autosaves can be turned off without disabling event-driven ones.
+        IronGang::AutosaveScheduler eventsOnly;
+        eventsOnly.Configure(0.0F, 0.0F);
+        Require(eventsOnly.Update(10000.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::None,
+                "a zero interval must disable periodic autosaves");
+        eventsOnly.Request(IronGang::AutosaveTrigger::Checkpoint);
+        Require(eventsOnly.Update(0.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
+                "event triggers must still work with periodic autosaves off");
+
+        // Every unsafe moment blocks, and the reported one follows the documented order.
+        IronGang::SaveConditions conditions;
+        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::None,
+                "ordinary play must not block saving");
+        conditions.vehicleTransitionActive = true;
+        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::VehicleTransition,
+                "entering or leaving the car must block saving");
+        conditions.districtTransitioning = true;
+        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::DistrictTransition,
+                "a district load must outrank the vehicle transition");
+        conditions.dialogueActive = true;
+        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::Dialogue,
+                "dialogue must outrank the district load");
+        conditions.cutsceneActive = true;
+        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::Cutscene,
+                "a cutscene must outrank everything else");
+        for (const IronGang::SaveBlockReason reason :
+             {IronGang::SaveBlockReason::Cutscene, IronGang::SaveBlockReason::Dialogue,
+              IronGang::SaveBlockReason::DistrictTransition, IronGang::SaveBlockReason::VehicleTransition})
+        {
+            Require(std::strlen(IronGang::DescribeSaveBlockReason(reason)) > 0,
+                    "every blocking reason must have player-facing text");
+        }
+        for (const IronGang::AutosaveTrigger trigger :
+             {IronGang::AutosaveTrigger::Interval, IronGang::AutosaveTrigger::DistrictArrival,
+              IronGang::AutosaveTrigger::Checkpoint})
+        {
+            Require(std::strlen(IronGang::DescribeAutosaveTrigger(trigger)) > 0,
+                    "every autosave trigger must have player-facing text");
+        }
+    }
+
+    // plan_29 IG-29-010: "load" means "resume", so the newest save wins whether the player wrote
+    // it or the autosave did.
+    void TestLoadChoosesTheMostRecentSave()
+    {
+        const std::filesystem::path directory = std::filesystem::current_path() / "iron_gang_recent_saves";
+        std::filesystem::remove_all(directory);
+        std::filesystem::create_directories(directory);
+        const std::string manual = (directory / "prototype.save").string();
+        const std::string automatic = (directory / "prototype.autosave").string();
+        std::string error;
+
+        Require(IronGang::SaveGame::ChooseMostRecent({manual, automatic}).empty(),
+                "with no saves at all there is nothing to choose");
+
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionStateId = "reach_vehicle";
+        Require(IronGang::SaveGame::Write(manual, snapshot, error), "writing the manual save: " + error);
+        Require(IronGang::SaveGame::ChooseMostRecent({manual, automatic}) == manual,
+                "the only existing save must be chosen");
+
+        // Give the autosave a strictly later timestamp rather than relying on filesystem
+        // resolution, which is coarse enough on some systems to make two writes look simultaneous.
+        snapshot.missionStateId = "drive_to_warehouse";
+        Require(IronGang::SaveGame::Write(automatic, snapshot, error), "writing the autosave: " + error);
+        std::filesystem::last_write_time(std::filesystem::path(automatic),
+                                         std::filesystem::last_write_time(std::filesystem::path(manual)) +
+                                             std::chrono::seconds(5));
+        Require(IronGang::SaveGame::ChooseMostRecent({manual, automatic}) == automatic,
+                "a newer autosave must win over an older manual save");
+
+        std::filesystem::last_write_time(std::filesystem::path(manual),
+                                         std::filesystem::last_write_time(std::filesystem::path(automatic)) +
+                                             std::chrono::seconds(5));
+        Require(IronGang::SaveGame::ChooseMostRecent({manual, automatic}) == manual,
+                "a newer manual save must win over an older autosave");
+
+        std::filesystem::remove(manual);
+        Require(IronGang::SaveGame::ChooseMostRecent({manual, automatic}) == automatic,
+                "a missing candidate must be skipped rather than chosen");
+
+        std::filesystem::remove_all(directory);
     }
 
     // plan_29 IG-29-009/029/030: a checkpoint records the world it was reached in, not just the
@@ -2502,6 +2663,8 @@ int main()
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
+        TestAutosaveSchedulingAvoidsUnsafeMoments();
+        TestLoadChoosesTheMostRecentSave();
         TestMissionExpressionEvaluatesTypedOperations();
         TestMissionExpressionRejectsMalformedInput();
         TestMissionVariablesEnforceTypes();

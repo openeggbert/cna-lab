@@ -89,5 +89,10 @@ namespace IronGang
         // "<path>.bak" and "<path>.tmp" -- the rolling backup and the write-in-progress file.
         [[nodiscard]] static std::string BackupPath(const std::string& path);
         [[nodiscard]] static std::string TemporaryPath(const std::string& path);
+
+        // The most recently written of @p candidates that exists, or an empty string if none do.
+        // "Load" means "resume", and the newest save is what resuming should mean whether it was
+        // written by hand or by the autosave (plan_29 IG-29-010).
+        [[nodiscard]] static std::string ChooseMostRecent(const std::vector<std::string>& candidates);
     };
 }

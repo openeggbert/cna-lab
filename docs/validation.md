@@ -577,6 +577,55 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Autosave scheduling and refusing to save at unsafe moments (2026-08-25)
+
+plan_29 `IG-29-010`/`011`/`036`/`037` closed. Closes the "a checkpoint is only as durable as the
+player's last manual save" gap the entry below left.
+
+**What changed.**
+
+* `AutosaveScheduler` and `SaveBlockReason` (`include/IronGang/Persistence/AutosavePolicy.hpp`,
+  `src/Persistence/AutosavePolicy.cpp`) decide *when* a save may happen; the game decides what to
+  write. Triggers: a new mission checkpoint, a finished district transition, and a 180-second
+  interval as the backstop between them.
+* **A request at an unsafe moment is held, not dropped.** An autosave asked for during a cutscene
+  fires the instant the cutscene ends. **Triggers that land together produce one save**: a
+  20-second minimum spacing collapses them, deferring rather than discarding the second request.
+* Saving is refused while a cutscene is playing (the camera is not the gameplay camera), during
+  dialogue (the line index is not saved), during a district transition (the world being written is
+  the one being unloaded), and while getting in or out of the car (the player is neither on foot
+  nor driving). F5 there says `Can't save: <reason>` instead of writing a save that would come back
+  wrong or silently doing nothing.
+* Autosaves use their own slot (`runtime/iron_gang_prototype.autosave`), so they never overwrite a
+  save the player made by hand. F9 loads whichever slot is newer via the new
+  `SaveGame::ChooseMostRecent` — "load" means "resume" — and the status line says which it was.
+* `IronGangGame` gained `CaptureWorldState()`/`CaptureSnapshot()`, so the manual save, the autosave,
+  and the checkpoint world all record state through one path rather than three copies.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestAutosaveSchedulingAvoidsUnsafeMoments` covers the interval not firing early, a request held
+across 60 blocked frames and firing the instant it is safe, minimum spacing collapsing two triggers
+while deferring the second, trigger priority deciding only the reported label, a repeated request
+served once rather than queued, `Reset()` abandoning a pending request, a blocked interval, a zero
+interval disabling periodic autosaves without disabling event ones, and the full block-reason
+precedence with player-facing text asserted non-empty for every reason and trigger.
+`TestLoadChoosesTheMostRecentSave` covers no saves, one save, a newer autosave, a newer manual save,
+and a missing candidate — setting timestamps explicitly rather than trusting filesystem resolution.
+
+An end-to-end run confirms the write path: `--profile-scenario mixed --smoke 1600` (the game runs a
+fixed 60 Hz step, so that is ~26.7 s of simulated time) performs its district transition at update
+480, and the deferred `DistrictArrival` autosave lands once the 20-second spacing has passed —
+`runtime/iron_gang_prototype.autosave` exists afterwards with a current-format header. Note the
+earlier `--profile-scenario mission` run does **not** produce one: it completes and exits at about
+15 s of simulated time, inside the minimum spacing, which is the scheduler behaving as designed
+rather than a failure.
+
+**Boundaries.** The 180-second interval and 20-second spacing are compile-time constants;
+`assets/config/game.json` is still not read by anything (plan_04's configuration loader). One
+autosave slot, one backup generation each — no rotating history, profiles, or slots
+(`IG-29-006`/`032`). Autosaving is not asynchronous (`IG-29-012`), so the write happens on the game
+thread; at this save size that is microseconds, but it is not free.
+
 ## Checkpoints record the world they were reached in (2026-08-25)
 
 plan_29 `IG-29-009`/`029`/`030`/`031` closed; `IG-29-007` advanced. Closes the gap the entry below

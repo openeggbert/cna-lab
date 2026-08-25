@@ -92,6 +92,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Autosave scheduling, and refusing to save at unsafe moments (plan_29)
+
+Closes "a checkpoint is only as durable as the last manual save" from the entry below.
+
+- New `AutosaveScheduler`/`SaveBlockReason` (`Persistence/AutosavePolicy.hpp`). Triggers: a new
+  mission checkpoint, a finished district transition, a 180 s interval as the backstop.
+- **A request at an unsafe moment is held, not dropped** (an autosave asked for during a cutscene
+  fires when it ends), and **triggers that land together produce one save** (20 s minimum spacing,
+  deferring rather than discarding the second).
+- Saving is refused during a cutscene, dialogue, a district transition, or getting in/out of the
+  car -- each is a moment the game holds state the save format does not carry. F5 there says
+  `Can't save: <reason>`.
+- Autosaves have their own slot (`…prototype.autosave`), never overwriting a manual save; F9 loads
+  whichever is newer (`SaveGame::ChooseMostRecent`) and says which.
+- `CaptureWorldState()`/`CaptureSnapshot()` mean the manual save, the autosave, and the checkpoint
+  world all capture through one path instead of three copies.
+
+Closed `IG-29-010`/`011`/`036`/`037`. Verified: build clean, CTest 11/11, two new tests, and an
+end-to-end `--profile-scenario mixed --smoke 1600` run (~26.7 s of simulated time at the fixed 60 Hz
+step) that actually writes `runtime/iron_gang_prototype.autosave`. Worth knowing: the `mission`
+scenario finishes at ~15 s, inside the 20 s spacing, so it deliberately produces no autosave.
+
+Remaining plan_29 targets: settings separated from campaign data (`IG-29-005`), profiles and slots
+(`IG-29-006`/`032`), asynchronous save preparation (`IG-29-012`), a CLI save inspector
+(`IG-29-019`), and per-district persistence of world entities (`IG-29-008`/`034`). The autosave
+interval and spacing are compile-time constants because nothing reads `assets/config/game.json`
+yet -- that loader is plan_04's.
+
 ### Checkpoints now record the world they were reached in (plan_29)
 
 Closes the gap the entry below flagged. `SaveSnapshot` **derives from** a new `WorldStateSnapshot`

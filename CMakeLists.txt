@@ -133,6 +133,7 @@ add_library(iron_gang_core STATIC
     src/Missions/MissionExpression.cpp
     src/Missions/MissionValue.cpp
     src/Missions/PrototypeMission.cpp
+    src/Persistence/AutosavePolicy.cpp
     src/Persistence/SaveGame.cpp
     src/Physics/PhysicsWorld.cpp
     src/UI/BitmapFont.cpp

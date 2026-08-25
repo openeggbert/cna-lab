@@ -186,6 +186,28 @@ namespace IronGang
         return path + ".tmp";
     }
 
+    std::string SaveGame::ChooseMostRecent(const std::vector<std::string>& candidates)
+    {
+        std::string best;
+        std::filesystem::file_time_type bestTime{};
+        for (const std::string& candidate : candidates)
+        {
+            std::error_code error;
+            const std::filesystem::file_time_type time =
+                std::filesystem::last_write_time(std::filesystem::path(candidate), error);
+            if (error)
+            {
+                continue; // missing or unreadable -- not a candidate
+            }
+            if (best.empty() || time > bestTime)
+            {
+                best = candidate;
+                bestTime = time;
+            }
+        }
+        return best;
+    }
+
     namespace
     {
         // Splits the document into its header lines and the body the checksum covers. Version 1
