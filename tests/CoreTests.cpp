@@ -28,6 +28,7 @@
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
+#include "IronGang/UI/MenuModel.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 #include "IronGang/World/WaypointPath.hpp"
@@ -932,6 +933,82 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_28 IG-28-003/004: menu navigation, where the easy-to-get-wrong parts are skipping
+    // disabled entries, wrapping at both ends, and a menu with nothing selectable at all.
+    void TestMenuModelSkipsDisabledAndWraps()
+    {
+        IronGang::MenuModel menu;
+        Require(menu.GetSelected() == nullptr, "an empty menu has nothing selected");
+        Require(menu.Activate() == IronGang::MenuAction::None, "an empty menu activates nothing");
+        menu.MoveSelection(1); // must not crash or spin
+        Require(menu.GetSelectedIndex() == 0, "an empty menu keeps its index");
+
+        menu.SetItems({
+            IronGang::MenuItem{IronGang::MenuAction::Resume, "Resume", true, {}},
+            IronGang::MenuItem{IronGang::MenuAction::Save, "Save", true, {}},
+            IronGang::MenuItem{IronGang::MenuAction::Load, "Load", false, "no save yet"},
+            IronGang::MenuItem{IronGang::MenuAction::RestartMission, "Restart", false, "no checkpoint"},
+            IronGang::MenuItem{IronGang::MenuAction::Quit, "Quit", true, {}},
+        });
+        Require(menu.GetSelectedIndex() == 0, "a new menu selects its first entry");
+        Require(menu.Activate() == IronGang::MenuAction::Resume, "the first entry must activate");
+
+        // Moving down skips both disabled entries in one step.
+        menu.MoveSelection(1);
+        Require(menu.GetSelectedIndex() == 1, "one step down lands on the next enabled entry");
+        menu.MoveSelection(1);
+        Require(menu.GetSelectedIndex() == 4,
+                "the two disabled entries must be skipped, not stepped through");
+        Require(menu.Activate() == IronGang::MenuAction::Quit, "the skipped-to entry must activate");
+
+        // Wrapping, in both directions.
+        menu.MoveSelection(1);
+        Require(menu.GetSelectedIndex() == 0, "moving past the end must wrap to the start");
+        menu.MoveSelection(-1);
+        Require(menu.GetSelectedIndex() == 4, "moving before the start must wrap to the end");
+        menu.MoveSelection(-1);
+        Require(menu.GetSelectedIndex() == 1, "moving up must skip disabled entries too");
+
+        // A multi-step move counts enabled entries, not raw indices.
+        menu.MoveSelection(2);
+        Require(menu.GetSelectedIndex() == 0,
+                "two steps from the second enabled entry must pass Quit and wrap to Resume");
+        menu.MoveSelection(0);
+        Require(menu.GetSelectedIndex() == 0, "a zero move must change nothing");
+
+        // A disabled entry never runs, even if something manages to select it.
+        IronGang::MenuModel firstDisabled;
+        firstDisabled.SetItems({
+            IronGang::MenuItem{IronGang::MenuAction::Load, "Load", false, "no save yet"},
+            IronGang::MenuItem{IronGang::MenuAction::Quit, "Quit", true, {}},
+        });
+        Require(firstDisabled.GetSelectedIndex() == 1,
+                "a menu whose first entry is disabled must select the first enabled one instead");
+        Require(firstDisabled.Activate() == IronGang::MenuAction::Quit,
+                "the selected entry must be the enabled one");
+
+        // Nothing selectable: the selection holds and activating does nothing, rather than the
+        // search for an enabled entry spinning forever.
+        IronGang::MenuModel allDisabled;
+        allDisabled.SetItems({
+            IronGang::MenuItem{IronGang::MenuAction::Save, "Save", false, "not now"},
+            IronGang::MenuItem{IronGang::MenuAction::Load, "Load", false, "no save yet"},
+        });
+        const std::size_t before = allDisabled.GetSelectedIndex();
+        allDisabled.MoveSelection(1);
+        allDisabled.MoveSelection(-3);
+        Require(allDisabled.GetSelectedIndex() == before,
+                "a menu with nothing enabled must keep its selection where it is");
+        Require(allDisabled.Activate() == IronGang::MenuAction::None,
+                "a menu with nothing enabled must activate nothing");
+
+        // Disabled entries keep their place and their reason -- hiding them would move every
+        // entry below under the player's fingers between two frames.
+        Require(menu.GetItems().size() == 5, "disabled entries must stay in the list");
+        Require(menu.GetItems()[2].disabledReason == "no save yet",
+                "a disabled entry must carry the reason it is disabled");
     }
 
     // plan_28 IG-28-008: one place decides what the game is listening to. Before this the answer
@@ -3803,6 +3880,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestMenuModelSkipsDisabledAndWraps();
         TestInputContextResolvesByPrecedence();
         TestLocomotionAcceleratesAndDecelerates();
         TestVehicleDamageDistinguishesCrashesFromBraking();

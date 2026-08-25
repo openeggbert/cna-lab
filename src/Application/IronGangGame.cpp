@@ -1055,6 +1055,51 @@ namespace IronGang
         RespawnTrafficAndPedestrians(); // ambient traffic/pedestrian/police state is never saved
     }
 
+    void IronGangGame::BuildPauseMenu()
+    {
+        std::vector<MenuItem> items;
+        items.push_back(MenuItem{MenuAction::Resume, "Resume", true, {}});
+        items.push_back(MenuItem{MenuAction::Save, "Save", true, {}});
+
+        // Nothing to load before anything has been written -- shown, disabled, with the reason,
+        // rather than hidden, which would move every entry below it under the player's fingers.
+        const bool hasSave = !SaveGame::ChooseMostRecent({SavePath(), AutosavePath()}).empty();
+        items.push_back(MenuItem{MenuAction::Load, "Load", hasSave, hasSave ? "" : "no save yet"});
+
+        const bool canRestart = mission_.HasCheckpoint();
+        items.push_back(MenuItem{MenuAction::RestartMission, "Restart from checkpoint", canRestart,
+                                 canRestart ? "" : "no checkpoint reached"});
+        items.push_back(MenuItem{MenuAction::Quit, "Quit", true, {}});
+        pauseMenu_.SetItems(std::move(items));
+    }
+
+    void IronGangGame::ApplyMenuAction(MenuAction action)
+    {
+        switch (action)
+        {
+            case MenuAction::Resume:
+                paused_ = false;
+                break;
+            case MenuAction::Save:
+                SavePrototype();
+                break;
+            case MenuAction::Load:
+                LoadPrototype();
+                paused_ = false;
+                break;
+            case MenuAction::RestartMission:
+                RetryMission();
+                paused_ = false;
+                break;
+            case MenuAction::Quit:
+                Exit();
+                break;
+            case MenuAction::None:
+                // A disabled entry: the reason is already on screen beside it.
+                break;
+        }
+    }
+
     void IronGangGame::RetryMission()
     {
         if (!mission_.HasCheckpoint() || !missionCheckpointWorld_.has_value())
@@ -1177,15 +1222,37 @@ namespace IronGang
         const float simulationSeconds = ContextAdvancesWorld(CurrentInputContext()) ? deltaSeconds : 0.0F;
 
         // plan_28 IG-28-004: Escape used to quit the game outright, which is a debug affordance,
-        // not a pause. It now toggles a paused state; quitting lives behind that screen.
+        // not a pause. It now toggles a paused state carrying a real menu; quitting is an entry on
+        // it rather than a keystroke that ends the game from anywhere.
         if (WasPressed(keyboard, Keys::Escape))
         {
             paused_ = !paused_;
+            if (paused_)
+            {
+                BuildPauseMenu();
+            }
         }
-        if (paused_ && WasPressed(keyboard, Keys::Q))
+        if (paused_)
         {
-            Exit();
-            return;
+            if (WasPressed(keyboard, Keys::Up) || WasPressed(keyboard, Keys::W))
+            {
+                pauseMenu_.MoveSelection(-1);
+            }
+            if (WasPressed(keyboard, Keys::Down) || WasPressed(keyboard, Keys::S))
+            {
+                pauseMenu_.MoveSelection(1);
+            }
+            if (WasPressed(keyboard, Keys::Enter) || WasPressed(keyboard, Keys::Space))
+            {
+                const MenuAction action = pauseMenu_.Activate();
+                ApplyMenuAction(action);
+                if (action == MenuAction::Quit)
+                {
+                    return;
+                }
+                // Saving or loading changes what the menu should offer next time it is drawn.
+                BuildPauseMenu();
+            }
         }
 
         if (WasPressed(keyboard, Keys::Tab))
@@ -1645,7 +1712,11 @@ namespace IronGang
         title << config_.projectName << " | ";
         if (paused_)
         {
-            title << "PAUSED | Esc: resume | Q: quit";
+            title << "PAUSED";
+            if (const MenuItem* selected = pauseMenu_.GetSelected())
+            {
+                title << " | " << selected->label;
+            }
             getWindowProperty().setTitleProperty(title.str());
             return;
         }
@@ -1931,9 +2002,26 @@ namespace IronGang
                 spriteBatch_->DrawString(*hudFont_, "PAUSED", Vector2(10.0F, lineY),
                                          Color(255, 255, 255, 255));
                 lineY += kLineHeight;
-                spriteBatch_->DrawString(*hudFont_, "Esc: resume   F5: save   F9: load   Q: quit",
+                spriteBatch_->DrawString(*hudFont_, "Up/Down: choose   Enter: select   Esc: resume",
                                          Vector2(10.0F, lineY), Color(205, 210, 205, 255));
                 lineY += kLineHeight;
+                const std::vector<MenuItem>& items = pauseMenu_.GetItems();
+                for (std::size_t index = 0; index < items.size(); ++index)
+                {
+                    const MenuItem& item = items[index];
+                    const bool selected = index == pauseMenu_.GetSelectedIndex();
+                    std::ostringstream entry;
+                    entry << (selected ? "> " : "  ") << item.label;
+                    if (!item.enabled && !item.disabledReason.empty())
+                    {
+                        entry << "  (" << item.disabledReason << ")";
+                    }
+                    const Color color = !item.enabled  ? Color(130, 130, 130, 255)
+                                        : selected     ? Color(255, 230, 140, 255)
+                                                       : Color(225, 225, 220, 255);
+                    spriteBatch_->DrawString(*hudFont_, entry.str(), Vector2(10.0F, lineY), color);
+                    lineY += kLineHeight;
+                }
             }
             else
             {

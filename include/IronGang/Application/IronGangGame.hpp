@@ -18,6 +18,7 @@
 #include "IronGang/Persistence/AutosavePolicy.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
+#include "IronGang/UI/MenuModel.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -93,6 +94,11 @@ namespace IronGang
         // response, which would otherwise re-trigger the same failure within a frame. Falls back
         // to ResetPrototype() when the mission has no checkpoint to return to.
         void RetryMission();
+        // plan_28 IG-28-003/004: fills the pause menu for the state the game is in right now.
+        void BuildPauseMenu();
+        // Runs the selected entry. Kept separate from the input handling so what each entry does
+        // is one readable list rather than a branch inside a key handler.
+        void ApplyMenuAction(MenuAction action);
         // Takes the world half of a checkpoint the moment the mission records a new one.
         void CaptureMissionCheckpointWorld();
         // Puts the player, the vehicle, and the district back the way a snapshot describes them.
@@ -176,6 +182,9 @@ namespace IronGang
         // plan_28 IG-28-004's first slice: Esc pauses instead of quitting outright, and the paused
         // world does not advance. Quitting moved behind the pause screen.
         bool paused_{false};
+        // Rebuilt each time the game is paused, because what is available changes: there is
+        // nothing to load before the first save, and nothing to restart before a mission starts.
+        MenuModel pauseMenu_;
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).

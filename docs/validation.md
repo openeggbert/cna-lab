@@ -577,6 +577,46 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## The pause screen becomes a menu (2026-08-26)
+
+plan_28 `IG-28-003` advanced to partial (keyboard navigation done; no gamepad path exists anywhere
+in the game), `IG-28-004` advanced further (pause/save/load/restart/quit; no settings or
+confirmation).
+
+**What changed.** Last iteration's pause screen was text listing keys. It is now a real menu:
+Resume, Save, Load, Restart from checkpoint, Quit — navigated with Up/Down or W/S, activated with
+Enter or Space.
+
+`MenuModel` (`include/IronGang/UI/MenuModel.hpp`) holds items, selection, and activation with **no
+drawing and no input handling in it**, which is what makes the fiddly parts testable without a
+window:
+
+* Moving **skips disabled entries** instead of stepping onto them, and wraps at both ends.
+* A multi-step move counts *enabled* entries, not raw indices.
+* A menu with nothing enabled keeps its selection rather than spinning forever looking for one —
+  that loop is the obvious way to write this and the obvious way to hang the game.
+* Activating a disabled entry returns `MenuAction::None`, which is what stops it doing its thing
+  anyway if something manages to select it.
+
+The menu is rebuilt on every pause, because what is available changes: **Load is disabled with "no
+save yet"** until something has been written, and **Restart from checkpoint is disabled with "no
+checkpoint reached"** until the mission records one. Disabled entries stay visible with their
+reason rather than being hidden — hiding one moves every entry below it under the player's fingers
+between two frames, which is how a menu makes someone quit by accident.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestMenuModelSkipsDisabledAndWraps` covers the empty menu (no crash, no spin), skipping disabled
+entries in both directions, wrapping both ways, multi-step moves, a zero move, a menu whose first
+entry is disabled selecting the first enabled one instead, an all-disabled menu holding its
+selection and activating nothing, and disabled entries keeping their place and their reason. A full
+`--profile-scenario mission --smoke 1200` run still completes; `scripts/check-syntax.sh` and
+`git diff --check` clean.
+
+**Boundaries.** Keyboard only — there is no gamepad input anywhere in the game to navigate with. No
+settings menu, because nothing player-adjustable exists to put in one yet (`IG-29-005`); no
+restart-from-the-beginning entry distinct from the checkpoint one; no confirmation before quitting.
+The menu is drawn as HUD text lines, not a laid-out panel.
+
 ## One place decides what the game is listening to, and Escape pauses (2026-08-26)
 
 plan_28 `IG-28-008` closed; `IG-28-004` advanced to partial (pause and quit done; no navigable

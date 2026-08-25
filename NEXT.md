@@ -92,6 +92,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The pause screen becomes a menu (plan_28)
+
+The pause screen from the entry below was text listing keys; it is now Resume / Save / Load /
+Restart from checkpoint / Quit, navigated with Up/Down or W/S and activated with Enter.
+
+`MenuModel` (`UI/MenuModel.hpp`) holds items, selection, and activation with **no drawing or input
+in it**, which is what makes the fiddly parts testable:
+
+- Moving **skips disabled entries** and wraps both ways; a multi-step move counts *enabled* entries.
+- A menu with nothing enabled **keeps its selection rather than spinning forever** -- that loop is
+  the obvious way to write this and the obvious way to hang the game.
+- Activating a disabled entry returns `None`, so it cannot act even if something selects it.
+
+Rebuilt on every pause, because availability changes: **Load disabled with "no save yet"**,
+**Restart disabled with "no checkpoint reached"**. Disabled entries stay visible with their reason --
+hiding one moves everything below it under the player's fingers between two frames, which is how a
+menu makes someone quit by accident.
+
+`IG-28-003` partial (keyboard only -- **no gamepad input exists anywhere in the game**), `IG-28-004`
+further along. Verified: build clean, CTest 11/11, a 9-case menu test, mission scenario still
+completes.
+
+Not done: settings (nothing player-adjustable exists to put in one -- `IG-29-005`), a
+restart-from-the-beginning entry, quit confirmation, and the menu is HUD text lines rather than a
+laid-out panel.
+
 ### One place decides what the game is listening to, and Escape pauses (plan_28)
 
 "What is the game doing right now?" was answered independently at half a dozen sites, each written
