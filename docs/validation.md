@@ -577,6 +577,46 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## One place decides what the game is listening to, and Escape pauses (2026-08-26)
+
+plan_28 `IG-28-008` closed; `IG-28-004` advanced to partial (pause and quit done; no navigable
+menu, settings, or restart).
+
+**The duplication this removes.** The question "what is the game doing right now?" was answered
+independently at half a dozen sites, each written out as
+`!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning` — and two iterations ago I added
+a *seventh* answer, `SaveConditions`/`FindSaveBlockReason`, for saving. `InputContext`
+(`include/IronGang/Gameplay/InputContext.hpp`) now resolves one context from one signals struct in a
+documented precedence order (Paused > DistrictTransition > Cutscene > Dialogue > VehicleTransition >
+Driving > OnFoot), and `SaveBlockReasonForContext` replaces the pair I had added — a second
+independent answer to the same question is how the two come to disagree.
+
+`VehicleTransition` earned its place as a context rather than a flag: during the enter/exit clip the
+player is neither on foot nor driving, and the controls belong to the animation.
+
+**Pause.** Escape used to call `Exit()` — a debug affordance, not a pause. It now toggles a paused
+state; quitting moved behind that screen (Q). While paused, the world does not advance: physics is
+**skipped entirely rather than stepped with a zero delta**, because the world should not be advanced
+at all, not advanced by nothing. Everything world-shaped runs on a `simulationSeconds` that is zero
+while paused, while the HUD, window title, and input keep running on the real frame delta — so a
+paused game still redraws and still listens. Pausing is a **safe** save moment (the world is frozen
+and consistent), so F5/F9 keep working there, and the HUD and title both say `PAUSED`.
+
+`ContextAdvancesWorld` is false only for Paused. A cutscene, a conversation, and a district load all
+keep the simulation running, deliberately: ambient traffic and the police do not wait for a
+conversation to end.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestInputContextResolvesByPrecedence` adds each signal in turn and asserts the result never demotes,
+that only Paused stops the world, that movement and interaction are permitted exactly in OnFoot and
+Driving and locked in all five other contexts, and that every context has a unique non-empty name.
+The autosave test's block-reason section was rewritten against the context instead of the deleted
+`SaveConditions`. A full `--profile-scenario mission --smoke 1200` run still completes.
+
+**Boundaries.** The pause screen is key-driven text, not a navigable menu (`IG-28-003`); no
+settings, no restart, no confirmation on quit. Pause is not exposed to missions as a fact, and there
+is no time-scale — pause is binary.
+
 ## On-foot movement gets momentum (2026-08-26)
 
 plan_16 `IG-16-005` advanced to partial (acceleration, deceleration, and turning inertia done;

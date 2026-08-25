@@ -864,14 +864,21 @@ namespace IronGang
         return snapshot;
     }
 
+    InputContext IronGangGame::CurrentInputContext() const
+    {
+        GameplaySignals signals;
+        signals.paused = paused_;
+        signals.districtTransitioning = districtManager_.IsTransitioning();
+        signals.cutsceneActive = cutscene_.IsActive();
+        signals.dialogueActive = dialogue_.IsActive();
+        signals.vehicleTransitionActive = vehicleTransitionState_ != VehicleTransitionState::None;
+        signals.driving = playerDriving_;
+        return ResolveInputContext(signals);
+    }
+
     SaveBlockReason IronGangGame::CurrentSaveBlockReason() const
     {
-        SaveConditions conditions;
-        conditions.cutsceneActive = cutscene_.IsActive();
-        conditions.dialogueActive = dialogue_.IsActive();
-        conditions.districtTransitioning = districtManager_.IsTransitioning();
-        conditions.vehicleTransitionActive = vehicleTransitionState_ != VehicleTransitionState::None;
-        return FindSaveBlockReason(conditions);
+        return SaveBlockReasonForContext(CurrentInputContext());
     }
 
     void IronGangGame::SavePrototype()
@@ -1164,8 +1171,18 @@ namespace IronGang
                              " s; the simulation is running behind wall time (reported once)");
         }
         const KeyboardState keyboard = Keyboard::GetState();
+        // Everything below this line that moves the world uses simulationSeconds; the HUD, the
+        // window title, and input keep running on the real frame delta, which is why a paused game
+        // still redraws and still listens.
+        const float simulationSeconds = ContextAdvancesWorld(CurrentInputContext()) ? deltaSeconds : 0.0F;
 
-        if (keyboard.IsKeyDown(Keys::Escape))
+        // plan_28 IG-28-004: Escape used to quit the game outright, which is a debug affordance,
+        // not a pause. It now toggles a paused state; quitting lives behind that screen.
+        if (WasPressed(keyboard, Keys::Escape))
+        {
+            paused_ = !paused_;
+        }
+        if (paused_ && WasPressed(keyboard, Keys::Q))
         {
             Exit();
             return;
@@ -1176,7 +1193,7 @@ namespace IronGang
             mapVisible_ = !mapVisible_;
         }
 
-        districtManager_.Update(deltaSeconds);
+        districtManager_.Update(simulationSeconds);
         HandleDistrictArrival();
         bool transitioning = districtManager_.IsTransitioning();
 
@@ -1214,7 +1231,7 @@ namespace IronGang
         // its terminal camera state instead (IG-26-004).
         if (!transitioning)
         {
-            cutscene_.Update(deltaSeconds);
+            cutscene_.Update(simulationSeconds);
         }
 
         if (missionAdvancesDialogue || WasPressed(keyboard, Keys::Enter))
@@ -1294,13 +1311,16 @@ namespace IronGang
                     input.steering = 0.0F;
                     input.handbrake = mission_.IsCompleted();
                 }
+                if (simulationSeconds > 0.0F)
                 {
+                    // Skipped rather than stepped with a zero delta while paused: the physics
+                    // world should not be advanced at all, not advanced by nothing.
                     ScopedPerformanceSample physicsSample(performanceProfiler_, PerformanceMetric::PhysicsCpu);
-                    vehicle_.Update(deltaSeconds, input, physics_);
+                    vehicle_.Update(simulationSeconds, input, physics_);
+                    physicsSampleRecorded = true;
+                    player_.SetPosition(vehicle_.GetPosition(), physics_);
+                    player_.SetYaw(vehicle_.GetYaw(), physics_);
                 }
-                physicsSampleRecorded = true;
-                player_.SetPosition(vehicle_.GetPosition(), physics_);
-                player_.SetYaw(vehicle_.GetYaw(), physics_);
             }
             else if (vehicleTransitionState_ == VehicleTransitionState::None)
             {
@@ -1324,16 +1344,17 @@ namespace IronGang
                     input.turn = 0.0F;
                     input.sprint = false;
                 }
+                if (simulationSeconds > 0.0F)
                 {
                     ScopedPerformanceSample physicsSample(performanceProfiler_, PerformanceMetric::PhysicsCpu);
-                    player_.Update(deltaSeconds, input, physics_);
+                    player_.Update(simulationSeconds, input, physics_);
+                    physicsSampleRecorded = true;
                 }
-                physicsSampleRecorded = true;
 
                 // Gate M6: locomotion clip switching, crossfaded by the renderer's small
                 // AnimationPlayer-backed state. A no-op if the skinned test character failed to load.
                 const bool playerIsMoving = input.forward != 0.0F || input.strafe != 0.0F;
-                renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle");
+                renderer_.UpdateCharacterAnimation(simulationSeconds, playerIsMoving ? "Walk" : "Idle");
 
                 // Gate M10 audio: a one-shot footstep SFX every kFootstepIntervalSeconds while
                 // actually moving; the timer holds at the interval (not reset to 0) while
@@ -1345,7 +1366,7 @@ namespace IronGang
                     {
                         if (playerIsMoving)
                         {
-                            footstepTimer_ += deltaSeconds;
+                            footstepTimer_ += simulationSeconds;
                             if (footstepTimer_ >= kFootstepIntervalSeconds)
                             {
                                 footstepTimer_ -= kFootstepIntervalSeconds;
@@ -1403,7 +1424,7 @@ namespace IronGang
         // Not drawn while driving, so skipped there -- matches drawPlayer's own condition.
         if (!transitioning && dialogue_.IsActive() && !playerDriving_)
         {
-            renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue");
+            renderer_.UpdateCharacterAnimation(simulationSeconds, "Dialogue");
         }
 
         // Gate M6 vehicle entry/exit: play the one-shot clip for kVehicleTransitionSeconds, then
@@ -1413,8 +1434,8 @@ namespace IronGang
         {
             const char* clipName =
                 vehicleTransitionState_ == VehicleTransitionState::Entering ? "EnterVehicle" : "ExitVehicle";
-            renderer_.UpdateCharacterAnimation(deltaSeconds, clipName);
-            vehicleTransitionSecondsRemaining_ -= deltaSeconds;
+            renderer_.UpdateCharacterAnimation(simulationSeconds, clipName);
+            vehicleTransitionSecondsRemaining_ -= simulationSeconds;
             if (vehicleTransitionSecondsRemaining_ <= 0.0F)
             {
                 if (vehicleTransitionState_ == VehicleTransitionState::Entering)
@@ -1470,7 +1491,7 @@ namespace IronGang
                                      DistanceAheadInLane(myPosition, myYaw, vehicle_.GetPosition(),
                                                          kTrafficLaneHalfWidth));
                     }
-                    trafficVehicles_[i].Update(deltaSeconds, obstacleDistance);
+                    trafficVehicles_[i].Update(simulationSeconds, obstacleDistance);
                 }
 
                 std::vector<Vector3> witnessPositions;
@@ -1514,11 +1535,11 @@ namespace IronGang
                                                                       kWalkingLaneHalfWidth));
                     }
 
-                    pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
+                    pedestrian.Update(simulationSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
                 }
 
                 const PoliceUpdateWorkload policeWorkload = police_.Update(
-                    deltaSeconds, playerDriving_, vehicle_.GetPosition(), vehicle_.GetSpeedKph(),
+                    simulationSeconds, playerDriving_, vehicle_.GetPosition(), vehicle_.GetSpeedKph(),
                     witnessPositions, districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
                 if (recordsAiWorkload)
                 {
@@ -1559,7 +1580,7 @@ namespace IronGang
 
         // plan_29 IG-29-010: one place decides when an autosave happens, and it holds the request
         // rather than dropping it while the game is somewhere a save would come back wrong.
-        const AutosaveTrigger autosaveTrigger = autosave_.Update(deltaSeconds, CurrentSaveBlockReason());
+        const AutosaveTrigger autosaveTrigger = autosave_.Update(simulationSeconds, CurrentSaveBlockReason());
         if (autosaveTrigger != AutosaveTrigger::None)
         {
             WriteAutosave(autosaveTrigger);
@@ -1567,7 +1588,7 @@ namespace IronGang
 
         if (transientStatusSeconds_ > 0.0F)
         {
-            transientStatusSeconds_ -= deltaSeconds;
+            transientStatusSeconds_ -= simulationSeconds;
         }
         UpdateWindowTitle(deltaSeconds);
         previousKeyboard_ = keyboard;
@@ -1622,6 +1643,12 @@ namespace IronGang
 
         std::ostringstream title;
         title << config_.projectName << " | ";
+        if (paused_)
+        {
+            title << "PAUSED | Esc: resume | Q: quit";
+            getWindowProperty().setTitleProperty(title.str());
+            return;
+        }
         if (districtManager_.IsTransitioning())
         {
             title << "Loading...";
@@ -1898,6 +1925,15 @@ namespace IronGang
             else if (cutscene_.IsActive())
             {
                 spriteBatch_->DrawString(*hudFont_, "Enter: skip", Vector2(10.0F, lineY), Color(200, 200, 200, 255));
+            }
+            else if (paused_)
+            {
+                spriteBatch_->DrawString(*hudFont_, "PAUSED", Vector2(10.0F, lineY),
+                                         Color(255, 255, 255, 255));
+                lineY += kLineHeight;
+                spriteBatch_->DrawString(*hudFont_, "Esc: resume   F5: save   F9: load   Q: quit",
+                                         Vector2(10.0F, lineY), Color(205, 210, 205, 255));
+                lineY += kLineHeight;
             }
             else
             {

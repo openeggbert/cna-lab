@@ -19,18 +19,10 @@ namespace IronGang
     // Short player-facing text: "a cutscene is playing", etc.
     [[nodiscard]] const char* DescribeSaveBlockReason(SaveBlockReason reason) noexcept;
 
-    // What the game is doing this frame, as far as saving is concerned.
-    struct SaveConditions
-    {
-        bool cutsceneActive{false};
-        bool dialogueActive{false};
-        bool districtTransitioning{false};
-        bool vehicleTransitionActive{false};
-    };
-
-    // The first reason that applies, in the fixed order above. The order only decides which reason
-    // is *reported* when several hold at once; any of them blocks.
-    [[nodiscard]] SaveBlockReason FindSaveBlockReason(const SaveConditions& conditions) noexcept;
+    // Which of these applies to the game right now is answered by
+    // SaveBlockReasonForContext (Gameplay/InputContext.hpp): the input context already knows
+    // whether a cutscene, a conversation, a district load, or a vehicle clip is in progress, and
+    // two places deciding that independently is how they come to disagree.
 
     // What asked for an autosave. Ordered by priority: when several are pending at once the
     // highest one is what gets reported, since the file written is identical either way.

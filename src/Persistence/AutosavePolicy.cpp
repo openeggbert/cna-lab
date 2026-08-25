@@ -15,27 +15,6 @@ namespace IronGang
         return "";
     }
 
-    SaveBlockReason FindSaveBlockReason(const SaveConditions& conditions) noexcept
-    {
-        if (conditions.cutsceneActive)
-        {
-            return SaveBlockReason::Cutscene;
-        }
-        if (conditions.dialogueActive)
-        {
-            return SaveBlockReason::Dialogue;
-        }
-        if (conditions.districtTransitioning)
-        {
-            return SaveBlockReason::DistrictTransition;
-        }
-        if (conditions.vehicleTransitionActive)
-        {
-            return SaveBlockReason::VehicleTransition;
-        }
-        return SaveBlockReason::None;
-    }
-
     const char* DescribeAutosaveTrigger(AutosaveTrigger trigger) noexcept
     {
         switch (trigger)

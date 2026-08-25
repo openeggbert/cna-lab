@@ -92,6 +92,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### One place decides what the game is listening to, and Escape pauses (plan_28)
+
+"What is the game doing right now?" was answered independently at half a dozen sites, each written
+as `!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning` -- and two iterations ago I
+added a **seventh** answer (`SaveConditions`/`FindSaveBlockReason`) for saving. `InputContext`
+(`Gameplay/InputContext.hpp`) now resolves one context from one signals struct in a documented
+precedence order, and `SaveBlockReasonForContext` **replaces** the pair I had added.
+
+`VehicleTransition` is a context, not a flag: during the enter/exit clip the player is neither on
+foot nor driving, and the controls belong to the animation.
+
+**Escape now pauses** instead of calling `Exit()` (that was a debug affordance). Quitting moved
+behind the pause screen (Q). While paused the world does not advance -- physics is **skipped
+entirely rather than stepped with a zero delta** -- while the HUD, title, and input keep running on
+the real frame delta, so a paused game still redraws and listens. Pausing is a **safe** save moment,
+so F5/F9 work there.
+
+Only Paused stops the world: a cutscene, a conversation, and a district load all keep the simulation
+running, because ambient traffic and the police do not wait for a conversation.
+
+Closed `IG-28-008`; `IG-28-004` partial. Verified: build clean, CTest 11/11, a precedence test, and
+a full mission scenario run.
+
+Not done: the pause screen is key-driven text, not a navigable menu (`IG-28-003`); no settings, no
+restart, no quit confirmation; pause is binary (no time-scale) and is not a mission fact.
+
 ### On-foot movement gets momentum (plan_16)
 
 plan_16 stood at 1 of 80 with a note that on-foot movement "already works" -- it did, in the sense

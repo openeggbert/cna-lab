@@ -7,6 +7,7 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
+#include "IronGang/Gameplay/InputContext.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
@@ -80,6 +81,9 @@ namespace IronGang
         // Everything a save records about where things are right now.
         [[nodiscard]] WorldStateSnapshot CaptureWorldState() const;
         [[nodiscard]] SaveSnapshot CaptureSnapshot() const;
+        // What the game is listening to this frame (plan_28 IG-28-008). One place decides;
+        // movement, interaction, the world's own advance, and whether a save is safe all ask it.
+        [[nodiscard]] InputContext CurrentInputContext() const;
         // Why saving would be unsafe this frame, or None (plan_29 IG-29-010/011).
         [[nodiscard]] SaveBlockReason CurrentSaveBlockReason() const;
         void ResetPrototype();
@@ -169,6 +173,9 @@ namespace IronGang
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
         bool mapVisible_{false};
         bool playerDriving_{false};
+        // plan_28 IG-28-004's first slice: Esc pauses instead of quitting outright, and the paused
+        // world does not advance. Quitting moved behind the pause screen.
+        bool paused_{false};
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).

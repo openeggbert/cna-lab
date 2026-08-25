@@ -7,6 +7,7 @@
 #include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
+#include "IronGang/Gameplay/InputContext.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -931,6 +932,85 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_28 IG-28-008: one place decides what the game is listening to. Before this the answer
+    // was spelled out again at every site that needed it, each free to disagree with the others.
+    void TestInputContextResolvesByPrecedence()
+    {
+        IronGang::GameplaySignals signals;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::OnFoot,
+                "no signals at all means the player is on foot");
+
+        signals.driving = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::Driving,
+                "driving must outrank being on foot");
+
+        // Each signal in turn outranks the ones below it, and adding one never demotes the result.
+        signals.vehicleTransitionActive = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::VehicleTransition,
+                "an enter/exit clip must outrank driving");
+        signals.dialogueActive = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::Dialogue,
+                "dialogue must outrank the vehicle clip");
+        signals.cutsceneActive = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::Cutscene,
+                "a cutscene must outrank dialogue");
+        signals.districtTransitioning = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::DistrictTransition,
+                "a district load must outrank a cutscene -- the world it played in is being unloaded");
+        signals.paused = true;
+        Require(IronGang::ResolveInputContext(signals) == IronGang::InputContext::Paused,
+                "pausing must outrank everything");
+
+        // Only pausing stops the world. A cutscene, a conversation, and a district load all keep
+        // the simulation running -- ambient traffic and the police do not wait for a conversation.
+        Require(!IronGang::ContextAdvancesWorld(IronGang::InputContext::Paused),
+                "a paused world must not advance");
+        for (const IronGang::InputContext context :
+             {IronGang::InputContext::DistrictTransition, IronGang::InputContext::Cutscene,
+              IronGang::InputContext::Dialogue, IronGang::InputContext::VehicleTransition,
+              IronGang::InputContext::Driving, IronGang::InputContext::OnFoot})
+        {
+            Require(IronGang::ContextAdvancesWorld(context),
+                    std::string("the world must keep running during ") +
+                        IronGang::InputContextName(context));
+        }
+
+        // Movement and interaction belong to the two contexts where the player is in control.
+        for (const IronGang::InputContext context :
+             {IronGang::InputContext::OnFoot, IronGang::InputContext::Driving})
+        {
+            Require(IronGang::ContextAllowsMovement(context) && IronGang::ContextAllowsInteraction(context),
+                    std::string("the player must control the character while ") +
+                        IronGang::InputContextName(context));
+        }
+        for (const IronGang::InputContext context :
+             {IronGang::InputContext::Paused, IronGang::InputContext::DistrictTransition,
+              IronGang::InputContext::Cutscene, IronGang::InputContext::Dialogue,
+              IronGang::InputContext::VehicleTransition})
+        {
+            Require(!IronGang::ContextAllowsMovement(context) && !IronGang::ContextAllowsInteraction(context),
+                    std::string("movement and interaction must be locked during ") +
+                        IronGang::InputContextName(context));
+        }
+
+        // Every context has a name, and no two share one -- these end up in logs and reports.
+        const IronGang::InputContext all[] = {
+            IronGang::InputContext::Paused,        IronGang::InputContext::DistrictTransition,
+            IronGang::InputContext::Cutscene,      IronGang::InputContext::Dialogue,
+            IronGang::InputContext::VehicleTransition, IronGang::InputContext::Driving,
+            IronGang::InputContext::OnFoot};
+        for (std::size_t i = 0; i < std::size(all); ++i)
+        {
+            Require(std::strlen(IronGang::InputContextName(all[i])) > 0, "every context must be named");
+            for (std::size_t j = i + 1; j < std::size(all); ++j)
+            {
+                Require(std::string(IronGang::InputContextName(all[i])) !=
+                            IronGang::InputContextName(all[j]),
+                        "two contexts must not share a name");
+            }
+        }
     }
 
     // plan_16 IG-16-005: on-foot movement builds up and dies away instead of switching on and
@@ -1982,22 +2062,29 @@ namespace
         Require(eventsOnly.Update(0.0F, IronGang::SaveBlockReason::None) == IronGang::AutosaveTrigger::Checkpoint,
                 "event triggers must still work with periodic autosaves off");
 
-        // Every unsafe moment blocks, and the reported one follows the documented order.
-        IronGang::SaveConditions conditions;
-        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::None,
+        // Every unsafe moment blocks, and the reported one follows the input context's own
+        // precedence -- one place decides what the game is doing, and saving asks it.
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::OnFoot) ==
+                    IronGang::SaveBlockReason::None,
                 "ordinary play must not block saving");
-        conditions.vehicleTransitionActive = true;
-        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::VehicleTransition,
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::Driving) ==
+                    IronGang::SaveBlockReason::None,
+                "driving must not block saving");
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::Paused) ==
+                    IronGang::SaveBlockReason::None,
+                "pausing must not block saving -- the world is frozen and consistent");
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::VehicleTransition) ==
+                    IronGang::SaveBlockReason::VehicleTransition,
                 "entering or leaving the car must block saving");
-        conditions.districtTransitioning = true;
-        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::DistrictTransition,
-                "a district load must outrank the vehicle transition");
-        conditions.dialogueActive = true;
-        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::Dialogue,
-                "dialogue must outrank the district load");
-        conditions.cutsceneActive = true;
-        Require(IronGang::FindSaveBlockReason(conditions) == IronGang::SaveBlockReason::Cutscene,
-                "a cutscene must outrank everything else");
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::DistrictTransition) ==
+                    IronGang::SaveBlockReason::DistrictTransition,
+                "a district load must block saving");
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::Dialogue) ==
+                    IronGang::SaveBlockReason::Dialogue,
+                "dialogue must block saving");
+        Require(IronGang::SaveBlockReasonForContext(IronGang::InputContext::Cutscene) ==
+                    IronGang::SaveBlockReason::Cutscene,
+                "a cutscene must block saving");
         for (const IronGang::SaveBlockReason reason :
              {IronGang::SaveBlockReason::Cutscene, IronGang::SaveBlockReason::Dialogue,
               IronGang::SaveBlockReason::DistrictTransition, IronGang::SaveBlockReason::VehicleTransition})
@@ -3716,6 +3803,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestInputContextResolvesByPrecedence();
         TestLocomotionAcceleratesAndDecelerates();
         TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
