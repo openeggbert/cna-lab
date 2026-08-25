@@ -44,7 +44,8 @@ namespace IronGang
                 return "Objective: " + mission.GetObjectiveText();
             }
             const std::string reason = mission.GetFailureReason();
-            return reason.empty() ? "Mission failed" : "Mission failed: " + reason;
+            const std::string retryHint = " | R: retry";
+            return reason.empty() ? "Mission failed" + retryHint : "Mission failed: " + reason + retryHint;
         }
 
 #ifndef IRON_GANG_GRAPHICS_BACKEND
@@ -857,6 +858,12 @@ namespace IronGang
         std::vector<std::string> missionVariableWarnings;
         mission_.ApplyVariables(snapshot->missionVariables, &missionVariableWarnings);
         mission_.ApplyCheckpoint(snapshot->missionCheckpoint, &missionVariableWarnings);
+        // The save carries the mission half of a checkpoint but not the world half (where the
+        // player and vehicle stood), so a retry straight after a load has nowhere precise to put
+        // them and falls back to a full restart until the next checkpoint is reached. Persisting
+        // the world half belongs with plan_29's checkpoint work, not the mission runtime.
+        hasMissionCheckpointWorld_ = false;
+        missionCheckpointWorldStateId_.clear();
         for (const std::string& warning : missionVariableWarnings)
         {
             std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
@@ -874,8 +881,64 @@ namespace IronGang
         transientStatusSeconds_ = 3.0F;
     }
 
+    void IronGangGame::CaptureMissionCheckpointWorld()
+    {
+        const MissionCheckpointSnapshot& checkpoint = mission_.GetCheckpoint();
+        if (checkpoint.stateId.empty() || checkpoint.stateId == missionCheckpointWorldStateId_)
+        {
+            return;
+        }
+
+        // Same fields SavePrototype() writes, minus the mission's own half, which PrototypeMission
+        // already recorded when it entered the checkpoint state.
+        missionCheckpointWorld_ = SaveSnapshot{};
+        missionCheckpointWorld_.missionStateId = checkpoint.stateId;
+        missionCheckpointWorld_.playerPosition = player_.GetPosition();
+        missionCheckpointWorld_.playerYaw = player_.GetYaw();
+        missionCheckpointWorld_.vehiclePosition = vehicle_.GetPosition();
+        missionCheckpointWorld_.vehicleYaw = vehicle_.GetYaw();
+        missionCheckpointWorld_.vehicleSpeed = vehicle_.GetSpeed();
+        missionCheckpointWorld_.playerDriving = playerDriving_;
+        missionCheckpointWorld_.districtId = districtManager_.GetWorld().GetId();
+        hasMissionCheckpointWorld_ = true;
+        missionCheckpointWorldStateId_ = checkpoint.stateId;
+    }
+
+    void IronGangGame::RetryMission()
+    {
+        if (!mission_.HasCheckpoint() || !hasMissionCheckpointWorld_)
+        {
+            // Nothing to return to: a full restart is the only honest option.
+            ResetPrototype();
+            return;
+        }
+
+        mission_.Retry();
+
+        if (missionCheckpointWorld_.districtId != districtManager_.GetWorld().GetId())
+        {
+            districtManager_.LoadDistrict(missionCheckpointWorld_.districtId, physics_);
+            renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
+        }
+        player_.Reset(missionCheckpointWorld_.playerPosition, missionCheckpointWorld_.playerYaw, physics_);
+        vehicle_.Restore(missionCheckpointWorld_.vehiclePosition,
+                         missionCheckpointWorld_.vehicleYaw,
+                         missionCheckpointWorld_.vehicleSpeed,
+                         physics_);
+        playerDriving_ = missionCheckpointWorld_.playerDriving;
+        cutscene_.Skip();
+        vehicleTransitionState_ = VehicleTransitionState::None;
+        // Also resets police_, which matters here: the chase that caused the failure is still
+        // running, and leaving it would re-trigger the same failure within a frame or two.
+        RespawnTrafficAndPedestrians();
+        transientStatus_ = "Retrying from checkpoint";
+        transientStatusSeconds_ = 3.0F;
+    }
+
     void IronGangGame::ResetPrototype()
     {
+        hasMissionCheckpointWorld_ = false;
+        missionCheckpointWorldStateId_.clear();
         const DistrictId sourceDistrict = districtManager_.GetWorld().GetId();
         const std::uint64_t residentBytesBefore = performanceProfiler_.IsEnabled()
             ? PerformanceProfiler::ReadCurrentResidentBytes()
@@ -1036,7 +1099,16 @@ namespace IronGang
         }
         if (WasPressed(keyboard, Keys::R))
         {
-            ResetPrototype();
+            // A failed mission is the one case where "restart" should mean the mission's own last
+            // checkpoint rather than the whole prototype (plan_24 IG-24-009).
+            if (mission_.IsFailed())
+            {
+                RetryMission();
+            }
+            else
+            {
+                ResetPrototype();
+            }
         }
         if (WasPressed(keyboard, Keys::H) && playerDriving_ && hornSound_)
         {
@@ -1276,8 +1348,23 @@ namespace IronGang
                 peakPoliceVehicleCount_ = std::max(peakPoliceVehicleCount_, police_.GetActivePatrolCount());
             }
 
+            // plan_24 IG-24-006: PoliceSystem is the game's, not the mission's, so its wanted
+            // state is pushed in as facts rather than derived inside PrototypeMission::Update().
+            const PoliceState policeState = police_.GetState();
+            std::string factError;
+            if (!mission_.SetFact("police_alerted", MissionValue::Bool(policeState != PoliceState::Clear),
+                                  factError) ||
+                !mission_.SetFact("police_chasing", MissionValue::Bool(policeState == PoliceState::Chasing),
+                                  factError) ||
+                !mission_.SetFact("police_chase_seconds", MissionValue::Float(police_.GetChaseSeconds()),
+                                  factError))
+            {
+                std::cerr << "[IronGang] could not publish police mission facts: " << factError << "\n";
+            }
+
             mission_.Update(dialogue_.IsFinished(), player_.GetPosition(), vehicle_.GetPosition(),
                             playerDriving_, districtManager_.GetWorld().GetWarehouseGoal());
+            CaptureMissionCheckpointWorld();
             if (performanceScenario_ == PerformanceScenario::Mission && mission_.IsCompleted())
             {
                 // End at the exact successful mission boundary. Continuing toward the fixed

@@ -19,6 +19,9 @@ namespace IronGang
     // Upper bound on entry actions per state (IG-24-014, same reasoning as kMaxMissionVariables).
     inline constexpr std::size_t kMaxMissionStateActions = 16;
 
+    // Upper bound on outgoing transitions per state (IG-24-014, same reasoning).
+    inline constexpr std::size_t kMaxMissionStateTransitions = 8;
+
     // plan_24 IG-24-007: one thing a mission does when it enters a state. Deliberately a small
     // closed set of engine-executed actions, not a script:
     //   Set -- assign an expression's value to one of this mission's declared variables.
@@ -64,6 +67,16 @@ namespace IronGang
     [[nodiscard]] const char* MissionRetryPolicyName(MissionRetryPolicy policy) noexcept;
     [[nodiscard]] bool ParseMissionRetryPolicy(const std::string& name, MissionRetryPolicy& out);
 
+    // plan_24 IG-24-024: one way out of a state -- a bool expression and where it leads. A state
+    // may declare several; they are evaluated in file order every frame and the first one whose
+    // condition holds wins, so a mission can branch (deliver the cargo, or get caught) rather than
+    // only ever running in a straight line.
+    struct MissionTransition
+    {
+        MissionExpression condition;
+        std::string next;
+    };
+
     // One state in a mission's graph: what to show the player, what to do on arrival, what to
     // wait for, and where to go next.
     struct MissionStateDefinition
@@ -77,11 +90,10 @@ namespace IronGang
         // plan_24 IG-24-010: entering this state records a checkpoint (its id plus the mission's
         // variables as they stand once its entry actions have run) for a later retry to return to.
         bool checkpoint{false};
-        // Bool expression evaluated every frame while this state is current. Empty means a
-        // terminal state with no automatic transition.
-        MissionExpression condition;
-        // Next state's id, or empty for a terminal state.
-        std::string next;
+        // Every way out of this state, in the order the file lists them. Empty means a terminal
+        // state: nothing moves the mission on by itself. The single-transition "when"/"next"
+        // spelling produces exactly one entry here.
+        std::vector<MissionTransition> transitions;
         std::vector<MissionAction> onEnter;
     };
 
@@ -113,11 +125,11 @@ namespace IronGang
     // something the game does not provide fails at load time, not mid-mission.
     //
     // Validation: supported schema version; unique non-empty state ids; initialState and every
-    // non-empty "next" refer to a real state; each variable has a known type and a value of that
-    // type; each condition is a bool expression; a terminal state (empty "next") declares no
-    // condition; an outcome state is terminal; at least one state ends the mission; a failure
-    // reason belongs only to a failing state; a checkpoint state is not itself an outcome; each
-    // action is well formed and assigns a declared variable a matching type.
+    // transition's "next" refer to a real state; each variable has a known type and a value of that
+    // type; each transition pairs a bool expression with a next state; an outcome state has no
+    // transitions; at least one state ends the mission; a failure reason belongs only to a failing
+    // state; a checkpoint state is not itself an outcome; each action is well formed and assigns a
+    // declared variable a matching type.
     // Returns false with errorMessage set on any failure -- callers should fall back to a known
     // good default (see PrototypeMission) rather than run with a partially-valid mission.
     [[nodiscard]] bool LoadMissionDefinition(const std::string& path,

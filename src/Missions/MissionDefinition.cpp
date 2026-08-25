@@ -199,36 +199,13 @@ namespace IronGang
             return true;
         }
 
-        // Gate M7 accepted a single fixed condition name; version 2 accepts a full expression under
-        // "when". Both spell the same thing (a version-1 name is a bool fact, i.e. a one-identifier
-        // expression), so "condition" stays supported -- but a state must not use both keys, which
-        // would leave which one wins undefined.
-        bool ParseStateCondition(const JsonElement& stateElement,
-                                 const std::string& stateId,
-                                 const MissionContext& context,
-                                 MissionExpression& out,
-                                 std::string& errorMessage)
+        // Compiles one bool expression used as a transition condition.
+        bool CompileCondition(const std::string& source,
+                              const std::string& stateId,
+                              const MissionContext& context,
+                              MissionExpression& out,
+                              std::string& errorMessage)
         {
-            JsonElement whenElement;
-            JsonElement conditionElement;
-            const bool hasWhen = stateElement.TryGetProperty("when", whenElement);
-            const bool hasCondition = stateElement.TryGetProperty("condition", conditionElement);
-            if (hasWhen && hasCondition)
-            {
-                errorMessage = "Mission state \"" + stateId +
-                               "\" declares both \"when\" and \"condition\"; use only \"when\"";
-                return false;
-            }
-            if (!hasWhen && !hasCondition)
-            {
-                return true; // terminal state
-            }
-
-            const std::string source = hasWhen ? whenElement.GetString() : conditionElement.GetString();
-            if (source.empty())
-            {
-                return true; // explicit empty condition: also terminal
-            }
             if (!MissionExpression::Compile(source, context, out, errorMessage))
             {
                 errorMessage = "Mission state \"" + stateId + "\" condition \"" + source + "\": " + errorMessage;
@@ -238,6 +215,110 @@ namespace IronGang
             {
                 errorMessage = "Mission state \"" + stateId + "\" condition \"" + source + "\" evaluates to " +
                                std::string(MissionValueTypeName(out.GetResultType())) + ", not bool";
+                return false;
+            }
+            return true;
+        }
+
+        // A state's ways out. Three spellings, checked to be mutually exclusive:
+        //   * "transitions": [ { "when": ..., "next": ... }, ... ] -- several, first match wins.
+        //   * "when" + "next"      -- the single-transition shorthand.
+        //   * "condition" + "next" -- the version-1 spelling of that shorthand; kept because a
+        //     version-1 condition name is still a declared bool fact, i.e. a valid expression.
+        // No spelling at all means a terminal state.
+        bool ParseStateTransitions(const JsonElement& stateElement,
+                                   const std::string& stateId,
+                                   int version,
+                                   const MissionContext& context,
+                                   std::vector<MissionTransition>& out,
+                                   std::string& errorMessage)
+        {
+            JsonElement whenElement;
+            JsonElement conditionElement;
+            JsonElement transitionsElement;
+            const bool hasWhen = stateElement.TryGetProperty("when", whenElement);
+            const bool hasCondition = stateElement.TryGetProperty("condition", conditionElement);
+            const bool hasTransitions = stateElement.TryGetProperty("transitions", transitionsElement);
+            if ((hasWhen && hasCondition) || (hasTransitions && (hasWhen || hasCondition)))
+            {
+                errorMessage = "Mission state \"" + stateId +
+                               "\" declares more than one of \"transitions\"/\"when\"/\"condition\"; "
+                               "use \"transitions\" for several ways out and \"when\" for one";
+                return false;
+            }
+
+            const std::string next = GetOptionalString(stateElement, "next");
+            if (hasWhen || hasCondition)
+            {
+                const std::string source = hasWhen ? whenElement.GetString() : conditionElement.GetString();
+                if (source.empty() && next.empty())
+                {
+                    return true; // explicitly empty condition on a terminal state
+                }
+                if (source.empty() || next.empty())
+                {
+                    errorMessage = "Mission state \"" + stateId +
+                                   "\" needs both a condition and a \"next\" state, or neither";
+                    return false;
+                }
+                MissionTransition transition;
+                transition.next = next;
+                if (!CompileCondition(source, stateId, context, transition.condition, errorMessage))
+                {
+                    return false;
+                }
+                out.push_back(std::move(transition));
+                return true;
+            }
+
+            if (!next.empty())
+            {
+                errorMessage = "Mission state \"" + stateId +
+                               "\" declares a \"next\" state with no condition to reach it";
+                return false;
+            }
+            if (!hasTransitions)
+            {
+                return true; // terminal state
+            }
+            if (version < 2)
+            {
+                errorMessage = "Mission state \"" + stateId +
+                               "\" declares \"transitions\", which requires \"version\": 2";
+                return false;
+            }
+            if (transitionsElement.getValueKindProperty() != JsonValueKind::Array)
+            {
+                errorMessage = "Mission state \"" + stateId + "\" has a \"transitions\" that is not an array";
+                return false;
+            }
+
+            for (const JsonElement& entry : transitionsElement.EnumerateArray())
+            {
+                if (out.size() >= kMaxMissionStateTransitions)
+                {
+                    errorMessage = "Mission state \"" + stateId + "\" declares more than " +
+                                   std::to_string(kMaxMissionStateTransitions) + " transitions";
+                    return false;
+                }
+                MissionTransition transition;
+                transition.next = GetOptionalString(entry, "next");
+                const std::string source = GetOptionalString(entry, "when");
+                if (source.empty() || transition.next.empty())
+                {
+                    errorMessage = "Mission state \"" + stateId +
+                                   "\" has a transition without both a \"when\" and a \"next\"";
+                    return false;
+                }
+                if (!CompileCondition(source, stateId, context, transition.condition, errorMessage))
+                {
+                    return false;
+                }
+                out.push_back(std::move(transition));
+            }
+            if (out.empty())
+            {
+                errorMessage = "Mission state \"" + stateId + "\" has an empty \"transitions\" array";
                 return false;
             }
             return true;
@@ -407,7 +488,6 @@ namespace IronGang
                     return false;
                 }
                 state.objective = GetOptionalString(stateElement, "objective");
-                state.next = GetOptionalString(stateElement, "next");
                 const std::string outcomeName = GetOptionalString(stateElement, "outcome");
                 if (!outcomeName.empty() && !ParseMissionOutcome(outcomeName, state.outcome))
                 {
@@ -446,8 +526,8 @@ namespace IronGang
                     }
                     state.checkpoint = checkpointElement.GetBoolean();
                 }
-                if (!ParseStateCondition(stateElement, state.id, definition.declaredContext, state.condition,
-                                         errorMessage) ||
+                if (!ParseStateTransitions(stateElement, state.id, definition.version,
+                                           definition.declaredContext, state.transitions, errorMessage) ||
                     !ParseStateActions(stateElement, state.id, definition.version, definition.declaredContext,
                                        state.onEnter, errorMessage))
                 {
@@ -488,18 +568,14 @@ namespace IronGang
         }
         for (const MissionStateDefinition& state : definition.states)
         {
-            if (!state.next.empty() && definition.FindState(state.next) == nullptr)
+            for (const MissionTransition& transition : state.transitions)
             {
-                errorMessage = "Mission state \"" + state.id + "\" has a \"next\" (\"" + state.next +
-                               "\") that does not match any state id: " + path;
-                return false;
-            }
-            if (state.next.empty() && !state.condition.IsEmpty())
-            {
-                errorMessage = "Mission state \"" + state.id + "\" declares a condition (\"" +
-                               state.condition.GetSource() +
-                               "\") but no \"next\" state, so the condition could never do anything: " + path;
-                return false;
+                if (definition.FindState(transition.next) == nullptr)
+                {
+                    errorMessage = "Mission state \"" + state.id + "\" has a \"next\" (\"" + transition.next +
+                                   "\") that does not match any state id: " + path;
+                    return false;
+                }
             }
             if (!state.reason.empty() && state.outcome != MissionOutcome::Failed)
             {
@@ -515,11 +591,11 @@ namespace IronGang
                                "\"); a state that ends the mission cannot be retried from: " + path;
                 return false;
             }
-            if (state.outcome != MissionOutcome::None && !state.next.empty())
+            if (state.outcome != MissionOutcome::None && !state.transitions.empty())
             {
                 errorMessage = "Mission state \"" + state.id + "\" declares outcome \"" +
                                MissionOutcomeName(state.outcome) +
-                               "\" and a \"next\" state; an outcome ends the mission: " + path;
+                               "\" and a way out; an outcome ends the mission: " + path;
                 return false;
             }
         }
@@ -538,7 +614,7 @@ namespace IronGang
         {
             for (MissionStateDefinition& state : definition.states)
             {
-                if (state.id == "completed" && state.next.empty())
+                if (state.id == "completed" && state.transitions.empty())
                 {
                     state.outcome = MissionOutcome::Completed;
                     declaresOutcome = true;

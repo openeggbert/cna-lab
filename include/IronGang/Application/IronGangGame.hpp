@@ -11,6 +11,7 @@
 #include "IronGang/Graphics/GpuFrameTimer.hpp"
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
+#include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 
@@ -67,6 +68,14 @@ namespace IronGang
         void SavePrototype();
         void LoadPrototype();
         void ResetPrototype();
+        // plan_24 IG-24-010/043: R after a mission failure returns to the mission's last
+        // checkpoint -- state and variables from PrototypeMission, player/vehicle/district from
+        // the world snapshot taken when that checkpoint was recorded -- and clears the police
+        // response, which would otherwise re-trigger the same failure within a frame. Falls back
+        // to ResetPrototype() when the mission has no checkpoint to return to.
+        void RetryMission();
+        // Takes the world half of a checkpoint the moment the mission records a new one.
+        void CaptureMissionCheckpointWorld();
         void DrawDistrictMap(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
                              Microsoft::Xna::Framework::Graphics::SpriteFont& font,
                              Microsoft::Xna::Framework::Graphics::Texture2D& pixel,
@@ -141,6 +150,12 @@ namespace IronGang
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
         bool mapVisible_{false};
         bool playerDriving_{false};
+        // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
+        // mission half lives in PrototypeMission; this is only a live, in-memory companion to it --
+        // it is written into the save file through SaveSnapshot like any other state.
+        SaveSnapshot missionCheckpointWorld_;
+        bool hasMissionCheckpointWorld_{false};
+        std::string missionCheckpointWorldStateId_;
         float titleRefreshTimer_{0.0F};
         std::string transientStatus_;
         float transientStatusSeconds_{0.0F};

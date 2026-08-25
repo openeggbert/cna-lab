@@ -47,6 +47,10 @@ namespace IronGang
 
         [[nodiscard]] PoliceState GetState() const noexcept { return state_; }
         [[nodiscard]] int GetActivePatrolCount() const noexcept { return activePatrolCount_; }
+        // Seconds the current chase has been running; 0 while Clear or Dispatched, and reset when
+        // a chase resolves. Missions read this through the police_chase_seconds fact (plan_24
+        // IG-24-006), which is how a mission can fail for staying wanted too long.
+        [[nodiscard]] float GetChaseSeconds() const noexcept { return chaseTimer_; }
         [[nodiscard]] const Vector3& GetPatrolPosition(int index) const
         {
             return patrolPositions_[static_cast<std::size_t>(index)];

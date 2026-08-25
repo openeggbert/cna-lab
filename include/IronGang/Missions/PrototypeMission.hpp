@@ -17,6 +17,12 @@ namespace IronGang
     //     player_in_warehouse_goal          bool   the player stands inside the delivery trigger
     //     vehicle_in_warehouse_goal         bool   the sedan is inside the delivery trigger
     //     player_driving_in_warehouse_goal  bool   both of the last two at once
+    //     police_alerted                    bool   the police have been dispatched or are chasing
+    //     police_chasing                    bool   a patrol car is actively chasing the player
+    //     police_chase_seconds              float  how long the current chase has run, seconds
+    //
+    // The three police facts are pushed by the game through SetFact() rather than derived from
+    // Update()'s arguments, because PoliceSystem is the game's, not the mission's.
     //
     // The three composite facts (player_near_vehicle and the two ..._in_warehouse_goal spellings
     // gate M7 shipped) are kept so every version-1 mission file still loads unchanged; new
@@ -99,6 +105,12 @@ namespace IronGang
         [[nodiscard]] std::vector<MissionVariableSnapshot> CaptureVariables() const;
         void ApplyVariables(const std::vector<MissionVariableSnapshot>& variables,
                             std::vector<std::string>* warnings = nullptr);
+        // Pushes a value into one of the declared engine facts. This is how a caller supplies a
+        // fact the mission runtime cannot derive from Update()'s own arguments -- the police facts
+        // above, and whatever later subsystems declare. Fails for an unknown fact, for a mission
+        // variable (those are the mission's to write), or for a value of the wrong type.
+        [[nodiscard]] bool SetFact(const std::string& name, const MissionValue& value,
+                                   std::string& errorMessage);
         [[nodiscard]] bool TryGetVariable(const std::string& name, MissionValue& out) const;
 
         // Checkpoint state (IG-24-044). GetCheckpoint() is what SaveGame writes; ApplyCheckpoint()

@@ -34,11 +34,20 @@
     {
       "id": "drive_to_warehouse",
       "objective": "Drive into the green warehouse marker",
+      "checkpoint": true,
       "onEnter": [
         { "action": "set", "variable": "cargo_secured", "value": "true" }
       ],
-      "when": "player_driving && vehicle_in_warehouse_goal && cargo_secured",
-      "next": "completed"
+      "transitions": [
+        { "when": "police_chase_seconds > 25", "next": "busted" },
+        { "when": "player_driving && vehicle_in_warehouse_goal && cargo_secured", "next": "completed" }
+      ]
+    },
+    {
+      "id": "busted",
+      "objective": "The delivery is blown",
+      "outcome": "failed",
+      "reason": "The police stayed on you too long to make the drop"
     },
     {
       "id": "completed",

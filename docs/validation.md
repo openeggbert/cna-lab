@@ -577,6 +577,51 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Branching missions, wanted-state facts, and a real failure/retry loop (2026-08-25)
+
+plan_24 `IG-24-043` closed; `IG-24-006`/`007`/`024` advanced; plan_22 `IG-22-007` advanced. This is
+the integration scenario the previous entry deliberately left open: **nothing in the running game
+could fail**, so failure and retry had unit tests only.
+
+**What changed.**
+
+* **Branching.** A state may declare `"transitions": [{ "when": …, "next": … }, …]`, evaluated in
+  file order every frame with the first matching condition winning. `when`+`next` is now the
+  one-entry shorthand for the same list, and mixing the two spellings is a load error. At most 8
+  per state. `MissionStateDefinition::condition`/`next` were replaced by that list, so the runtime
+  has exactly one notion of where a state goes.
+* **Wanted-state facts.** `PoliceSystem::GetChaseSeconds()` is new; `police_alerted`,
+  `police_chasing`, and `police_chase_seconds` are declared facts. They are *pushed in* by the game
+  through the new `PrototypeMission::SetFact()` rather than derived from `Update()`'s arguments,
+  because `PoliceSystem` belongs to the game — that is the extension point later subsystems use.
+* **The committed prologue can now fail.** `drive_to_warehouse` is a checkpoint and branches:
+  `police_chase_seconds > 25` → `busted` (`"outcome": "failed"` with its own reason), otherwise the
+  delivery completes. The HUD shows `Mission failed: … | R: retry`.
+* **In-game retry.** `R` retries a failed mission (and still resets the whole prototype otherwise).
+  `IronGangGame::RetryMission()` restores the mission half from `PrototypeMission::Retry()` and the
+  world half — player, vehicle, district — from a snapshot `CaptureMissionCheckpointWorld()` takes
+  the moment the mission records a new checkpoint, and resets the police response, without which the
+  chase that failed the mission would fail it again within a frame.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestMissionBranchesOnFirstMatchingTransition` covers order-dependent branching, the
+first-match-wins rule when both conditions hold, and `SetFact` rejecting a wrong type or an
+undeclared fact. `TestPrologueFailsAndRetriesUnderPoliceChase` is the integration scenario: it
+drives the **committed** `assets/missions/prologue.mission.json` against the **real** `PoliceSystem`
+frame by frame — speed past a witness, get chased, fail on the mission's own branch with its own
+reason, retry back to the checkpoint with `cargo_secured` still set, confirm a cleared chase does
+**not** immediately re-fail the mission, and complete the delivery afterwards counting exactly one.
+Seven new rejection cases cover the transition spellings. A `--profile-scenario mission` run through
+the real game loop logs `checkpoint "drive_to_warehouse"` and still completes normally when no chase
+occurs — the new failure branch does not disturb the deterministic performance workload.
+`scripts/check-syntax.sh` and `git diff --check` clean; the prologue's registry hash updated again.
+
+**Boundaries.** The save carries the mission half of a checkpoint but not the world half, so a retry
+straight after loading a save falls back to a full restart (persisting the world half belongs with
+plan_29's checkpoint work). Branching is on world state only — no player-chosen branch exists
+(`IG-24-024`'s remaining half). Surrender and arrest are still missing from `PoliceSystem`
+(`IG-22-007`).
+
 ## Mission failure reasons, checkpoints, and retry policies (2026-08-25)
 
 plan_24 `IG-24-009`/`010`/`041`/`042`/`044`/`045` closed; `IG-24-002`/`019`/`029` extended;

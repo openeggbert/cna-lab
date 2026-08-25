@@ -342,6 +342,34 @@ namespace
         Require(!load(), "a mission no state can end must be rejected");
 
         WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","when":"player_driving","transitions":[{"when":"player_driving","next":"b"}],"next":"b"},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "mixing \"transitions\" with \"when\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","transitions":[]},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "an empty \"transitions\" array must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","transitions":[{"when":"player_driving"}]},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "a transition with no \"next\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","transitions":[{"next":"b"}]},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "a transition with no \"when\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":1,"initialState":"a","states":[{"id":"a","transitions":[{"when":"player_driving","next":"completed"}]},{"id":"completed"}]})JSON");
+        Require(!load(), "declaring \"transitions\" in a version-1 file must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","next":"b"},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "a \"next\" with no condition must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","when":"player_driving"},{"id":"b","outcome":"completed"}]})JSON");
+        Require(!load(), "a condition with no \"next\" must be rejected");
+
+        WriteTempJson(path,
                       R"JSON({"version":2,"initialState":"a","retry":"from_orbit","states":[{"id":"a","outcome":"completed"}]})JSON");
         Require(!load(), "an unknown retry policy must be rejected");
 
@@ -386,18 +414,21 @@ namespace
         Require(definition.version == 2, "version must round-trip correctly");
         Require(definition.states.size() == 2, "both states must be parsed");
         const IronGang::MissionStateDefinition* start = definition.FindState("start");
-        Require(start != nullptr && start->condition.GetSource() == "player_driving && crates > 0",
+        Require(start != nullptr && start->transitions.size() == 1 &&
+                    start->transitions.front().condition.GetSource() == "player_driving && crates > 0",
                 "the condition expression's source must round-trip correctly");
-        Require(start != nullptr && start->condition.GetResultType() == IronGang::MissionValueType::Bool,
+        Require(start != nullptr &&
+                    start->transitions.front().condition.GetResultType() == IronGang::MissionValueType::Bool,
                 "a condition must type-check as bool");
         Require(start != nullptr && start->onEnter.size() == 1 &&
                     start->onEnter.front().kind == IronGang::MissionAction::Kind::Set &&
                     start->onEnter.front().variable == "crates",
                 "the entry action must round-trip correctly");
-        Require(start != nullptr && start->next == "done", "next must round-trip correctly");
+        Require(start != nullptr && start->transitions.front().next == "done",
+                "next must round-trip correctly");
         const IronGang::MissionStateDefinition* done = definition.FindState("done");
-        Require(done != nullptr && done->next.empty() && done->condition.IsEmpty(),
-                "a state with no \"next\"/\"when\" fields must default to terminal/no-condition");
+        Require(done != nullptr && done->transitions.empty(),
+                "a state with no \"next\"/\"when\" fields must default to terminal");
         Require(done != nullptr && done->outcome == IronGang::MissionOutcome::Completed,
                 "a declared outcome must round-trip correctly");
         Require(start != nullptr && start->outcome == IronGang::MissionOutcome::None,
@@ -406,6 +437,166 @@ namespace
         Require(definition.declaredContext.TryGetValue("crates", crates) &&
                     crates.GetType() == IronGang::MissionValueType::Int && crates.AsInt() == 2,
                 "a declared variable must keep its declared type and initial value");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-043's integration scenario: the **committed** prologue mission, the real
+    // PoliceSystem, and the real retry path, driven frame by frame. A sustained chase must fail
+    // the delivery, the retry must land back on the checkpoint, and -- the failure mode the design
+    // exists to prevent -- clearing the chase must not let the mission fail again immediately.
+    void TestPrologueFailsAndRetriesUnderPoliceChase()
+    {
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
+        IronGang::PoliceSystem police;
+        std::string error;
+        Require(mission.LoadMission(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
+                                    error),
+                "the committed prologue mission must load: " + error);
+        mission.Reset();
+
+        const IronGang::TriggerZone& goal = world.GetWarehouseGoal();
+        const IronGang::Vector3 vehicleSpawn = world.GetVehicleSpawn();
+        constexpr float kDeltaSeconds = 0.1F;
+        constexpr float kSpeedingKph = 80.0F; // above PoliceSystem's 70 kph offense threshold
+
+        // Publishes this frame's police state the same way IronGangGame::Update() does.
+        const auto publishPoliceFacts = [&]() {
+            const IronGang::PoliceState state = police.GetState();
+            std::string factError;
+            Require(mission.SetFact("police_alerted",
+                                    IronGang::MissionValue::Bool(state != IronGang::PoliceState::Clear),
+                                    factError) &&
+                        mission.SetFact("police_chasing",
+                                        IronGang::MissionValue::Bool(state == IronGang::PoliceState::Chasing),
+                                        factError) &&
+                        mission.SetFact("police_chase_seconds",
+                                        IronGang::MissionValue::Float(police.GetChaseSeconds()), factError),
+                    "publishing the police facts must succeed: " + factError);
+        };
+
+        // Reach the checkpoint the ordinary way: dialogue, walk to the sedan, drive off.
+        mission.Update(true, world.GetPlayerSpawn(), vehicleSpawn, false, goal);
+        mission.Update(true, vehicleSpawn, vehicleSpawn, false, goal);
+        mission.Update(true, vehicleSpawn, vehicleSpawn, true, goal);
+        Require(mission.IsInState("drive_to_warehouse"), "the mission must reach the driving state");
+        Require(mission.HasCheckpoint() && mission.GetCheckpoint().stateId == "drive_to_warehouse",
+                "the driving state must record a checkpoint");
+        IronGang::MissionValue cargo;
+        Require(mission.TryGetVariable("cargo_secured", cargo) && cargo.AsBool(),
+                "the checkpoint must be recorded with the entry action already applied");
+
+        // Speed past a witness standing next to the sedan: PoliceSystem dispatches, then chases.
+        const std::vector<IronGang::Vector3> witnesses{vehicleSpawn};
+        const IronGang::Vector3 patrolSpawn{vehicleSpawn.X + 20.0F, vehicleSpawn.Y, vehicleSpawn.Z};
+        int frames = 0;
+        while (!mission.IsFailed() && frames < 1000)
+        {
+            police.Update(kDeltaSeconds, true, vehicleSpawn, kSpeedingKph, witnesses, patrolSpawn);
+            publishPoliceFacts();
+            mission.Update(true, vehicleSpawn, vehicleSpawn, true, goal);
+            ++frames;
+        }
+        Require(mission.IsFailed(), "a sustained chase must fail the delivery");
+        Require(mission.IsInState("busted"), "the failure branch must be the one that fired");
+        Require(mission.GetFailureReason() == "The police stayed on you too long to make the drop",
+                "the committed mission's own failure reason must be reported: " + mission.GetFailureReason());
+        Require(police.GetChaseSeconds() > 25.0F, "the chase must have run past the mission's threshold");
+
+        // Retry: the mission returns to the checkpoint, and the game clears the police response.
+        mission.Retry();
+        police.Reset();
+        Require(mission.IsInState("drive_to_warehouse"), "the retry must return to the checkpoint state");
+        Require(!mission.IsFailed(), "the retry must clear the failure");
+        Require(mission.TryGetVariable("cargo_secured", cargo) && cargo.AsBool(),
+                "the retry must restore the checkpoint's variable values");
+
+        // With the chase cleared, several frames must pass without failing again -- this is what
+        // resetting the police response on retry is for.
+        for (int frame = 0; frame < 30; ++frame)
+        {
+            police.Update(kDeltaSeconds, true, vehicleSpawn, 0.0F, {}, patrolSpawn);
+            publishPoliceFacts();
+            mission.Update(true, vehicleSpawn, vehicleSpawn, true, goal);
+        }
+        Require(mission.IsInState("drive_to_warehouse"),
+                "a cleared chase must not immediately re-fail the retried mission");
+
+        // And the delivery can still be completed after the retry.
+        publishPoliceFacts();
+        mission.Update(true, goal.bounds.center, goal.bounds.center, true, goal);
+        Require(mission.IsCompleted(), "the retried mission must still be completable");
+
+        IronGang::MissionValue deliveries;
+        Require(mission.TryGetVariable("deliveries_made", deliveries) && deliveries.AsInt() == 1,
+                "completing after a retry must count exactly one delivery");
+    }
+
+    // plan_24 IG-24-024/006: a state may declare several ways out, evaluated in file order, so a
+    // mission can branch on a wanted-state fact the game pushes in rather than only ever running
+    // in a straight line.
+    void TestMissionBranchesOnFirstMatchingTransition()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_branch.json";
+        WriteTempJson(path, R"JSON({
+            "id": "branching_mission",
+            "version": 2,
+            "initialState": "driving",
+            "states": [
+                { "id": "driving", "objective": "Make the drop", "checkpoint": true,
+                  "transitions": [
+                    { "when": "police_chase_seconds > 25", "next": "busted" },
+                    { "when": "player_driving && vehicle_in_warehouse_goal", "next": "delivered" }
+                  ] },
+                { "id": "delivered", "objective": "Delivered", "outcome": "completed" },
+                { "id": "busted", "objective": "Busted", "outcome": "failed",
+                  "reason": "The police stayed on you" }
+            ]
+        })JSON");
+
+        IronGang::PrototypeWorld world;
+        const IronGang::TriggerZone& goal = world.GetWarehouseGoal();
+        IronGang::PrototypeMission mission;
+        std::string error;
+        Require(mission.LoadMission(path.string(), error), "the branching mission must load: " + error);
+
+        const IronGang::MissionStateDefinition* driving = mission.GetDefinition().FindState("driving");
+        Require(driving != nullptr && driving->transitions.size() == 2,
+                "both declared transitions must be parsed");
+        Require(driving != nullptr && driving->transitions.front().next == "busted" &&
+                    driving->transitions.back().next == "delivered",
+                "transitions must keep their file order");
+
+        // Neither branch: the mission stays put.
+        mission.Reset();
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), true, goal);
+        Require(mission.IsInState("driving"), "no matching transition must leave the mission put");
+
+        // Second branch: delivering while no chase is running completes the mission.
+        mission.Update(true, goal.bounds.center, goal.bounds.center, true, goal);
+        Require(mission.IsCompleted(), "the delivery branch must complete the mission");
+
+        // First branch wins when both hold: the same delivering frame, but with a long chase.
+        mission.Reset();
+        Require(mission.SetFact("police_chase_seconds", IronGang::MissionValue::Float(26.0F), error),
+                "pushing a police fact must succeed: " + error);
+        mission.Update(true, goal.bounds.center, goal.bounds.center, true, goal);
+        Require(mission.IsFailed() && mission.IsInState("busted"),
+                "the earlier transition must win when both conditions hold");
+        Require(mission.GetFailureReason() == "The police stayed on you",
+                "the failing branch's reason must be reported");
+
+        // The checkpoint recorded on entering "driving" is what a retry returns to.
+        mission.Retry();
+        Require(mission.IsInState("driving"), "a retry must return to the checkpoint state");
+
+        // A fact is engine-owned: a mission cannot be handed one of the wrong type, and an
+        // undeclared fact is refused outright.
+        Require(!mission.SetFact("police_chase_seconds", IronGang::MissionValue::Int(1), error),
+                "a fact must reject a value of the wrong type");
+        Require(!mission.SetFact("not_a_fact", IronGang::MissionValue::Bool(true), error),
+                "an undeclared fact must be refused");
 
         std::filesystem::remove(path);
     }
@@ -2046,6 +2237,8 @@ int main()
         TestMissionLoadsCommittedFile();
         TestMissionValidationRejectsMalformedData();
         TestMissionStateIdsAreNotAFixedSet();
+        TestMissionBranchesOnFirstMatchingTransition();
+        TestPrologueFailsAndRetriesUnderPoliceChase();
         TestMissionCheckpointRetryAndFailureReason();
         TestMissionCheckpointSurvivesSaveLoad();
         TestSaveMigratesLegacyMissionState();

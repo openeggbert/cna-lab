@@ -19,6 +19,9 @@ namespace IronGang
         constexpr const char* kFactPlayerInWarehouseGoal = "player_in_warehouse_goal";
         constexpr const char* kFactVehicleInWarehouseGoal = "vehicle_in_warehouse_goal";
         constexpr const char* kFactPlayerDrivingInWarehouseGoal = "player_driving_in_warehouse_goal";
+        constexpr const char* kFactPoliceAlerted = "police_alerted";
+        constexpr const char* kFactPoliceChasing = "police_chasing";
+        constexpr const char* kFactPoliceChaseSeconds = "police_chase_seconds";
 
         void LogMission(const std::string& message)
         {
@@ -52,26 +55,26 @@ namespace IronGang
             MissionStateDefinition introduction;
             introduction.id = "introduction";
             introduction.objective = "Listen to Mara (Enter advances dialogue)";
-            introduction.condition = CompileBuiltIn("dialogue_finished", context);
-            introduction.next = "reach_vehicle";
+            introduction.transitions.push_back(
+                {CompileBuiltIn("dialogue_finished", context), "reach_vehicle"});
 
             MissionStateDefinition reachVehicle;
             reachVehicle.id = "reach_vehicle";
             reachVehicle.objective = "Walk to the sedan";
-            reachVehicle.condition = CompileBuiltIn("player_vehicle_distance <= 3", context);
-            reachVehicle.next = "enter_vehicle";
+            reachVehicle.transitions.push_back(
+                {CompileBuiltIn("player_vehicle_distance <= 3", context), "enter_vehicle"});
 
             MissionStateDefinition enterVehicle;
             enterVehicle.id = "enter_vehicle";
             enterVehicle.objective = "Press E to enter the sedan";
-            enterVehicle.condition = CompileBuiltIn("player_driving", context);
-            enterVehicle.next = "drive_to_warehouse";
+            enterVehicle.transitions.push_back(
+                {CompileBuiltIn("player_driving", context), "drive_to_warehouse"});
 
             MissionStateDefinition driveToWarehouse;
             driveToWarehouse.id = "drive_to_warehouse";
             driveToWarehouse.objective = "Drive into the green warehouse marker";
-            driveToWarehouse.condition = CompileBuiltIn("player_driving && vehicle_in_warehouse_goal", context);
-            driveToWarehouse.next = "completed";
+            driveToWarehouse.transitions.push_back(
+                {CompileBuiltIn("player_driving && vehicle_in_warehouse_goal", context), "completed"});
 
             MissionStateDefinition completed;
             completed.id = "completed";
@@ -99,7 +102,10 @@ namespace IronGang
             context.DeclareFact(kFactPlayerNearVehicle, MissionValue::Bool(false), error) &&
             context.DeclareFact(kFactPlayerInWarehouseGoal, MissionValue::Bool(false), error) &&
             context.DeclareFact(kFactVehicleInWarehouseGoal, MissionValue::Bool(false), error) &&
-            context.DeclareFact(kFactPlayerDrivingInWarehouseGoal, MissionValue::Bool(false), error);
+            context.DeclareFact(kFactPlayerDrivingInWarehouseGoal, MissionValue::Bool(false), error) &&
+            context.DeclareFact(kFactPoliceAlerted, MissionValue::Bool(false), error) &&
+            context.DeclareFact(kFactPoliceChasing, MissionValue::Bool(false), error) &&
+            context.DeclareFact(kFactPoliceChaseSeconds, MissionValue::Float(0.0F), error);
         if (!declared)
         {
             LogMission("failed to declare the prototype fact set: " + error);
@@ -263,37 +269,45 @@ namespace IronGang
         RefreshFacts(dialogueFinished, playerPosition, vehiclePosition, playerDriving, warehouseGoal);
 
         const MissionStateDefinition* current = definition_.FindState(stateId_);
-        if (current == nullptr || current->condition.IsEmpty() || current->next.empty())
+        if (current == nullptr || current->transitions.empty())
         {
             return;
         }
 
-        bool conditionMet = false;
-        std::string error;
-        if (!current->condition.EvaluateBool(context_, conditionMet, error))
+        // File order decides: the first transition whose condition holds this frame wins, so a
+        // mission puts its failure branch above its success branch when both could be true
+        // (IG-24-024).
+        for (const MissionTransition& transition : current->transitions)
         {
-            // A condition that cannot be evaluated must not silently behave like "false forever":
-            // report it and leave the mission where it is. Once per state entry, not once per
-            // frame -- a faulting condition faults on every one of them.
-            if (!conditionFaultLogged_)
+            bool conditionMet = false;
+            std::string error;
+            if (!transition.condition.EvaluateBool(context_, conditionMet, error))
             {
-                conditionFaultLogged_ = true;
-                LogMission("state \"" + current->id + "\" condition failed: " + error);
+                // A condition that cannot be evaluated must not silently behave like "false
+                // forever": report it and leave the mission where it is. Once per state entry, not
+                // once per frame -- a faulting condition faults on every one of them.
+                if (!conditionFaultLogged_)
+                {
+                    conditionFaultLogged_ = true;
+                    LogMission("state \"" + current->id + "\" condition failed: " + error);
+                }
+                return;
             }
-            return;
-        }
-        if (!conditionMet)
-        {
-            return;
-        }
+            if (!conditionMet)
+            {
+                continue;
+            }
 
-        // IG-24-016: every transition goes through the game's existing logging path, naming the
-        // condition that fired, so a mission that advances unexpectedly can be traced from a log.
-        const std::string nextStateId = current->next;
-        LogMission(definition_.id + ": " + current->id + " -> " + nextStateId + " (" +
-                   current->condition.GetSource() + ")");
-        stateId_ = nextStateId;
-        EnterState(stateId_);
+            // IG-24-016: every transition goes through the game's existing logging path, naming
+            // the condition that fired, so a mission that advances unexpectedly can be traced
+            // from a log.
+            const std::string nextStateId = transition.next;
+            LogMission(definition_.id + ": " + current->id + " -> " + nextStateId + " (" +
+                       transition.condition.GetSource() + ")");
+            stateId_ = nextStateId;
+            EnterState(stateId_);
+            return;
+        }
     }
 
     std::string PrototypeMission::GetObjectiveText() const
@@ -370,6 +384,12 @@ namespace IronGang
                 warnings->push_back(error);
             }
         }
+    }
+
+    bool PrototypeMission::SetFact(const std::string& name, const MissionValue& value,
+                                   std::string& errorMessage)
+    {
+        return context_.SetFact(name, value, errorMessage);
     }
 
     bool PrototypeMission::TryGetVariable(const std::string& name, MissionValue& out) const

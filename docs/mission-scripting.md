@@ -52,11 +52,33 @@ halfway through a playthrough.
 | `states[].id` | Unique within the mission. Any identifier you like — the save file stores this id, so states are not a fixed set. |
 | `states[].objective` | The objective line the HUD shows while this state is current. |
 | `states[].onEnter` | Actions run once, in file order, when the mission enters this state. Version 2 only. |
-| `states[].when` | Bool expression evaluated every frame; when it becomes true the mission moves to `next`. `condition` is the version-1 spelling of the same field — a state must not use both. |
-| `states[].next` | The state to move to. A state with no `next` is terminal and must not declare a condition. |
+| `states[].when` | Bool expression evaluated every frame; when it becomes true the mission moves to `next`. `condition` is the version-1 spelling of the same field. A state declares `when`+`next`, or `transitions`, or neither — never a mix. |
+| `states[].next` | The state to move to. A state with neither `when`/`next` nor `transitions` is terminal. |
+| `states[].transitions` | Several ways out: `[{ "when": …, "next": … }, …]`, evaluated in file order, first match wins. Version 2 only, at most 8. |
 | `states[].outcome` | `completed` or `failed` — what reaching this state means for the run. An outcome state ends the mission and must therefore have no `next`. Version 2 only. |
 | `states[].reason` | Why the mission failed, shown to the player. Only allowed on a state whose outcome is `failed`. Version 2 only. |
 | `states[].checkpoint` | `true` marks this state as a checkpoint: entering it records the state and the mission's variables for a later retry. A checkpoint state cannot also be an outcome. Version 2 only. |
+
+## Branching
+
+A state may declare more than one way out. They are evaluated **in file order every frame, and the
+first condition that holds wins** — so put the branch that must take priority first:
+
+```json
+{
+  "id": "drive_to_warehouse",
+  "objective": "Drive into the green warehouse marker",
+  "checkpoint": true,
+  "transitions": [
+    { "when": "police_chase_seconds > 25", "next": "busted" },
+    { "when": "player_driving && vehicle_in_warehouse_goal && cargo_secured", "next": "completed" }
+  ]
+}
+```
+
+That is the committed prologue: arriving at the warehouse completes the delivery, unless the police
+have been on you for more than 25 seconds, in which case the delivery is blown. `when`/`next` is
+just the one-transition shorthand for the same thing.
 
 ## Ending a mission
 
@@ -96,6 +118,13 @@ Entering a checkpoint state records its id **and the mission's variables as they
 entry actions have run**. `Retry()` then restores exactly that — without re-running those entry
 actions, because their effects are already in the recorded values. Retrying does not consume the
 checkpoint; you can fail and retry from it repeatedly.
+
+In the running game, **R** retries a failed mission (and still resets the whole prototype when the
+mission has not failed). `IronGangGame::RetryMission()` also restores the player, vehicle, and
+district from a world snapshot taken when the checkpoint was recorded, and resets the police
+response — otherwise the chase that failed the mission would fail it again within a frame. A retry
+straight after loading a save falls back to a full restart: the save carries the mission half of a
+checkpoint but not the world half.
 
 `"retry": "mission_start"` at the top level makes `Retry()` a full restart instead. A `checkpoint`
 retry before any checkpoint has been reached is also a full restart, so a mission that declares no
@@ -154,14 +183,21 @@ one. The prototype's set (`IronGang::CreatePrototypeMissionFacts`, `PrototypeMis
 | `player_in_warehouse_goal` | bool | The player stands inside the delivery trigger. |
 | `vehicle_in_warehouse_goal` | bool | The sedan is inside the delivery trigger. |
 | `player_driving_in_warehouse_goal` | bool | Both of the previous two at once. |
+| `police_alerted` | bool | The police have been dispatched or are chasing. |
+| `police_chasing` | bool | A patrol car is actively chasing the player. |
+| `police_chase_seconds` | float | How long the current chase has run. Resets when the chase resolves. |
 
 The three composite facts exist so every version-1 mission file keeps loading. New missions should
 prefer the primitives — `player_driving && vehicle_in_warehouse_goal` says what it means, and
 `player_vehicle_distance <= handover_radius` puts the threshold in the mission file instead of the
 engine.
 
-Adding a fact is a code change: declare it in `CreatePrototypeMissionFacts()` and set it in
-`PrototypeMission::RefreshFacts()`. Both live in `src/Missions/PrototypeMission.cpp`.
+Adding a fact is a code change. For a fact the mission runtime can derive from `Update()`'s own
+arguments, declare it in `CreatePrototypeMissionFacts()` and set it in
+`PrototypeMission::RefreshFacts()` (both in `src/Missions/PrototypeMission.cpp`). For a fact owned
+by another subsystem — as the police facts are — declare it the same way but push it in from that
+subsystem's owner with `PrototypeMission::SetFact()`, the way `IronGangGame::Update()` publishes the
+`PoliceSystem` state each frame.
 
 ## Expression language
 
@@ -254,6 +290,8 @@ is, rather than advancing or silently failing.
 | `Mission state "x" declares outcome "completed" and a "next" state` | An outcome ends the mission; drop the `next`. |
 | `Mission state "x" declares a failure "reason" without "outcome": "failed"` | Only a failing state can explain a failure. |
 | `Mission state "x" is both a checkpoint and an outcome` | A state that ends the mission cannot be retried from. |
+| `Mission state "x" declares more than one of "transitions"/"when"/"condition"` | Pick one spelling: `transitions` for several ways out, `when`+`next` for one. |
+| `Mission state "x" needs both a condition and a "next" state, or neither` | Half a transition goes nowhere. |
 | `save file mission state "x" is not defined by the loaded mission` | The save was written against a different mission file. The mission keeps its current state rather than resuming into a state that does not exist. |
 | The game logs `… -- using built-in fallback mission.` | The file failed to load; the message above it says why. The game keeps running on the hardcoded prologue. |
 
@@ -264,5 +302,6 @@ is, rather than advancing or silently failing.
 `TestMissionVariablesEnforceTypes`, `TestMissionEntryActionsRunOncePerEntry`,
 `TestMissionVariablesSurviveSaveLoad`, `TestMissionStateIdsAreNotAFixedSet`,
 `TestMissionCheckpointRetryAndFailureReason`, `TestMissionCheckpointSurvivesSaveLoad`,
+`TestMissionBranchesOnFirstMatchingTransition`, `TestPrologueFailsAndRetriesUnderPoliceChase`,
 `TestSaveMigratesLegacyMissionState`, plus the flow tests `TestMissionFlow` and
 `TestMissionLoadsCommittedFile`.

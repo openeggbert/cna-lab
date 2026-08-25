@@ -92,6 +92,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Branching missions, wanted-state facts, and a failure/retry loop that actually runs (plan_24)
+
+Closes the integration gap the entry below left open -- nothing in the running game could fail.
+
+- **Branching:** a state declares `"transitions": [{ "when": …, "next": … }, …]`, evaluated in file
+  order, first match wins (max 8). `when`+`next` is the one-entry shorthand; mixing spellings is a
+  load error. `MissionStateDefinition::condition`/`next` are gone, replaced by that list.
+- **Wanted-state facts:** `police_alerted`, `police_chasing`, `police_chase_seconds` (backed by a
+  new `PoliceSystem::GetChaseSeconds()`), pushed in by the game through the new
+  `PrototypeMission::SetFact()` -- the extension point for any subsystem that owns its own facts.
+- **The committed prologue can fail:** `drive_to_warehouse` is a checkpoint and branches to a
+  `busted` failure state at `police_chase_seconds > 25`. HUD shows `Mission failed: … | R: retry`.
+- **In-game retry:** `R` retries a failed mission (still a full reset otherwise).
+  `IronGangGame::RetryMission()` restores the world half from a snapshot taken when the checkpoint
+  was recorded and resets the police response -- without that the same chase re-fails the mission
+  within a frame.
+
+Verified: build clean, CTest 11/11, `TestPrologueFailsAndRetriesUnderPoliceChase` drives the
+committed mission file against the real `PoliceSystem` frame by frame, `--profile-scenario mission`
+still completes normally. Details in `docs/validation.md`.
+
+Known gap worth picking up: **the save stores the mission half of a checkpoint but not the world
+half**, so a retry straight after a load falls back to a full restart. That belongs with plan_29's
+checkpoint work (`IG-29-*`), not the mission runtime. The other open half of `IG-24-024` is
+player-chosen branches -- every branch today is decided by world state.
+
 ### Mission failure reasons, checkpoints, and retry policies (plan_24)
 
 The outcome states from the entry below could mark a mission failed but gave it nowhere to go. Now:
