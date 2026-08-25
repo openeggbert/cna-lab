@@ -92,6 +92,29 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Checkpoints now record the world they were reached in (plan_29)
+
+Closes the gap the entry below flagged. `SaveSnapshot` **derives from** a new `WorldStateSnapshot`
+(player, vehicle, district), so the live world and a checkpoint's world are one type and every
+existing `snapshot.playerPosition` still compiles. `missionCheckpointWorld` is an optional of that
+type, written as additive `checkpoint_*` keys with **no version bump** -- exactly what the previous
+entry's versioning work made safe. It is all-or-nothing on read: a partial block is dropped, because
+putting the player somewhere and the vehicle nowhere is worse than a restart.
+
+`RetryMission()` therefore works straight after loading a save. `LoadPrototype()` and
+`RetryMission()` now share one `ApplyWorldSnapshot()` instead of two copies of the same restore
+sequence, so the cutscene-skip and traffic-respawn safeguards cannot drift apart between them.
+
+Closed: `IG-29-009`/`029`/`030`/`031`. Verified: build clean, CTest 11/11, new
+`TestCheckpointWorldSurvivesSaveLoad` (round trip with a checkpoint district deliberately different
+from the live one, no-checkpoint save, partial block dropped), `--smoke 200` clean. Checkpoint
+placement conventions for mission authors are now in `docs/mission-scripting.md`.
+
+Still deliberately unsaved: wanted state (plan_22's choice -- a load starts with the police clear)
+and ambient traffic/pedestrians (respawned). A checkpoint is only as durable as the last manual
+save: there is no autosave (`IG-29-010`/`036`), no profiles or slots (`IG-29-006`/`032`), and no
+settings/campaign separation (`IG-29-005`) -- those are the obvious next plan_29 targets.
+
 ### Save format integrity: versioning, atomic write, rolling backup, checksum (plan_29)
 
 Deliberately done **before** persisting the checkpoint world half the entry below flagged: adding

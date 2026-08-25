@@ -76,6 +76,9 @@ namespace IronGang
         void RetryMission();
         // Takes the world half of a checkpoint the moment the mission records a new one.
         void CaptureMissionCheckpointWorld();
+        // Puts the player, the vehicle, and the district back the way a snapshot describes them.
+        // Shared by loading a save and retrying from a checkpoint, which restore the same things.
+        void ApplyWorldSnapshot(const WorldStateSnapshot& snapshot);
         void DrawDistrictMap(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
                              Microsoft::Xna::Framework::Graphics::SpriteFont& font,
                              Microsoft::Xna::Framework::Graphics::Texture2D& pixel,
@@ -151,10 +154,9 @@ namespace IronGang
         bool mapVisible_{false};
         bool playerDriving_{false};
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
-        // mission half lives in PrototypeMission; this is only a live, in-memory companion to it --
-        // it is written into the save file through SaveSnapshot like any other state.
-        SaveSnapshot missionCheckpointWorld_;
-        bool hasMissionCheckpointWorld_{false};
+        // mission half lives in PrototypeMission; this is the world it was recorded in, and both
+        // halves round-trip through the save file (plan_29 IG-29-029).
+        std::optional<WorldStateSnapshot> missionCheckpointWorld_;
         std::string missionCheckpointWorldStateId_;
         float titleRefreshTimer_{0.0F};
         std::string transientStatus_;

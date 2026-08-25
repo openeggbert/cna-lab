@@ -577,6 +577,43 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Checkpoints record the world they were reached in (2026-08-25)
+
+plan_29 `IG-29-009`/`029`/`030`/`031` closed; `IG-29-007` advanced. Closes the gap the entry below
+left: a checkpoint carried the mission's state and variables, but not where the player and vehicle
+stood, so `RetryMission()` after loading a save fell back to a full restart.
+
+**What changed.**
+
+* `SaveSnapshot` now **derives from** a new `WorldStateSnapshot` (player position/yaw, vehicle
+  position/yaw/speed, driving flag, district). The live world and a checkpoint's world are one type
+  rather than two declarations of the same seven fields, every existing `snapshot.playerPosition`
+  still compiles, and `WorldStateSnapshot world = snapshot;` takes exactly the world half.
+* `SaveSnapshot::missionCheckpointWorld` is an `optional<WorldStateSnapshot>`, written as additive
+  `checkpoint_*` keys — **no format-version bump**, which is precisely what the previous entry's
+  versioning work made safe. It is all-or-nothing on read: a partial block is dropped rather than
+  half-applied, because putting the player somewhere and the vehicle nowhere is worse than a
+  restart.
+* `IronGangGame` keeps the world half in an `optional`, saves and restores it, and `RetryMission()`
+  now works straight after a load. `LoadPrototype()` and `RetryMission()` share one new
+  `ApplyWorldSnapshot()` instead of two copies of the same restore sequence — which also means the
+  cutscene-skip and traffic-respawn safeguards can no longer drift apart between the two paths.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; new
+`TestCheckpointWorldSurvivesSaveLoad` covers the round trip (positions, yaws, speed, driving flag,
+and a checkpoint district deliberately different from the live one, to prove the two do not bleed
+into each other), a save with no checkpoint world loading with none, and a partial world half being
+dropped while the mission half stays intact. `TestPrologueFailsAndRetriesUnderPoliceChase` remains
+the scripted-failure integration test for the mission half. `scripts/check-syntax.sh` clean,
+`git diff --check` clean, `--smoke 200` exits 0 with no errors. Checkpoint placement conventions for
+mission authors are documented in `docs/mission-scripting.md`; the new save keys in
+`docs/save-format.md`.
+
+**Boundaries.** Wanted state is still deliberately not saved, so a load (or a retry) starts with the
+police clear — a design choice from plan_22, not an oversight. Ambient traffic and pedestrians are
+respawned rather than restored. Autosave, profiles, and slots remain untouched, so a checkpoint is
+still only as durable as the player's last manual save.
+
 ## Save format integrity: versioning, atomic write, backup, checksum (2026-08-25)
 
 plan_29 `IG-29-001`/`002`/`003`/`004`/`022`/`023`/`025` closed; `IG-29-015`/`016`/`024` advanced.

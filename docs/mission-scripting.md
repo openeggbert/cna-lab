@@ -122,9 +122,28 @@ checkpoint; you can fail and retry from it repeatedly.
 In the running game, **R** retries a failed mission (and still resets the whole prototype when the
 mission has not failed). `IronGangGame::RetryMission()` also restores the player, vehicle, and
 district from a world snapshot taken when the checkpoint was recorded, and resets the police
-response — otherwise the chase that failed the mission would fail it again within a frame. A retry
-straight after loading a save falls back to a full restart: the save carries the mission half of a
-checkpoint but not the world half.
+response — otherwise the chase that failed the mission would fail it again within a frame. Both halves of a checkpoint are saved — the mission's state and variables, and the world it was
+reached in — so a retry works straight after loading a save. A save written before the world half
+existed restores only the mission half, and a retry then falls back to a full restart.
+
+### Where to put a checkpoint
+
+A checkpoint is only as good as the situation it drops the player back into, so:
+
+* **Put one at the start of anything that can fail.** In the prologue that is
+  `drive_to_warehouse`: the state whose branch leads to `busted`. A failure branch with no
+  checkpoint above it means a full restart.
+* **Put it where the world is survivable.** The player, the vehicle, and the district are recorded
+  as they stand the instant the state is entered — mid-chase or mid-crash is a bad place to come
+  back to.
+* **Not on a state that ends the mission.** An outcome state cannot also be a checkpoint; the
+  loader refuses it.
+* **Not on every state.** Each checkpoint overwrites the previous one, so a checkpoint immediately
+  before the failure branch defeats the point: the player returns to the moment they were already
+  losing.
+* **Mind the entry actions.** The checkpoint is recorded *after* the state's `onEnter` actions run,
+  so a counter incremented there is not incremented again by a retry. Anything that must be redone
+  on a retry belongs in a state entered *after* the checkpoint.
 
 `"retry": "mission_start"` at the top level makes `Retry()` a full restart instead. A `checkpoint`
 retry before any checkpoint has been reached is also a full restart, so a mission that declares no

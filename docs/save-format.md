@@ -48,6 +48,16 @@ mission_checkpoint_var.cargo_secured=bool:true
 | `mission_var.<name>` | One mission variable as `<type>:<value>` — see `docs/mission-scripting.md`. |
 | `mission_checkpoint_state_id` | The mission's last checkpoint, absent when none was reached. |
 | `mission_checkpoint_var.<name>` | The variables recorded with that checkpoint. |
+| `checkpoint_player_position`, `checkpoint_player_yaw` | Where the player stood when that checkpoint was reached. |
+| `checkpoint_vehicle_position`, `checkpoint_vehicle_yaw`, `checkpoint_vehicle_speed` | The sedan at that moment. |
+| `checkpoint_player_driving`, `checkpoint_district_id` | Whether they were driving, and which district it was. |
+
+The `checkpoint_*` block is the **world half** of a checkpoint: where everything stood when the
+mission recorded it, as against `mission_checkpoint_*`, which is the mission's own state and
+variables. Both halves are needed for a retry to put the player back; the world half is
+all-or-nothing, so a partial one is dropped rather than half-applied, leaving the retry to restart
+the mission. Absent in a save from a mission with no checkpoint, and in any save written before the
+block existed.
 
 One line per mission variable is deliberate: the reader splits at the **first** `=`, and a variable
 name is an identifier, so a string value may contain anything except a newline.
@@ -107,6 +117,4 @@ versions the conversion is a branch in `ReadOne()`. Add the registry when a thir
 
 Profiles and save slots (`IG-29-006`/`032`), autosave scheduling (`IG-29-010`/`036`), settings kept
 separate from campaign data (`IG-29-005`), thumbnails (`IG-29-013`), a CLI inspection tool
-(`IG-29-019`), and per-district persistence of world entities (`IG-29-008`/`034`). The world half
-of a mission checkpoint — where the player and vehicle stood — is also not saved, so a retry
-straight after a load restarts the mission instead (`IG-29-009`/`029`).
+(`IG-29-019`), and per-district persistence of world entities (`IG-29-008`/`034`).

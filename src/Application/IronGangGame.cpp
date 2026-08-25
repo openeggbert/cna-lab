@@ -792,6 +792,7 @@ namespace IronGang
         snapshot.districtId = districtManager_.GetWorld().GetId();
         snapshot.missionVariables = mission_.CaptureVariables();
         snapshot.missionCheckpoint = mission_.GetCheckpoint();
+        snapshot.missionCheckpointWorld = missionCheckpointWorld_;
 
         std::string error;
         if (SaveGame::Write(SavePath(), snapshot, error))
@@ -871,25 +872,17 @@ namespace IronGang
         std::vector<std::string> missionVariableWarnings;
         mission_.ApplyVariables(snapshot->missionVariables, &missionVariableWarnings);
         mission_.ApplyCheckpoint(snapshot->missionCheckpoint, &missionVariableWarnings);
-        // The save carries the mission half of a checkpoint but not the world half (where the
-        // player and vehicle stood), so a retry straight after a load has nowhere precise to put
-        // them and falls back to a full restart until the next checkpoint is reached. Persisting
-        // the world half belongs with plan_29's checkpoint work, not the mission runtime.
-        hasMissionCheckpointWorld_ = false;
-        missionCheckpointWorldStateId_.clear();
+        // plan_29 IG-29-029: both halves of a checkpoint round-trip, so R works straight after a
+        // load. A save from before the world half existed restores the mission half only, and a
+        // retry then falls back to restarting the mission.
+        missionCheckpointWorld_ = snapshot->missionCheckpointWorld;
+        missionCheckpointWorldStateId_ =
+            missionCheckpointWorld_.has_value() ? snapshot->missionCheckpoint.stateId : std::string();
         for (const std::string& warning : missionVariableWarnings)
         {
             std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
         }
-        player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
-        vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
-        playerDriving_ = snapshot->playerDriving;
-        // Gate M8 save-safety: a save is never taken mid-cutscene by design (nothing writes one
-        // there), but force it to its terminal state anyway so loading can never leave the game
-        // with an active cutscene camera fighting a restored, unrelated player/vehicle position.
-        cutscene_.Skip();
-        vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever saved
-        RespawnTrafficAndPedestrians(); // ambient traffic/pedestrian/police state is never saved
+        ApplyWorldSnapshot(*snapshot);
         transientStatus_ = saveDiagnostics.usedBackup ? "Loaded backup save" : "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
     }
@@ -902,24 +895,36 @@ namespace IronGang
             return;
         }
 
-        // Same fields SavePrototype() writes, minus the mission's own half, which PrototypeMission
-        // already recorded when it entered the checkpoint state.
-        missionCheckpointWorld_ = SaveSnapshot{};
-        missionCheckpointWorld_.missionStateId = checkpoint.stateId;
-        missionCheckpointWorld_.playerPosition = player_.GetPosition();
-        missionCheckpointWorld_.playerYaw = player_.GetYaw();
-        missionCheckpointWorld_.vehiclePosition = vehicle_.GetPosition();
-        missionCheckpointWorld_.vehicleYaw = vehicle_.GetYaw();
-        missionCheckpointWorld_.vehicleSpeed = vehicle_.GetSpeed();
-        missionCheckpointWorld_.playerDriving = playerDriving_;
-        missionCheckpointWorld_.districtId = districtManager_.GetWorld().GetId();
-        hasMissionCheckpointWorld_ = true;
+        // The same world state SavePrototype() records; the mission's own half was recorded by
+        // PrototypeMission when it entered the checkpoint state.
+        WorldStateSnapshot world;
+        world.playerPosition = player_.GetPosition();
+        world.playerYaw = player_.GetYaw();
+        world.vehiclePosition = vehicle_.GetPosition();
+        world.vehicleYaw = vehicle_.GetYaw();
+        world.vehicleSpeed = vehicle_.GetSpeed();
+        world.playerDriving = playerDriving_;
+        world.districtId = districtManager_.GetWorld().GetId();
+        missionCheckpointWorld_ = world;
         missionCheckpointWorldStateId_ = checkpoint.stateId;
+    }
+
+    void IronGangGame::ApplyWorldSnapshot(const WorldStateSnapshot& snapshot)
+    {
+        player_.Reset(snapshot.playerPosition, snapshot.playerYaw, physics_);
+        vehicle_.Restore(snapshot.vehiclePosition, snapshot.vehicleYaw, snapshot.vehicleSpeed, physics_);
+        playerDriving_ = snapshot.playerDriving;
+        // A save is never taken mid-cutscene by design (nothing writes one there), but force the
+        // cutscene to its terminal state anyway so restoring can never leave the game with an
+        // active cutscene camera fighting a restored, unrelated player/vehicle position.
+        cutscene_.Skip();
+        vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever restored
+        RespawnTrafficAndPedestrians(); // ambient traffic/pedestrian/police state is never saved
     }
 
     void IronGangGame::RetryMission()
     {
-        if (!mission_.HasCheckpoint() || !hasMissionCheckpointWorld_)
+        if (!mission_.HasCheckpoint() || !missionCheckpointWorld_.has_value())
         {
             // Nothing to return to: a full restart is the only honest option.
             ResetPrototype();
@@ -928,29 +933,21 @@ namespace IronGang
 
         mission_.Retry();
 
-        if (missionCheckpointWorld_.districtId != districtManager_.GetWorld().GetId())
+        if (missionCheckpointWorld_->districtId != districtManager_.GetWorld().GetId())
         {
-            districtManager_.LoadDistrict(missionCheckpointWorld_.districtId, physics_);
+            districtManager_.LoadDistrict(missionCheckpointWorld_->districtId, physics_);
             renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
         }
-        player_.Reset(missionCheckpointWorld_.playerPosition, missionCheckpointWorld_.playerYaw, physics_);
-        vehicle_.Restore(missionCheckpointWorld_.vehiclePosition,
-                         missionCheckpointWorld_.vehicleYaw,
-                         missionCheckpointWorld_.vehicleSpeed,
-                         physics_);
-        playerDriving_ = missionCheckpointWorld_.playerDriving;
-        cutscene_.Skip();
-        vehicleTransitionState_ = VehicleTransitionState::None;
         // Also resets police_, which matters here: the chase that caused the failure is still
         // running, and leaving it would re-trigger the same failure within a frame or two.
-        RespawnTrafficAndPedestrians();
+        ApplyWorldSnapshot(*missionCheckpointWorld_);
         transientStatus_ = "Retrying from checkpoint";
         transientStatusSeconds_ = 3.0F;
     }
 
     void IronGangGame::ResetPrototype()
     {
-        hasMissionCheckpointWorld_ = false;
+        missionCheckpointWorld_.reset();
         missionCheckpointWorldStateId_.clear();
         const DistrictId sourceDistrict = districtManager_.GetWorld().GetId();
         const std::uint64_t residentBytesBefore = performanceProfiler_.IsEnabled()

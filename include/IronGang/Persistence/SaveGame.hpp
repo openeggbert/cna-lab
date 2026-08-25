@@ -9,12 +9,13 @@
 
 namespace IronGang
 {
-    struct SaveSnapshot
+    // The part of a snapshot that says where everything is: the player, their vehicle, and which
+    // district is loaded. Split out so a mission checkpoint can record the same world state without
+    // a second declaration of the same seven fields. SaveSnapshot derives from it, so every
+    // existing `snapshot.playerPosition` still compiles and `WorldStateSnapshot world = snapshot;`
+    // takes exactly the world half of a save.
+    struct WorldStateSnapshot
     {
-        // The mission's current state id (plan_24 IG-24-018). Older saves stored a fixed
-        // 0-4 int in a "mission_state" field instead; SaveGame::Read migrates those, so a save
-        // written before mission states became free-form still loads.
-        std::string missionStateId;
         Vector3 playerPosition{};
         float playerYaw{0.0F};
         Vector3 vehiclePosition{};
@@ -22,9 +23,16 @@ namespace IronGang
         float vehicleSpeed{0.0F};
         bool playerDriving{false};
         // Added for gate M5 (district loading, plan_13). Older save files without this field
-        // (format=iron-gang-save-v1, same as now -- no version bump for one additive field)
         // load with a WarehouseBlock default rather than failing.
         DistrictId districtId{DistrictId::WarehouseBlock};
+    };
+
+    struct SaveSnapshot : WorldStateSnapshot
+    {
+        // The mission's current state id (plan_24 IG-24-018). Older saves stored a fixed
+        // 0-4 int in a "mission_state" field instead; SaveGame::Read migrates those, so a save
+        // written before mission states became free-form still loads.
+        std::string missionStateId;
         // Added for plan_24 IG-24-005/029: the mission's own typed variables, written as one
         // "mission_var.<name>=<type>:<value>" line each. Older save files simply have none, and a
         // name/type the current mission file no longer declares is reported and skipped on load
@@ -35,6 +43,10 @@ namespace IronGang
         // An empty stateId means no checkpoint was reached, which is what a save from a mission
         // with no checkpoint states -- and every save written before this field existed -- has.
         MissionCheckpointSnapshot missionCheckpoint;
+        // Where the player, the vehicle, and the world stood when that checkpoint was recorded
+        // (plan_29 IG-29-009/029). Absent when the mission has no checkpoint, and in every save
+        // written before this field existed -- a retry then falls back to restarting the mission.
+        std::optional<WorldStateSnapshot> missionCheckpointWorld;
     };
 
     // Save format versions this build understands (plan_29 IG-29-001). Version 1 is the original

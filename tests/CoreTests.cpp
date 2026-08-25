@@ -845,6 +845,91 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_29 IG-29-009/029/030: a checkpoint records the world it was reached in, not just the
+    // mission's own state, and both halves survive a save/load -- so a retry after loading a save
+    // puts the player back where the checkpoint was, instead of restarting the mission.
+    void TestCheckpointWorldSurvivesSaveLoad()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_checkpoint_world.save";
+        std::string error;
+
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionStateId = "busted";
+        snapshot.playerPosition = {40.0F, 1.7F, -12.0F}; // where the failure happened
+        snapshot.playerYaw = 2.5F;
+        snapshot.vehiclePosition = {41.0F, 0.65F, -12.0F};
+        snapshot.vehicleSpeed = 0.0F;
+        snapshot.playerDriving = true;
+        snapshot.districtId = IronGang::DistrictId::WarehouseBlock;
+        snapshot.missionCheckpoint.stateId = "drive_to_warehouse";
+        snapshot.missionCheckpoint.variables.push_back(
+            IronGang::MissionVariableSnapshot{"cargo_secured", IronGang::MissionValue::Bool(true)});
+
+        IronGang::WorldStateSnapshot checkpointWorld;
+        checkpointWorld.playerPosition = {2.0F, 1.7F, 9.0F}; // where the checkpoint was reached
+        checkpointWorld.playerYaw = 0.75F;
+        checkpointWorld.vehiclePosition = {2.0F, 0.65F, 9.5F};
+        checkpointWorld.vehicleYaw = -1.25F;
+        checkpointWorld.vehicleSpeed = 4.5F;
+        checkpointWorld.playerDriving = true;
+        checkpointWorld.districtId = IronGang::DistrictId::Countryside;
+        snapshot.missionCheckpointWorld = checkpointWorld;
+
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "writing must succeed: " + error);
+        std::optional<IronGang::SaveSnapshot> loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "reading must succeed: " + error);
+        Require(loaded->missionCheckpointWorld.has_value(), "the checkpoint's world half must survive");
+
+        const IronGang::WorldStateSnapshot& restored = *loaded->missionCheckpointWorld;
+        Require(std::fabs(restored.playerPosition.X - 2.0F) < 1e-4F &&
+                    std::fabs(restored.playerPosition.Z - 9.0F) < 1e-4F,
+                "the checkpoint's player position must survive exactly");
+        Require(std::fabs(restored.playerYaw - 0.75F) < 1e-4F &&
+                    std::fabs(restored.vehicleYaw + 1.25F) < 1e-4F,
+                "the checkpoint's yaws must survive");
+        Require(std::fabs(restored.vehicleSpeed - 4.5F) < 1e-4F, "the checkpoint's speed must survive");
+        Require(restored.playerDriving, "the checkpoint's driving flag must survive");
+        Require(restored.districtId == IronGang::DistrictId::Countryside,
+                "the checkpoint's district must survive independently of the current one");
+        Require(loaded->districtId == IronGang::DistrictId::WarehouseBlock,
+                "the live district must not be overwritten by the checkpoint's");
+        Require(std::fabs(loaded->playerPosition.X - 40.0F) < 1e-4F,
+                "the live player position must stay distinct from the checkpoint's");
+
+        // A save with no checkpoint world -- an older file, or a mission with no checkpoint --
+        // loads with none rather than inventing one.
+        IronGang::SaveSnapshot plain = snapshot;
+        plain.missionCheckpointWorld.reset();
+        Require(IronGang::SaveGame::Write(path.string(), plain, error),
+                "writing without a checkpoint world must succeed: " + error);
+        loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value() && !loaded->missionCheckpointWorld.has_value(),
+                "a save with no checkpoint world must load with none");
+
+        // The world half is all-or-nothing: a partial one would put the player somewhere and the
+        // vehicle nowhere, so it is dropped rather than half-applied.
+        WriteTempJson(path,
+                      "format=iron-gang-save-v1\n"
+                      "mission_state_id=busted\n"
+                      "player_position=1,1.7,2\n"
+                      "player_yaw=0\n"
+                      "vehicle_position=3,0.65,4\n"
+                      "vehicle_yaw=0\n"
+                      "vehicle_speed=0\n"
+                      "player_driving=0\n"
+                      "mission_checkpoint_state_id=drive_to_warehouse\n"
+                      "checkpoint_player_position=2,1.7,9\n"
+                      "checkpoint_player_yaw=0.75\n");
+        loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "a partial checkpoint world must not fail the load: " + error);
+        Require(!loaded->missionCheckpointWorld.has_value(),
+                "a partial checkpoint world must be dropped, not half-applied");
+        Require(loaded->missionCheckpoint.stateId == "drive_to_warehouse",
+                "dropping the world half must leave the mission half intact");
+
+        std::filesystem::remove(path);
+    }
+
     // plan_29 IG-29-001/002/003/004/023: the save format's integrity guarantees -- an atomic
     // write that cannot leave a half-written file, one rolling backup, a checksum that refuses a
     // damaged file, and a version check that refuses a file from a newer build.
@@ -2416,6 +2501,7 @@ int main()
         TestMissionCheckpointSurvivesSaveLoad();
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
+        TestCheckpointWorldSurvivesSaveLoad();
         TestMissionExpressionEvaluatesTypedOperations();
         TestMissionExpressionRejectsMalformedInput();
         TestMissionVariablesEnforceTypes();

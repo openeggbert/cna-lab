@@ -121,6 +121,18 @@ namespace IronGang
                          << variable.value.ToText() << "\n";
                 }
             }
+            if (snapshot.missionCheckpointWorld.has_value())
+            {
+                const WorldStateSnapshot& checkpoint = *snapshot.missionCheckpointWorld;
+                text << "checkpoint_player_position=" << VectorToText(checkpoint.playerPosition) << "\n";
+                text << "checkpoint_player_yaw=" << checkpoint.playerYaw << "\n";
+                text << "checkpoint_vehicle_position=" << VectorToText(checkpoint.vehiclePosition) << "\n";
+                text << "checkpoint_vehicle_yaw=" << checkpoint.vehicleYaw << "\n";
+                text << "checkpoint_vehicle_speed=" << checkpoint.vehicleSpeed << "\n";
+                text << "checkpoint_player_driving=" << (checkpoint.playerDriving ? 1 : 0) << "\n";
+                text << "checkpoint_district_id=" << static_cast<int>(checkpoint.districtId) << "\n";
+            }
+
             const std::string body = text.str();
             std::ostringstream document;
             document << "format=iron-gang-save-v" << kCurrentSaveFormatVersion << "\n";
@@ -392,6 +404,40 @@ namespace IronGang
                 {
                     snapshot.missionCheckpoint.stateId = checkpointStateIt->second;
                     snapshot.missionCheckpoint.variables = std::move(checkpointVariables);
+                }
+
+                // The world half of the checkpoint is all-or-nothing: a partial one would put the
+                // player somewhere and the vehicle nowhere, so anything missing or malformed drops
+                // it and leaves a retry to restart the mission instead (plan_29 IG-29-029).
+                std::string checkpointPlayerPosition;
+                std::string checkpointVehiclePosition;
+                std::string checkpointPlayerYaw;
+                std::string checkpointVehicleYaw;
+                std::string checkpointVehicleSpeed;
+                std::string checkpointPlayerDriving;
+                std::string dropped;
+                if (RequireValue(values, "checkpoint_player_position", checkpointPlayerPosition, dropped) &&
+                    RequireValue(values, "checkpoint_vehicle_position", checkpointVehiclePosition, dropped) &&
+                    RequireValue(values, "checkpoint_player_yaw", checkpointPlayerYaw, dropped) &&
+                    RequireValue(values, "checkpoint_vehicle_yaw", checkpointVehicleYaw, dropped) &&
+                    RequireValue(values, "checkpoint_vehicle_speed", checkpointVehicleSpeed, dropped) &&
+                    RequireValue(values, "checkpoint_player_driving", checkpointPlayerDriving, dropped))
+                {
+                    WorldStateSnapshot checkpointWorld;
+                    if (ParseVector(checkpointPlayerPosition, checkpointWorld.playerPosition) &&
+                        ParseVector(checkpointVehiclePosition, checkpointWorld.vehiclePosition))
+                    {
+                        checkpointWorld.playerYaw = std::stof(checkpointPlayerYaw);
+                        checkpointWorld.vehicleYaw = std::stof(checkpointVehicleYaw);
+                        checkpointWorld.vehicleSpeed = std::stof(checkpointVehicleSpeed);
+                        checkpointWorld.playerDriving = std::stoi(checkpointPlayerDriving) != 0;
+                        const auto checkpointDistrictIt = values.find("checkpoint_district_id");
+                        checkpointWorld.districtId =
+                            checkpointDistrictIt != values.end()
+                                ? static_cast<DistrictId>(std::stoi(checkpointDistrictIt->second))
+                                : snapshot.districtId;
+                        snapshot.missionCheckpointWorld = checkpointWorld;
+                    }
                 }
                 return snapshot;
             }
