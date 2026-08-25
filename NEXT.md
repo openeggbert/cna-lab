@@ -142,6 +142,24 @@ Everything the audit found is now closed, including the incoming-damage multipli
 which is asserted end to end: one hound bite has to land strictly harder on each rung
 all the way through to the value the player loses.
 
+## Where the milestones stand
+
+Every milestone in `plan.md` now carries an accurate status; they had gone stale, with
+M2 through M6 finished but unmarked. What is genuinely left:
+
+- **M7, advanced real 3D** — untouched. Nothing uses vertical space: one floor height
+  throughout, and the elevators are campaign transitions rather than moving geometry.
+  The largest remaining piece, touching rendering, collision and every level at once.
+- **M8, bunker systems** — partial. Terminals, power relays and the Warden's boss
+  lockdown exist; cameras, alarms, remotely opened routes, general lockdown and
+  destructible electrical infrastructure do not.
+- **M11, CNA compatibility campaign** — untouched as a campaign, though two findings
+  already came out of ordinary work. Only `OPENGLES3` and `WEBGL2` have been exercised.
+  Running the game across CNA's other renderers needs no game-code change, which makes
+  it the cheapest way left to serve the purpose section 17 of `plan.md` describes.
+- **M9** needs only narrative messages and logs.
+- **M10** is under way and playable.
+
 ## Next tasks
 
 1. Play the native build and confirm the mouse: turning feel at each speed step, that `Escape` frees the cursor into the pause menu, that the splash and menus stay clickable, and that switching `MOUSE` off leaves keyboard turning intact.

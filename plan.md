@@ -180,7 +180,8 @@ Controls in the starter:
 - `F11`: toggle fullscreen
 - `Escape`: quit
 
-This is milestone M0/M1, not yet a game.
+M0 through M6 are complete, M9 all but its narrative logs, and M10 is under way.
+M7 and M11 are untouched and M8 is partial; see each milestone's status below.
 
 ---
 
@@ -380,7 +381,7 @@ The following features are planned, but they are intentionally staged.
 
 # 7. Milestones
 
-## M0 — project boots — STARTED
+## M0 — project boots
 
 Acceptance:
 
@@ -389,9 +390,9 @@ Acceptance:
 - creates CNA game window;
 - no direct graphics/platform backend use.
 
-Status: starter implementation included.
+Status: complete, and long since surpassed by the milestones below.
 
-## M1 — walkable real-3D room — STARTED
+## M1 — walkable real-3D room
 
 Acceptance:
 
@@ -402,9 +403,15 @@ Acceptance:
 - player can move and rotate;
 - collision prevents leaving walkable space.
 
-Status: starter implementation included.
+Status: complete, and long since surpassed by the milestones below.
 
 ## M2 — proper first-person controller
+
+Status: complete apart from two optional items. Mouse yaw runs through CNA's relative
+mouse mode with a fixed horizon, sensitivity has five persisted steps, the run modifier
+and the clamped frame step are in, and collision and grid conversion are unit tested.
+No SDL is called from game code. Head bob and crouch were both listed as optional and
+are not implemented.
 
 Tasks:
 
@@ -428,6 +435,10 @@ Acceptance:
 
 ## M3 — materialized level
 
+Status: complete. Wall, floor and ceiling materials share one atlas, levels load from
+a validated text grid with spawn and object records, and malformed levels raise a named
+error. Six original levels ship, well past the two the acceptance asks for.
+
 Tasks:
 
 - extract level mesh builder;
@@ -445,6 +456,10 @@ Acceptance:
 
 ## M4 — doors, keys, exits, secrets
 
+Status: complete. Ordinary, cyan-access and amber-access doors animate and change
+collision, push-wall secrets move a full cell, elevators complete a sector, and each
+exit reports kill, treasure and secret percentages.
+
 Tasks:
 
 - door entity and animation;
@@ -459,6 +474,12 @@ Acceptance:
 - a 5-minute exploration level can be completed from start to exit.
 
 ## M5 — combat vertical slice
+
+Status: complete, with one deliberate deviation. Health, ammunition, four weapons,
+hitscan and enemy projectiles, damage, five enemy archetypes with real AI, life loss and
+restart, and generated audio for every listed event including music are all in. There is
+no crosshair: the play view is deliberately crosshair-free, matching the 1992 grammar
+rather than the acceptance list.
 
 Tasks:
 
@@ -487,6 +508,10 @@ Acceptance:
 
 ## M6 — first complete level
 
+Status: complete. Five enemy archetypes, four weapons, pickups, push-wall secrets, a
+card-locked route, relay and terminal interaction, the full HUD and per-sector music all
+ship, and no debug control is needed to finish a sector.
+
 Tasks:
 
 - 3–5 enemy archetypes;
@@ -507,6 +532,11 @@ Acceptance:
 
 ## M7 — advanced real 3D
 
+Status: not started. Billboard sprites and animated enemies exist, but nothing uses
+vertical space: floors and ceilings are one height throughout and the elevators are
+campaign transitions rather than moving geometry. This is the largest remaining piece
+and touches rendering, collision and every level at once.
+
 Implement selectively:
 
 - varying floor/ceiling heights;
@@ -523,6 +553,11 @@ Acceptance:
 - gameplay genuinely uses vertical/3D space beyond flat Wolf-like corridors.
 
 ## M8 — bunker systems
+
+Status: partial. Terminals and power relays exist as optional per-sector objectives,
+and the Warden Core has a boss lockdown holding its final elevator. Security cameras,
+alarms, remotely opened routes, general sector lockdown and destructible electrical
+infrastructure are all still missing.
 
 Implement:
 
@@ -547,7 +582,8 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 - end-of-level statistics;
 - narrative messages/logs.
 
-Status: started. The original title menu and its Scout / Operative / Veteran
+Status: essentially complete; only narrative messages and logs remain unimplemented.
+The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. A shared deterministic profile changes incoming
 damage, active encounter tiers, enemy health, movement speed, firing cadence and
 ammunition supply. Five main sectors and a hidden branch now carry score, lives,
@@ -631,6 +667,12 @@ Only begin after handcrafted level rules are stable.
 - generated-sector validation tests.
 
 ## M11 — CNA compatibility and performance campaign
+
+Status: not started as a campaign, though two findings already came out of ordinary
+work: a game-set sub-viewport that broke full screen, since fixed in cnanext, and
+relative mouse motion arriving roughly six times weaker on the web. Only OPENGLES3 and
+WEBGL2 have ever been exercised. Running the game across CNA's other renderers needs no
+game-code change and is the cheapest way left to serve the purpose section 17 describes.
 
 Test multiple CNA renderers.
 
