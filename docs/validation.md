@@ -655,12 +655,13 @@ precedence with player-facing text asserted non-empty for every reason and trigg
 and a missing candidate — setting timestamps explicitly rather than trusting filesystem resolution.
 
 An end-to-end run confirms the write path: `--profile-scenario mixed --smoke 1600` (the game runs a
-fixed 60 Hz step, so that is ~26.7 s of simulated time) performs its district transition at update
-480, and the deferred `DistrictArrival` autosave lands once the 20-second spacing has passed —
-`runtime/iron_gang_prototype.autosave` exists afterwards with a current-format header. Note the
-earlier `--profile-scenario mission` run does **not** produce one: it completes and exits at about
-15 s of simulated time, inside the minimum spacing, which is the scheduler behaving as designed
-rather than a failure.
+fixed 60 Hz step, so that is ~26.7 s of simulated time) exited 0 having written **two** autosaves —
+`runtime/iron_gang_prototype.autosave` plus `…autosave.bak`, both 919 bytes with a current-format
+header, four minutes apart in wall-clock terms. That is the deferred `DistrictArrival` trigger and
+then a later one, and it incidentally exercises backup rotation on the autosave slot as well as the
+manual one. No `autosave failed` line appears in the run log. Note the `--profile-scenario mission`
+run does **not** produce one: it completes and exits at about 15 s of simulated time, inside the
+minimum spacing, which is the scheduler behaving as designed rather than a failure.
 
 **Boundaries.** The 180-second interval and 20-second spacing are compile-time constants;
 `assets/config/game.json` is still not read by anything (plan_04's configuration loader). One
