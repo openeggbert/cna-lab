@@ -1,5 +1,6 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
+#include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -845,6 +846,115 @@ namespace
                 "a free-form state id must survive the save round trip");
 
         std::filesystem::remove(savePath);
+        std::filesystem::remove(path);
+    }
+
+    // plan_04 IG-04-001/006: the configuration loader's defaults, validation, and round trip. The
+    // rule the tests protect is that a broken or partial config costs the tuning, never the run --
+    // only a file that cannot be understood at all is a failure.
+    void TestGameConfigLoadsValidatesAndFallsBack()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_config.json";
+        const IronGang::GameConfig defaults;
+        IronGang::GameConfig config;
+        std::string error;
+        std::vector<std::string> warnings;
+
+        // A missing file is not a failure: the defaults are a complete configuration.
+        Require(IronGang::LoadGameConfig((path.string() + ".missing"), config, error, &warnings),
+                "a missing configuration file must not be an error");
+        Require(config.projectName == defaults.projectName &&
+                    std::fabs(config.autosaveIntervalSeconds - defaults.autosaveIntervalSeconds) < 1e-4F,
+                "a missing file must leave every default in place");
+        Require(warnings.size() == 1, "a missing file must be reported once, as a warning");
+
+        // Every field round-trips.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({
+            "projectName": "Test Title",
+            "cityName": "Test City",
+            "prototypeYear": 1948,
+            "autosaveIntervalSeconds": 45.5,
+            "autosaveMinimumSpacingSeconds": 5
+        })JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "a well-formed configuration must load: " + error);
+        Require(warnings.empty(), "a well-formed configuration must produce no warnings");
+        Require(config.projectName == "Test Title" && config.cityName == "Test City" &&
+                    config.prototypeYear == 1948,
+                "string and integer values must round-trip");
+        Require(std::fabs(config.autosaveIntervalSeconds - 45.5F) < 1e-4F &&
+                    std::fabs(config.autosaveMinimumSpacingSeconds - 5.0F) < 1e-4F,
+                "second values must round-trip");
+
+        // An unknown key is the most common configuration mistake, so it must be reported.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"projectNmae": "typo", "cityName": "Kept"})JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "an unknown key must not fail the load: " + error);
+        Require(warnings.size() == 1 && warnings.front().find("projectNmae") != std::string::npos,
+                "the unknown key must be named in the warning");
+        Require(config.projectName == defaults.projectName, "the mistyped key must leave the default");
+        Require(config.cityName == "Kept", "the keys that were right must still apply");
+
+        // A value of the wrong type keeps the default and says so.
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"projectName": 7, "prototypeYear": "soon", "autosaveIntervalSeconds": "later"})JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "wrong-typed values must not fail the load: " + error);
+        Require(warnings.size() == 3, "each wrong-typed value must be reported once");
+        Require(config.projectName == defaults.projectName && config.prototypeYear == defaults.prototypeYear &&
+                    std::fabs(config.autosaveIntervalSeconds - defaults.autosaveIntervalSeconds) < 1e-4F,
+                "wrong-typed values must leave their defaults");
+
+        // Out-of-range values: a year is rejected outright, negative seconds mean "off".
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"prototypeYear": 12000, "autosaveIntervalSeconds": -5, "projectName": ""})JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "out-of-range values must not fail the load: " + error);
+        Require(warnings.size() == 3, "each out-of-range value must be reported");
+        Require(config.prototypeYear == defaults.prototypeYear, "an absurd year must keep the default");
+        Require(std::fabs(config.autosaveIntervalSeconds) < 1e-4F,
+                "negative seconds must clamp to 0 -- the author meant \"off\"");
+        Require(config.projectName == defaults.projectName, "an empty string must keep the default");
+
+        // A spacing longer than the interval is legal but almost always a mistake.
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"autosaveIntervalSeconds": 10, "autosaveMinimumSpacingSeconds": 60})JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "a spacing longer than the interval must still load: " + error);
+        Require(warnings.size() == 1 && warnings.front().find("spacing") != std::string::npos,
+                "the spacing/interval combination must be reported");
+
+        // Only an unreadable file is a failure, and it leaves the caller's defaults alone.
+        warnings.clear();
+        WriteTempJson(path, "{ this is not json");
+        IronGang::GameConfig untouched;
+        untouched.projectName = "Caller's value";
+        Require(!IronGang::LoadGameConfig(path.string(), untouched, error, &warnings),
+                "malformed JSON must be an error");
+        Require(untouched.projectName == "Caller's value",
+                "a failed load must leave the caller's configuration untouched");
+        WriteTempJson(path, R"JSON(["not", "an", "object"])JSON");
+        Require(!IronGang::LoadGameConfig(path.string(), untouched, error, &warnings),
+                "a non-object root must be an error");
+        Require(error.find("object") != std::string::npos, "the error must say what was wrong: " + error);
+
+        // The committed configuration must load cleanly -- no typos, no stale keys, no warnings.
+        warnings.clear();
+        Require(IronGang::LoadGameConfig(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/config/game.json",
+                                         config, error, &warnings),
+                "the committed configuration must load: " + error);
+        Require(warnings.empty(),
+                "the committed configuration must produce no warnings: " +
+                    (warnings.empty() ? std::string() : warnings.front()));
+        Require(config.projectName == "Iron Shadows" && config.cityName == "Iron City" &&
+                    config.prototypeYear == 1932,
+                "the committed configuration must carry the project's identity");
+
         std::filesystem::remove(path);
     }
 
@@ -2663,6 +2773,7 @@ int main()
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
+        TestGameConfigLoadsValidatesAndFallsBack();
         TestAutosaveSchedulingAvoidsUnsafeMoments();
         TestLoadChoosesTheMostRecentSave();
         TestMissionExpressionEvaluatesTypedOperations();

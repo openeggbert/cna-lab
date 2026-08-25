@@ -303,6 +303,7 @@ docs/performance-targets.md  Realistic hardware/RAM/VRAM targets for this game
 docs/performance-baseline.md Current EasyGL M12 measurements and open failure
 docs/mission-scripting.md    Mission file schema, variables, and expression language
 docs/save-format.md          Save schema, integrity guarantees, and migration rules
+docs/configuration.md        game.json tunables, validation rules, and how to add one
 ```
 
 ## License and assets

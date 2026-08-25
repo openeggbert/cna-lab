@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
@@ -166,6 +167,7 @@ namespace IronGang
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).
+        GameConfig config_;
         AutosaveScheduler autosave_;
         std::optional<WorldStateSnapshot> missionCheckpointWorld_;
         std::string missionCheckpointWorldStateId_;

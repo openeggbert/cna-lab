@@ -577,6 +577,48 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Configuration loader: game.json is finally read (2026-08-25)
+
+plan_04 `IG-04-001`/`006`/`018` closed; plan_29 `IG-29-005` advanced. `assets/config/game.json` has
+existed since the original scaffold with a `notes` field admitting it was "reserved for a future
+configuration loader" — nothing had ever read it, and the previous two entries both had to record
+"the autosave interval is a compile-time constant because nothing reads the config yet".
+
+**What changed.** `GameConfig`/`LoadGameConfig` (`include/IronGang/Core/GameConfig.hpp`,
+`src/Core/GameConfig.cpp`) read the file through sharp-runtime's `System::Text::Json`. The design
+rule is that **a broken or partial configuration costs the tuning, never the run**:
+
+* Every member's initializer *is* the default, so there is one place a default lives.
+* A missing file, an unknown key, a wrong-typed value, an out-of-range number, and an empty string
+  are all warnings that keep the default. Only malformed JSON or a non-object root fails, and a
+  failure leaves the caller's configuration untouched rather than half-applied.
+* Unknown keys are **named** in the warning. Silently ignoring `projectNmae` is how a mistuned
+  build goes unnoticed for a week.
+* Negative seconds clamp to 0 rather than being rejected: the author meant "off".
+* A minimum spacing longer than the interval loads with a warning — legal, but it means the
+  interval never fires when it says it will.
+
+The values drive the window title (`projectName`, replacing a hardcoded "Iron Gang" — which also
+serves `docs/renaming.md`), the district map header (`cityName`, `prototypeYear`), and the autosave
+scheduler's interval and spacing. The autosave defaults come from `AutosaveScheduler`'s own
+constants rather than being repeated in `GameConfig`, so the two cannot drift.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestGameConfigLoadsValidatesAndFallsBack` covers the missing file, a full round trip, an unknown
+key (with the correct keys still applying), three wrong-typed values, three out-of-range values, the
+spacing/interval warning, malformed JSON and a non-object root leaving the caller's config
+untouched, and — the case that keeps the shipped file honest — the **committed**
+`assets/config/game.json` loading with **zero** warnings and the expected identity. A `--smoke 120`
+run prints no configuration warnings, confirming the real file is read at startup rather than only
+in tests. `scripts/check-syntax.sh` and `git diff --check` clean; the config file's registry hash
+updated. Schema, failure table, and the procedure for adding a tunable are in
+`docs/configuration.md`.
+
+**Boundaries.** No environment-variable or command-line overrides of individual tunables
+(`IG-04-020`), no hot reload, no per-platform files. This is developer tuning only: **user**
+settings the player changes in game still have no system (plan_28's menus) and therefore nowhere to
+be stored, which is the open half of `IG-29-005`.
+
 ## Autosave scheduling and refusing to save at unsafe moments (2026-08-25)
 
 plan_29 `IG-29-010`/`011`/`036`/`037` closed. Closes the "a checkpoint is only as durable as the

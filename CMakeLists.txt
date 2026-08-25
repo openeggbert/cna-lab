@@ -117,6 +117,7 @@ add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
 include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
+    src/Core/GameConfig.cpp
     src/Core/PerformanceProfiler.cpp
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp

@@ -92,6 +92,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The configuration file is finally read (plan_04)
+
+`assets/config/game.json` had existed since the scaffold with a `notes` field admitting nothing read
+it; the previous two entries both had to say "that value is a compile-time constant because nothing
+reads the config". Now `GameConfig`/`LoadGameConfig` (`Core/GameConfig.hpp`) read it.
+
+The rule: **a broken or partial config costs the tuning, never the run.** A missing file, an unknown
+key, a wrong-typed value, an out-of-range number, an empty string -- all warnings that keep the
+default. Only malformed JSON or a non-object root fails, and it leaves the caller's config
+untouched. Unknown keys are *named* (`projectNmae` is the mistake worth catching). Negative seconds
+clamp to 0 ("off"). A spacing longer than the interval warns.
+
+Drives: the window title (`projectName` -- replacing a hardcoded "Iron Gang", which also helps
+`docs/renaming.md`), the district map header (`cityName`/`prototypeYear`), and the autosave interval
+and spacing. Autosave defaults come from `AutosaveScheduler`'s constants rather than being repeated.
+
+Closed `IG-04-001`/`006`/`018`. Verified: build clean, CTest 11/11, a test that the **committed**
+config loads with zero warnings, and a `--smoke 120` run that prints none. Documented in
+`docs/configuration.md`.
+
+Remaining nearby: structured logging categories (`IG-04-002` -- everything still goes to `std::cerr`
+with an ad-hoc `[IronGang]` prefix), a monotonic simulation clock and delta clamping
+(`IG-04-003`/`004`/`007`), a seeded deterministic RNG (`IG-04-011`/`012`), and the result/error
+object (`IG-04-009`). User settings the player can change in game remain blocked on plan_28's menus,
+which is the open half of `IG-29-005`.
+
 ### Autosave scheduling, and refusing to save at unsafe moments (plan_29)
 
 Closes "a checkpoint is only as durable as the last manual save" from the entry below.

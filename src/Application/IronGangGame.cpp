@@ -428,6 +428,20 @@ namespace IronGang
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
                        districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
 
+        // plan_04 IG-04-001: tunables come from data, but a missing or partly unusable file only
+        // costs the tuning -- every field falls back to the default the game already runs on.
+        std::vector<std::string> configWarnings;
+        std::string configError;
+        if (!LoadGameConfig(assetRoot_ + "/config/game.json", config_, configError, &configWarnings))
+        {
+            std::cerr << "[IronGang] " << configError << " -- using built-in configuration defaults.\n";
+        }
+        for (const std::string& warning : configWarnings)
+        {
+            std::cerr << "[IronGang] configuration: " << warning << "\n";
+        }
+        autosave_.Configure(config_.autosaveIntervalSeconds, config_.autosaveMinimumSpacingSeconds);
+
         // Gate M7 (plan_24-mission-framework-and-scripting.md IG-24-001/004): the mission's
         // states/objectives/transitions now live in data; PrototypeMission ships with a
         // hardcoded default reproducing the same flow, so a missing/corrupt file degrades to
@@ -1515,7 +1529,7 @@ namespace IronGang
         titleRefreshTimer_ = 0.20F;
 
         std::ostringstream title;
-        title << "Iron Gang | ";
+        title << config_.projectName << " | ";
         if (districtManager_.IsTransitioning())
         {
             title << "Loading...";
@@ -1600,7 +1614,8 @@ namespace IronGang
         drawMarker(activePosition, Color(60, 225, 235, 255), 11);
 
         std::ostringstream title;
-        title << "DISTRICT MAP | " << DistrictName(world.GetId()) << " | TAB: CLOSE";
+        title << config_.cityName << " " << config_.prototypeYear << " | " << DistrictName(world.GetId())
+              << " | TAB: CLOSE";
         spriteBatch.DrawString(font, title.str(), Vector2(static_cast<float>(panelX + 16),
                                                           static_cast<float>(panelY + 14)),
                                Color(240, 240, 230, 255));
