@@ -4,6 +4,8 @@ An original retro first-person shooter prototype written in **C++23** and render
 
 This starter is deliberately small. It proves the basic direction before local AI agents continue the project.
 
+![Wolf CNA gameplay: a first-person view down a textured bunker corridor, a security guard firing ahead, the sidearm held low and the blue HUD showing level, score, lives, the status portrait, health, ammunition and the weapon icon](screenshot.png)
+
 ## What already works
 
 - CNA `Game` startup
