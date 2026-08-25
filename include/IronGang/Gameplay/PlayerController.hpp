@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Core/WorldTypes.hpp"
+#include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
 
 namespace IronGang
@@ -34,18 +35,20 @@ namespace IronGang
         [[nodiscard]] float GetYaw() const noexcept { return yaw_; }
         [[nodiscard]] Vector3 GetForward() const { return ForwardFromYaw(yaw_); }
         [[nodiscard]] bool IsGrounded() const noexcept { return grounded_; }
+        // plan_16 IG-16-005: movement has momentum now. Speed is in metres per second, so an
+        // animation blend or a footstep timer can key off it directly.
+        [[nodiscard]] float GetSpeed() const noexcept { return locomotion_.GetSpeed(); }
+        [[nodiscard]] bool IsMoving() const noexcept { return locomotion_.IsMoving(); }
 
         void SetPosition(const Vector3& position, Physics::PhysicsWorld& physics);
         void SetYaw(float yaw, Physics::PhysicsWorld& physics);
 
     private:
+        Locomotion locomotion_;
         Physics::CharacterHandle characterHandle_;
         Vector3 position_{0.0F, 1.70F, 0.0F};
         float yaw_{0.0F};
         bool grounded_{true};
-        float walkSpeed_{4.2F};
-        float sprintMultiplier_{1.65F};
-        float turnSpeed_{2.0F};
         float collisionRadius_{0.35F};
         float capsuleCylinderHalfHeight_{0.5F};
     };

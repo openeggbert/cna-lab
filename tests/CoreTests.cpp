@@ -8,6 +8,7 @@
 #include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
+#include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
@@ -930,6 +931,145 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_16 IG-16-005: on-foot movement builds up and dies away instead of switching on and
+    // off. The model is pure arithmetic, so the feel is testable without a physics world.
+    void TestLocomotionAcceleratesAndDecelerates()
+    {
+        constexpr float kFrame = 1.0F / 60.0F;
+        IronGang::Locomotion locomotion;
+        const IronGang::LocomotionSettings settings = locomotion.GetSettings();
+
+        Require(locomotion.GetSpeed() == 0.0F && !locomotion.IsMoving(),
+                "a character starts at rest");
+
+        // Full forward input does not reach walking speed in one frame -- that was the old
+        // behaviour, and it is what made movement read as a cursor rather than a person.
+        locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+        Require(locomotion.GetForwardVelocity() > 0.0F, "the character must start moving");
+        Require(locomotion.GetForwardVelocity() < settings.walkSpeed * 0.5F,
+                "one frame must not reach walking speed");
+
+        // It reaches walking speed within a fraction of a second, and never exceeds it.
+        int framesToWalk = 1;
+        while (locomotion.GetSpeed() < settings.walkSpeed - 1e-4F && framesToWalk < 600)
+        {
+            locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+            ++framesToWalk;
+        }
+        Require(framesToWalk < 30, "walking pace must be reached in well under half a second");
+        Require(std::fabs(locomotion.GetSpeed() - settings.walkSpeed) < 1e-3F,
+                "speed must settle exactly at walking pace, not overshoot it");
+        locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+        Require(locomotion.GetSpeed() <= settings.walkSpeed + 1e-4F, "speed must not creep past its target");
+
+        // Sprinting raises the target; releasing it eases back down rather than snapping.
+        locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, true);
+        Require(locomotion.GetSpeed() > settings.walkSpeed, "sprinting must go faster than walking");
+        int framesToSprint = 1;
+        while (locomotion.GetSpeed() < settings.walkSpeed * settings.sprintMultiplier - 1e-4F &&
+               framesToSprint < 600)
+        {
+            locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, true);
+            ++framesToSprint;
+        }
+        Require(std::fabs(locomotion.GetSpeed() - settings.walkSpeed * settings.sprintMultiplier) < 1e-3F,
+                "sprint speed must settle at walk speed times the multiplier");
+        locomotion.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+        Require(locomotion.GetSpeed() < settings.walkSpeed * settings.sprintMultiplier,
+                "releasing sprint must slow down");
+        Require(locomotion.GetSpeed() > settings.walkSpeed,
+                "releasing sprint must not snap straight to walking pace");
+
+        // Releasing input stops the character -- and stopping is quicker than starting, which is
+        // what makes momentum feel responsive rather than sluggish. Measured from a clean walk,
+        // not from wherever the sprint checks above left the character.
+        IronGang::Locomotion stopping;
+        int framesFromRestToWalk = 0;
+        while (stopping.GetSpeed() < settings.walkSpeed - 1e-4F && framesFromRestToWalk < 600)
+        {
+            stopping.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+            ++framesFromRestToWalk;
+        }
+        int framesToStop = 0;
+        while (stopping.IsMoving() && framesToStop < 600)
+        {
+            stopping.Update(kFrame, 0.0F, 0.0F, 0.0F, false);
+            ++framesToStop;
+        }
+        Require(!stopping.IsMoving(), "releasing input must bring the character to a stop");
+        Require(framesToStop < framesFromRestToWalk,
+                "stopping must be quicker than starting: " + std::to_string(framesToStop) + " vs " +
+                    std::to_string(framesFromRestToWalk));
+        Require(stopping.GetSpeed() == 0.0F, "the character must settle at exactly zero, not drift");
+
+        // Diagonal input must not be faster than straight input.
+        IronGang::Locomotion diagonal;
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            diagonal.Update(kFrame, 1.0F, 1.0F, 0.0F, false);
+        }
+        Require(diagonal.GetSpeed() <= settings.walkSpeed + 1e-3F,
+                "diagonal movement must be clamped to walking speed: " +
+                    std::to_string(diagonal.GetSpeed()));
+        Require(diagonal.GetForwardVelocity() > 0.0F && diagonal.GetStrafeVelocity() > 0.0F,
+                "diagonal movement must still use both axes");
+
+        // Releasing forward while still strafing must not brake the strafe.
+        IronGang::Locomotion mixed;
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            mixed.Update(kFrame, 1.0F, 1.0F, 0.0F, false);
+        }
+        const float strafeBefore = mixed.GetStrafeVelocity();
+        mixed.Update(kFrame, 0.0F, 1.0F, 0.0F, false);
+        Require(mixed.GetForwardVelocity() < settings.walkSpeed, "the forward axis must slow");
+        Require(mixed.GetStrafeVelocity() >= strafeBefore - 1e-4F,
+                "the strafe axis must not be braked by releasing forward");
+
+        // Turning has inertia too, in both directions, and settles exactly.
+        IronGang::Locomotion turning;
+        turning.Update(kFrame, 0.0F, 0.0F, 1.0F, false);
+        Require(turning.GetTurnRate() > 0.0F && turning.GetTurnRate() < settings.turnSpeed,
+                "the turn rate must ease in rather than snapping to full");
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            turning.Update(kFrame, 0.0F, 0.0F, 1.0F, false);
+        }
+        Require(std::fabs(turning.GetTurnRate() - settings.turnSpeed) < 1e-3F,
+                "the turn rate must settle at the configured speed");
+        turning.Update(kFrame, 0.0F, 0.0F, -1.0F, false);
+        Require(turning.GetTurnRate() < settings.turnSpeed,
+                "reversing the turn must go through the intervening rates, not flip instantly");
+
+        // Reversing movement input passes through zero rather than teleporting the velocity.
+        IronGang::Locomotion reversing;
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            reversing.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+        }
+        reversing.Update(kFrame, -1.0F, 0.0F, 0.0F, false);
+        Require(reversing.GetForwardVelocity() > 0.0F,
+                "one frame of reverse input must not already be moving backwards");
+
+        // A teleport drops momentum, and a zero-length frame changes nothing.
+        reversing.Stop();
+        Require(reversing.GetSpeed() == 0.0F && reversing.GetTurnRate() == 0.0F,
+                "Stop must drop all momentum");
+        reversing.Update(0.0F, 1.0F, 0.0F, 1.0F, false);
+        Require(reversing.GetSpeed() == 0.0F && reversing.GetTurnRate() == 0.0F,
+                "a zero-length frame must change nothing");
+
+        // Tuning is honoured.
+        IronGang::Locomotion tuned;
+        IronGang::LocomotionSettings fast;
+        fast.walkSpeed = 10.0F;
+        fast.acceleration = 1000.0F;
+        tuned.Configure(fast);
+        tuned.Update(kFrame, 1.0F, 0.0F, 0.0F, false);
+        Require(std::fabs(tuned.GetSpeed() - 10.0F) < 1e-3F,
+                "a high acceleration must reach the configured speed at once");
     }
 
     // plan_17 IG-17-015: a sedan takes damage from impacts, and the thing the model has to get
@@ -3576,6 +3716,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestLocomotionAcceleratesAndDecelerates();
         TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();

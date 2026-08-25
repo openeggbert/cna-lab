@@ -8,6 +8,8 @@ namespace IronGang
 {
     void PlayerController::Reset(const Vector3& spawnPosition, float yaw, Physics::PhysicsWorld& physics)
     {
+        // A teleport must not carry momentum into wherever the character lands.
+        locomotion_.Stop();
         if (!characterHandle_.IsValid())
         {
             characterHandle_ = physics.CreateCharacter(spawnPosition, collisionRadius_, capsuleCylinderHalfHeight_);
@@ -20,6 +22,7 @@ namespace IronGang
 
     void PlayerController::SetPosition(const Vector3& position, Physics::PhysicsWorld& physics)
     {
+        locomotion_.Stop();
         position_ = position;
         if (characterHandle_.IsValid())
         {
@@ -40,7 +43,12 @@ namespace IronGang
                                   const OnFootInput& input,
                                   Physics::PhysicsWorld& physics)
     {
-        yaw_ += input.turn * turnSpeed_ * deltaSeconds;
+        // plan_16 IG-16-005: input asks for a speed and a turn rate; locomotion decides how fast
+        // the character actually gets there, so starting and stopping are movements rather than
+        // switches.
+        locomotion_.Update(deltaSeconds, input.forward, input.strafe, input.turn, input.sprint);
+
+        yaw_ += locomotion_.GetTurnRate() * deltaSeconds;
         if (yaw_ > std::numbers::pi_v<float>)
         {
             yaw_ -= std::numbers::pi_v<float> * 2.0F;
@@ -50,18 +58,14 @@ namespace IronGang
             yaw_ += std::numbers::pi_v<float> * 2.0F;
         }
 
-        const float speed = walkSpeed_ * (input.sprint ? sprintMultiplier_ : 1.0F);
-        Vector3 direction = GetForward() * input.forward + RightFromYaw(yaw_) * input.strafe;
-        if (direction.LengthSquared() > 1.0F)
-        {
-            direction.Normalize();
-        }
+        const Vector3 velocity = GetForward() * locomotion_.GetForwardVelocity() +
+                                 RightFromYaw(yaw_) * locomotion_.GetStrafeVelocity();
 
         // CharacterVirtual::Update() does not accumulate gravity into the velocity it is given
         // (see PhysicsWorld.cpp's Step()); a small constant downward bias is enough to keep the
         // capsule grounded and correctly collision-resolved since this prototype has no jump
         // input to require a real accumulated fall speed.
-        const Vector3 desiredVelocity = direction * speed + Vector3(0.0F, -4.0F, 0.0F);
+        const Vector3 desiredVelocity = velocity + Vector3(0.0F, -4.0F, 0.0F);
         physics.MoveCharacter(characterHandle_, desiredVelocity, deltaSeconds);
 
         // Only one of PlayerController::Update()/VehicleController::Update() runs per game frame

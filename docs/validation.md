@@ -577,6 +577,53 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## On-foot movement gets momentum (2026-08-26)
+
+plan_16 `IG-16-005` advanced to partial (acceleration, deceleration, and turning inertia done;
+slope handling not). plan_16 stood at 1 of 80 with the note that on-foot movement "already works" —
+it did, in the sense that a keypress **was** full speed and a release **was** a dead stop. That
+reads as a cursor, not a person, and it is the most-felt half of a game where you walk to the car.
+
+**What changed.** `Locomotion` (`include/IronGang/Gameplay/Locomotion.hpp`) eases forward/strafe
+velocity and turn rate toward what the input asks for:
+
+* **Stopping is quicker than starting** (26 vs 18 m/s²), on purpose. People lean into a walk and
+  plant their feet to halt, and a character who stops faster than he starts feels responsive rather
+  than sluggish — the opposite ordering is what makes momentum feel like ice.
+* **Deceleration is chosen per axis**, so releasing forward while still strafing does not brake the
+  strafe.
+* **Diagonal input is clamped**, so moving diagonally is not faster than moving straight.
+* **A teleport drops momentum** (`Reset`/`SetPosition`), so a respawn cannot carry speed into
+  wherever the character lands.
+* `MoveToward` snaps to the target when within one step rather than overshooting — overshoot at a
+  low frame rate is exactly how a character jitters around a standstill.
+
+The model is pure arithmetic with no physics, input, or rendering in it, so the feel is unit-tested
+rather than eyeballed. `PlayerController` now asks it for a velocity and hands that to the same
+`CharacterVirtual` as before; `GetSpeed()`/`IsMoving()` are exposed for a future animation blend or
+footstep timer.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestLocomotionAcceleratesAndDecelerates` covers one frame not reaching walking pace, walking pace
+being reached in under half a second and settling exactly (no overshoot, no creep), sprint raising
+and releasing easing back without snapping, stopping measured **from a clean walk** and required to
+be quicker than starting, diagonal clamping while still using both axes, releasing forward not
+braking the strafe, turn rate easing in and reversing through the intervening rates, reverse input
+not flipping the velocity in one frame, `Stop()` and zero-length frames, and tuning being honoured.
+
+A full `--profile-scenario mission --smoke 1200` run still completes: the walk to the sedan now
+takes momentum into account and still reaches the handover radius.
+
+**A test bug worth recording:** the first version measured "frames to stop" from wherever the sprint
+assertions had left the character — roughly sprint speed — and compared it against "frames to walk
+from rest". It reported 15 vs 14 and failed. The code was right; the measurement was comparing two
+different starting speeds. Fixed by measuring the stop from a clean walk.
+
+**Boundaries.** No slope handling: `CharacterVirtual` resolves slopes as geometry, but nothing
+changes speed uphill or downhill and there is no slide threshold. No step-up/ledge/falling states
+(`IG-16-006`), no crouch, no camera work, and the locomotion constants are compile-time defaults
+rather than a tunable file.
+
 ## The sedan can be wrecked (2026-08-26)
 
 plan_17 `IG-17-015` advanced to partial (impact damage and disabled states done; wheel damage has

@@ -92,6 +92,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### On-foot movement gets momentum (plan_16)
+
+plan_16 stood at 1 of 80 with a note that on-foot movement "already works" -- it did, in the sense
+that a keypress **was** full speed and a release **was** a dead stop. That reads as a cursor, not a
+person, in a game where you walk to the car.
+
+`Locomotion` (`Gameplay/Locomotion.hpp`) eases forward/strafe velocity and turn rate toward the
+input:
+
+- **Stopping is quicker than starting** (26 vs 18 m/s squared) on purpose -- the opposite ordering
+  is what makes momentum feel like ice.
+- Deceleration is per axis, so releasing forward while still strafing does not brake the strafe.
+- Diagonal input clamped; a teleport drops momentum; `MoveToward` snaps rather than overshooting
+  (overshoot at low frame rates is how a character jitters around a standstill).
+
+Pure arithmetic, no physics in it, so the feel is unit-tested rather than eyeballed.
+`GetSpeed()`/`IsMoving()` are exposed for a future animation blend or footstep timer.
+
+Verified: build clean, CTest 11/11, a 14-case locomotion test, and a full `--profile-scenario
+mission` run that still completes. **A test bug worth remembering:** the first version measured
+"frames to stop" from sprint speed and compared it to "frames to walk from rest" -- 15 vs 14, failing
+against correct code. Measure both from the same starting speed.
+
+Not done: **slope handling** (`CharacterVirtual` resolves slopes as geometry, but nothing changes
+speed uphill or downhill and there is no slide threshold), step-up/ledge/falling states
+(`IG-16-006`), crouch, camera work, and the constants are compile-time rather than a tunable file.
+
 ### The sedan can be wrecked (plan_17)
 
 Closes the gap this document has carried since gate M11: "no combat/damage system at all, so
