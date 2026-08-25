@@ -118,6 +118,7 @@ include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
     src/Core/GameConfig.cpp
+    src/Core/JsonDataFile.cpp
     src/Core/Log.cpp
     src/Core/PerformanceProfiler.cpp
     src/Core/RandomSource.cpp

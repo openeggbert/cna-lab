@@ -92,6 +92,37 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Data files are bounded before a parser sees them (plan_36)
+
+Three loaders written in the last few iterations -- mission, game config, vehicle tuning -- each read
+a whole file and handed it to a JSON parser with **no size, encoding, or depth limit**. The
+duplication was mine; so was the gap.
+
+`ReadBoundedJsonText` (`Core/JsonDataFile.hpp`) now fronts all three:
+
+- **Size** from the filesystem, so an oversized file is refused *without being read into memory*
+  (1 MiB, ~100x the largest file shipped).
+- **UTF-8**, rejecting stray continuations, truncations, **overlong forms**, surrogates, and
+  anything past U+10FFFF -- overlong forms are how one character gets two spellings, which is how a
+  validated identifier stops equalling the compared one.
+- **Nesting depth** counted over the raw text before the recursive-descent parser runs, so a deep
+  document cannot exhaust the stack. Unbalanced brackets and unterminated strings fall out of it.
+
+**Layering note worth remembering:** the first version exported a struct holding a `JsonDocument`,
+which broke the test build -- sharp-runtime's `Text.Json` is a **private** dependency of
+`iron_gang_core`, and that header dragged it into every consumer. The public header now names no
+JSON types; the document-returning half lives in `src/Core/JsonDataFileInternal.hpp`, outside
+`include/`. The compiler caught a real layering violation.
+
+Closed `IG-36-009`; `IG-36-003`/`IG-36-005` recorded as already done (plan_24/plan_29);
+`IG-36-002`/`IG-36-006` now partial. Verified: build clean, CTest 11/11, and the depth bound
+asserted **through all three loaders**, not just directly.
+
+Still unbounded and worth picking up: CNJ/glTF models, textures, WAV audio, and the save file are
+read with no size check (the save at least has a checksum and a backup; the assets have nothing).
+No Unicode normalization (`IG-36-006`'s other half). Error messages still leak full local paths
+(`IG-36-013`).
+
 ### The sedan's numbers move into data (plan_17)
 
 plan_17 showed 0 of 97 done while a Jolt raycast vehicle had been driving the game since gate M4 --

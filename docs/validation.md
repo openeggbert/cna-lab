@@ -577,6 +577,53 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Data files are bounded before a parser sees them (2026-08-26)
+
+plan_36 `IG-36-009` closed; `IG-36-003` and `IG-36-005` recorded as already done under plan_24 and
+plan_29; `IG-36-002`/`IG-36-006` advanced to partial. Three loaders written over the last few
+iterations — mission, game configuration, vehicle tuning — each opened a file, read all of it, and
+handed the text to a JSON parser with **no size, encoding, or depth limit**. The duplication was
+mine; so was the gap.
+
+**What changed.** `ReadBoundedJsonText` (`include/IronGang/Core/JsonDataFile.hpp`) now stands in
+front of all three, checking in this order:
+
+* **Size**, read from the filesystem — so a 900 MB file is refused *without being loaded into
+  memory*. Refusing it after allocating it would be a strange kind of protection. The limit is
+  1 MiB, roughly a hundred times the largest file the game ships.
+* **UTF-8**, rejecting stray continuation bytes, truncated sequences, overlong encodings,
+  surrogates, and anything above U+10FFFF. Overlong forms matter specifically because they are how
+  one character gets two spellings, and a validated identifier stops equalling the compared one.
+* **Nesting depth**, counted over the raw text (ignoring brackets inside strings, honouring
+  escapes), so a document deep enough to exhaust the stack is refused **before** the
+  recursive-descent parser runs. Unbalanced brackets and unterminated strings fall out of the same
+  pass.
+
+These files are hand-authored today, but the project's own scope decision (`IG-36-001`) is to treat
+generated and downloaded assets as untrusted, and "we wrote it ourselves" stops being true the first
+time a mission is produced by a tool.
+
+**An architecture point that shaped the API.** The first version exported a `JsonDataFile` struct
+holding a `JsonDocument` — which broke the test build, because sharp-runtime's `Text.Json` is a
+**private** dependency of `iron_gang_core` and that header dragged it into every consumer. The
+public header now names no JSON types at all (bounds, `IsValidUtf8`, `MeasureJsonNestingDepth`,
+`ReadBoundedJsonText`), and the document-returning half lives in `src/Core/JsonDataFileInternal.hpp`,
+outside `include/`. The compiler caught a real layering violation, and the fix is the better API.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestJsonDataFileIsBoundedBeforeParsing` covers an ordinary read, a missing file, a non-object root
+refused by a loader that needs one, an over-1-MiB file, a document nested 20 levels past the limit,
+invalid UTF-8 in a real file, eight direct `IsValidUtf8` cases (including overlong, surrogate,
+past-U+10FFFF, and truncated), seven depth-counter cases (including brackets inside strings, an
+escaped quote, and each unbalanced direction), and — the part that matters — the depth bound
+applying **through all three loaders**, not just when called directly. `scripts/check-syntax.sh`,
+`git diff --check`, and a `--smoke 60` run with zero warnings or errors.
+
+**Boundaries.** Still unbounded: CNJ/glTF model and texture data, WAV audio, and the save file, all
+read without a size check — the save at least has a checksum and a backup, the assets have nothing.
+No Unicode **normalization** anywhere (`IG-36-006`'s other half). Error messages still contain full
+local paths, which `IG-36-013` says shipping builds should not leak.
+
 ## The sedan's numbers move into data (2026-08-26)
 
 plan_17 `IG-17-003` closed, `IG-17-002` recorded as already done, `IG-17-001`/`IG-17-004` given

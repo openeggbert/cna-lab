@@ -1,7 +1,8 @@
 #include "IronGang/Gameplay/VehicleConfig.hpp"
 
+#include "../Core/JsonDataFileInternal.hpp"
+
 #include "System/IO/File.hpp"
-#include "System/Text/Json/JsonDocument.hpp"
 #include "System/Text/Json/JsonProperty.hpp"
 
 namespace IronGang
@@ -123,16 +124,16 @@ namespace IronGang
             return true;
         }
 
+        // Same bounded read every data file gets (plan_36 IG-36-002/006/009).
+        JsonDataFile file;
+        if (!LoadJsonDataFile(path, file, errorMessage))
+        {
+            return false;
+        }
+
         try
         {
-            const std::string text = System::IO::File::ReadAllText(path);
-            const std::shared_ptr<JsonDocument> document = JsonDocument::Parse(text);
-            const JsonElement root = document->getRootElementProperty();
-            if (root.getValueKindProperty() != JsonValueKind::Object)
-            {
-                errorMessage = "Vehicle file root must be a JSON object: " + path;
-                return false;
-            }
+            const JsonElement& root = file.root;
 
             JsonElement versionElement;
             if (root.TryGetProperty("version", versionElement))

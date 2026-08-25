@@ -1,7 +1,8 @@
 #include "IronGang/Missions/MissionDefinition.hpp"
 
+#include "../Core/JsonDataFileInternal.hpp"
+
 #include "System/IO/File.hpp"
-#include "System/Text/Json/JsonDocument.hpp"
 
 #include <unordered_set>
 
@@ -415,9 +416,13 @@ namespace IronGang
                                MissionDefinition& out,
                                std::string& errorMessage)
     {
-        if (!System::IO::File::Exists(path))
+        // A mission file is the most content-shaped input the game has -- and the one a tool or a
+        // package is most likely to generate -- so it gets the same bounded read as everything
+        // else (plan_36 IG-36-002/006/009): size, UTF-8, nesting depth, and an object root, all
+        // checked before the parser runs.
+        JsonDataFile file;
+        if (!LoadJsonDataFile(path, file, errorMessage))
         {
-            errorMessage = "Mission file not found: " + path;
             return false;
         }
 
@@ -425,14 +430,7 @@ namespace IronGang
         definition.declaredContext = factSchema;
         try
         {
-            const std::string text = System::IO::File::ReadAllText(path);
-            const std::shared_ptr<JsonDocument> document = JsonDocument::Parse(text);
-            const JsonElement root = document->getRootElementProperty();
-            if (root.getValueKindProperty() != JsonValueKind::Object)
-            {
-                errorMessage = "Mission file root must be a JSON object: " + path;
-                return false;
-            }
+            const JsonElement& root = file.root;
 
             definition.id = GetOptionalString(root, "id");
             definition.title = GetOptionalString(root, "title");

@@ -1,6 +1,7 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
 #include "IronGang/Core/GameConfig.hpp"
+#include "IronGang/Core/JsonDataFile.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Core/RandomSource.hpp"
@@ -928,6 +929,129 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_36 IG-36-002/006/009: every JSON data file is bounded before a parser touches it.
+    // These are the checks that stand between a generated or downloaded file and the game.
+    void TestJsonDataFileIsBoundedBeforeParsing()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bounded.json";
+        std::string contents;
+        std::string error;
+
+        WriteTempJson(path, R"JSON({"id":"fine","nested":{"deep":[1,2,3]}})JSON");
+        Require(IronGang::ReadBoundedJsonText(path.string(), contents, error),
+                "an ordinary data file must be readable: " + error);
+        Require(contents.find("fine") != std::string::npos, "the text must come back intact");
+
+        Require(!IronGang::ReadBoundedJsonText((path.string() + ".missing"), contents, error),
+                "a missing file must be refused");
+
+        // A non-object root is refused by the loaders that require one; the bounded read itself
+        // does not care what shape the JSON is, only that it is small, valid, and shallow.
+        WriteTempJson(path, R"JSON(["not","an","object"])JSON");
+        IronGang::GameConfig rootCheck;
+        Require(!IronGang::LoadGameConfig(path.string(), rootCheck, error, nullptr),
+                "a non-object root must be refused by a loader that needs an object");
+        Require(error.find("object") != std::string::npos, "the refusal must say why: " + error);
+
+        // Oversized: refused on the filesystem's size, without reading the bytes in.
+        {
+            std::ofstream oversized(path, std::ios::binary | std::ios::trunc);
+            oversized << "{\"padding\":\"";
+            const std::string chunk(4096, 'x');
+            for (std::size_t written = 0; written <= IronGang::kMaxJsonDataFileBytes; written += chunk.size())
+            {
+                oversized << chunk;
+            }
+            oversized << "\"}";
+        }
+        Require(!IronGang::ReadBoundedJsonText(path.string(), contents, error),
+                "a file past the size limit must be refused");
+        Require(error.find("larger than") != std::string::npos,
+                "the size refusal must name the limit: " + error);
+
+        // Deeply nested: refused before a recursive parser can exhaust the stack.
+        {
+            std::string deep = "{\"a\":";
+            const int levels = IronGang::kMaxJsonDataFileDepth + 20;
+            for (int level = 0; level < levels; ++level)
+            {
+                deep += "[";
+            }
+            deep += "1";
+            for (int level = 0; level < levels; ++level)
+            {
+                deep += "]";
+            }
+            deep += "}";
+            WriteTempJson(path, deep);
+        }
+        Require(!IronGang::ReadBoundedJsonText(path.string(), contents, error),
+                "a file nested past the depth limit must be refused");
+        Require(error.find("nests") != std::string::npos, "the depth refusal must say so: " + error);
+
+        // Invalid UTF-8: refused before any of it reaches a string comparison.
+        {
+            std::ofstream bad(path, std::ios::binary | std::ios::trunc);
+            bad << "{\"id\":\"";
+            bad.put(static_cast<char>(0xC3)); // lead byte with no continuation
+            bad.put(static_cast<char>(0x28));
+            bad << "\"}";
+        }
+        Require(!IronGang::ReadBoundedJsonText(path.string(), contents, error),
+                "invalid UTF-8 must be refused");
+        Require(error.find("UTF-8") != std::string::npos, "the encoding refusal must say so: " + error);
+
+        // The two checks, on their own.
+        Require(IronGang::IsValidUtf8("plain ascii"), "ASCII must validate");
+        Require(IronGang::IsValidUtf8("k\xC5\x99\xC3\xADzek"), "well-formed multi-byte UTF-8 must validate");
+        Require(IronGang::IsValidUtf8(std::string("emoji \xF0\x9F\x9A\x97")), "a 4-byte form must validate");
+        Require(!IronGang::IsValidUtf8(std::string("\x80")), "a stray continuation byte must be refused");
+        Require(!IronGang::IsValidUtf8(std::string("\xC0\xAF")),
+                "an overlong encoding must be refused -- it is how one character gets two spellings");
+        Require(!IronGang::IsValidUtf8(std::string("\xED\xA0\x80")), "a surrogate must be refused");
+        Require(!IronGang::IsValidUtf8(std::string("\xF5\x80\x80\x80")), "past U+10FFFF must be refused");
+        Require(!IronGang::IsValidUtf8(std::string("\xE2\x82")), "a truncated sequence must be refused");
+
+        Require(IronGang::MeasureJsonNestingDepth("{}") == 1, "one object is one level");
+        Require(IronGang::MeasureJsonNestingDepth(R"({"a":{"b":[1]}})") == 3, "nesting must be counted");
+        Require(IronGang::MeasureJsonNestingDepth(R"({"a":"{{{{{{"})") == 1,
+                "brackets inside a string must not count");
+        Require(IronGang::MeasureJsonNestingDepth(R"({"a":"\""})") == 1,
+                "an escaped quote must not end the string");
+        Require(IronGang::MeasureJsonNestingDepth("{") == -1, "an unclosed bracket must be reported");
+        Require(IronGang::MeasureJsonNestingDepth("}{") == -1, "a closer before an opener must be reported");
+        Require(IronGang::MeasureJsonNestingDepth(R"({"a":"unterminated})") == -1,
+                "an unterminated string must be reported");
+
+        // The bound applies through the loaders that use it, not just directly.
+        {
+            std::string deep = "{\"states\":";
+            const int levels = IronGang::kMaxJsonDataFileDepth + 5;
+            for (int level = 0; level < levels; ++level)
+            {
+                deep += "[";
+            }
+            for (int level = 0; level < levels; ++level)
+            {
+                deep += "]";
+            }
+            deep += "}";
+            WriteTempJson(path, deep);
+        }
+        IronGang::MissionDefinition definition;
+        Require(!IronGang::LoadMissionDefinition(path.string(), IronGang::CreatePrototypeMissionFacts(),
+                                                 definition, error),
+                "the mission loader must inherit the depth bound");
+        IronGang::GameConfig config;
+        Require(!IronGang::LoadGameConfig(path.string(), config, error, nullptr),
+                "the configuration loader must inherit the depth bound");
+        IronGang::VehicleConfig vehicle;
+        Require(!IronGang::LoadVehicleConfig(path.string(), vehicle, error, nullptr),
+                "the vehicle loader must inherit the depth bound");
+
+        std::filesystem::remove(path);
     }
 
     // plan_17 IG-17-003: the sedan's numbers are data now. What the tests protect is that a
@@ -3333,6 +3457,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();
         TestLaneClearanceSeesOnlyWhatIsAhead();
         TestPedestriansDoNotWalkThroughEachOther();

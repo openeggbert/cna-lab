@@ -1,7 +1,8 @@
 #include "IronGang/Core/GameConfig.hpp"
 
+#include "JsonDataFileInternal.hpp"
+
 #include "System/IO/File.hpp"
-#include "System/Text/Json/JsonDocument.hpp"
 #include "System/Text/Json/JsonProperty.hpp"
 
 namespace IronGang
@@ -123,16 +124,17 @@ namespace IronGang
             return true;
         }
 
+        // plan_36 IG-36-002/006/009: size, UTF-8, nesting depth, and the object root are all
+        // checked before the parser sees the text -- see LoadJsonDataFile.
+        JsonDataFile file;
+        if (!LoadJsonDataFile(path, file, errorMessage))
+        {
+            return false;
+        }
+
         try
         {
-            const std::string text = System::IO::File::ReadAllText(path);
-            const std::shared_ptr<JsonDocument> document = JsonDocument::Parse(text);
-            const JsonElement root = document->getRootElementProperty();
-            if (root.getValueKindProperty() != JsonValueKind::Object)
-            {
-                errorMessage = "Configuration root must be a JSON object: " + path;
-                return false;
-            }
+            const JsonElement& root = file.root;
 
             for (const auto& property : root.EnumerateObject())
             {
