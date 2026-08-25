@@ -982,6 +982,41 @@ The metadata assertion that pinned two themes to the two chapters was replaced: 
 is now per sector rather than per chapter, so it checks the range and that the sectors
 spread across the tracks instead of sharing one.
 
+### CNA finding: relative mouse motion is scaled down on the web — `BACKEND`
+
+Mouse turning in the browser is far slower than the desktop build for the same hand
+movement. Measured rather than guessed, with the same counter compiled into both:
+
+- API attempted: `Mouse::setIsRelativeMouseModeEXTProperty(true)` then reading
+  `Mouse::GetState().getXProperty()` once per frame, summing the absolute counts per
+  second.
+- Expected: the same physical movement yields the same relative counts on both
+  targets, since both go through SDL3 and the same CNA code path.
+- Actual: the web build peaks around **1,350 counts per second** where the desktop
+  build reaches **8,100** for comparable movement — roughly a **sixfold shortfall**.
+  Hand speed was not instrumented, so treat the ratio as an order of magnitude rather
+  than a calibrated constant.
+- Not a polling loss: `frames/s` held at a steady 60 on both, so no sample is being
+  dropped between reads. The counts genuinely never arrive.
+- Renderer/platform: `WEBGL2` under Emscripten 6.0.3 in the browser versus
+  `OPENGLES3` on Linux/SDL3, same machine, 2048x1152 desktop.
+- Minimal reproduction: enter play on both builds so the cursor is captured, drag the
+  mouse steadily, and compare the per-second count.
+- Can the game continue without a workaround: it is playable but noticeably worse.
+  `MOUSE SPEED` tops out at 160%, so a player cannot compensate for a sixfold
+  shortfall through settings.
+
+Deliberately **not** worked around in game code. Section 17 says a CNA bug must not be
+hidden inside the game, and a browser-only multiplier compensating a sixfold gap would
+be exactly that. Raising the `MOUSE SPEED` ceiling would be a separate usability
+change, not a fix, and would leave the underlying conversion wrong.
+
+Likely area: pointer lock reports `movementX` in CSS pixels, so a canvas whose backing
+store differs from its displayed size, or a display with a device pixel ratio above
+one, changes counts per physical millimetre. The default Emscripten shell keeps
+"Resize canvas" off, so the windowed canvas should be 1:1 — which is what makes the
+sixfold figure surprising and worth investigating at the seam rather than in the game.
+
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 
 The adjustable view size was implemented by restricting the device viewport around

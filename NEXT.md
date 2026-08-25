@@ -89,8 +89,14 @@
   passes. The web target in `build-web-cnanext` rebuilds and its WASM test suite
   passes under node when run from that directory.
 - Mouse control, the four-rung ladder, the props and the reworked hound voices have
-  all been played by the user on a real display. Browser pointer lock is still
-  entirely unverified.
+  all been played by the user on a real display.
+- Browser pointer lock works, but relative motion arrives roughly six times weaker
+  than on the desktop: measured 1,350 counts per second against 8,100 for comparable
+  movement, with a steady 60 frames per second on both, so nothing is lost to polling.
+  Recorded as a `BACKEND` finding in plan.md section 17 and deliberately not worked
+  around in game code.
+- The sub-viewport blocker is resolved in `cnanext` and the adjustable view size is
+  back; the finding stays recorded, marked resolved.
 - All eleven props now use generated sprites; the stopgap procedural rubble texture
   has been removed.
 - Two bugs from this round are worth remembering, because both passed their audits:
