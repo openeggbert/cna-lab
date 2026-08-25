@@ -2068,8 +2068,13 @@ namespace WolfCna
             {
                 const int y = top + 38 + static_cast<int>(index) * 13;
                 const bool isSelected = menuSelection_ == static_cast<int>(index);
-                const std::string option = std::string(ControlActionName(BindableControlActions[index])) +
-                    "  " + ControlKeyName(controlSettings_.bindings[index]);
+                const Keys alternate = controlSettings_.alternateBindings[index];
+                const std::string option =
+                    std::string(ControlActionName(BindableControlActions[index])) +
+                    "  " + ControlKeyName(controlSettings_.bindings[index]) +
+                    (alternate == Keys::None
+                        ? std::string{}
+                        : " / " + ControlKeyName(alternate));
                 if (isSelected)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
                 centeredSmall(y, option, isSelected ? selected : normal);

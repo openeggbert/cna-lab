@@ -93,6 +93,21 @@ namespace WolfCna
             Keys::Space,
             Keys::LeftControl,
             Keys::Tab};
+
+        // Secondary keys, so WASD works without giving up the classic arrows. Keys::None
+        // means an action has no secondary key. A/D already strafe, so only forward and
+        // backward need one to complete the modern layout.
+        std::array<Keys, ControlActionCount> alternateBindings{
+            Keys::W,
+            Keys::S,
+            Keys::None,
+            Keys::None,
+            Keys::None,
+            Keys::None,
+            Keys::None,
+            Keys::None,
+            Keys::None,
+            Keys::None};
         int turnSensitivityStep = DefaultTurnSensitivityStep;
         bool mouseEnabled = true;
         int mouseSensitivityStep = DefaultMouseSensitivityStep;
@@ -189,6 +204,30 @@ namespace WolfCna
                 return false;
             }
         }
+
+        // A secondary key may be absent, but a present one has to obey the same rules and
+        // stay unique across both sets: one key must never drive two actions at once.
+        for (std::size_t index = 0; index < settings.alternateBindings.size(); ++index)
+        {
+            const Keys key = settings.alternateBindings[index];
+            if (key == Keys::None)
+                continue;
+            if (!IsBindableControlKey(key) || NormalizeControlKey(key) != key)
+                return false;
+            if (std::find(settings.bindings.begin(), settings.bindings.end(), key) !=
+                settings.bindings.end())
+            {
+                return false;
+            }
+            if (std::find(settings.alternateBindings.begin(),
+                    settings.alternateBindings.begin() +
+                        static_cast<std::ptrdiff_t>(index),
+                    key) !=
+                settings.alternateBindings.begin() + static_cast<std::ptrdiff_t>(index))
+            {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -203,6 +242,15 @@ namespace WolfCna
 
         const std::size_t actionIndex = ControlIndex(action);
         const Keys previousKey = settings.bindings[actionIndex];
+
+        // Claiming a key that is some action's secondary must release it there, otherwise
+        // one press would drive two actions and the settings would fail validation.
+        for (Keys& alternate : settings.alternateBindings)
+        {
+            if (alternate == requestedKey)
+                alternate = Keys::None;
+        }
+
         const auto conflict = std::find(
             settings.bindings.begin(),
             settings.bindings.end(),
@@ -223,12 +271,10 @@ namespace WolfCna
         return {true, BindableControlActions[conflictIndex]};
     }
 
-    [[nodiscard]] inline bool IsControlDown(
-        const KeyboardState& keyboard,
-        const ControlSettings& settings,
-        ControlAction action)
+    [[nodiscard]] inline bool IsBoundKeyDown(const KeyboardState& keyboard, Keys key)
     {
-        const Keys key = settings.bindings[ControlIndex(action)];
+        if (key == Keys::None)
+            return false;
         if (key == Keys::LeftShift)
             return keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
         if (key == Keys::LeftControl)
@@ -236,6 +282,16 @@ namespace WolfCna
         if (key == Keys::LeftAlt)
             return keyboard.IsKeyDown(Keys::LeftAlt) || keyboard.IsKeyDown(Keys::RightAlt);
         return keyboard.IsKeyDown(key);
+    }
+
+    [[nodiscard]] inline bool IsControlDown(
+        const KeyboardState& keyboard,
+        const ControlSettings& settings,
+        ControlAction action)
+    {
+        const std::size_t index = ControlIndex(action);
+        return IsBoundKeyDown(keyboard, settings.bindings[index]) ||
+            IsBoundKeyDown(keyboard, settings.alternateBindings[index]);
     }
 
     [[nodiscard]] inline MovementInput NormalizeMovementInput(MovementInput input)

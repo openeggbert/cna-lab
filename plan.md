@@ -977,6 +977,15 @@ Six mouse settings no longer fit the shared 260px menu panel, so they moved to
 their own `MOUSE SETUP` screen reached from control setup. Profile version 8
 persists the vertical axis and the button assignments and migrates versions 1–7.
 
+Every action then gained an optional secondary key, so `W` and `S` complete the
+WASD layout without displacing the classic arrows. `Keys::None` marks an action
+with no secondary. A secondary obeys the same validation as a primary and must be
+unique across both sets, so one press can never drive two actions; rebinding a
+primary onto a key that is some action's secondary releases it there rather than
+rejecting the request. Migration from versions 6–8 only grants a secondary where
+the stored layout leaves that key free, since a profile that already walks forward
+with `W` must not receive `W` again elsewhere. Profile version 9 persists the set.
+
 ### WOLF-003 — level file
 
 Status: complete.

@@ -501,6 +501,62 @@ int main()
                 diagonalMovement.strafe * diagonalMovement.strafe - 1.0f) < 0.0001f,
         "diagonal run and strafe input is normalized to direct movement speed");
 
+    const WolfCna::ControlSettings wasdDefaults;
+    Expect(
+        WolfCna::IsControlDown(
+            WolfCna::KeyboardState{WolfCna::Keys::W},
+            wasdDefaults,
+            WolfCna::ControlAction::MoveForward) &&
+            WolfCna::IsControlDown(
+                WolfCna::KeyboardState{WolfCna::Keys::S},
+                wasdDefaults,
+                WolfCna::ControlAction::MoveBackward) &&
+            WolfCna::IsControlDown(
+                WolfCna::KeyboardState{WolfCna::Keys::Up},
+                wasdDefaults,
+                WolfCna::ControlAction::MoveForward) &&
+            WolfCna::IsControlDown(
+                WolfCna::KeyboardState{WolfCna::Keys::Down},
+                wasdDefaults,
+                WolfCna::ControlAction::MoveBackward),
+        "W and S walk without taking the classic arrows away");
+    Expect(
+        !WolfCna::IsControlDown(
+            WolfCna::KeyboardState{WolfCna::Keys::W},
+            wasdDefaults,
+            WolfCna::ControlAction::MoveBackward) &&
+            !WolfCna::IsControlDown(
+                WolfCna::KeyboardState{WolfCna::Keys::Q},
+                wasdDefaults,
+                WolfCna::ControlAction::MoveForward),
+        "a secondary key drives only its own action");
+    WolfCna::ControlSettings claimAlternate;
+    const WolfCna::RebindResult claimed = WolfCna::RebindControl(
+        claimAlternate,
+        WolfCna::ControlAction::Attack,
+        WolfCna::Keys::W);
+    Expect(
+        claimed.accepted &&
+            claimAlternate.alternateBindings[
+                WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
+                WolfCna::Keys::None &&
+            WolfCna::AreValidControlSettings(claimAlternate) &&
+            !WolfCna::IsControlDown(
+                WolfCna::KeyboardState{WolfCna::Keys::W},
+                claimAlternate,
+                WolfCna::ControlAction::MoveForward),
+        "rebinding onto a secondary key releases it instead of driving two actions");
+    WolfCna::ControlSettings duplicateAlternate;
+    duplicateAlternate.alternateBindings[
+        WolfCna::ControlIndex(WolfCna::ControlAction::TurnLeft)] = WolfCna::Keys::W;
+    WolfCna::ControlSettings shadowingAlternate;
+    shadowingAlternate.alternateBindings[
+        WolfCna::ControlIndex(WolfCna::ControlAction::Run)] = WolfCna::Keys::Up;
+    Expect(
+        !WolfCna::AreValidControlSettings(duplicateAlternate) &&
+            !WolfCna::AreValidControlSettings(shadowingAlternate),
+        "a secondary key may not duplicate another secondary or any primary binding");
+
     const WolfCna::ControlSettings defaultMouse;
     Expect(
         defaultMouse.mouseEnabled &&
@@ -819,6 +875,27 @@ int main()
             mouseProfile.controls.mouseSensitivityStep == 4 &&
             mouseProfile.fieldOfView == 96,
         "a disabled mouse and its sensitivity survive a profile round trip");
+    // Version 8 stored primaries but no secondaries. A profile that already moved forward
+    // with W must not also receive W as a secondary somewhere else.
+    constexpr std::string_view wKeyBindings =
+        "0 87\n1 40\n2 37\n3 39\n4 65\n5 68\n6 160\n7 32\n8 162\n9 9\n";
+    const WolfCna::CampaignProfile wasdMigrationProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-8\n1\n4\n1\n72\n2\n1\n2\n0\n3\n1\n3\n2\n10\n") +
+            std::string(wKeyBindings) + "0\n",
+        3);
+    Expect(
+        wasdMigrationProfile.highestUnlocked == 1 &&
+            wasdMigrationProfile.controls.bindings[
+                WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
+                WolfCna::Keys::W &&
+            wasdMigrationProfile.controls.alternateBindings[
+                WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
+                WolfCna::Keys::None &&
+            wasdMigrationProfile.controls.alternateBindings[
+                WolfCna::ControlIndex(WolfCna::ControlAction::MoveBackward)] ==
+                WolfCna::Keys::S &&
+            WolfCna::AreValidControlSettings(wasdMigrationProfile.controls),
+        "migration only grants a secondary key where the stored layout leaves it free");
     const WolfCna::CampaignProfile mouseLookOnlyProfile = WolfCna::CampaignProgress::Parse(
         std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n0\n4\n10\n") +
             std::string(classicBindings) + "0\n",

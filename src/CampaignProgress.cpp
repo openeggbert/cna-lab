@@ -18,7 +18,8 @@ namespace WolfCna
         constexpr std::string_view HighScoreHeader = "WOLF-CNA-PROGRESS-5";
         constexpr std::string_view ControlHeader = "WOLF-CNA-PROGRESS-6";
         constexpr std::string_view MouseHeader = "WOLF-CNA-PROGRESS-7";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-8";
+        constexpr std::string_view MouseModelHeader = "WOLF-CNA-PROGRESS-8";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-9";
         constexpr std::array SupportedFieldOfView = {60, 72, 84, 96};
 
         bool IsSupportedFieldOfView(int fieldOfView)
@@ -133,14 +134,16 @@ namespace WolfCna
                 return {};
             profile.highScores = NormalizeHighScores(std::move(profile.highScores));
         }
-        else if (header == ControlHeader || header == MouseHeader || header == Header)
+        else if (header == ControlHeader || header == MouseHeader ||
+            header == MouseModelHeader || header == Header)
         {
             // Each version adds fields to the end of the previous one, so an older profile
             // simply stops early and keeps the defaults for everything it never stored.
             // Version 6 predates the mouse entirely; version 7 has look settings but no
             // vertical-axis choice or button assignments.
-            const bool hasMouseSettings = header == MouseHeader || header == Header;
-            const bool hasMouseModel = header == Header;
+            const bool hasMouseSettings = header != ControlHeader;
+            const bool hasMouseModel = header == MouseModelHeader || header == Header;
+            const bool hasAlternateBindings = header == Header;
             if (!(input >> profile.soundVolume >> profile.difficulty >>
                     profile.fieldOfView >> profile.controls.turnSensitivityStep) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
@@ -197,6 +200,46 @@ namespace WolfCna
                 }
                 profile.controls.bindings[index] = static_cast<Keys>(keyValue);
             }
+
+            if (hasAlternateBindings)
+            {
+                std::size_t alternateCount = 0;
+                if (!(input >> alternateCount) || alternateCount != ControlActionCount)
+                    return {};
+                for (std::size_t index = 0; index < alternateCount; ++index)
+                {
+                    int actionValue = -1;
+                    int keyValue = 0;
+                    if (!(input >> actionValue >> keyValue) ||
+                        actionValue != static_cast<int>(index))
+                    {
+                        return {};
+                    }
+                    profile.controls.alternateBindings[index] = static_cast<Keys>(keyValue);
+                }
+            }
+            else
+            {
+                // Versions 6-8 predate secondary keys. Their stored primaries may already
+                // use W or S, so a blanket default would collide; only offer a secondary
+                // where the whole layout still leaves that key free.
+                ControlSettings migrated = profile.controls;
+                migrated.alternateBindings = ControlSettings{}.alternateBindings;
+                for (Keys& alternate : migrated.alternateBindings)
+                {
+                    if (alternate == Keys::None)
+                        continue;
+                    if (std::find(
+                            migrated.bindings.begin(),
+                            migrated.bindings.end(),
+                            alternate) != migrated.bindings.end())
+                    {
+                        alternate = Keys::None;
+                    }
+                }
+                profile.controls.alternateBindings = migrated.alternateBindings;
+            }
+
             if (!AreValidControlSettings(profile.controls))
                 return {};
 
@@ -256,6 +299,12 @@ namespace WolfCna
         output << controls.bindings.size() << '\n';
         for (std::size_t index = 0; index < controls.bindings.size(); ++index)
             output << index << ' ' << static_cast<int>(controls.bindings[index]) << '\n';
+        output << controls.alternateBindings.size() << '\n';
+        for (std::size_t index = 0; index < controls.alternateBindings.size(); ++index)
+        {
+            output << index << ' '
+                << static_cast<int>(controls.alternateBindings[index]) << '\n';
+        }
         output << highScores.size() << '\n';
         for (const HighScoreEntry& entry : highScores)
             output << entry.initials << ' ' << entry.score << '\n';

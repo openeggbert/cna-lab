@@ -58,15 +58,17 @@ This starter is deliberately small. It proves the basic direction before local A
 
 ## Controls
 
-- up/down arrow keys: forward / backward
+- up/down arrow keys or `W` / `S`: forward / backward
 - `A` / `D`: strafe left / right; diagonal movement is normalized to the same maximum speed
+- every action has an optional secondary key, which is how `W` / `S` complete the WASD layout without taking the classic arrows away
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
 - mouse: turn left / right with a fixed horizon; the left button attacks, the middle button activates and the right button is the classic strafe modifier, which sidesteps with the turn keys and horizontal mouse travel instead of rotating
 - optional classic vertical axis: pushing the mouse away walks forward and pulling it back walks backward, at twice the horizontal gain as in 1992; it is off by default
 - the cursor is captured only during live gameplay and is released for every menu, so `Escape` into the pause menu always frees it; keyboard turning stays available whether the mouse is on or off
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
-- `CONTROLS`: rebind forward/back, turning, strafing, run, action, attack and map; assigning an occupied key swaps the two actions, reserved menu/system keys are rejected, and `RESTORE DEFAULTS` restores the classic layout
+- `CONTROLS`: rebind forward/back, turning, strafing, run, action, attack and map; assigning an occupied key swaps the two actions, claiming a key that is some action's secondary releases it there, reserved menu/system keys are rejected, and `RESTORE DEFAULTS` restores the classic layout
+- each row shows `PRIMARY / SECONDARY` when the action has both
 - control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
 - `MOUSE SETUP` is its own screen: mouse on/off, 40/70/100/130/160% mouse speed, the vertical axis, and an assignable action for each of the three buttons — none, attack, strafe, use or run — mirroring the original's `buttonmouse[]`
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
@@ -106,7 +108,7 @@ After the campaign finale, a qualifying score enters three initials and joins a
 validated, descending table of the best eight results shown on the ending screen.
 Unlocked sectors and high scores are stored in `wolf-cna-progress.dat` in the launch
 working directory. Invalid progress data safely falls back to sector 1 with an empty
-score table; profile versions 1–7 migrate into the current version 8 format. Each
+score table; profile versions 1–8 migrate into the current version 9 format. Each
 version appends to the previous one, so an older profile keeps every setting it
 stored and adopts the defaults for whatever it predates.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
