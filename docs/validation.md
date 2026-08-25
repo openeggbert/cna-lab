@@ -577,6 +577,96 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Mission variables and the condition/action expression evaluator (2026-08-25)
+
+plan_24 `IG-24-013`/`014`/`016`/`029`/`030`/`031`/`032`/`033`/`035` closed; `IG-24-002`/`005`/`006`/
+`007`/`018`/`019`/`034` advanced to partial with itemized remainders. Nothing about gates M12 or M14
+changed.
+
+**What was added.** Mission conditions are no longer one fixed engine signal named by string. Four
+new translation units under `src/Missions/` (`MissionValue`, `MissionContext`, `MissionExpression`,
+plus the rewritten `MissionDefinition`) give a mission file typed variables and a real, engine-
+evaluated expression language:
+
+* `MissionValue` — a four-type value (`bool`/`int`/`float`/`string`) whose `ToText()`/`Parse()`
+  round-trip exactly, which is what the plain-text save file relies on (float uses the shortest
+  round-trip form via `std::to_chars`).
+* `MissionContext` — one symbol table holding read-only engine *facts* and mission-owned
+  *variables*, each declared with an initial value that fixes its type. A wrong-typed assignment,
+  a duplicate/shadowing declaration, writing a fact from a mission, or exceeding the 64-variable
+  cap are all rejected rather than coerced.
+* `MissionExpression` — tokenizer, recursive-descent parser, **static type check**, and evaluator
+  over a flat node array. `|| && ! == != < <= > >= + - * /`, unary minus, parentheses, literals
+  (strings single-quoted so they need no escaping inside JSON), and identifiers bound to declared
+  symbols. Chained comparison is rejected; `&&`/`||` short-circuit; int/float mixing promotes to
+  float; division by zero is an evaluation error, not an infinity. Limits: 512 source characters,
+  128 tokens, 96 operations, depth 16, 256 evaluation steps — recursion is impossible because the
+  grammar has no calls.
+* `MissionDefinition` — schema version 2 (`variables`, `when`, `onEnter`), with version 1 still
+  loading unchanged because every gate-M7 condition name is still a declared bool fact. Entry
+  actions are `set` (type-checked assignment) and `log`.
+* `PrototypeMission` — declares the seven prototype facts (`dialogue_finished`, `player_driving`,
+  `player_vehicle_distance`, `player_near_vehicle`, `player_in_warehouse_goal`,
+  `vehicle_in_warehouse_goal`, `player_driving_in_warehouse_goal`), refreshes them every `Update()`,
+  runs entry actions exactly once per entry, and logs every transition with the condition that fired
+  it. `Reset()` is a retry (restores declared values, re-runs the initial state's actions);
+  `SetState()` is a save restore (does not).
+* `SaveGame` — additive `mission_var.<name>=<type>:<value>` lines, one per variable, so a string
+  value may contain any character but a newline. A saved variable the mission no longer declares, a
+  changed type, or a malformed line is skipped and reported instead of failing the load.
+
+The committed `assets/missions/prologue.mission.json` moved to version 2 and now declares four
+variables and uses expressions: `player_vehicle_distance <= handover_radius` puts the handover
+threshold in the mission file instead of the engine (it was a hardcoded `9.0F` squared-distance
+literal), and `player_driving && vehicle_in_warehouse_goal && cargo_secured` replaces the fused
+`player_driving_in_warehouse_goal` signal. Its registry hash in
+`assets/licenses/asset-registry.csv` was updated to `388fa781…8b60`.
+
+**Verification (all no-display, offscreen SDL).**
+
+* `cmake --build --preset compile-software` — clean, no warnings under the project's strict flags.
+* `ctest --preset compile-software` — **11/11 passed**, including `iron_gang_asset_registry_tests`
+  after the mission-file hash update (it failed first, exactly as designed, on the stale hash).
+* `iron_gang_core_tests` — 5 new cases pass alongside the existing 27:
+  `TestMissionExpressionEvaluatesTypedOperations` (operators, precedence, promotion, string
+  comparison, short-circuiting, live re-evaluation, `ResetVariables`),
+  `TestMissionExpressionRejectsMalformedInput` (20 malformed sources plus the length/depth/token
+  limits, divide-by-zero at evaluation, `EvaluateBool` refusing a non-bool, and the empty-expression
+  case), `TestMissionVariablesEnforceTypes` (declaration/assignment/capture rules and
+  `ToText()`/`Parse()` round trips for all four types), `TestMissionEntryActionsRunOncePerEntry`
+  (actions run once per entry, not per frame; a condition reading a mission variable fires; `Reset`
+  behaves as a retry), and `TestMissionVariablesSurviveSaveLoad` (save round trip, order preserved,
+  unknown-name and changed-type warnings, malformed-line tolerance).
+  `TestMissionValidationRejectsMalformedData` grew from 6 to 17 rejection cases.
+* `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./cmake-build-compile-software/iron_gang --smoke
+  4000 --profile … --profile-scenario mission` — the mission completes through the **real game
+  loop** on the new evaluator, logging all four transitions and the completion action:
+  `introduction -> reach_vehicle (dialogue_finished)`,
+  `reach_vehicle -> enter_vehicle (player_vehicle_distance <= handover_radius)`,
+  `enter_vehicle -> drive_to_warehouse (player_driving)`,
+  `drive_to_warehouse -> completed (player_driving && vehicle_in_warehouse_goal && cargo_secured)`,
+  `delivery complete`. A plain `--smoke 600` run shows no fallback message, confirming the
+  version-2 file loads rather than silently falling back to the built-in mission.
+* `scripts/build-web.sh`'s configure/build (Emscripten 6.0.3, WEBGL2) — links
+  `web/build/iron_gang.{js,wasm,data}` with only a pre-existing CNA warning, confirming that the
+  new `std::to_chars`/`std::from_chars` float paths compile and link under Emscripten's libc++ as
+  well as the host toolchain. It needed both `IRON_GANG_CNA_DIR` and `IRON_GANG_SHARP_RUNTIME_DIR`
+  passed explicitly, because the checkout has moved a directory deeper than the preset defaults
+  assume — see `NEXT.md`.
+* `scripts/check-syntax.sh` — clean over every `.cpp`.
+* `scripts/asset_registry.py --check-notice THIRD_PARTY_ASSETS.md` — 15 approved shipping assets,
+  4 external, notice verified.
+
+A condition that faults at runtime (a divide by zero, say) faults on every frame, so the failure is
+logged once per state entry rather than once per frame; `EnterState`/`SetState` clear the guard.
+
+**Boundaries.** Per-campaign variable scope, failure/retry states, checkpoints distinct from a plain
+save, and the remaining `IG-24-006`/`IG-24-007` conditions and actions are still open — see each
+entry's own note in `plan/plan_24-mission-framework-and-scripting.md`. `PrototypeMission` still
+restricts a mission file to the five state ids its int-based save format encodes, so a mission with
+a new state cannot be authored yet. Nothing here was visually verified: this environment has no
+display.
+
 ## M14 Linux release-archive slice (2026-08-25)
 
 A prior session implemented and did a first verification pass of a Linux EasyGL release

@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace IronGang
 {
@@ -21,6 +22,11 @@ namespace IronGang
         // (format=iron-gang-save-v1, same as now -- no version bump for one additive field)
         // load with a WarehouseBlock default rather than failing.
         DistrictId districtId{DistrictId::WarehouseBlock};
+        // Added for plan_24 IG-24-005/029: the mission's own typed variables, written as one
+        // "mission_var.<name>=<type>:<value>" line each. Older save files simply have none, and a
+        // name/type the current mission file no longer declares is reported and skipped on load
+        // (see PrototypeMission::ApplyVariables) rather than failing the load.
+        std::vector<MissionVariableSnapshot> missionVariables;
     };
 
     class SaveGame final

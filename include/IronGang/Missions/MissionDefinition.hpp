@@ -1,59 +1,90 @@
 #pragma once
 
+#include "IronGang/Missions/MissionContext.hpp"
+#include "IronGang/Missions/MissionExpression.hpp"
+
 #include <string>
 #include <vector>
 
 namespace IronGang
 {
-    // Gate M7 (plan_24-mission-framework-and-scripting.md IG-24-001/002): the small, fixed set of
-    // signals a mission state's transition can depend on. Deliberately not a general expression
-    // evaluator (IG-24-013 is explicit, separate, later work) -- every condition here is engine
-    // logic evaluated by name against the same signals PrototypeMission::Update() always received.
-    enum class MissionCondition
+    // The mission-file schema versions this loader understands (IG-24-018).
+    //   1 -- gate M7's original shape: states with a "condition" naming one fixed engine signal.
+    //   2 -- adds typed "variables", expression conditions ("when"), and "onEnter" actions.
+    // Version 1 files keep loading unchanged, because every condition name gate M7 accepted is
+    // still a declared bool fact and therefore a valid version-2 expression on its own.
+    inline constexpr int kMinMissionFileVersion = 1;
+    inline constexpr int kMaxMissionFileVersion = 2;
+
+    // Upper bound on entry actions per state (IG-24-014, same reasoning as kMaxMissionVariables).
+    inline constexpr std::size_t kMaxMissionStateActions = 16;
+
+    // plan_24 IG-24-007: one thing a mission does when it enters a state. Deliberately a small
+    // closed set of engine-executed actions, not a script:
+    //   Set -- assign an expression's value to one of this mission's declared variables.
+    //   Log -- write a fixed message through the game's existing logging path (IG-24-016).
+    // The remaining IG-24-007 verbs (spawn/despawn/enable/disable/move/play/wait/branch) need
+    // entity and timer concepts this prototype does not have yet and are still open.
+    struct MissionAction
     {
-        None, // terminal state: no automatic transition
-        DialogueFinished,
-        PlayerNearVehicle,
-        PlayerDriving,
-        PlayerDrivingInWarehouseGoal,
+        enum class Kind
+        {
+            Set,
+            Log,
+        };
+
+        Kind kind{Kind::Log};
+        std::string variable;    // Set: the target variable's name
+        MissionExpression value; // Set: what to assign; its type must match the variable's
+        std::string message;     // Log: the text to write
     };
 
-    // Parses a mission JSON file's "condition" string (e.g. "dialogue_finished") into the
-    // matching MissionCondition. Returns false (and does not modify @p out) for an unrecognized
-    // name, so callers can report a validation error rather than silently misinterpreting it.
-    [[nodiscard]] bool ParseMissionCondition(const std::string& name, MissionCondition& out);
-
-    // One state in a mission's linear graph: what to show the player, what to wait for, and
-    // where to go next.
+    // One state in a mission's graph: what to show the player, what to do on arrival, what to
+    // wait for, and where to go next.
     struct MissionStateDefinition
     {
         std::string id;
         std::string objective;
-        MissionCondition condition{MissionCondition::None};
-        // Next state's id, or empty for a terminal state (condition must be None when empty).
+        // Bool expression evaluated every frame while this state is current. Empty means a
+        // terminal state with no automatic transition.
+        MissionExpression condition;
+        // Next state's id, or empty for a terminal state.
         std::string next;
+        std::vector<MissionAction> onEnter;
     };
 
-    // A whole mission: a named, versioned list of states plus which one to start in. Loaded from
-    // a hand-written JSON file (assets/missions/*.mission.json) -- see LoadMissionDefinition.
+    // A whole mission: a named, versioned state graph, the typed variables it owns, and the
+    // symbol table (engine facts plus those variables) its expressions were compiled against.
     struct MissionDefinition
     {
         std::string id;
-        int version{1};
+        std::string title;
+        int version{kMaxMissionFileVersion};
         std::string initialState;
         std::vector<MissionStateDefinition> states;
+        // Facts supplied by the caller plus this file's own variables, each at its declared
+        // initial value. PrototypeMission copies this to build its live, per-run context.
+        MissionContext declaredContext;
 
         // Returns the state with the given id, or nullptr if none matches.
         [[nodiscard]] const MissionStateDefinition* FindState(const std::string& stateId) const;
     };
 
-    // Parses and validates a mission definition from @p path: every state has a unique
-    // non-empty id, initialState refers to an existing state, every non-empty `next` refers to
-    // an existing state, and every condition string is a recognized MissionCondition. Returns
-    // false with errorMessage set on any parse or validation failure -- callers should fall back
-    // to a hardcoded default (see PrototypeMission's own fallback) rather than run with a
-    // partially-invalid mission.
+    // Parses and validates a mission definition from @p path.
+    //
+    // @p factSchema supplies the engine facts (already declared, at any values) that this
+    // mission's expressions may read; the loader copies it, adds the file's own variables, and
+    // compiles every condition/action expression against the result -- so an expression naming
+    // something the game does not provide fails at load time, not mid-mission.
+    //
+    // Validation: supported schema version; unique non-empty state ids; initialState and every
+    // non-empty "next" refer to a real state; each variable has a known type and a value of that
+    // type; each condition is a bool expression; a terminal state (empty "next") declares no
+    // condition; each action is well formed and assigns a declared variable a matching type.
+    // Returns false with errorMessage set on any failure -- callers should fall back to a known
+    // good default (see PrototypeMission) rather than run with a partially-valid mission.
     [[nodiscard]] bool LoadMissionDefinition(const std::string& path,
+                                             const MissionContext& factSchema,
                                              MissionDefinition& out,
                                              std::string& errorMessage);
 }

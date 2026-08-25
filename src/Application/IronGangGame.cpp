@@ -776,6 +776,7 @@ namespace IronGang
         snapshot.vehicleSpeed = vehicle_.GetSpeed();
         snapshot.playerDriving = playerDriving_;
         snapshot.districtId = districtManager_.GetWorld().GetId();
+        snapshot.missionVariables = mission_.CaptureVariables();
 
         std::string error;
         if (SaveGame::Write(SavePath(), snapshot, error))
@@ -828,6 +829,15 @@ namespace IronGang
         }
 
         mission_.SetState(snapshot->missionState);
+        // plan_24 IG-24-029: variables are restored, but entry actions deliberately are not
+        // re-run (SetState's own comment). A variable the current mission file no longer declares
+        // is reported and skipped rather than failing the load (IG-24-019).
+        std::vector<std::string> missionVariableWarnings;
+        mission_.ApplyVariables(snapshot->missionVariables, &missionVariableWarnings);
+        for (const std::string& warning : missionVariableWarnings)
+        {
+            std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
+        }
         player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
         vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
         playerDriving_ = snapshot->playerDriving;

@@ -6,6 +6,24 @@ until the end of a session to reconstruct it from memory.
 
 ## Where things stand (as of this entry)
 
+**The checkout moved on or before 2026-08-25.** It is now
+`/rv/data/development/github.com/openeggbert/_other/iron-gang` -- one directory deeper than the
+`cnanext`/`sharp-runtimenext`/`easy-gl` siblings every default path in `CMakePresets.json`,
+`CMakeLists.txt`, `scripts/preflight.sh`, and `scripts/check-syntax.sh` assumes. Nothing is broken,
+but every one of those needs the dependency root passed explicitly now, e.g.
+
+```bash
+IRON_GANG_CNA_DIR=/rv/data/development/github.com/openeggbert/cnanext ./scripts/preflight.sh compile-software
+cmake --preset compile-software -DIRON_GANG_CNA_DIR=/rv/data/development/github.com/openeggbert/cnanext
+cmake --preset web-emscripten -DIRON_GANG_CNA_DIR=.../cnanext -DIRON_GANG_SHARP_RUNTIME_DIR=.../sharp-runtimenext
+```
+
+(the value is cached after the first configure, so only the first configure of each build directory
+needs it). **All `cmake-build-*` directories were lost in the move** and were rebuilt from scratch
+on 2026-08-25; ccache absorbed most of the dependency cost. Consider making the defaults search
+upward instead of hardcoding `../cnanext`, or move the checkout back, rather than re-discovering
+this each session.
+
 Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 Remote `origin` is configured. The owner explicitly authorized pushing the accumulated
@@ -73,6 +91,57 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+### Mission variables and a real condition/action expression evaluator (plan_24)
+
+The mission runtime no longer treats a condition as one fixed engine signal named by a string.
+`assets/missions/*.mission.json` schema version 2 adds typed variables, expression conditions, and
+entry actions; version 1 files still load unchanged. Four new files under `src/Missions/`:
+
+- `MissionValue` -- `bool`/`int`/`float`/`string`, with exact `ToText()`/`Parse()` round trips (the
+  save file depends on this; float uses `std::to_chars`' shortest round-trip form).
+- `MissionContext` -- one symbol table of read-only engine **facts** plus mission-owned
+  **variables**, each declared with an initial value that fixes its type. Wrong-typed assignment,
+  duplicate or fact-shadowing declaration, writing a fact from a mission, and the 64-variable cap
+  are all rejected, never coerced.
+- `MissionExpression` -- tokenizer, recursive-descent parser, **static type check**, and evaluator.
+  `|| && ! == != < <= > >= + - * /`, unary minus, parens, literals (strings single-quoted so they
+  need no escaping inside JSON), identifiers bound to declared symbols. Chained comparison rejected,
+  `&&`/`||` short-circuit, int/float promotes to float, divide-by-zero is an error not an infinity.
+  Limits: 512 chars, 128 tokens, 96 ops, depth 16, 256 eval steps; recursion is impossible (no calls
+  in the grammar). Explicitly not a scripting language: no statements, calls, loops, assignment, or
+  engine API reachable from an expression.
+- Rewritten `MissionDefinition` -- `variables`, `when` (`condition` is the v1 spelling of the same
+  field), `onEnter` actions (`set`, `log`), schema-version validation, and load-time type checking
+  of every expression against the caller-supplied fact schema.
+
+`PrototypeMission` declares seven facts (`dialogue_finished`, `player_driving`,
+`player_vehicle_distance`, `player_near_vehicle`, `player_in_warehouse_goal`,
+`vehicle_in_warehouse_goal`, `player_driving_in_warehouse_goal`), refreshes them every `Update()`,
+runs entry actions exactly once per entry, and logs every transition with the condition that fired
+it (`[IronGang][mission] prototype_delivery: reach_vehicle -> enter_vehicle (...)`). `Reset()` is a
+retry (restores declared values, re-runs the initial state's actions); `SetState()` is a save
+restore and deliberately does not. `SaveGame` gained additive `mission_var.<name>=<type>:<value>`
+lines; an unknown name, a changed type, or a malformed line is skipped and reported rather than
+failing the load.
+
+The committed prologue mission moved to version 2: `player_vehicle_distance <= handover_radius`
+replaced a hardcoded `9.0F` squared-distance literal in the engine, and
+`player_driving && vehicle_in_warehouse_goal && cargo_secured` replaced the fused
+`player_driving_in_warehouse_goal` signal. Its `assets/licenses/asset-registry.csv` hash was
+updated with it.
+
+Verified with no display: strict-warning build clean, **CTest 11/11**, 5 new core tests (plus
+`TestMissionValidationRejectsMalformedData` grown from 6 to 17 rejection cases),
+`scripts/check-syntax.sh` clean, the asset-registry notice check clean, and a
+`--profile-scenario mission` run completing the whole mission through the real game loop on the new
+evaluator. Author documentation is `docs/mission-scripting.md` (schema, fact table, grammar, limits,
+failure-mode table); the full verification record is in `docs/validation.md`.
+
+Still open in plan_24: per-campaign variable scope, failure/retry states, checkpoints distinct from
+a plain save, the remaining `IG-24-006`/`IG-24-007` conditions and actions, and the fact that
+`PrototypeMission` still restricts a mission file to the five state ids its int-based save format
+encodes -- so a mission with a *new* state cannot be authored until that is lifted.
 
 ### M14 Linux release-archive slice: implemented, documented, verified, and committed
 
@@ -1905,6 +1974,22 @@ All three `ctest` targets pass: `iron_gang_core_tests`, `iron_gang_missing_asset
 - No debug renderer/wireframe overlay exists yet (`plan_15` `IG-15-029`) — if handling feels wrong
   once visually tested, that would be the fastest way to see suspension/contact/capsule state.
 
+**Owner scope clarification (2026-08-25).** Iron Gang is **not** going to be a commercial game --
+its purpose is to **demonstrate what CNA can do**, including advanced graphics one day. Ideally the
+result still approaches commercial quality, but that is the aspiration, not the goal. The owner also
+pointed out that 3D models are generated from `mc3.xml` sources into GLB and that CNA loads
+glTF/GLB directly, so asset production is cheap. Two consequences for planning:
+
+- `plan.md`'s locked decision **#7** ("a full Mafia-1-scale campaign, roughly 15-20 missions") and
+  the ~300 content-production tasks in `plan_31`/`plan_32`/`plan_33` overstate the real target. A
+  demo needs enough content to show the engine, not a shipped campaign. Estimating remaining effort
+  from that task count is misleading; weight engine/runtime capability over content volume.
+- `plan.md`'s locked decision **#9** (baked lighting only; no SSAO/SSR/volumetric fog/cascaded
+  shadows) is a **v1 boundary, not a permanent one** -- advanced graphics are explicitly wanted
+  eventually, because they are what CNA is being shown off with.
+
+Both decisions should be revised in `plan.md` with the owner rather than planned against as written.
+
 ## Recommended next session starting point
 
 **First priority if a display/interactive input becomes available:** actually play the game
@@ -1991,9 +2076,16 @@ Other open items worth picking up opportunistically (not blocking, not sequenced
 ## Useful commands
 
 ```bash
+# The checkout now sits one directory deeper than the dependency siblings, so export this once
+# per shell (or pass -DIRON_GANG_CNA_DIR=... on the first configure of each build directory):
+export IRON_GANG_CNA_DIR=/rv/data/development/github.com/openeggbert/cnanext
+
 ./scripts/preflight.sh compile-software      # verify cnanext/sharp-runtime/jolt/mesh-craft
 ./scripts/check-syntax.sh                    # fast syntax-only pass over every .cpp
 cmake --preset compile-software && cmake --build --preset compile-software   # -j4, ccache
+SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy \
+  ./cmake-build-compile-software/iron_gang --smoke 4000 \
+  --profile /tmp/mission.json --profile-scenario mission   # drives the whole mission headlessly
 ctest --preset compile-software --output-on-failure
 ./cmake-build-compile-software/iron_gang --smoke 60     # headless-safe smoke run
 ./cmake-build-compile-software/iron_gang_physics_tests  # standalone physics prototypes

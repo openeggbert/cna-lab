@@ -8,6 +8,7 @@
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
 #include "IronGang/Missions/MissionDefinition.hpp"
+#include "IronGang/Missions/MissionExpression.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
@@ -31,6 +32,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -239,59 +241,487 @@ namespace
         file << text;
     }
 
-    // Gate M7: LoadMissionDefinition must reject malformed mission data with an actionable
-    // error rather than silently accepting it (IG-24-003's smallest form: inline validation).
+    // Gate M7 / plan_24 (IG-24-003/027/033): LoadMissionDefinition must reject malformed mission
+    // data -- graph errors, schema-version errors, bad variable declarations, non-bool or
+    // unparseable conditions, and malformed entry actions -- with an actionable error rather than
+    // silently accepting it.
     void TestMissionValidationRejectsMalformedData()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bad_mission.json";
+        const IronGang::MissionContext facts = IronGang::CreatePrototypeMissionFacts();
         std::string error;
         IronGang::MissionDefinition definition;
+        const auto load = [&]() {
+            return IronGang::LoadMissionDefinition(path.string(), facts, definition, error);
+        };
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","next":"missing"}]})JSON");
-        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "a \"next\" referencing an unknown state id must be rejected");
+        Require(!load(), "a \"next\" referencing an unknown state id must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"nowhere","states":[{"id":"a"}]})JSON");
-        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "an initialState referencing an unknown state id must be rejected");
+        Require(!load(), "an initialState referencing an unknown state id must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a"},{"id":"a"}]})JSON");
-        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "a duplicate state id must be rejected");
+        Require(!load(), "a duplicate state id must be rejected");
 
-        WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","condition":"not_a_real_condition"}]})JSON");
-        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "an unrecognized condition name must be rejected");
+        WriteTempJson(path,
+                      R"JSON({"initialState":"a","states":[{"id":"a","condition":"not_a_real_condition","next":"b"},{"id":"b"}]})JSON");
+        Require(!load(), "a condition naming an undeclared fact must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[]})JSON");
-        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "a mission with no states must be rejected");
+        Require(!load(), "a mission with no states must be rejected");
 
-        Require(!IronGang::LoadMissionDefinition((path.string() + ".does-not-exist"), definition, error),
+        WriteTempJson(path,
+                      R"JSON({"initialState":"a","states":[{"id":"a","when":"player_driving"}]})JSON");
+        Require(!load(), "a condition on a state with no \"next\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"initialState":"a","states":[{"id":"a","when":"player_driving","condition":"player_driving","next":"b"},{"id":"b"}]})JSON");
+        Require(!load(), "declaring both \"when\" and \"condition\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"initialState":"a","states":[{"id":"a","when":"player_vehicle_distance","next":"b"},{"id":"b"}]})JSON");
+        Require(!load(), "a non-bool condition must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":3,"initialState":"a","states":[{"id":"a"}]})JSON");
+        Require(!load(), "an unsupported schema version must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":1,"initialState":"a","variables":[{"id":"v","type":"int"}],"states":[{"id":"a"}]})JSON");
+        Require(!load(), "declaring variables in a version-1 file must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","variables":[{"id":"v","type":"decimal"}],"states":[{"id":"a"}]})JSON");
+        Require(!load(), "an unknown variable type must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","variables":[{"id":"v","type":"int","value":"nope"}],"states":[{"id":"a"}]})JSON");
+        Require(!load(), "a variable value that is not of its declared type must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","variables":[{"id":"player_driving","type":"bool"}],"states":[{"id":"a"}]})JSON");
+        Require(!load(), "a variable shadowing an engine fact must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","onEnter":[{"action":"set","variable":"missing","value":"1"}]}]})JSON");
+        Require(!load(), "setting an undeclared variable must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","variables":[{"id":"v","type":"int"}],"states":[{"id":"a","onEnter":[{"action":"set","variable":"v","value":"true"}]}]})JSON");
+        Require(!load(), "assigning a bool expression to an int variable must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","onEnter":[{"action":"explode"}]}]})JSON");
+        Require(!load(), "an unknown action must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","onEnter":[{"action":"log"}]}]})JSON");
+        Require(!load(), "a log action with no message must be rejected");
+
+        Require(!IronGang::LoadMissionDefinition((path.string() + ".does-not-exist"), facts, definition, error),
                 "a missing file must be rejected, not crash");
 
         // One well-formed, minimal two-state mission must still succeed after all the rejections
         // above -- proves failures didn't corrupt LoadMissionDefinition's own state.
         WriteTempJson(path, R"JSON({
             "id": "test_mission",
-            "version": 1,
+            "version": 2,
             "initialState": "start",
+            "variables": [ { "id": "crates", "type": "int", "value": 2 } ],
             "states": [
-                { "id": "start", "objective": "Go", "condition": "player_driving", "next": "done" },
+                { "id": "start", "objective": "Go", "when": "player_driving && crates > 0", "next": "done",
+                  "onEnter": [ { "action": "set", "variable": "crates", "value": "crates + 1" } ] },
                 { "id": "done", "objective": "Done" }
             ]
         })JSON");
-        Require(IronGang::LoadMissionDefinition(path.string(), definition, error),
-                "a well-formed minimal mission must load successfully: " + error);
+        Require(load(), "a well-formed minimal mission must load successfully: " + error);
         Require(definition.initialState == "start", "initialState must round-trip correctly");
+        Require(definition.version == 2, "version must round-trip correctly");
         Require(definition.states.size() == 2, "both states must be parsed");
         const IronGang::MissionStateDefinition* start = definition.FindState("start");
-        Require(start != nullptr && start->condition == IronGang::MissionCondition::PlayerDriving,
-                "the named condition must resolve to the matching MissionCondition enum value");
-        Require(start->next == "done", "next must round-trip correctly");
+        Require(start != nullptr && start->condition.GetSource() == "player_driving && crates > 0",
+                "the condition expression's source must round-trip correctly");
+        Require(start != nullptr && start->condition.GetResultType() == IronGang::MissionValueType::Bool,
+                "a condition must type-check as bool");
+        Require(start != nullptr && start->onEnter.size() == 1 &&
+                    start->onEnter.front().kind == IronGang::MissionAction::Kind::Set &&
+                    start->onEnter.front().variable == "crates",
+                "the entry action must round-trip correctly");
+        Require(start != nullptr && start->next == "done", "next must round-trip correctly");
         const IronGang::MissionStateDefinition* done = definition.FindState("done");
-        Require(done != nullptr && done->next.empty() && done->condition == IronGang::MissionCondition::None,
-                "a state with no \"next\"/\"condition\" fields must default to terminal/None");
+        Require(done != nullptr && done->next.empty() && done->condition.IsEmpty(),
+                "a state with no \"next\"/\"when\" fields must default to terminal/no-condition");
+        IronGang::MissionValue crates;
+        Require(definition.declaredContext.TryGetValue("crates", crates) &&
+                    crates.GetType() == IronGang::MissionValueType::Int && crates.AsInt() == 2,
+                "a declared variable must keep its declared type and initial value");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-013/032/034: the expression evaluator's operators, precedence, typing, and
+    // short-circuiting, evaluated against a context of declared facts and variables.
+    void TestMissionExpressionEvaluatesTypedOperations()
+    {
+        IronGang::MissionContext context;
+        std::string error;
+        Require(context.DeclareFact("driving", IronGang::MissionValue::Bool(true), error) &&
+                    context.DeclareFact("distance", IronGang::MissionValue::Float(4.5F), error) &&
+                    context.DeclareVariable("crates", IronGang::MissionValue::Int(3), error) &&
+                    context.DeclareVariable("contact", IronGang::MissionValue::String("Mara"), error),
+                "declaring the test symbols must succeed: " + error);
+
+        const auto evaluate = [&](const std::string& source) {
+            IronGang::MissionExpression expression;
+            std::string compileError;
+            Require(IronGang::MissionExpression::Compile(source, context, expression, compileError),
+                    "expression \"" + source + "\" must compile: " + compileError);
+            IronGang::MissionValue value;
+            std::string evaluateError;
+            Require(expression.Evaluate(context, value, evaluateError),
+                    "expression \"" + source + "\" must evaluate: " + evaluateError);
+            return value;
+        };
+
+        Require(evaluate("true").AsBool(), "a bool literal must evaluate to itself");
+        Require(evaluate("driving").AsBool(), "a bool fact must evaluate to its current value");
+        Require(!evaluate("!driving").AsBool(), "'!' must negate a bool");
+        Require(evaluate("crates").AsInt() == 3, "an int variable must evaluate to its current value");
+        Require(evaluate("crates + 2 * 3").AsInt() == 9, "'*' must bind tighter than '+'");
+        Require(evaluate("(crates + 2) * 3").AsInt() == 15, "parentheses must override precedence");
+        Require(evaluate("crates - 5").AsInt() == -2, "int subtraction must produce a negative value");
+        Require(evaluate("-crates").AsInt() == -3, "unary '-' must negate an int");
+        Require(evaluate("crates / 2").AsInt() == 1, "int division must truncate");
+        Require(evaluate("7 / 2.0").GetType() == IronGang::MissionValueType::Float,
+                "mixing an int and a float must promote the result to float");
+        Require(std::fabs(evaluate("7 / 2.0").AsFloat() - 3.5F) < 1e-6F,
+                "float division must not truncate");
+        Require(evaluate("distance < 5").AsBool(), "'<' must compare a float fact against an int literal");
+        Require(evaluate("distance >= 4.5").AsBool(), "'>=' must be inclusive");
+        Require(!evaluate("distance > 5").AsBool(), "'>' must compare in the right direction");
+        Require(evaluate("crates == 3 && driving").AsBool(), "'&&' must combine two true operands");
+        Require(!evaluate("crates != 3 || !driving").AsBool(), "'||' must combine two false operands");
+        Require(evaluate("contact == 'Mara'").AsBool(), "strings must compare by value");
+        Require(evaluate("contact != 'Salieri'").AsBool(), "'!=' must work on strings");
+        Require(evaluate("driving && distance <= 4.5 && crates > 0").AsBool(),
+                "comparison must bind tighter than '&&'");
+
+        // Short-circuiting is observable through the step limit: the right operand of a decided
+        // '&&'/'||' is never evaluated, so a division by zero hidden behind one cannot fail.
+        Require(!evaluate("false && 1 / 0 == 0").AsBool(),
+                "'&&' must not evaluate its right operand when the left one is false");
+        Require(evaluate("true || 1 / 0 == 0").AsBool(),
+                "'||' must not evaluate its right operand when the left one is true");
+
+        // A compiled expression reads the context's current values, not a snapshot from compile time.
+        IronGang::MissionExpression expression;
+        Require(IronGang::MissionExpression::Compile("crates > 3", context, expression, error),
+                "compiling against live values must succeed: " + error);
+        bool result = true;
+        Require(expression.EvaluateBool(context, result, error) && !result,
+                "the expression must see crates == 3 before the change");
+        Require(context.SetVariable("crates", IronGang::MissionValue::Int(4), error),
+                "updating the variable must succeed: " + error);
+        Require(expression.EvaluateBool(context, result, error) && result,
+                "the same compiled expression must see the updated value");
+
+        // ResetVariables restores declared values, and leaves facts alone.
+        context.ResetVariables();
+        IronGang::MissionValue crates;
+        Require(context.TryGetValue("crates", crates) && crates.AsInt() == 3,
+                "ResetVariables must restore a variable's declared initial value");
+        IronGang::MissionValue driving;
+        Require(context.TryGetValue("driving", driving) && driving.AsBool(),
+                "ResetVariables must leave engine facts untouched");
+    }
+
+    // plan_24 IG-24-014/033: every malformed expression must be a compile-time error with a
+    // column, and the depth/length/step limits must actually bound what a mission file can do.
+    void TestMissionExpressionRejectsMalformedInput()
+    {
+        IronGang::MissionContext context;
+        std::string error;
+        Require(context.DeclareFact("driving", IronGang::MissionValue::Bool(false), error) &&
+                    context.DeclareVariable("crates", IronGang::MissionValue::Int(1), error),
+                "declaring the test symbols must succeed: " + error);
+
+        const auto rejects = [&](const std::string& source, const std::string& why) {
+            IronGang::MissionExpression expression;
+            std::string compileError;
+            Require(!IronGang::MissionExpression::Compile(source, context, expression, compileError), why);
+            Require(!compileError.empty(), why + " (with a non-empty error message)");
+            Require(expression.IsEmpty(), why + " (leaving the output expression empty)");
+        };
+
+        rejects("", "an empty expression must be rejected");
+        rejects("   ", "a whitespace-only expression must be rejected");
+        rejects("missing_symbol", "an unknown identifier must be rejected");
+        rejects("crates +", "a missing right operand must be rejected");
+        rejects("+ crates", "a missing left operand must be rejected");
+        rejects("(crates", "an unbalanced '(' must be rejected");
+        rejects("crates)", "an unbalanced ')' must be rejected");
+        rejects("crates crates", "trailing input must be rejected");
+        rejects("crates + true", "adding a bool to an int must be rejected");
+        rejects("!crates", "negating an int must be rejected");
+        rejects("-driving", "arithmetically negating a bool must be rejected");
+        rejects("driving && crates", "using an int as a '&&' operand must be rejected");
+        rejects("crates < 'two'", "ordering an int against a string must be rejected");
+        rejects("driving == 1", "comparing a bool against an int must be rejected");
+        rejects("1 < 2 < 3", "a chained comparison must be rejected");
+        rejects("crates & 1", "a single '&' must be rejected");
+        rejects("crates $ 1", "an unexpected character must be rejected");
+        rejects("'unterminated", "an unterminated string literal must be rejected");
+        rejects("1.", "a float literal with no fractional digits must be rejected");
+        rejects("99999999999", "an out-of-range int literal must be rejected");
+
+        rejects(std::string(IronGang::kMissionExpressionMaxLength + 1, 'a'),
+                "an over-long expression must be rejected before parsing");
+        std::string deep;
+        for (std::size_t index = 0; index <= IronGang::kMissionExpressionMaxDepth; ++index)
+        {
+            deep += "(";
+        }
+        deep += "driving";
+        for (std::size_t index = 0; index <= IronGang::kMissionExpressionMaxDepth; ++index)
+        {
+            deep += ")";
+        }
+        rejects(deep, "an expression nested past the depth limit must be rejected");
+
+        std::string wide = "crates";
+        for (std::size_t index = 0; index < IronGang::kMissionExpressionMaxTokens; ++index)
+        {
+            wide += " + 1";
+        }
+        rejects(wide, "an expression past the token limit must be rejected");
+
+        // Division by zero is the one fault the type check cannot catch, so it must be a clean
+        // evaluation error rather than a crash or a silent infinity.
+        IronGang::MissionExpression expression;
+        Require(IronGang::MissionExpression::Compile("crates / 0", context, expression, error),
+                "a divide-by-zero expression must still compile: " + error);
+        IronGang::MissionValue value;
+        std::string evaluateError;
+        Require(!expression.Evaluate(context, value, evaluateError),
+                "dividing by zero must fail evaluation instead of producing a value");
+        Require(!evaluateError.empty(), "a divide-by-zero must report an actionable error");
+
+        // EvaluateBool must refuse a non-bool expression rather than coerce it.
+        Require(IronGang::MissionExpression::Compile("crates + 1", context, expression, error),
+                "an int expression must compile: " + error);
+        bool ignored = false;
+        Require(!expression.EvaluateBool(context, ignored, evaluateError),
+                "EvaluateBool must refuse a non-bool expression");
+
+        // A default-constructed expression is the "terminal state, no condition" case.
+        const IronGang::MissionExpression empty;
+        bool emptyResult = true;
+        Require(empty.IsEmpty(), "a default-constructed expression must be empty");
+        Require(empty.EvaluateBool(context, emptyResult, evaluateError) && !emptyResult,
+                "an empty condition must evaluate to false without an error");
+    }
+
+    // plan_24 IG-24-005: the typed variable store's declaration, typed assignment, and reset
+    // rules, including the ones that protect a mission from a save file or a bad action.
+    void TestMissionVariablesEnforceTypes()
+    {
+        IronGang::MissionContext context;
+        std::string error;
+        Require(context.DeclareVariable("crates", IronGang::MissionValue::Int(2), error),
+                "declaring a variable must succeed: " + error);
+        Require(context.DeclareFact("driving", IronGang::MissionValue::Bool(false), error),
+                "declaring a fact must succeed: " + error);
+
+        Require(!context.DeclareVariable("crates", IronGang::MissionValue::Int(0), error),
+                "declaring the same variable twice must be rejected");
+        Require(!context.DeclareVariable("driving", IronGang::MissionValue::Bool(false), error),
+                "a variable must not shadow a fact");
+        Require(!context.DeclareVariable("", IronGang::MissionValue::Int(0), error),
+                "an empty variable name must be rejected");
+
+        Require(!context.SetVariable("crates", IronGang::MissionValue::String("two"), error),
+                "assigning a string to an int variable must be rejected");
+        Require(!context.SetVariable("driving", IronGang::MissionValue::Bool(true), error),
+                "a fact must be read-only to mission actions");
+        Require(!context.SetVariable("nothing", IronGang::MissionValue::Int(1), error),
+                "assigning an undeclared variable must be rejected");
+        Require(!context.SetFact("crates", IronGang::MissionValue::Int(1), error),
+                "SetFact must refuse a variable");
+        Require(!context.SetFact("driving", IronGang::MissionValue::Int(1), error),
+                "SetFact must refuse a value of the wrong type");
+
+        Require(context.SetVariable("crates", IronGang::MissionValue::Int(7), error),
+                "a correctly typed assignment must succeed: " + error);
+        const std::vector<IronGang::MissionVariableSnapshot> captured = context.CaptureVariables();
+        Require(captured.size() == 1 && captured.front().name == "crates" &&
+                    captured.front().value.AsInt() == 7,
+                "CaptureVariables must return the variables only, at their current values");
+
+        // Every type must survive ToText()/Parse() exactly -- this is what the save file relies on.
+        const IronGang::MissionValue values[] = {
+            IronGang::MissionValue::Bool(true),
+            IronGang::MissionValue::Int(-1234),
+            IronGang::MissionValue::Float(0.1F),
+            IronGang::MissionValue::String("Mara: 3 crates"),
+        };
+        for (const IronGang::MissionValue& value : values)
+        {
+            IronGang::MissionValue parsed;
+            Require(IronGang::MissionValue::Parse(value.GetType(), value.ToText(), parsed),
+                    "MissionValue::Parse must accept its own ToText() output for " +
+                        std::string(IronGang::MissionValueTypeName(value.GetType())));
+            Require(parsed.GetType() == value.GetType() && parsed.ToText() == value.ToText(),
+                    "a MissionValue must round-trip through text exactly");
+        }
+        IronGang::MissionValue rejected;
+        Require(!IronGang::MissionValue::Parse(IronGang::MissionValueType::Int, "12x", rejected),
+                "trailing garbage must not parse as an int");
+        Require(!IronGang::MissionValue::Parse(IronGang::MissionValueType::Bool, "yes", rejected),
+                "only true/false must parse as a bool");
+    }
+
+    // plan_24 IG-24-007/016: entry actions run exactly once per state entry, in file order, and a
+    // retry (Reset) restores the declared values and runs the initial state's actions again.
+    void TestMissionEntryActionsRunOncePerEntry()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_action_mission.json";
+        WriteTempJson(path, R"JSON({
+            "id": "action_mission",
+            "version": 2,
+            "initialState": "introduction",
+            "variables": [
+                { "id": "entries", "type": "int", "value": 0 },
+                { "id": "started", "type": "bool", "value": false },
+                { "id": "radius", "type": "float", "value": 3.0 }
+            ],
+            "states": [
+                { "id": "introduction", "objective": "Wait",
+                  "onEnter": [ { "action": "set", "variable": "started", "value": "true" },
+                               { "action": "set", "variable": "entries", "value": "entries + 1" } ],
+                  "when": "dialogue_finished", "next": "reach_vehicle" },
+                { "id": "reach_vehicle", "objective": "Walk",
+                  "onEnter": [ { "action": "set", "variable": "entries", "value": "entries + 10" } ],
+                  "when": "player_vehicle_distance <= radius", "next": "completed" },
+                { "id": "completed", "objective": "Done" }
+            ]
+        })JSON");
+
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
+        std::string error;
+        Require(mission.LoadMission(path.string(), error), "the action mission must load: " + error);
+        mission.Reset();
+
+        IronGang::MissionValue value;
+        Require(mission.TryGetVariable("started", value) && value.AsBool(),
+                "Reset must run the initial state's entry actions");
+        Require(mission.TryGetVariable("entries", value) && value.AsInt() == 1,
+                "the initial state's counter action must run exactly once");
+
+        // Staying in the same state for several frames must not re-run its entry actions.
+        for (int frame = 0; frame < 3; ++frame)
+        {
+            mission.Update(false, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false,
+                           world.GetWarehouseGoal());
+        }
+        Require(mission.TryGetVariable("entries", value) && value.AsInt() == 1,
+                "entry actions must not re-run while the state is unchanged");
+
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
+                "the expression condition must advance the mission");
+        Require(mission.TryGetVariable("entries", value) && value.AsInt() == 11,
+                "the entered state's action must run exactly once, after the transition");
+
+        // A float variable read by a condition: standing on the sedan is within radius.
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.IsCompleted(), "a condition comparing a fact against a variable must fire");
+
+        // Reset is a retry: declared values come back and the initial actions run again.
+        mission.Reset();
+        Require(mission.GetState() == IronGang::PrototypeMissionState::Introduction,
+                "Reset must return to the initial state");
+        Require(mission.TryGetVariable("entries", value) && value.AsInt() == 1,
+                "Reset must restore declared values before re-running the initial actions");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-029/039 and IG-24-019: mission variables survive a save/load round trip, and a
+    // save naming a variable the mission no longer declares loads with a warning instead of failing.
+    void TestMissionVariablesSurviveSaveLoad()
+    {
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
+        std::string error;
+        Require(mission.LoadMission(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
+                                    error),
+                "the committed mission must load: " + error);
+        mission.Reset();
+
+        // Advance far enough that the committed mission has actually written a variable.
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        IronGang::MissionValue briefingRead;
+        Require(mission.TryGetVariable("briefing_read", briefingRead) && briefingRead.AsBool(),
+                "reaching reach_vehicle must set briefing_read");
+
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionState = mission.GetState();
+        snapshot.missionVariables = mission.CaptureVariables();
+        Require(snapshot.missionVariables.size() == 4,
+                "every declared variable must be captured for the save file");
+
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_mission_variables.save";
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "writing must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> restored = IronGang::SaveGame::Read(path.string(), error);
+        Require(restored.has_value(), "reading must succeed: " + error);
+        Require(restored->missionVariables.size() == snapshot.missionVariables.size(),
+                "every mission variable must survive the round trip");
+        for (std::size_t index = 0; index < snapshot.missionVariables.size(); ++index)
+        {
+            Require(restored->missionVariables[index].name == snapshot.missionVariables[index].name,
+                    "mission variables must keep their file order");
+            Require(restored->missionVariables[index].value.GetType() ==
+                            snapshot.missionVariables[index].value.GetType() &&
+                        restored->missionVariables[index].value.ToText() ==
+                            snapshot.missionVariables[index].value.ToText(),
+                    "a mission variable's type and value must survive the round trip");
+        }
+
+        IronGang::PrototypeMission reloaded;
+        Require(reloaded.LoadMission(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
+                                     error),
+                "the committed mission must load again: " + error);
+        reloaded.Reset();
+        reloaded.SetState(restored->missionState);
+        std::vector<std::string> warnings;
+        reloaded.ApplyVariables(restored->missionVariables, &warnings);
+        Require(warnings.empty(), "restoring a matching save must not warn");
+        IronGang::MissionValue value;
+        Require(reloaded.TryGetVariable("briefing_read", value) && value.AsBool(),
+                "the restored mission must resume with the saved variable values");
+
+        // IG-24-019: a save written by an older/edited mission file must not fail the load.
+        std::vector<IronGang::MissionVariableSnapshot> stale = restored->missionVariables;
+        stale.push_back(IronGang::MissionVariableSnapshot{"removed_variable", IronGang::MissionValue::Int(1)});
+        stale.push_back(
+            IronGang::MissionVariableSnapshot{"briefing_read", IronGang::MissionValue::String("yes")});
+        warnings.clear();
+        reloaded.ApplyVariables(stale, &warnings);
+        Require(warnings.size() == 2, "an unknown name and a changed type must each warn");
+        Require(reloaded.TryGetVariable("briefing_read", value) && value.AsBool(),
+                "a rejected value must leave the existing variable untouched");
+
+        // A malformed variable line must be skipped without failing the rest of the save.
+        std::ofstream corrupt(path, std::ios::binary | std::ios::app);
+        corrupt << "mission_var.broken=int:not-a-number\n";
+        corrupt << "mission_var.=int:1\n";
+        corrupt.close();
+        const std::optional<IronGang::SaveSnapshot> tolerant = IronGang::SaveGame::Read(path.string(), error);
+        Require(tolerant.has_value(), "a malformed mission variable must not fail the whole load: " + error);
+        Require(tolerant->missionVariables.size() == snapshot.missionVariables.size(),
+                "a malformed mission variable must be skipped");
 
         std::filesystem::remove(path);
     }
@@ -1278,6 +1708,11 @@ int main()
         TestMissionFlow();
         TestMissionLoadsCommittedFile();
         TestMissionValidationRejectsMalformedData();
+        TestMissionExpressionEvaluatesTypedOperations();
+        TestMissionExpressionRejectsMalformedInput();
+        TestMissionVariablesEnforceTypes();
+        TestMissionEntryActionsRunOncePerEntry();
+        TestMissionVariablesSurviveSaveLoad();
         TestCutscenePlayerAdvancesAndFinishes();
         TestCutscenePlayerSkipAppliesTerminalState();
         TestCutsceneValidationRejectsMalformedData();
