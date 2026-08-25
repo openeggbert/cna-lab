@@ -893,10 +893,14 @@ table's cell-blocking path through `IsSolidPropSymbol` so player collision, enem
 navigation and hitscan all agree without a second mechanism.
 
 Digits `0`-`9` are the first ten level symbols and `s` continues the run, because the
-digit range filled up; letters were already nearly exhausted. Placement
-only accepts an interior floor cell with at least three open neighbours, so a prop
-can never plug a one-cell doorway, and the existing route audits confirm every
-sector stays walkable end to end.
+digit range filled up; letters were already nearly exhausted.
+
+Placement requires the whole 3x3 block around the cell to be plain floor. The first
+rule only demanded three open neighbours, which let a rubble pile plug a one-cell
+corridor: a corridor with a side branch has exactly three. The route audits did not
+catch it, and could not — an alternative way around left every cell reachable, so
+connectivity was intact while the passage itself was sealed. A test now checks the
+3x3 block directly rather than trusting reachability.
 
 The generator returned all ten on one contact sheet rather than as ten files, so
 they were split on the transparent gaps and the RGB of fully transparent pixels was

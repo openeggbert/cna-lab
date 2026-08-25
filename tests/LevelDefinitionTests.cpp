@@ -1351,6 +1351,36 @@ int main()
         Expect(
             sectorWorld.Props().size() >= 6 && rubble >= 2,
             "every campaign sector is furnished with solid props including rubble");
+
+        // A prop must stand in open floor, never in a corridor. Counting open neighbours
+        // is not enough: a one-cell corridor with a side branch has three of them, and
+        // that is exactly how a rubble pile ended up plugging a passage. Requiring the
+        // whole 3x3 block to be plain floor makes a corridor placement impossible, and
+        // the route audits cannot catch this because an alternative way around leaves
+        // every cell still reachable.
+        const std::vector<std::string>& propRows = sectorLevel.Rows();
+        for (const WolfCna::World::Prop& placed : sectorWorld.Props())
+        {
+            const int propX = static_cast<int>(placed.position.X);
+            const int propZ = static_cast<int>(placed.position.Z);
+            bool openArea = propX >= 1 && propZ >= 1 &&
+                propZ + 1 < static_cast<int>(propRows.size()) &&
+                propX + 1 < static_cast<int>(propRows[static_cast<std::size_t>(propZ)].size());
+            for (int dz = -1; openArea && dz <= 1; ++dz)
+            {
+                for (int dx = -1; openArea && dx <= 1; ++dx)
+                {
+                    if (dx == 0 && dz == 0)
+                        continue;
+                    const char neighbour =
+                        propRows[static_cast<std::size_t>(propZ + dz)]
+                            [static_cast<std::size_t>(propX + dx)];
+                    if (neighbour != '.')
+                        openArea = false;
+                }
+            }
+            Expect(openArea, "every prop stands in open floor and never blocks a corridor");
+        }
     }
 
     // A wide room whose guards sit beyond the base engagement range, so this measures the
