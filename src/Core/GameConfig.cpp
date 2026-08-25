@@ -26,6 +26,7 @@ namespace IronGang
         {
             return key == "projectName" || key == "cityName" || key == "prototypeYear" ||
                    key == "autosaveIntervalSeconds" || key == "autosaveMinimumSpacingSeconds" ||
+                   key == "logSeverity" ||
                    key == "notes"; // accepted and ignored: the file may carry a comment
         }
 
@@ -147,6 +148,14 @@ namespace IronGang
             ReadInt(root, "prototypeYear", 1800, 2200, config.prototypeYear, warnings);
             ReadSeconds(root, "autosaveIntervalSeconds", config.autosaveIntervalSeconds, warnings);
             ReadSeconds(root, "autosaveMinimumSpacingSeconds", config.autosaveMinimumSpacingSeconds, warnings);
+
+            std::string severityName;
+            ReadString(root, "logSeverity", severityName, warnings);
+            if (!severityName.empty() && !ParseLogSeverity(severityName, config.logSeverity))
+            {
+                Warn(warnings, "\"logSeverity\" must be debug/info/warning/error, not \"" + severityName +
+                                   "\"; keeping the default");
+            }
 
             if (config.autosaveIntervalSeconds > 0.0F &&
                 config.autosaveMinimumSpacingSeconds > config.autosaveIntervalSeconds)

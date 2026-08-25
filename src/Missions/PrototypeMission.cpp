@@ -1,7 +1,8 @@
 #include "IronGang/Missions/PrototypeMission.hpp"
 
+#include "IronGang/Core/Log.hpp"
+
 #include <cmath>
-#include <iostream>
 
 namespace IronGang
 {
@@ -25,7 +26,12 @@ namespace IronGang
 
         void LogMission(const std::string& message)
         {
-            std::cerr << "[IronGang][mission] " << message << "\n";
+            Log::Info(LogCategory::Mission, message);
+        }
+
+        void LogMissionFault(const std::string& message)
+        {
+            Log::Error(LogCategory::Mission, message);
         }
 
         // The built-in fallback's own expressions are fixed source text compiled against the fixed
@@ -36,8 +42,8 @@ namespace IronGang
             std::string error;
             if (!MissionExpression::Compile(source, context, expression, error))
             {
-                LogMission(std::string("built-in mission condition \"") + source + "\" failed to compile: " +
-                           error);
+                LogMissionFault(std::string("built-in mission condition \"") + source + "\" failed to compile: " +
+                            error);
             }
             return expression;
         }
@@ -108,7 +114,7 @@ namespace IronGang
             context.DeclareFact(kFactPoliceChaseSeconds, MissionValue::Float(0.0F), error);
         if (!declared)
         {
-            LogMission("failed to declare the prototype fact set: " + error);
+            LogMissionFault("failed to declare the prototype fact set: " + error);
         }
         return context;
     }
@@ -162,7 +168,7 @@ namespace IronGang
             std::string error;
             if (!context_.SetVariable(variable.name, variable.value, error))
             {
-                LogMission("checkpoint variable ignored: " + error);
+                Log::Warning(LogCategory::Mission, "checkpoint variable ignored: " + error);
             }
         }
         stateId_ = checkpoint_.stateId;
@@ -211,8 +217,8 @@ namespace IronGang
                         // Both the expression's type and the variable's existence were checked at
                         // load time, so this only reports a genuine runtime fault (divide by zero,
                         // step limit) -- the mission keeps running with the previous value.
-                        LogMission("state \"" + definition->id + "\" could not set \"" + action.variable +
-                                   "\": " + error);
+                        LogMissionFault("state \"" + definition->id + "\" could not set \"" + action.variable +
+                                        "\": " + error);
                         break;
                     }
                     break;
@@ -256,7 +262,7 @@ namespace IronGang
                              MissionValue::Bool(playerDriving && vehicleInGoal), error);
         if (!applied)
         {
-            LogMission("could not refresh mission facts: " + error);
+            LogMissionFault("could not refresh mission facts: " + error);
         }
     }
 
@@ -289,7 +295,7 @@ namespace IronGang
                 if (!conditionFaultLogged_)
                 {
                     conditionFaultLogged_ = true;
-                    LogMission("state \"" + current->id + "\" condition failed: " + error);
+                    LogMissionFault("state \"" + current->id + "\" condition failed: " + error);
                 }
                 return;
             }

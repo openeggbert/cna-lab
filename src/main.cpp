@@ -1,4 +1,5 @@
 #include "IronGang/Application/IronGangGame.hpp"
+#include "IronGang/Core/Log.hpp"
 
 #include <array>
 #include <exception>
@@ -78,6 +79,7 @@ int main(int argc, char* argv[])
         std::optional<IronGang::PerformanceScenario> profileScenario;
         bool verticalSync = true;
         int smokeFrames = -1;
+        std::optional<IronGang::LogSeverity> logSeverity;
 
         for (int index = 1; index < argc; ++index)
         {
@@ -117,6 +119,20 @@ int main(int argc, char* argv[])
                 }
                 verticalSync = value == "on";
             }
+            else if (argument == "--log-level" && index + 1 < argc)
+            {
+                const std::string value = argv[++index];
+                IronGang::LogSeverity parsed{};
+                if (!IronGang::ParseLogSeverity(value, parsed))
+                {
+                    throw std::invalid_argument("--log-level must be debug, info, warning, or error");
+                }
+                logSeverity = parsed;
+            }
+            else if (argument == "--log-level")
+            {
+                throw std::invalid_argument("--log-level requires debug, info, warning, or error");
+            }
             else if (argument == "--help" || argument == "-h")
             {
                 std::cout
@@ -125,7 +141,8 @@ int main(int argc, char* argv[])
                     << "  --smoke [frames] Exit after a bounded number of draw frames\n"
                     << "  --profile <path> Write an M12 JSON performance report on exit\n"
                     << "  --profile-scenario <name>  intro, idle, walk, drive, mixed, or mission\n"
-                    << "  --vsync on|off  Request synchronized or immediate presentation\n";
+                    << "  --vsync on|off  Request synchronized or immediate presentation\n"
+                    << "  --log-level <name>  debug, info, warning, or error (overrides game.json)\n";
                 return 0;
             }
             else if (argument == "--profile")
@@ -143,6 +160,10 @@ int main(int argc, char* argv[])
         }
 
         IronGang::IronGangGame game(assetRoot);
+        if (logSeverity)
+        {
+            game.SetLogSeverityOverride(*logSeverity);
+        }
         game.SetSmokeFrames(smokeFrames);
         game.SetVerticalSync(verticalSync);
         if (!profilePath.empty())

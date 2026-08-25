@@ -304,6 +304,7 @@ docs/performance-baseline.md Current EasyGL M12 measurements and open failure
 docs/mission-scripting.md    Mission file schema, variables, and expression language
 docs/save-format.md          Save schema, integrity guarantees, and migration rules
 docs/configuration.md        game.json tunables, validation rules, and how to add one
+docs/logging.md              Log categories, severities, and the --log-level option
 ```
 
 ## License and assets

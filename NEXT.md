@@ -92,6 +92,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Structured logging replaces the 24 ad-hoc stderr lines (plan_04)
+
+Every entry below added another hand-written `std::cerr << "[IronGang] …"`; there were 24, with no
+severity, no category, and no way to turn any of them down. `IronGang::Log` (`Core/Log.hpp`) now
+formats `[IronGang][<category>][<severity>] <message>` on stderr, with four ordered severities and
+eight categories (app/assets/audio/config/cutscene/dialogue/mission/save). Migrating the call sites
+is what turned several of them into the **errors** and **warnings** they always were.
+
+- **A disabled category is silent at every severity, errors included** -- a half-off category would
+  be more confusing than either state.
+- **The sink is called outside the state mutex**: it is caller-supplied and must never deadlock the
+  game by logging from inside itself. The mutex is there for the planned loader thread
+  (`IG-04-014`).
+- Level from data: `game.json`'s `logSeverity`, overridden for one run by `--log-level` (an
+  unrecognized name is rejected at startup, not silently ignored).
+- `scripts/release_archive.py` now matches the **message text only** -- it should pin "the packaged
+  build loads these assets", not the log prefix.
+
+Closed `IG-04-002`/`017`; `IG-04-008` advanced. Verified: build clean, CTest 11/11, a filtering test,
+and real runs (`--smoke 60` prints the six asset/audio info lines, `--log-level error` prints none,
+`--log-level nonsense` exits with the valid list). Documented in `docs/logging.md`.
+
+Nearby remaining in plan_04: a monotonic simulation clock and delta clamping (`IG-04-003`/`004`/
+`007`), a seeded deterministic RNG (`IG-04-011`/`012`), the result/error object (`IG-04-009`),
+assertion macros (`IG-04-010`), and localization-safe string formatting (`IG-04-013`). The log has
+no timestamps, no file sink, and no per-category config key yet.
+
 ### The configuration file is finally read (plan_04)
 
 `assets/config/game.json` had existed since the scaffold with a `notes` field admitting nothing read

@@ -1,6 +1,7 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
 #include "IronGang/Core/GameConfig.hpp"
+#include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -849,6 +850,102 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_04 IG-04-002: severity ordering, category filtering, the exact line format, and the
+    // sink that lets a test (or a future in-game console) take the output.
+    void TestLogSeverityAndCategoryFiltering()
+    {
+        struct Captured
+        {
+            IronGang::LogCategory category;
+            IronGang::LogSeverity severity;
+            std::string message;
+        };
+        std::vector<Captured> captured;
+        IronGang::Log::Reset();
+        IronGang::Log::SetSink([&captured](IronGang::LogCategory category, IronGang::LogSeverity severity,
+                                           const std::string& message) {
+            captured.push_back(Captured{category, severity, message});
+        });
+
+        // The default minimum is Info: debug detail stays out of an ordinary run.
+        Require(IronGang::Log::GetMinimumSeverity() == IronGang::LogSeverity::Info,
+                "the default minimum severity must be info");
+        IronGang::Log::Debug(IronGang::LogCategory::Mission, "not shown");
+        IronGang::Log::Info(IronGang::LogCategory::Mission, "shown");
+        IronGang::Log::Warning(IronGang::LogCategory::Save, "also shown");
+        IronGang::Log::Error(IronGang::LogCategory::Assets, "definitely shown");
+        Require(captured.size() == 3, "debug must be filtered out at the default minimum");
+        Require(captured.front().message == "shown" && captured.front().category == IronGang::LogCategory::Mission,
+                "the category and message must reach the sink unchanged");
+
+        // Raising the minimum drops everything below it.
+        captured.clear();
+        IronGang::Log::SetMinimumSeverity(IronGang::LogSeverity::Error);
+        IronGang::Log::Info(IronGang::LogCategory::Mission, "dropped");
+        IronGang::Log::Warning(IronGang::LogCategory::Mission, "dropped");
+        IronGang::Log::Error(IronGang::LogCategory::Mission, "kept");
+        Require(captured.size() == 1 && captured.front().message == "kept",
+                "only messages at or above the minimum severity may pass");
+
+        // Lowering it to debug lets everything through.
+        captured.clear();
+        IronGang::Log::SetMinimumSeverity(IronGang::LogSeverity::Debug);
+        IronGang::Log::Debug(IronGang::LogCategory::Audio, "detail");
+        Require(captured.size() == 1, "debug must pass once the minimum allows it");
+
+        // A disabled category is silent at every severity -- errors included, by design.
+        captured.clear();
+        IronGang::Log::SetCategoryEnabled(IronGang::LogCategory::Audio, false);
+        Require(!IronGang::Log::IsCategoryEnabled(IronGang::LogCategory::Audio),
+                "the category must report itself disabled");
+        IronGang::Log::Error(IronGang::LogCategory::Audio, "silenced");
+        IronGang::Log::Error(IronGang::LogCategory::Mission, "heard");
+        Require(captured.size() == 1 && captured.front().category == IronGang::LogCategory::Mission,
+                "a disabled category must be silent even at error severity");
+        Require(!IronGang::Log::IsEnabled(IronGang::LogCategory::Audio, IronGang::LogSeverity::Error),
+                "IsEnabled must agree with what Write actually does");
+
+        // The formatted line is what the default sink writes, and what a log grep sees.
+        Require(IronGang::Log::FormatLine(IronGang::LogCategory::Mission, IronGang::LogSeverity::Warning,
+                                          "something") == "[IronGang][mission][warning] something",
+                "the log line format must be [IronGang][category][severity] message");
+
+        // Names and parsing round-trip for every value, which is what the config file and
+        // --log-level rely on.
+        for (const IronGang::LogSeverity severity :
+             {IronGang::LogSeverity::Debug, IronGang::LogSeverity::Info, IronGang::LogSeverity::Warning,
+              IronGang::LogSeverity::Error})
+        {
+            IronGang::LogSeverity parsed{};
+            Require(IronGang::ParseLogSeverity(IronGang::LogSeverityName(severity), parsed) &&
+                        parsed == severity,
+                    "every severity name must parse back to itself");
+        }
+        for (const IronGang::LogCategory category :
+             {IronGang::LogCategory::Application, IronGang::LogCategory::Assets, IronGang::LogCategory::Audio,
+              IronGang::LogCategory::Config, IronGang::LogCategory::Cutscene, IronGang::LogCategory::Dialogue,
+              IronGang::LogCategory::Mission, IronGang::LogCategory::Save})
+        {
+            IronGang::LogCategory parsed{};
+            Require(IronGang::ParseLogCategory(IronGang::LogCategoryName(category), parsed) &&
+                        parsed == category,
+                    "every category name must parse back to itself");
+        }
+        IronGang::LogSeverity ignoredSeverity{};
+        IronGang::LogCategory ignoredCategory{};
+        Require(!IronGang::ParseLogSeverity("verbose", ignoredSeverity),
+                "an unknown severity name must be rejected");
+        Require(!IronGang::ParseLogCategory("physics", ignoredCategory),
+                "an unknown category name must be rejected");
+
+        // Reset puts the log back to stderr at info with every category on, so one test cannot
+        // leave the next one deaf.
+        IronGang::Log::Reset();
+        Require(IronGang::Log::GetMinimumSeverity() == IronGang::LogSeverity::Info &&
+                    IronGang::Log::IsCategoryEnabled(IronGang::LogCategory::Audio),
+                "Reset must restore the defaults");
+    }
+
     // plan_04 IG-04-001/006: the configuration loader's defaults, validation, and round trip. The
     // rule the tests protect is that a broken or partial config costs the tuning, never the run --
     // only a file that cannot be understood at all is a failure.
@@ -875,7 +972,8 @@ namespace
             "cityName": "Test City",
             "prototypeYear": 1948,
             "autosaveIntervalSeconds": 45.5,
-            "autosaveMinimumSpacingSeconds": 5
+            "autosaveMinimumSpacingSeconds": 5,
+            "logSeverity": "warning"
         })JSON");
         Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
                 "a well-formed configuration must load: " + error);
@@ -883,6 +981,7 @@ namespace
         Require(config.projectName == "Test Title" && config.cityName == "Test City" &&
                     config.prototypeYear == 1948,
                 "string and integer values must round-trip");
+        Require(config.logSeverity == IronGang::LogSeverity::Warning, "logSeverity must round-trip");
         Require(std::fabs(config.autosaveIntervalSeconds - 45.5F) < 1e-4F &&
                     std::fabs(config.autosaveMinimumSpacingSeconds - 5.0F) < 1e-4F,
                 "second values must round-trip");
@@ -919,6 +1018,15 @@ namespace
         Require(std::fabs(config.autosaveIntervalSeconds) < 1e-4F,
                 "negative seconds must clamp to 0 -- the author meant \"off\"");
         Require(config.projectName == defaults.projectName, "an empty string must keep the default");
+
+        // An unrecognized severity name keeps the default and says what the choices are.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"logSeverity": "verbose"})JSON");
+        Require(IronGang::LoadGameConfig(path.string(), config, error, &warnings),
+                "an unknown severity name must not fail the load: " + error);
+        Require(warnings.size() == 1 && warnings.front().find("debug/info/warning/error") != std::string::npos,
+                "the warning must list the accepted severity names");
+        Require(config.logSeverity == defaults.logSeverity, "an unknown severity must keep the default");
 
         // A spacing longer than the interval is legal but almost always a mistake.
         warnings.clear();
@@ -2773,6 +2881,7 @@ int main()
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
+        TestLogSeverityAndCategoryFiltering();
         TestGameConfigLoadsValidatesAndFallsBack();
         TestAutosaveSchedulingAvoidsUnsafeMoments();
         TestLoadChoosesTheMostRecentSave();

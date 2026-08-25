@@ -1,6 +1,7 @@
 // Iron Gang application entry point.
 #include "IronGang/Application/IronGangGame.hpp"
 
+#include "IronGang/Core/Log.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -434,13 +435,15 @@ namespace IronGang
         std::string configError;
         if (!LoadGameConfig(assetRoot_ + "/config/game.json", config_, configError, &configWarnings))
         {
-            std::cerr << "[IronGang] " << configError << " -- using built-in configuration defaults.\n";
+            Log::Error(LogCategory::Config, configError + " -- using built-in configuration defaults.");
         }
         for (const std::string& warning : configWarnings)
         {
-            std::cerr << "[IronGang] configuration: " << warning << "\n";
+            Log::Warning(LogCategory::Config, warning);
         }
         autosave_.Configure(config_.autosaveIntervalSeconds, config_.autosaveMinimumSpacingSeconds);
+        // An explicit --log-level wins: the run is being debugged right now, and the file is not.
+        Log::SetMinimumSeverity(logSeverityOverride_.value_or(config_.logSeverity));
 
         // Gate M7 (plan_24-mission-framework-and-scripting.md IG-24-001/004): the mission's
         // states/objectives/transitions now live in data; PrototypeMission ships with a
@@ -449,14 +452,14 @@ namespace IronGang
         std::string missionError;
         if (!mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", missionError))
         {
-            std::cerr << "[IronGang] " << missionError << " -- using built-in fallback mission.\n";
+            Log::Warning(LogCategory::Mission, missionError + " -- using built-in fallback mission.");
         }
         mission_.Reset();
 
         std::string dialogueError;
         if (!dialogue_.LoadFromFile(assetRoot_ + "/dialogues/prologue.dialogue.txt", dialogueError))
         {
-            std::cerr << "[IronGang] " << dialogueError << " -- using built-in fallback.\n";
+            Log::Warning(LogCategory::Dialogue, dialogueError + " -- using built-in fallback.");
             dialogue_.LoadFallbackPrologue();
         }
         dialogue_.Start();
@@ -476,7 +479,7 @@ namespace IronGang
         if (!LoadCutsceneSequence(assetRoot_ + "/cutscenes/prologue_intro.cutscene.json", introSequence,
                                   cutsceneError))
         {
-            std::cerr << "[IronGang] " << cutsceneError << " -- using built-in fallback cutscene.\n";
+            Log::Warning(LogCategory::Cutscene, cutsceneError + " -- using built-in fallback cutscene.");
             introSequence = CutsceneSequence{
                 "prologue_intro_fallback",
                 1,
@@ -497,14 +500,15 @@ namespace IronGang
         try
         {
             warehouseModel = getContentProperty().Load<Graphics::Model>("warehouse");
-            std::cout << "[IronGang] Loaded generated warehouse.cnj\n";
+            Log::Info(LogCategory::Assets, "Loaded generated warehouse.cnj");
         }
         catch (const std::exception& contentError)
         {
-            std::cerr << "[IronGang] " << contentError.what()
-                      << " -- using procedural warehouse box. Run scripts/build-assets.sh"
-                         " assets/source/mc3/warehouse.mc3.xml assets/generated/models to"
-                         " generate it.\n";
+            Log::Warning(LogCategory::Assets,
+                         std::string(contentError.what()) +
+                             " -- using procedural warehouse box. Run scripts/build-assets.sh"
+                             " assets/source/mc3/warehouse.mc3.xml assets/generated/models to"
+                             " generate it.");
         }
 
         // The sedan is authored as four single-object MC3 files (body/cabin/windshield/wheel)
@@ -523,14 +527,15 @@ namespace IronGang
                 getContentProperty().Load<Graphics::Model>("vehicle_windshield"),
                 getContentProperty().Load<Graphics::Model>("vehicle_wheel")};
             vehicleModels = std::move(models);
-            std::cout << "[IronGang] Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj\n";
+            Log::Info(LogCategory::Assets, "Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj");
         }
         catch (const std::exception& contentError)
         {
-            std::cerr << "[IronGang] " << contentError.what()
-                      << " -- using procedural sedan. Run scripts/build-assets.sh"
-                         " assets/source/mc3/vehicle_<part>.mc3.xml assets/generated/models"
-                         " for body/cabin/windshield/wheel to generate it.\n";
+            Log::Warning(LogCategory::Assets,
+                         std::string(contentError.what()) +
+                             " -- using procedural sedan. Run scripts/build-assets.sh"
+                             " assets/source/mc3/vehicle_<part>.mc3.xml assets/generated/models"
+                             " for body/cabin/windshield/wheel to generate it.");
         }
 
         // Gate M6: a hand-authored (not MC3 -- Mesh Craft has no rigging/skinning authoring
@@ -540,14 +545,15 @@ namespace IronGang
         try
         {
             characterModel = getContentProperty().Load<Graphics::Model>("test_character");
-            std::cout << "[IronGang] Loaded generated test_character.cnj\n";
+            Log::Info(LogCategory::Assets, "Loaded generated test_character.cnj");
         }
         catch (const std::exception& contentError)
         {
-            std::cerr << "[IronGang] " << contentError.what()
-                      << " -- using procedural player box. Run"
-                         " cna_tool_gltf_to_cnj assets/source/gltf/test_character.gltf"
-                         " assets/generated/models/cnj test_character 1.0 to generate it.\n";
+            Log::Warning(LogCategory::Assets,
+                         std::string(contentError.what()) +
+                             " -- using procedural player box. Run"
+                             " cna_tool_gltf_to_cnj assets/source/gltf/test_character.gltf"
+                             " assets/generated/models/cnj test_character 1.0 to generate it.");
         }
 
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
@@ -572,29 +578,29 @@ namespace IronGang
             engineSound_.emplace(assetRoot_ + "/audio/engine_loop.wav");
             engineSoundInstance_.emplace(engineSound_->CreateInstance());
             engineSoundInstance_->setIsLoopedProperty(true);
-            std::cout << "[IronGang] Loaded engine_loop.wav\n";
+            Log::Info(LogCategory::Audio, "Loaded engine_loop.wav");
         }
         catch (const std::exception& audioError)
         {
-            std::cerr << "[IronGang] " << audioError.what() << " -- no engine sound.\n";
+            Log::Warning(LogCategory::Audio, std::string(audioError.what()) + " -- no engine sound.");
         }
         try
         {
             footstepSound_.emplace(assetRoot_ + "/audio/footstep.wav");
-            std::cout << "[IronGang] Loaded footstep.wav\n";
+            Log::Info(LogCategory::Audio, "Loaded footstep.wav");
         }
         catch (const std::exception& audioError)
         {
-            std::cerr << "[IronGang] " << audioError.what() << " -- no footstep sound.\n";
+            Log::Warning(LogCategory::Audio, std::string(audioError.what()) + " -- no footstep sound.");
         }
         try
         {
             hornSound_.emplace(assetRoot_ + "/audio/horn.wav");
-            std::cout << "[IronGang] Loaded horn.wav\n";
+            Log::Info(LogCategory::Audio, "Loaded horn.wav");
         }
         catch (const std::exception& audioError)
         {
-            std::cerr << "[IronGang] " << audioError.what() << " -- no horn sound.\n";
+            Log::Warning(LogCategory::Audio, std::string(audioError.what()) + " -- no horn sound.");
         }
 
         // Gameplay profiling workloads must reach control without synthetic keyboard events.
@@ -865,7 +871,7 @@ namespace IronGang
         }
         // An autosave the player did not ask for must not steal the status line on failure any
         // more than it does on success, but it must not fail silently either.
-        std::cerr << "[IronGang] autosave failed: " << error << "\n";
+        Log::Error(LogCategory::Save, "autosave failed: " + error);
     }
 
     void IronGangGame::LoadPrototype()
@@ -888,13 +894,15 @@ namespace IronGang
         // player has lost whatever happened between the backup and the save that failed.
         if (saveDiagnostics.usedBackup)
         {
-            std::cerr << "[IronGang] the save file could not be read (" << saveDiagnostics.primaryError
-                      << "); loaded the backup instead.\n";
+            Log::Warning(LogCategory::Save, "the save file could not be read (" +
+                                                saveDiagnostics.primaryError + "); loaded the backup instead.");
         }
         if (saveDiagnostics.formatVersion < kCurrentSaveFormatVersion)
         {
-            std::cerr << "[IronGang] migrated a format v" << saveDiagnostics.formatVersion
-                      << " save; the next save will be written as v" << kCurrentSaveFormatVersion << ".\n";
+            Log::Info(LogCategory::Save, "migrated a format v" +
+                                             std::to_string(saveDiagnostics.formatVersion) +
+                                             " save; the next save will be written as v" +
+                                             std::to_string(kCurrentSaveFormatVersion) + ".");
         }
 
         if (snapshot->districtId != districtManager_.GetWorld().GetId())
@@ -929,9 +937,9 @@ namespace IronGang
             // The save names a state the currently loaded mission file does not define. Resuming
             // there would strand the mission with no objective and no way out, so keep the state
             // the mission already has and say so (plan_24 IG-24-019).
-            std::cerr << "[IronGang] save file mission state \"" << snapshot->missionStateId
-                      << "\" is not defined by the loaded mission; keeping \"" << mission_.GetStateId()
-                      << "\".\n";
+            Log::Warning(LogCategory::Save, "save file mission state \"" + snapshot->missionStateId +
+                                                "\" is not defined by the loaded mission; keeping \"" +
+                                                mission_.GetStateId() + "\".");
         }
         // plan_24 IG-24-029: variables are restored, but entry actions deliberately are not
         // re-run (SetState's own comment). A variable the current mission file no longer declares
@@ -947,7 +955,7 @@ namespace IronGang
             missionCheckpointWorld_.has_value() ? snapshot->missionCheckpoint.stateId : std::string();
         for (const std::string& warning : missionVariableWarnings)
         {
-            std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
+            Log::Warning(LogCategory::Save, "save file mission variable ignored: " + warning);
         }
         ApplyWorldSnapshot(*snapshot);
         const bool loadedAutosave = loadPath == AutosavePath();
@@ -1450,7 +1458,7 @@ namespace IronGang
                 !mission_.SetFact("police_chase_seconds", MissionValue::Float(police_.GetChaseSeconds()),
                                   factError))
             {
-                std::cerr << "[IronGang] could not publish police mission facts: " << factError << "\n";
+                Log::Error(LogCategory::Mission, "could not publish police mission facts: " + factError);
             }
 
             mission_.Update(dialogue_.IsFinished(), player_.GetPosition(), vehicle_.GetPosition(),

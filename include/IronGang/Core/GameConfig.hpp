@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IronGang/Core/Log.hpp"
 #include "IronGang/Persistence/AutosavePolicy.hpp"
 
 #include <string>
@@ -29,6 +30,10 @@ namespace IronGang
         float autosaveIntervalSeconds{AutosaveScheduler::kDefaultIntervalSeconds};
         // Shortest gap between two autosaves, so triggers landing together write one file.
         float autosaveMinimumSpacingSeconds{AutosaveScheduler::kDefaultMinimumSpacingSeconds};
+
+        // Lowest severity that reaches the log: "debug", "info", "warning", or "error".
+        // --log-level on the command line overrides this for a single run.
+        LogSeverity logSeverity{LogSeverity::Info};
     };
 
     // Loads @p path into @p out, leaving every field the file does not usably specify at its

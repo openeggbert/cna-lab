@@ -17,6 +17,7 @@ changes none of it from inside the game; player-facing settings are separate wor
   "prototypeYear": 1932,
   "autosaveIntervalSeconds": 180,
   "autosaveMinimumSpacingSeconds": 20,
+  "logSeverity": "info",
   "notes": "free text, ignored"
 }
 ```
@@ -28,6 +29,7 @@ changes none of it from inside the game; player-facing settings are separate wor
 | `prototypeYear` | int, 1800–2200 | `1932` | The same header. |
 | `autosaveIntervalSeconds` | number ≥ 0 | `180` | Seconds of unblocked play between periodic autosaves; `0` disables them without disabling checkpoint and district autosaves. |
 | `autosaveMinimumSpacingSeconds` | number ≥ 0 | `20` | Shortest gap between two autosaves, so triggers landing together write one file. |
+| `logSeverity` | string | `info` | Lowest severity that reaches the log: `debug`, `info`, `warning`, or `error`. `--log-level` overrides it for one run. See `docs/logging.md`. |
 | `notes` | string | — | Accepted and ignored, so the file can carry a comment. |
 
 The autosave defaults come from `AutosaveScheduler`'s own constants rather than being repeated in
@@ -45,6 +47,7 @@ A broken or partial configuration costs the tuning, never the run:
 | Number outside its range | That key keeps its default; warning names the range. |
 | Negative seconds | Clamped to `0` with a warning — the author meant "off", and `0` is exactly that. |
 | Empty string | Keeps the default; warning. |
+| Unrecognized `logSeverity` name | Keeps the default; the warning lists the accepted names. |
 | `autosaveMinimumSpacingSeconds` > `autosaveIntervalSeconds` | Loads, with a warning: legal, but it means the interval never fires when it says it will. |
 | Malformed JSON, or a root that is not an object | **The only failure.** `LoadGameConfig` returns false, leaves the caller's configuration untouched, and the game logs it and runs on its defaults. |
 
@@ -70,4 +73,4 @@ Warnings are printed at startup as `[IronGang] configuration: …`.
 Environment-variable or command-line overrides of individual tunables (`IG-04-020`), reloading the
 file while the game runs, and per-platform or per-build-configuration files. Command-line options
 that are not tunables (`--assets`, `--smoke`, `--profile`, `--vsync`) are parsed in `src/main.cpp`
-(`IG-04-008`).
+(`IG-04-008`); `--log-level` is the one option that overrides a value from this file.

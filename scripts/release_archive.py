@@ -44,12 +44,15 @@ REQUIRED_ASSETS = (
     "generated/models/cnj/test_character.cnj",
 )
 EXPECTED_SMOKE_LINES = (
-    "[IronGang] Loaded generated warehouse.cnj",
-    "[IronGang] Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj",
-    "[IronGang] Loaded generated test_character.cnj",
-    "[IronGang] Loaded engine_loop.wav",
-    "[IronGang] Loaded footstep.wav",
-    "[IronGang] Loaded horn.wav",
+    # Message text only, deliberately without the log line's category/severity prefix: the
+    # packaged build must load these assets, which is not the same claim as the log format
+    # never changing (see docs/logging.md).
+    "Loaded generated warehouse.cnj",
+    "Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj",
+    "Loaded generated test_character.cnj",
+    "Loaded engine_loop.wav",
+    "Loaded footstep.wav",
+    "Loaded horn.wav",
 )
 FORBIDDEN_DIRECT_LIBRARIES = ("libavcodec", "libavformat", "libavutil", "libswresample")
 

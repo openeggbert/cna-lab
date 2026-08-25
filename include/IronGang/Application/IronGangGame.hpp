@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Core/GameConfig.hpp"
+#include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
@@ -49,6 +50,9 @@ namespace IronGang
     {
     public:
         explicit IronGangGame(std::string assetRoot);
+        // plan_04 IG-04-002/008: --log-level wins over the configuration file's own logSeverity,
+        // because someone passing it on the command line is debugging this run specifically.
+        void SetLogSeverityOverride(LogSeverity severity) noexcept { logSeverityOverride_ = severity; }
         void SetSmokeFrames(int frames) noexcept { smokeFramesRemaining_ = frames; }
         void SetVerticalSync(bool enabled);
         void EnablePerformanceProfile(std::string reportPath);
@@ -168,6 +172,7 @@ namespace IronGang
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).
         GameConfig config_;
+        std::optional<LogSeverity> logSeverityOverride_;
         AutosaveScheduler autosave_;
         std::optional<WorldStateSnapshot> missionCheckpointWorld_;
         std::string missionCheckpointWorldStateId_;

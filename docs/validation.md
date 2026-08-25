@@ -577,6 +577,49 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Structured logging replaces 24 ad-hoc stderr lines (2026-08-25)
+
+plan_04 `IG-04-002`/`017` closed; `IG-04-008` advanced. Every previous entry in this session added
+another hand-written `std::cerr << "[IronGang] …"` line; there were 24, with no severity, no
+category, and no way to turn any of them down.
+
+**What changed.** `IronGang::Log` (`include/IronGang/Core/Log.hpp`, `src/Core/Log.cpp`): four
+ordered severities, eight categories, `[IronGang][<category>][<severity>] <message>` on stderr.
+Every call site was migrated — which is also what turned several of them from an undifferentiated
+print into the **error** or **warning** they always were (a mission condition that cannot be
+evaluated, a failed autosave, a fact that could not be published). Gameplay text the prototype
+prints for the player (dialogue) stays on stdout and is not log output.
+
+Design points worth keeping:
+
+* **A disabled category is silent at every severity, errors included.** Turning a category off means
+  "I do not want to hear from this subsystem"; a half-off category would be more confusing than
+  either state.
+* **The sink is called outside the state mutex.** It is caller-supplied, may be slow, and must never
+  be able to deadlock the game by logging from inside itself. The mutex is there so the planned
+  background loader thread (`IG-04-014`) can log safely.
+* **The level comes from data**: `game.json`'s `logSeverity`, overridden for a single run by
+  `--log-level`, which wins because someone passing it is debugging *this* run. An unrecognized name
+  is rejected at startup with the valid list rather than silently falling back.
+* `scripts/release_archive.py`'s packaged smoke check now matches the **message text only**. Pinning
+  "the packaged build loads these assets" is the claim worth keeping; pinning the log prefix was an
+  accident of how the check was first written.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11** (including the release
+archive test, whose expectations changed); `TestLogSeverityAndCategoryFiltering` covers severity
+filtering in both directions, a disabled category swallowing an error, `IsEnabled` agreeing with
+what `Write` actually does, the exact formatted line, name/parse round-trips for every severity and
+category, unknown names rejected, and `Reset` restoring the defaults so one test cannot leave the
+next deaf. Real runs confirm the end-to-end path: a default `--smoke 60` prints the six
+`[IronGang][assets|audio][info] Loaded …` lines, `--log-level error` prints **none** of them, and
+`--log-level nonsense` exits with `--log-level must be debug, info, warning, or error`. The config
+test now also covers `logSeverity` round-tripping and an unrecognized name keeping the default.
+
+**Boundaries.** No timestamps, no log file, no rotation, no in-game console, and no per-category
+configuration key — `Log::SetCategoryEnabled` exists for code and tests, and a key can be added when
+someone actually needs to silence a subsystem from data. Command-line parsing is still a hand-written
+if/else chain with no shared option table (`IG-04-008`).
+
 ## Configuration loader: game.json is finally read (2026-08-25)
 
 plan_04 `IG-04-001`/`006`/`018` closed; plan_29 `IG-29-005` advanced. `assets/config/game.json` has
