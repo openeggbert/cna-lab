@@ -443,29 +443,6 @@ namespace WolfCna
         {
             return text.empty() ? 0 : static_cast<int>(text.size()) * 6 * scale - scale;
         }
-
-        // Restores the full-window viewport once the 3D pass is done, so the HUD, automap
-        // and menus keep drawing in window coordinates even if that pass returns early.
-        class ScopedViewport final
-        {
-        public:
-            ScopedViewport(GraphicsDevice& device, const Viewport& restore)
-                : device_(device), restore_(restore)
-            {
-            }
-
-            ScopedViewport(const ScopedViewport&) = delete;
-            ScopedViewport& operator=(const ScopedViewport&) = delete;
-
-            ~ScopedViewport()
-            {
-                device_.setViewportProperty(restore_);
-            }
-
-        private:
-            GraphicsDevice& device_;
-            Viewport restore_;
-        };
     }
 
     WolfGame::WolfGame()
@@ -483,7 +460,6 @@ namespace WolfCna
         highestUnlockedLevel_ = profile.highestUnlocked;
         soundVolumeStep_ = profile.soundVolume;
         fieldOfViewDegrees_ = profile.fieldOfView;
-        viewSizeStep_ = profile.viewSizeStep;
         difficulty_ = static_cast<Difficulty>(profile.difficulty);
         controlSettings_ = profile.controls;
         highScores_ = profile.highScores;
@@ -1276,12 +1252,7 @@ namespace WolfCna
                     viewport.getHeightProperty() - panelHeight),
                 Color(255, 70, 32, alpha));
         }
-        // The weapon belongs to the 3D window, so it scales with the view size and sits on
-        // that window's lower edge rather than on the HUD panel.
-        const Rectangle worldView = WorldViewBounds();
-        const int viewSize = std::clamp(worldView.Height / 3, 96, 236);
-        const int worldCenterX = worldView.X + worldView.Width / 2;
-        const int worldBottom = worldView.Y + worldView.Height;
+        const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);
         Texture2D* idleTexture = weapon_ == Weapon::Knife
             ? knifeView_.get()
             : weapon_ == Weapon::Sidearm
@@ -1294,8 +1265,8 @@ namespace WolfCna
                 : weapon_ == Weapon::Repeater ? repeaterAttackView_.get() : heavyWeaponAttackView_.get();
         Texture2D* viewTexture = weaponFlashSeconds_ > 0.0f ? attackTexture : idleTexture;
         int weaponSize = viewSize;
-        int weaponX = worldCenterX - weaponSize / 2;
-        int weaponY = worldBottom - weaponSize + 18;
+        int weaponX = centerX - weaponSize / 2;
+        int weaponY = panelY - weaponSize + 18;
         if (weaponFlashSeconds_ > 0.0f)
         {
             const float actionDuration = weapon_ == Weapon::Knife
@@ -1311,8 +1282,8 @@ namespace WolfCna
                 const float lungePhase = std::sin((1.0f - remaining) * MathHelper::Pi);
                 const int lunge = static_cast<int>(std::lround(lungePhase * viewSize * 0.12f));
                 weaponSize += lunge;
-                weaponX = worldCenterX - weaponSize / 2 - lunge / 3;
-                weaponY = worldBottom - weaponSize + 18 - lunge / 2;
+                weaponX = centerX - weaponSize / 2 - lunge / 3;
+                weaponY = panelY - weaponSize + 18 - lunge / 2;
             }
             else
             {
@@ -1545,15 +1516,13 @@ namespace WolfCna
                 cardTop + 14,
                 title,
                 Color(184, 238, 255, 255));
-            const std::array<std::string, 8> options{
+            const std::array<std::string, 7> options{
                 "RESUME",
                 "SAVE SLOT " + std::to_string(saveSlot_ + 1),
                 "LOAD SLOT " + std::to_string(saveSlot_ + 1),
                 "SELECT SLOT " + std::to_string(saveSlot_ + 1),
                 "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
                 "VIEW " + std::to_string(fieldOfViewDegrees_) + " DEG",
-                "VIEW SIZE " + std::to_string(viewSizeStep_ + 1) + "/" +
-                    std::to_string(MaximumViewSizeStep + 1),
                 "QUIT TO TITLE"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
@@ -2250,26 +2219,6 @@ namespace WolfCna
             Vector3::Up);
     }
 
-    Rectangle WolfGame::WorldViewBounds()
-    {
-        const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
-        // The HUD panel is never covered by the 3D window, so the view shrinks inside the
-        // area above it and stays centred there, leaving the classic border.
-        const int availableWidth = std::max(1, viewport.getWidthProperty());
-        const int availableHeight =
-            std::max(1, viewport.getHeightProperty() - HudPanelHeight);
-        const float scale = ViewSizeScale(viewSizeStep_);
-        const int width = std::max(1, static_cast<int>(std::lround(
-            static_cast<float>(availableWidth) * scale)));
-        const int height = std::max(1, static_cast<int>(std::lround(
-            static_cast<float>(availableHeight) * scale)));
-        return Rectangle(
-            viewport.getXProperty() + (availableWidth - width) / 2,
-            viewport.getYProperty() + (availableHeight - height) / 2,
-            width,
-            height);
-    }
-
     Matrix WolfGame::ProjectionMatrix()
     {
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -2444,7 +2393,6 @@ namespace WolfCna
                 .soundVolume = soundVolumeStep_,
                 .difficulty = static_cast<int>(difficulty_),
                 .fieldOfView = fieldOfViewDegrees_,
-                .viewSizeStep = viewSizeStep_,
                 .controls = controlSettings_,
                 .highScores = highScores_},
             static_cast<int>(SelectableCampaignSectors.size()));
@@ -3079,12 +3027,10 @@ namespace WolfCna
             }
             else
             {
-                constexpr int pauseItemCount = 8;
                 if (upIsDown && !upWasDown_)
-                    pauseMenuSelection_ =
-                        (pauseMenuSelection_ + pauseItemCount - 1) % pauseItemCount;
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 6) % 7;
                 if (downIsDown && !downWasDown_)
-                    pauseMenuSelection_ = (pauseMenuSelection_ + 1) % pauseItemCount;
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 1) % 7;
                 if (confirmIsDown && !confirmWasDown_)
                 {
                     if (pauseMenuSelection_ == 0)
@@ -3116,11 +3062,6 @@ namespace WolfCna
                         fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
                             ? 60
                             : fieldOfViewDegrees_ + 12;
-                        SaveCampaignProfile();
-                    }
-                    else if (pauseMenuSelection_ == 6)
-                    {
-                        viewSizeStep_ = (viewSizeStep_ + 1) % (MaximumViewSizeStep + 1);
                         SaveCampaignProfile();
                     }
                     else
@@ -3752,11 +3693,6 @@ namespace WolfCna
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
             storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_ && archivePlantSprite_)
         {
-            // Restricting the device viewport is what shrinks the 3D window; ProjectionMatrix
-            // reads the active viewport, so the aspect ratio follows without further work.
-            const Viewport fullViewport = device.getViewportProperty();
-            device.setViewportProperty(Viewport(WorldViewBounds()));
-            const ScopedViewport restoreViewport{device, fullViewport};
             world_.Draw(
                 device,
                 *effect_,

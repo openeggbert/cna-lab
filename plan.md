@@ -855,16 +855,45 @@ new M8-style extras, are:
 1. a fourth difficulty, since the classic ladder has four rungs and this has three;
 2. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay;
-3. a wider set of blocking static props, which is still only four decoration kinds
+3. an adjustable viewport size, currently fixed at a third of the window height
+   (attempted and reverted, see the CNA finding below);
+4. a wider set of blocking static props, which is still only four decoration kinds
    plus tables.
 
-The adjustable view size is done. Restricting the device viewport before the 3D
-pass is what shrinks the window, so `ProjectionMatrix` picks up the aspect ratio
-without further work, and an RAII guard restores the full viewport for the HUD,
-automap and menus. The HUD panel is never covered: the view shrinks inside the
-area above it and stays centred, leaving the classic border. The weapon belongs
-to the 3D window rather than the panel, so it scales and sits with it. Profile
-version 10 persists the step.
+### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
+
+The adjustable view size was implemented by restricting the device viewport around
+the 3D pass and restoring it afterwards, then reverted because it broke full
+screen.
+
+- API attempted: `GraphicsDevice::setViewportProperty()` with a sub-rectangle of
+  the current viewport, restored to the previous value after `World::Draw`.
+- Expected: the 3D pass is confined to the rectangle and everything drawn after the
+  restore is unaffected, as XNA's Viewport contract implies.
+- Actual: windowed rendering is correct, but in full screen everything drawn after
+  the world occupies only part of the display. Menus look fine because their panel
+  is centred on a dark background, so the symptom only becomes obvious once the 3D
+  world is on screen. It reproduces at the largest view-size step, where the
+  rectangle differs from the full viewport only by the HUD panel height, so it is
+  the act of setting a viewport at all, not the shrinking, that breaks it.
+- Renderer/platform: `OPENGLES3`, Linux/SDL3, 2048x1152 desktop.
+- Cause: `GraphicsDevice::setViewportProperty` forwards its argument straight to
+  `renderer_->SetViewport()`, while CNA's own backbuffer reset pushes a separately
+  computed PHYSICAL rectangle and keeps `viewport_` in LOGICAL coordinates (see the
+  comment at `GraphicsDevice.cpp`, "Pushes the PHYSICAL rectangle ... not the
+  logical width/height"). The public setter applies no logical-to-physical mapping,
+  so a game-set viewport bypasses whatever makes full screen present correctly.
+- Can the game continue without a workaround: yes, by not setting a viewport. The
+  feature is parked rather than faked.
+
+A second, smaller finding surfaced while diagnosing this:
+`GraphicsAdapter::queryCurrentDisplayMode` returns a hardcoded
+`DisplayMode(800, 480)` when the platform display service is unavailable, the
+display id is zero, or the query fails. That fallback is exactly CNA's default
+back buffer size, so a failed query is indistinguishable from a real answer. On a
+2048x1152 desktop it reported 800x480, which makes the property unusable for
+sizing a full-screen back buffer. Classify as `CNA-ENHANCEMENT`: the fallback
+should be reported, not silently substituted.
 
 The inter-sector loading screen is done as well. It holds for just over a second
 on entering a sector, naming the chapter, sector and code over a filling bar, and
