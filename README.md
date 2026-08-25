@@ -1,5 +1,7 @@
 # Tamagotchi CNA
 
+![image](screenshot.png)
+
 `tamagotchi-cna` is a C++ fan reimplementation built with
 [CNA](https://github.com/openeggbert/cna). Its single historical target is the
 **international 1997 Tamagotchi Generation 1 programme** (usually called
