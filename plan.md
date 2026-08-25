@@ -71,7 +71,12 @@ stable 55.574 MiB complete residency, and `NO REGRESSION`. This diagnostic addit
 outliers but does not change the physical-display qualification boundary.
 M13 now has a versioned, hash/evidence/rights/reviewer/approval-enforced production asset registry,
 seven focused tests, deterministic `THIRD_PARTY_ASSETS.md`, and verified CMake installation of that
-notice. M14 remains open for the broader clean runnable release package and dependency bundling.
+notice. M14's Linux EasyGL slice is now implemented: `scripts/build-release.sh`/
+`scripts/release_archive.py` build, install, validate, archive, re-extract-and-reverify, and
+offscreen/dummy-audio smoke-test a reproducible, runtime-only `.tar.gz` with ten bundled
+dependency license texts and no FFmpeg dependency (`CNA_ENABLE_VIDEO=OFF`); see
+`docs/release-packaging.md`. M14 remains open overall: this is not an external clean-workspace
+build on a separate machine, Windows packaging is untested, and the archive is unsigned.
 
 ## Task index
 

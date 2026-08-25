@@ -5,6 +5,15 @@ project(IronGang
     DESCRIPTION "Original open-city action-adventure prototype built on CNA and sharp-runtime"
     LANGUAGES CXX)
 
+include(GNUInstallDirs)
+
+# Persist the target identity for the release-archive validator. CMake's built-in system variables
+# are not guaranteed to be serialized into CMakeCache.txt.
+set(IRON_GANG_PACKAGE_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}" CACHE INTERNAL
+    "Target system name recorded for Iron Gang packages")
+set(IRON_GANG_PACKAGE_SYSTEM_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL
+    "Target architecture recorded for Iron Gang packages")
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -60,6 +69,10 @@ endif()
 set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(CNA_ENABLE_NET OFF CACHE BOOL "" FORCE)
+# Iron Gang does not play video. Leaving CNA's AUTO default enabled on a development machine with
+# FFmpeg installed adds four direct shared-library edges and a very large system codec closure to
+# an otherwise small game package.
+set(CNA_ENABLE_VIDEO OFF CACHE STRING "" FORCE)
 set(CNA_DEVICES OFF CACHE BOOL "" FORCE)
 set(CNA_CNAEXT OFF CACHE BOOL "" FORCE)
 set(CNA_ENABLE_DRACO OFF CACHE BOOL "" FORCE)
@@ -84,6 +97,9 @@ set(JPH_USE_DX12 OFF CACHE BOOL "" FORCE)
 set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
 set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
 set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
+# Jolt is linked into the game as a private static dependency. Its default install rules would
+# otherwise place the complete Jolt SDK (archive, headers, and CMake package) in the game runtime.
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 
 # OPENGLES3 uses CNA's EasyGL implementation and remains the recommended prototype renderer.
 # Override with VULKAN where available.
@@ -161,7 +177,7 @@ target_include_directories(iron_gang
 
 target_compile_definitions(iron_gang PRIVATE
     IRON_GANG_VERSION="${PROJECT_VERSION}"
-    IRON_GANG_DEFAULT_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    IRON_GANG_DEFAULT_ASSET_DIR="assets"
     IRON_GANG_GRAPHICS_BACKEND="${CNA_GRAPHICS_RENDERER}"
     IRON_GANG_BUILD_CONFIGURATION="${CMAKE_BUILD_TYPE}")
 
@@ -241,6 +257,10 @@ if(IRON_GANG_BUILD_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_asset_registry.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/asset_registry.py"
             "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME iron_gang_release_archive_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_release_archive.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/release_archive.py")
     add_test(NAME iron_gang_content_budget_tests
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"
@@ -291,6 +311,71 @@ if(IRON_GANG_BUILD_TESTS)
         TIMEOUT 60)
 endif()
 
-install(TARGETS iron_gang RUNTIME DESTINATION bin)
-install(DIRECTORY assets/ DESTINATION share/iron-gang/assets)
-install(FILES README.md LICENSE THIRD_PARTY.md THIRD_PARTY_ASSETS.md DESTINATION share/iron-gang)
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    # The Linux package places CNA's two actual SDL runtime dependencies in a private directory.
+    # A relative install RPATH keeps the extracted archive independent of this build workspace.
+    set_target_properties(iron_gang PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/iron-gang")
+endif()
+
+install(TARGETS iron_gang RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Ship only runtime content. Authoring sources, registry inputs, and build policy remain available
+# in the source repository; the generated notices below preserve package provenance.
+foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues missions)
+    install(DIRECTORY "assets/${runtime_asset_directory}"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets")
+endforeach()
+install(DIRECTORY "assets/generated/models/cnj"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets/generated/models")
+install(FILES README.md LICENSE THIRD_PARTY.md THIRD_PARTY_ASSETS.md docs/release-packaging.md
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang")
+
+set(_iron_gang_dependency_license_dir "${CMAKE_INSTALL_DATADIR}/iron-gang/licenses")
+function(iron_gang_install_dependency_license source destination_name)
+    if(NOT EXISTS "${source}")
+        message(FATAL_ERROR
+            "Iron Gang: required dependency license is missing: ${source}")
+    endif()
+    install(FILES "${source}"
+        DESTINATION "${_iron_gang_dependency_license_dir}"
+        RENAME "${destination_name}")
+endfunction()
+
+iron_gang_install_dependency_license("${IRON_GANG_CNA_DIR}/LICENSE" "CNA.txt")
+iron_gang_install_dependency_license("${IRON_GANG_SHARP_RUNTIME_DIR}/LICENSE" "sharp-runtime.txt")
+iron_gang_install_dependency_license("${IRON_GANG_JOLT_DIR}/LICENSE" "Jolt-Physics.txt")
+iron_gang_install_dependency_license("${IRON_GANG_CNA_DIR}/third_party/cgltf/LICENSE" "cgltf.txt")
+iron_gang_install_dependency_license(
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/licenses/stb.txt" "stb.txt")
+iron_gang_install_dependency_license(
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/licenses/nlohmann-json.txt" "nlohmann-json.txt")
+
+if(CNA_GRAPHICS_RENDERER STREQUAL "OPENGLES3" OR CNA_GRAPHICS_RENDERER STREQUAL "WEBGL2")
+    iron_gang_install_dependency_license(
+        "${IRON_GANG_DEPENDENCY_ROOT}/easy-gl/LICENSE" "easy-gl.txt")
+    iron_gang_install_dependency_license(
+        "${IRON_GANG_DEPENDENCY_ROOT}/meta-gl/LICENSE" "meta-gl.txt")
+endif()
+
+set(_iron_gang_sdl_license_root "${CNA_SDL_PREBUILT_ROOT}/install/share/licenses")
+iron_gang_install_dependency_license(
+    "${_iron_gang_sdl_license_root}/SDL3/LICENSE.txt" "SDL3.txt")
+iron_gang_install_dependency_license(
+    "${_iron_gang_sdl_license_root}/SDL3_mixer/LICENSE.txt" "SDL3_mixer.txt")
+
+if(WIN32 AND NOT EMSCRIPTEN)
+    install(FILES $<TARGET_FILE:SDL3::SDL3> $<TARGET_FILE:SDL3_mixer::SDL3_mixer>
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
+elseif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    file(GLOB _iron_gang_sdl_runtime_libraries CONFIGURE_DEPENDS
+        "${CNA_SDL_PREBUILT_ROOT}/install/lib/libSDL3.so*"
+        "${CNA_SDL_PREBUILT_ROOT}/install/lib/libSDL3_mixer.so*")
+    if(NOT _iron_gang_sdl_runtime_libraries)
+        message(FATAL_ERROR
+            "Iron Gang: CNA's Linux SDL runtime libraries were not found under "
+            "${CNA_SDL_PREBUILT_ROOT}/install/lib")
+    endif()
+    install(FILES ${_iron_gang_sdl_runtime_libraries}
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/iron-gang")
+endif()

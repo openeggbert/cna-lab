@@ -12,8 +12,8 @@ and console/mobile/web ports are explicit non-goals for v1 (see group 40).
 
 - [ ] **IG-37-001 P0** — Define Linux desktop + EasyGL as the officially supported primary OS/backend combination.
 - [ ] **IG-37-002 P0** — Define Windows desktop + EasyGL as the officially supported secondary OS/backend combination.
-- [ ] **IG-37-003 P0** — Create one reproducible development package and one release package per supported OS.
-- [ ] **IG-37-004 P0** — Include license and third-party notices in every package. *(Partial: CMake now installs repository `LICENSE`, dependency summary `THIRD_PARTY.md`, and generated/CTest-verified `THIRD_PARTY_ASSETS.md`; a clean temporary install confirms all three. Still open: copy the actual required dependency license texts into the final release archive rather than relying only on the summary.)*
+- [ ] **IG-37-003 P0** — Create one reproducible development package and one release package per supported OS. *(Partial: `scripts/release_archive.py` builds one reproducible, byte-identical-on-rerun Linux release archive from `release-easygl` — see `docs/release-packaging.md`. No development-package archive exists yet, and the Windows CMake install rules are untested. This is the Linux-only slice of gate M14 (`IG-39-015`), not the full task.)*
+- [x] **IG-37-004 P0** — Include license and third-party notices in every package. *(CMake installs repository `LICENSE`, `README.md`, `THIRD_PARTY.md`, generated/CTest-verified `THIRD_PARTY_ASSETS.md`, `docs/release-packaging.md`, and ten dependency license texts (CNA, sharp-runtime, Jolt Physics, cgltf, stb, nlohmann-json, easy-gl, meta-gl, SDL3, SDL3_mixer) under `share/iron-gang/licenses/`; `scripts/release_archive.py` fails the Linux release archive if any is missing. A clean install and the built/re-extracted archive both confirm the full set.)*
 - [ ] **IG-37-005 P1** — Create platform-specific settings/save/cache directories for Linux and Windows.
 - [ ] **IG-37-006 P1** — Create application icon, metadata, and version resources after branding is cleared.
 - [ ] **IG-37-007 P1** — Create clean install/uninstall tests for both supported platforms.
@@ -93,12 +93,12 @@ and console/mobile/web ports are explicit non-goals for v1 (see group 40).
 
 ## Release archive builder
 
-- [ ] **IG-37-063 P1** — Define scope: package the built executable, assets, license notices, and readme into one distributable archive per platform.
-- [ ] **IG-37-064 P1** — Implement the smallest deterministic build-to-archive script reusing existing `scripts/build.sh`/`install(...)` targets.
-- [ ] **IG-37-065 P1** — Add a test that a produced archive extracts and runs a smoke test cleanly on a clean directory.
-- [ ] **IG-37-066 P2** — Add checksum generation to the archive-builder script.
-- [ ] **IG-37-067 P2** — Add version-stamped archive naming matching the versioning scheme.
-- [ ] **IG-37-068 P2** — Document the archive-builder script's usage and failure modes.
+- [x] **IG-37-063 P1** — Define scope: package the built executable, assets, license notices, and readme into one distributable archive per platform. *(Done for Linux: `scripts/release_archive.py` packages the executable, runtime-only assets, and every license notice into one archive; see `docs/release-packaging.md` "Scope". Windows/macOS are not attempted.)*
+- [x] **IG-37-064 P1** — Implement the smallest deterministic build-to-archive script reusing existing `scripts/build.sh`/`install(...)` targets. *(`scripts/build-release.sh` configures/builds the existing `release-easygl` preset, and `scripts/release_archive.py` stages the package via `cmake --install` — the same `install(...)` rules the preset already defines — rather than a parallel packaging mechanism.)*
+- [x] **IG-37-065 P1** — Add a test that a produced archive extracts and runs a smoke test cleanly on a clean directory. *(`release_archive.py`'s `build_archive()` extracts the freshly built archive into a clean temporary directory and reruns the full layout/linkage/offscreen-smoke validation against the extracted copy on every run, not only in tests; `tests/test_release_archive.py::test_archive_is_deterministic_and_round_trips_symlinks` covers the extraction/round-trip path with synthetic fixtures.)*
+- [x] **IG-37-066 P2** — Add checksum generation to the archive-builder script. *(`release_archive.py` writes an atomic `<archive>.tar.gz.sha256` alongside the archive.)*
+- [x] **IG-37-067 P2** — Add version-stamped archive naming matching the versioning scheme. *(Archive/top-level directory name is `iron-gang-<CMAKE_PROJECT_VERSION>-linux-<arch>`, validated against archive-safe token rules.)*
+- [x] **IG-37-068 P2** — Document the archive-builder script's usage and failure modes. *(`docs/release-packaging.md`: prerequisites, build command, output paths, exact validation stages, a failure-mode table, testing, and the Linux-only/unsigned/single-machine boundary.)*
 
 ## Explicit non-goals for v1
 

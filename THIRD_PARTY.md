@@ -21,3 +21,35 @@ hashes are generated from the approved registry in `THIRD_PARTY_ASSETS.md`. Both
 installed with every CMake package; CTest refuses a stale generated asset notice.
 
 No other external textures, character models, vehicle models, music, or other downloaded content is bundled — everything else (MC3 scenes, the hand-authored test-character glTF, mission/cutscene/dialogue data) is an original Iron Gang asset. Future additions must be entered in `assets/licenses/asset-registry.csv` and reviewed for commercial use, modification, attribution, and redistribution rights.
+
+## Video/FFmpeg policy
+
+Iron Gang does not play video, so the game is built with `CNA_ENABLE_VIDEO=OFF` rather than
+CNA's `AUTO` default. `AUTO` would otherwise link the game directly against FFmpeg
+(`libavcodec`/`libavformat`/`libavutil`/`libswresample`) purely because a development machine
+happened to have it installed, adding an unused dependency and a much larger system codec
+closure to every package. `scripts/release_archive.py` fails the Linux release archive build if
+any of those four libraries appear as a direct link dependency of the installed executable.
+
+## Dependency license texts in the Linux release package
+
+The Linux release archive (`docs/release-packaging.md`) installs the following license texts
+verbatim under `share/iron-gang/licenses/`, alongside this summary and the generated asset
+notice:
+
+| File | Dependency |
+|---|---|
+| `CNA.txt` | CNA (`cnanext`) |
+| `sharp-runtime.txt` | sharp-runtime |
+| `Jolt-Physics.txt` | Jolt Physics |
+| `cgltf.txt` | cgltf (CNA transitive dependency) |
+| `stb.txt` | stb_image / stb_image_write (CNA transitive dependency) |
+| `nlohmann-json.txt` | JSON for Modern C++ (CNA transitive dependency) |
+| `easy-gl.txt` | easy-gl (EasyGL/`OPENGLES3` backend) |
+| `meta-gl.txt` | meta-gl (EasyGL/`OPENGLES3` backend) |
+| `SDL3.txt` | SDL3 (CNA prebuilt runtime dependency) |
+| `SDL3_mixer.txt` | SDL3_mixer (CNA prebuilt runtime dependency) |
+
+`stb.txt` and `nlohmann-json.txt` are repository-owned copies under
+`third_party/licenses/`; every other entry is installed directly from its own checkout. CMake
+fails the configure step if any required license source file is missing.

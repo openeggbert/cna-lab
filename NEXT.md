@@ -8,9 +8,13 @@ until the end of a session to reconstruct it from memory.
 
 Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
-Remote `origin` is configured. The owner explicitly authorized this handoff to push the accumulated
-paired-capture, worst-frame-correlation, and M13 asset-provenance commits; after the handoff,
-`develop` and `origin/develop` are synchronized through the M13 commit.
+Remote `origin` is configured. The owner explicitly authorized pushing the accumulated
+paired-capture, worst-frame-correlation, and M13 asset-provenance commits through `7c75fa2`, and
+separately authorized pushing the M14 Linux release-archive slice described immediately below
+(implemented by a Codex session stopped mid-handoff on 2026-08-24, finished, documented, and
+committed by a follow-up session on 2026-08-25). `develop` and `origin/develop` should be
+synchronized through that M14 commit — confirm with `git log --oneline -1` and
+`git status` if picking this up later.
 
 Gates M0-M11 and the independently verifiable M13 asset/legal gate (see `plan.md` milestone order)
 are done at prototype/first-pass fidelity, including
@@ -69,6 +73,80 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+### M14 Linux release-archive slice: implemented, documented, verified, and committed
+
+A prior Codex session stopped this task on 2026-08-24 mid-handoff (subscription ending):
+implementation and a first verification pass were complete, but documentation, a final
+post-edit verification pass, and the commit were not. A follow-up session on 2026-08-25
+finished it: added the documentation, re-ran every verification step against the final state
+(including one addition made during that pass — `docs/release-packaging.md`, wired into the
+installed notice set and the archive validator), confirmed both build-release.sh runs still
+produce a byte-identical archive, and committed the result on `develop`. Full verification
+detail, exact commands, and hashes are recorded in `docs/validation.md`'s "M14 Linux
+release-archive slice" entry rather than duplicated here.
+
+The selected work was the closest independently verifiable part of M14 because M12 remains blocked
+only on an explicitly disallowed physical-display capture. Everything below ran without a visible
+window, using SDL's virtual/offscreen video driver where the game was executed.
+
+Implemented and committed:
+
+- `CMakeLists.txt` now records target OS/architecture in the cache, forces CNA video off (the game
+  does not use it, and AUTO was leaking direct FFmpeg dependencies), disables Jolt install rules
+  (which were leaking its static SDK, headers, and CMake package), installs with GNU directory
+  conventions, and gives the Linux executable a relative
+  `$ORIGIN/../lib/iron-gang` install RPATH.
+- The install set is runtime-only: audio/config/cutscene/dialogue/mission data and generated CNJ
+  models. It excludes MC3/glTF authoring sources, registry/evidence inputs, generated GLB, headers,
+  and the Jolt SDK. `README.md`, `LICENSE`, `THIRD_PARTY.md`, and `THIRD_PARTY_ASSETS.md` remain
+  installed.
+- The Linux package installs CNA's SDL3 and SDL3_mixer shared libraries privately under
+  `lib/iron-gang`. Windows DLL install rules were added but **not tested**. Ten dependency license
+  files are installed under `share/iron-gang/licenses`: CNA, sharp-runtime, Jolt Physics, cgltf,
+  stb, nlohmann-json, EasyGL, meta-gl, SDL3, and SDL3_mixer. New repository-owned copies are
+  `third_party/licenses/stb.txt` and `third_party/licenses/nlohmann-json.txt`.
+- `src/main.cpp` no longer bakes the source checkout's absolute asset path into the executable.
+  Native builds resolve assets relative to the executable, preferring installed
+  `../share/iron-gang/assets`, then build-tree `../assets`, then `assets`; `--assets` still wins.
+  Emscripten keeps the virtual `assets` path. The final tiny edit guarded `GetExecutablePath` out of
+  Emscripten after Web warned it was unused; a Web rebuild during the 2026-08-25 follow-up
+  confirmed this guard is warning-free.
+- New executable `scripts/release_archive.py` stages via `cmake --install`, validates the exact
+  Linux Release/OPENGLES3/video-off identity and runtime-only layout, uses `readelf`/`ldd` to reject
+  FFmpeg, unresolved/wrong SDL resolution, absolute workspace RPATHs, and missing relative RPATH,
+  then runs an offscreen/dummy-audio five-frame smoke. The smoke requires successful load messages
+  for every shipped CNJ model and all three WAVs. It creates a sorted, normalized, reproducible
+  `.tar.gz`, safely re-extracts it (path traversal rejected), validates/smokes the extracted copy,
+  and atomically writes a `.sha256` file.
+- New executable `scripts/build-release.sh` runs preflight and asset-notice validation, configures
+  and builds `release-easygl`, and creates the archive. Its ccache defaults inside the build tree so
+  it does not depend on a globally writable cache.
+- New `tests/test_release_archive.py` has four cases: valid/missing-license/development-pollution
+  layout policy; byte-identical archive creation plus symlink round trip; path-traversal rejection;
+  and locked package identity. CMake registers it as the eleventh CTest.
+
+Documentation added during the 2026-08-25 follow-up: a "Linux release archive" `README.md`
+section; a video/FFmpeg policy note plus the ten-license table in `THIRD_PARTY.md`; new
+`docs/release-packaging.md` (prerequisites, command/output, every validation stage, a
+failure-mode table, testing, and the Linux-only/unsigned/single-machine boundary), installed
+and required by `release_archive.py`, with its fixture file added to `tests/test_release_archive.py`;
+and M14-status updates in `plan.md`, `plan/plan_37-platforms-packaging-release-and-operations.md`
+(`IG-37-004`, `IG-37-063`-`IG-37-068` closed for the Linux slice; `IG-37-003` partial),
+`plan/plan_39-vertical-slice-gates.md` (`IG-39-070` closed for the same-machine clean-install
+slice; `IG-39-015` partial), and `docs/validation.md`'s own "M14 Linux release-archive slice"
+entry (the authoritative record of the full re-run verification: py_compile, the focused 4/4
+test, `bash -n`, `git diff --check`, reconfigured `compile-software` with no-display CTest
+11/11, `scripts/check-syntax.sh`, `scripts/build-web.sh`, and two `scripts/build-release.sh`
+runs producing a byte-identical archive). M14 remains open overall (external clean checkout,
+full interactive playthrough of the packaged build, Windows packaging, and signing are all still
+missing); M12 remains open solely for its controlled physical-display pair — neither was
+accidentally claimed complete.
+
+This slice is now committed on `develop`. The owner explicitly asked this follow-up session to
+also push it to `origin/develop`.
+
+The old M13 paragraph immediately below is historical context: it predates this M14 Linux slice.
 
 **M13 asset provenance and generated notices are complete for the current slice.** The prior CSV was
 a manual list without content/evidence hashes, approval state, coverage enforcement, or generated

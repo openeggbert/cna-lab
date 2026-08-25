@@ -1,20 +1,79 @@
 #include "IronGang/Application/IronGangGame.hpp"
 
+#include <array>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <system_error>
+
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+#endif
 
 #ifndef IRON_GANG_DEFAULT_ASSET_DIR
 #define IRON_GANG_DEFAULT_ASSET_DIR "assets"
 #endif
 
+namespace
+{
+#if !defined(__EMSCRIPTEN__)
+    std::filesystem::path GetExecutablePath(const char* argumentZero)
+    {
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
+        std::array<char, 4096> pathBuffer{};
+        const auto length = ::readlink("/proc/self/exe", pathBuffer.data(), pathBuffer.size());
+        if (length > 0 && static_cast<std::size_t>(length) < pathBuffer.size())
+        {
+            return std::filesystem::path(
+                std::string(pathBuffer.data(), static_cast<std::size_t>(length)));
+        }
+#endif
+        if (argumentZero == nullptr || *argumentZero == '\0')
+        {
+            return {};
+        }
+        std::error_code error;
+        const auto absolutePath = std::filesystem::absolute(argumentZero, error);
+        return error ? std::filesystem::path(argumentZero) : absolutePath;
+    }
+#endif
+
+    std::string ResolveDefaultAssetRoot(const char* argumentZero)
+    {
+#if defined(__EMSCRIPTEN__)
+        (void)argumentZero;
+        return IRON_GANG_DEFAULT_ASSET_DIR;
+#else
+        const auto executablePath = GetExecutablePath(argumentZero);
+        if (!executablePath.empty())
+        {
+            const auto executableDirectory = executablePath.parent_path();
+            const std::array candidates{
+                executableDirectory / ".." / "share" / "iron-gang" / "assets",
+                executableDirectory / ".." / "assets",
+            };
+            for (const auto& candidate : candidates)
+            {
+                std::error_code error;
+                if (std::filesystem::is_directory(candidate, error) && !error)
+                {
+                    return candidate.lexically_normal().string();
+                }
+            }
+        }
+        return IRON_GANG_DEFAULT_ASSET_DIR;
+#endif
+    }
+}
+
 int main(int argc, char* argv[])
 {
     try
     {
-        std::string assetRoot = IRON_GANG_DEFAULT_ASSET_DIR;
+        std::string assetRoot = ResolveDefaultAssetRoot(argc > 0 ? argv[0] : nullptr);
         std::string profilePath;
         std::optional<IronGang::PerformanceScenario> profileScenario;
         bool verticalSync = true;

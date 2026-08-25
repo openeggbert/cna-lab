@@ -577,6 +577,77 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## M14 Linux release-archive slice (2026-08-25)
+
+A prior session implemented and did a first verification pass of a Linux EasyGL release
+archive, then stopped for an urgent handoff before documentation, a final post-edit
+verification pass, and a commit (see the "URGENT HANDOFF" entry that was in `NEXT.md`). This
+entry closes that out: documentation was added, and every verification step below was
+re-run against the final, documented state of the change.
+
+`CMakeLists.txt` now records the target OS/architecture in the CMake cache, sets
+`CNA_ENABLE_VIDEO=OFF` (this game does not use CNA's video playback; `AUTO` was pulling in
+four direct FFmpeg shared-library edges from a development machine that happened to have it
+installed), disables Jolt's own `install()` rules (which would otherwise ship its static
+archive, headers, and CMake package), switches to GNU install directory conventions, and gives
+the Linux executable a relative `$ORIGIN/../lib/iron-gang` install RPATH. The install set is
+runtime-only (audio/config/cutscene/dialogue/mission data and generated CNJ models, license
+notices, and a private copy of CNA's SDL3/SDL3_mixer shared libraries); ten dependency license
+texts are installed under `share/iron-gang/licenses/` (two of them, `stb.txt` and
+`nlohmann-json.txt`, are new repository-owned copies under `third_party/licenses/`). Windows
+DLL install rules exist but are untested. `src/main.cpp` no longer bakes the source checkout's
+absolute asset path into the executable; native builds resolve assets relative to the
+executable (installed `../share/iron-gang/assets`, then build-tree `../assets`, then `assets`),
+Emscripten keeps its virtual `assets` path, and the platform-specific executable-path lookup is
+compiled out entirely on Emscripten.
+
+New `scripts/release_archive.py` stages the package via `cmake --install`, validates the exact
+Linux Release/OPENGLES3/video-off identity and runtime-only layout, uses `readelf`/`ldd` to
+reject FFmpeg, unresolved or wrong-source SDL linkage, absolute workspace RPATHs, and a missing
+relative RPATH, runs an offscreen/dummy-audio five-frame smoke expecting every shipped CNJ model
+and WAV to load, then creates a sorted/normalized/reproducible `.tar.gz`, safely re-extracts it
+(rejecting path traversal), re-validates and re-smokes the extracted copy, and atomically writes
+a `.sha256` file. New `scripts/build-release.sh` runs preflight and asset-notice validation,
+configures/builds the `release-easygl` preset, and creates the archive, with ccache defaulting
+inside the build tree. New `docs/release-packaging.md` documents prerequisites, the build
+command, output paths, every validation stage, a failure-mode table, and the Linux-only/
+unsigned/single-machine boundary; it is itself installed and required by the archive validator.
+New `tests/test_release_archive.py` covers layout policy (valid/missing-license/development-
+pollution), deterministic archive creation plus a symlink round trip, path-traversal rejection,
+and locked package-identity policy; CMake registers it as the `iron_gang_release_archive_tests`
+CTest case.
+
+Full verification, all in this environment with no visible display or physical-window launch
+(`SDL_VIDEODRIVER=offscreen`, dummy audio, `DISPLAY`/`WAYLAND_DISPLAY` unset for every smoke
+run):
+
+- `python3 -m py_compile scripts/release_archive.py tests/test_release_archive.py` passes.
+- The focused suite passes 4/4: `python3 tests/test_release_archive.py scripts/release_archive.py`.
+- `bash -n scripts/build-release.sh` and `git diff --check` are both clean.
+- The reconfigured `compile-software` preset builds, and its no-display CTest passes 11/11
+  (including `iron_gang_release_archive_tests`).
+- `./scripts/check-syntax.sh` passes for all 27 tracked translation units.
+- `./scripts/build-web.sh` succeeds; the only warning is CNA's pre-existing `Song.hpp`
+  `GetHashCode` override warning, unrelated to this change, confirming the new
+  Emscripten-only `GetExecutablePath` compile-out guard is warning-free.
+- `./scripts/build-release.sh` was run twice end to end (preflight, asset-notice check,
+  `release-easygl` configure/build, archive). Both runs produced the byte-identical archive
+  `iron-gang-0.1.0-linux-x86_64.tar.gz` (25,312,754 bytes) with SHA-256
+  `bfcf9cea58d014f0644bbaddef95bbf5f0a7c4b24ed9e84fad35b08fa52a48d8`. This hash differs from
+  the pre-documentation hash recorded during the earlier interrupted session, as that session's
+  own note anticipated: `docs/release-packaging.md` is now part of the installed/archived
+  notice set, which legitimately changes package contents. The archive's internal validation
+  (layout, `readelf`/`ldd` linkage policy, and the offscreen/dummy-audio smoke run) passed
+  against both the freshly staged install and the re-extracted archive on every run.
+
+This closes the Linux EasyGL slice of gate M14 (`plan/plan_39-vertical-slice-gates.md`
+`IG-39-070`) and the license-notice/archive-builder tasks in `plan/plan_37-platforms-packaging-
+release-and-operations.md` (`IG-37-004`, `IG-37-063`-`IG-37-068`). It does not close the whole
+of M14 (`IG-39-015`): no external machine has built this from a clean checkout using only the
+documented steps, there is no full interactive playthrough of the packaged build, Windows
+packaging is untested, and the archive is unsigned and unpublished. It also does not touch M12,
+which remains open solely for controlled physical-display qualification.
+
 ## M13 asset provenance and notice gate
 
 The current first-district production set is now enforced by `scripts/asset_registry.py`, not a

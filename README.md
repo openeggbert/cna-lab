@@ -260,6 +260,24 @@ All generated CNJ output shares one content root, `assets/generated/models/cnj/`
 
 The executable loads `warehouse.cnj` and draws it in place of the procedural warehouse box, and loads `vehicle_body.cnj`/`vehicle_cabin.cnj`/`vehicle_windshield.cnj`/`vehicle_wheel.cnj` (the wheel model reused for all four wheel positions) and composes them with Iron Gang's own per-part transforms in place of the procedural sedan, proving the Mesh Craft → CNA runtime loop end to end while every other building stays procedural for now. The sedan is authored as four single-object MC3 files rather than one multi-part scene because the current `cna_tool_gltf_to_cnj` does not bake per-object glTF node transforms into vertex data — a multi-object MC3 scene loaded as one CNJ model would lose each part's relative position (confirmed empirically; see `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md` `IG-10-004b`). If a generated asset is missing (a fresh checkout that has not run `build-assets.sh` yet), the game logs a warning and falls back to procedural geometry instead of failing to start (`scripts/test-missing-asset-fallback.sh` covers both the warehouse and the sedan in `ctest`). Deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB and a standalone GLB validation step are still open (`plan/plan_39-vertical-slice-gates.md`).
 
+## Linux release archive
+
+```bash
+./scripts/build-release.sh
+```
+
+Builds the `release-easygl` preset and produces a runtime-only, reproducible
+`cmake-build-release-easygl/dist/iron-gang-<version>-linux-<arch>.tar.gz` plus its `.sha256`
+checksum: the executable, generated CNJ models, audio/config/cutscene/dialogue/mission data,
+license notices (including ten bundled dependency license texts), and CNA's private
+`libSDL3`/`libSDL3_mixer` runtime libraries resolved through a relative `$ORIGIN` RPATH. CNA's
+video backend is disabled for this game (`CNA_ENABLE_VIDEO=OFF`), so the package carries no
+FFmpeg dependency. `scripts/release_archive.py` validates the linked-library policy with
+`readelf`/`ldd`, then re-extracts and re-verifies the archive it just built, including an
+offscreen/dummy-audio smoke run. Full details, failure modes, and boundaries (Linux-only,
+unsigned, not an external-machine clean-checkout proof) are in
+[`docs/release-packaging.md`](docs/release-packaging.md).
+
 ## Repository map
 
 ```text
