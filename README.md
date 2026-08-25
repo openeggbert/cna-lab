@@ -51,6 +51,12 @@ themes, enemies, abilities, moving and delayed-drop platforms, checkpoints,
 hazards, pits, and an optional maintenance-conduit cache. Near a hatch, the
 in-world `DOWN` prompt explains the interaction without external assets.
 
+## Screenshots
+
+![Copper Boots gameplay - Green Ruins Relay level](screenshot.png)
+
+The image shows the opening stage with the courier-mechanic character, collectible copper cogs, and enemies in the overgrown machine ruins setting.
+
 ## Technology
 
 - C++23
