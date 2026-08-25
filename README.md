@@ -302,6 +302,7 @@ docs/renaming.md        Checklist for replacing the provisional title safely
 docs/performance-targets.md  Realistic hardware/RAM/VRAM targets for this game
 docs/performance-baseline.md Current EasyGL M12 measurements and open failure
 docs/mission-scripting.md    Mission file schema, variables, and expression language
+docs/save-format.md          Save schema, integrity guarantees, and migration rules
 ```
 
 ## License and assets

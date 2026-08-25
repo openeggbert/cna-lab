@@ -1,0 +1,16 @@
+format=iron-gang-save-v2
+checksum=72c9ff8a91fbb9cc
+mission_state_id=reach_vehicle
+player_position=0,0,0
+player_yaw=0
+vehicle_position=0,0,0
+vehicle_yaw=0
+vehicle_speed=0
+player_driving=0
+district_id=0
+mission_var.briefing_read=bool:true
+mission_var.cargo_secured=bool:false
+mission_var.deliveries_made=int:0
+mission_var.handover_radius=float:3
+mission_var.broken=int:not-a-number
+mission_var.=int:1

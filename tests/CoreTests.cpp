@@ -845,6 +845,168 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_29 IG-29-001/002/003/004/023: the save format's integrity guarantees -- an atomic
+    // write that cannot leave a half-written file, one rolling backup, a checksum that refuses a
+    // damaged file, and a version check that refuses a file from a newer build.
+    void TestSaveFormatRobustness()
+    {
+        const std::filesystem::path directory =
+            std::filesystem::current_path() / "iron_gang_save_robustness";
+        std::filesystem::remove_all(directory);
+        std::filesystem::create_directories(directory);
+        const std::filesystem::path path = directory / "prototype.save";
+        const std::string backupPath = IronGang::SaveGame::BackupPath(path.string());
+        const std::string temporaryPath = IronGang::SaveGame::TemporaryPath(path.string());
+        std::string error;
+
+        IronGang::SaveSnapshot first;
+        first.missionStateId = "reach_vehicle";
+        first.playerPosition = {1.0F, 1.7F, 2.0F};
+        first.vehiclePosition = {3.0F, 0.65F, 4.0F};
+        Require(IronGang::SaveGame::Write(path.string(), first, error), "the first write must succeed: " + error);
+        Require(!std::filesystem::exists(temporaryPath),
+                "a completed write must leave no temporary file behind");
+        Require(!std::filesystem::exists(backupPath), "the first write has no previous save to back up");
+
+        const auto readDocument = [](const std::filesystem::path& file) {
+            std::ifstream input(file, std::ios::binary);
+            return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+        };
+        const std::string document = readDocument(path);
+        Require(document.rfind("format=iron-gang-save-v" + std::to_string(IronGang::kCurrentSaveFormatVersion),
+                               0) == 0,
+                "a save must declare the current format version on its first line");
+        Require(document.find("\nchecksum=") != std::string::npos,
+                "a save must carry a checksum line");
+
+        IronGang::SaveReadDiagnostics diagnostics;
+        std::optional<IronGang::SaveSnapshot> loaded =
+            IronGang::SaveGame::Read(path.string(), error, &diagnostics);
+        Require(loaded.has_value() && loaded->missionStateId == "reach_vehicle",
+                "a freshly written save must read back: " + error);
+        Require(!diagnostics.usedBackup && diagnostics.formatVersion == IronGang::kCurrentSaveFormatVersion,
+                "a current-format primary save must report neither a backup nor a migration");
+
+        // The second write rotates the first save into the backup (IG-29-003).
+        IronGang::SaveSnapshot second = first;
+        second.missionStateId = "drive_to_warehouse";
+        Require(IronGang::SaveGame::Write(path.string(), second, error), "the second write must succeed: " + error);
+        Require(std::filesystem::exists(backupPath), "the previous save must be kept as a backup");
+        Require(!std::filesystem::exists(temporaryPath), "no temporary file may survive the write");
+        loaded = IronGang::SaveGame::Read(backupPath, error, &diagnostics);
+        Require(loaded.has_value() && loaded->missionStateId == "reach_vehicle",
+                "the backup must hold the previous save: " + error);
+
+        // A damaged primary file must be refused and the backup used instead (IG-29-003/004).
+        {
+            std::string damaged = readDocument(path);
+            const std::size_t position = damaged.find("drive_to_warehouse");
+            Require(position != std::string::npos, "the test needs a byte it can flip");
+            damaged[position] = 'X';
+            std::ofstream output(path, std::ios::binary | std::ios::trunc);
+            output << damaged;
+        }
+        loaded = IronGang::SaveGame::Read(path.string(), error, &diagnostics);
+        Require(loaded.has_value(), "a damaged primary save must fall back to the backup: " + error);
+        Require(diagnostics.usedBackup, "falling back to the backup must be reported");
+        Require(diagnostics.primaryError.find("corrupt") != std::string::npos,
+                "the reported reason must name the corruption: " + diagnostics.primaryError);
+        Require(loaded->missionStateId == "reach_vehicle", "the backup's contents must be what loads");
+
+        // Truncation is the other half of the same guarantee.
+        {
+            const std::string truncated = readDocument(path).substr(0, 40);
+            std::ofstream output(backupPath, std::ios::binary | std::ios::trunc);
+            output << truncated;
+        }
+        Require(!IronGang::SaveGame::Read(path.string(), error, &diagnostics).has_value(),
+                "a damaged save with a damaged backup must fail rather than load garbage");
+        Require(!error.empty(), "the failure must be reported");
+
+        // A file from a newer build must be refused, not half-read.
+        {
+            std::ofstream output(path, std::ios::binary | std::ios::trunc);
+            output << "format=iron-gang-save-v" << (IronGang::kCurrentSaveFormatVersion + 1) << "\n"
+                   << "checksum=0000000000000000\n"
+                   << "mission_state_id=reach_vehicle\n";
+        }
+        std::filesystem::remove(backupPath);
+        Require(!IronGang::SaveGame::Read(path.string(), error, &diagnostics).has_value(),
+                "a newer format version must be refused");
+        Require(error.find("newer version") != std::string::npos,
+                "the refusal must say the save is from a newer build: " + error);
+
+        // A version-1 file still loads, and reports that it was migrated (IG-29-001).
+        {
+            std::ofstream output(path, std::ios::binary | std::ios::trunc);
+            output << "format=iron-gang-save-v1\n"
+                   << "mission_state=3\n"
+                   << "player_position=1,1.7,2\n"
+                   << "player_yaw=0\n"
+                   << "vehicle_position=3,0.65,4\n"
+                   << "vehicle_yaw=0\n"
+                   << "vehicle_speed=0\n"
+                   << "player_driving=0\n";
+        }
+        loaded = IronGang::SaveGame::Read(path.string(), error, &diagnostics);
+        Require(loaded.has_value() && loaded->missionStateId == "drive_to_warehouse",
+                "a version-1 save must still load: " + error);
+        Require(diagnostics.formatVersion == 1, "the file's own version must be reported");
+
+        // A missing required field is reported by name rather than surfacing as an exception.
+        {
+            std::ofstream output(path, std::ios::binary | std::ios::trunc);
+            output << "format=iron-gang-save-v1\nmission_state_id=reach_vehicle\n";
+        }
+        Require(!IronGang::SaveGame::Read(path.string(), error, &diagnostics).has_value(),
+                "a save missing required fields must be refused");
+        Require(error.find("player_position") != std::string::npos,
+                "the missing field must be named: " + error);
+
+        // A temporary file left behind by an interrupted write is ignored, and the next write
+        // replaces it rather than tripping over it.
+        {
+            std::ofstream output(temporaryPath, std::ios::binary | std::ios::trunc);
+            output << "half a save, interrupted";
+        }
+        Require(IronGang::SaveGame::Write(path.string(), second, error),
+                "a leftover temporary file must not block the next write: " + error);
+        Require(!std::filesystem::exists(temporaryPath), "the leftover temporary file must be replaced");
+        loaded = IronGang::SaveGame::Read(path.string(), error, &diagnostics);
+        Require(loaded.has_value() && loaded->missionStateId == "drive_to_warehouse",
+                "the save written over a leftover temporary must be sound: " + error);
+
+        // A write that cannot complete must leave the existing save untouched (IG-29-023's
+        // disk-full case, approximated with a read-only directory).
+        const std::string beforeFailedWrite = readDocument(path);
+        std::error_code permissionError;
+        std::filesystem::permissions(directory,
+                                     std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::remove,
+                                     permissionError);
+        if (!permissionError)
+        {
+            IronGang::SaveSnapshot third = second;
+            third.missionStateId = "completed";
+            const bool wrote = IronGang::SaveGame::Write(path.string(), third, error);
+            std::filesystem::permissions(directory,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add,
+                                         permissionError);
+            // Running as a user who can write anyway (root) makes this case untestable; only
+            // assert when the write really did fail.
+            if (!wrote)
+            {
+                Require(readDocument(path) == beforeFailedWrite,
+                        "a failed write must leave the existing save byte-for-byte intact");
+                Require(!std::filesystem::exists(temporaryPath),
+                        "a failed write must not leave a temporary file behind");
+            }
+        }
+
+        std::filesystem::remove_all(directory);
+    }
+
     // plan_24 IG-24-018: a save written before mission states became free-form stored a 0-4 index
     // into a fixed enum. Those saves must still load, mapped onto the ids they meant.
     void TestSaveMigratesLegacyMissionState()
@@ -1241,15 +1403,26 @@ namespace
         Require(reloaded.TryGetVariable("briefing_read", value) && value.AsBool(),
                 "a rejected value must leave the existing variable untouched");
 
-        // A malformed variable line must be skipped without failing the rest of the save.
-        std::ofstream corrupt(path, std::ios::binary | std::ios::app);
-        corrupt << "mission_var.broken=int:not-a-number\n";
-        corrupt << "mission_var.=int:1\n";
-        corrupt.close();
+        // A malformed variable line must be skipped without failing the rest of the save. Written
+        // as a version-1 document, which has no checksum -- appending to a version-2 save would
+        // (correctly) be rejected as corrupt instead, which is what TestSaveFormatRobustness covers.
+        WriteTempJson(path,
+                      "format=iron-gang-save-v1\n"
+                      "mission_state_id=reach_vehicle\n"
+                      "player_position=1,1.7,2\n"
+                      "player_yaw=0\n"
+                      "vehicle_position=3,0.65,4\n"
+                      "vehicle_yaw=0\n"
+                      "vehicle_speed=0\n"
+                      "player_driving=0\n"
+                      "mission_var.briefing_read=bool:true\n"
+                      "mission_var.broken=int:not-a-number\n"
+                      "mission_var.=int:1\n");
         const std::optional<IronGang::SaveSnapshot> tolerant = IronGang::SaveGame::Read(path.string(), error);
         Require(tolerant.has_value(), "a malformed mission variable must not fail the whole load: " + error);
-        Require(tolerant->missionVariables.size() == snapshot.missionVariables.size(),
-                "a malformed mission variable must be skipped");
+        Require(tolerant->missionVariables.size() == 1 &&
+                    tolerant->missionVariables.front().name == "briefing_read",
+                "a malformed mission variable must be skipped and the sound ones kept");
 
         std::filesystem::remove(path);
     }
@@ -2242,6 +2415,7 @@ int main()
         TestMissionCheckpointRetryAndFailureReason();
         TestMissionCheckpointSurvivesSaveLoad();
         TestSaveMigratesLegacyMissionState();
+        TestSaveFormatRobustness();
         TestMissionExpressionEvaluatesTypedOperations();
         TestMissionExpressionRejectsMalformedInput();
         TestMissionVariablesEnforceTypes();

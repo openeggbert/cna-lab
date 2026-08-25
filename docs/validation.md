@@ -577,6 +577,51 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Save format integrity: versioning, atomic write, backup, checksum (2026-08-25)
+
+plan_29 `IG-29-001`/`002`/`003`/`004`/`022`/`023`/`025` closed; `IG-29-015`/`016`/`024` advanced.
+Done **before** extending the save further (the checkpoint world half the entry below flagged),
+because adding fields to a format with no version, no atomicity, and no integrity check compounds
+the problem rather than closing it.
+
+**What changed.** `SaveGame` was a single `WriteAllText` of a `format=iron-gang-save-v1` document
+whose reader `at()`-ed required keys — a torn write, a truncated file, or a missing field lost the
+save or surfaced as `map::at`. Now:
+
+* **Format version 2**, with `kMinSaveFormatVersion`/`kCurrentSaveFormatVersion` and a parsed,
+  range-checked `format=iron-gang-save-v<N>` first line. A newer version is refused by name rather
+  than half-read; version 1 still loads and is converted on read (`mission_state`'s int index →
+  `mission_state_id` through the exact table the deleted enum had), with
+  `SaveReadDiagnostics::formatVersion` reporting which version the file was.
+* **Atomic write.** The document goes to `<path>.tmp`, the existing save rotates to `<path>.bak`,
+  then the temporary is renamed into place — two renames within one directory. A failure at any
+  point leaves the previous save intact where it was or as the backup, never a half-written file at
+  the save's own path. A leftover temporary from an interrupted run is ignored and replaced.
+* **One rolling backup**, with automatic fallback: if the primary file is missing, corrupt, or
+  unsupported, `Read()` uses `<path>.bak` and reports it through `SaveReadDiagnostics::usedBackup`
+  and `primaryError`. `IronGangGame::LoadPrototype` logs the reason and shows "Loaded backup save" —
+  recovering silently would hide that the player lost the progress between the two.
+* **Checksum.** Line two is `checksum=<FNV-1a 64-bit hex>` over every byte after it. Documented as
+  damage detection, not tamper protection. Missing required fields are now reported by name.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; new
+`TestSaveFormatRobustness` covers the round trip, no surviving temporary file, backup rotation and
+contents, a flipped byte falling back to the backup with the reason reported, truncation with a
+damaged backup failing cleanly, a future version refused, a version-1 file migrating, a missing
+field named, a leftover garbage temporary being replaced, and — standing in for a full disk — a
+write into a read-only directory that must fail and leave the existing save byte-for-byte intact
+(asserted only when the write really failed, so the case is skipped rather than falsely passing
+under root). `TestMissionVariablesSurviveSaveLoad`'s malformed-variable case was rewritten as a
+version-1 document, because appending junk to a version-2 save is now correctly rejected as
+corrupt — the old test was only passing because nothing checked integrity. `scripts/check-syntax.sh`
+clean, `git diff --check` clean, `--smoke 300` exits 0. Schema and rules documented in
+`docs/save-format.md`, linked from `README.md`.
+
+**Boundaries.** No migration registry (`IG-29-026`) — with two versions the conversion is one branch,
+and `docs/save-format.md` says when to add it. No profiles/slots, autosave, settings separation,
+thumbnails, or CLI inspector. The world half of a mission checkpoint is still not saved, so a retry
+straight after a load restarts the mission; that is the next task (`IG-29-009`/`029`).
+
 ## Branching missions, wanted-state facts, and a real failure/retry loop (2026-08-25)
 
 plan_24 `IG-24-043` closed; `IG-24-006`/`007`/`024` advanced; plan_22 `IG-22-007` advanced. This is

@@ -37,13 +37,45 @@ namespace IronGang
         MissionCheckpointSnapshot missionCheckpoint;
     };
 
+    // Save format versions this build understands (plan_29 IG-29-001). Version 1 is the original
+    // plain "format=iron-gang-save-v1" file with no integrity check; version 2 adds a checksum
+    // line and is what Write() produces. A file claiming a newer version is refused rather than
+    // half-read: it was written by a build that knows fields this one does not.
+    inline constexpr int kMinSaveFormatVersion = 1;
+    inline constexpr int kCurrentSaveFormatVersion = 2;
+
+    // What Read() had to do to produce a snapshot. Not errors -- facts a caller may want to report.
+    struct SaveReadDiagnostics
+    {
+        // Version of the file the snapshot came from. Below kCurrentSaveFormatVersion means it was
+        // migrated on read and will be written back in the current format.
+        int formatVersion{kCurrentSaveFormatVersion};
+        // True when the primary file was unusable and the rolling backup was read instead.
+        bool usedBackup{false};
+        // Why the primary file was unusable, when usedBackup is true.
+        std::string primaryError;
+    };
+
     class SaveGame final
     {
     public:
+        // Writes atomically (plan_29 IG-29-002/003): the snapshot goes to TemporaryPath() first,
+        // any existing save is rotated to BackupPath(), and only then is the temporary file
+        // renamed into place. A failure at any point leaves either the previous save or its
+        // backup intact -- never a half-written file at @p path.
         [[nodiscard]] static bool Write(const std::string& path,
                                         const SaveSnapshot& snapshot,
                                         std::string& errorMessage);
+
+        // Reads @p path, verifying the checksum for format version 2 and migrating older versions.
+        // If the primary file is missing, corrupt, or unsupported, the rolling backup is read
+        // instead and @p diagnostics (when given) records that plus why (IG-29-003/004).
         [[nodiscard]] static std::optional<SaveSnapshot> Read(const std::string& path,
-                                                              std::string& errorMessage);
+                                                              std::string& errorMessage,
+                                                              SaveReadDiagnostics* diagnostics = nullptr);
+
+        // "<path>.bak" and "<path>.tmp" -- the rolling backup and the write-in-progress file.
+        [[nodiscard]] static std::string BackupPath(const std::string& path);
+        [[nodiscard]] static std::string TemporaryPath(const std::string& path);
     };
 }

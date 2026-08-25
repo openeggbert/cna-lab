@@ -808,12 +808,25 @@ namespace IronGang
     void IronGangGame::LoadPrototype()
     {
         std::string error;
-        const std::optional<SaveSnapshot> snapshot = SaveGame::Read(SavePath(), error);
+        SaveReadDiagnostics saveDiagnostics;
+        const std::optional<SaveSnapshot> snapshot = SaveGame::Read(SavePath(), error, &saveDiagnostics);
         if (!snapshot)
         {
             transientStatus_ = "Load failed: " + error;
             transientStatusSeconds_ = 3.0F;
             return;
+        }
+        // plan_29 IG-29-003/004: recovering from a damaged save is not a silent event -- the
+        // player has lost whatever happened between the backup and the save that failed.
+        if (saveDiagnostics.usedBackup)
+        {
+            std::cerr << "[IronGang] the save file could not be read (" << saveDiagnostics.primaryError
+                      << "); loaded the backup instead.\n";
+        }
+        if (saveDiagnostics.formatVersion < kCurrentSaveFormatVersion)
+        {
+            std::cerr << "[IronGang] migrated a format v" << saveDiagnostics.formatVersion
+                      << " save; the next save will be written as v" << kCurrentSaveFormatVersion << ".\n";
         }
 
         if (snapshot->districtId != districtManager_.GetWorld().GetId())
@@ -877,7 +890,7 @@ namespace IronGang
         cutscene_.Skip();
         vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever saved
         RespawnTrafficAndPedestrians(); // ambient traffic/pedestrian/police state is never saved
-        transientStatus_ = "Loaded prototype state";
+        transientStatus_ = saveDiagnostics.usedBackup ? "Loaded backup save" : "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
     }
 

@@ -92,6 +92,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Save format integrity: versioning, atomic write, rolling backup, checksum (plan_29)
+
+Deliberately done **before** persisting the checkpoint world half the entry below flagged: adding
+fields to a format with no version, no atomicity, and no integrity check compounds the problem.
+
+- **Version 2** with parsed `format=iron-gang-save-v<N>` and a range check. A newer version is
+  refused by name; version 1 still loads and converts on read; `SaveReadDiagnostics::formatVersion`
+  reports which version the file was.
+- **Atomic write:** `<path>.tmp` → rotate old save to `<path>.bak` → rename into place. A failure
+  never leaves a half-written file at the save's own path; a leftover `.tmp` is ignored and replaced.
+- **One rolling backup with fallback:** a missing/corrupt/unsupported primary falls back to `.bak`,
+  reported through `usedBackup`/`primaryError`; the game logs it and shows "Loaded backup save".
+- **Checksum:** `checksum=<FNV-1a 64 hex>` over the body. Damage detection, not tamper protection
+  (documented). Missing required fields are now named instead of throwing `map::at`.
+
+New `TestSaveFormatRobustness` covers all of it, including a leftover garbage `.tmp` (crash
+mid-write) and a read-only directory (disk full) that must leave the existing save byte-identical.
+Note `TestMissionVariablesSurviveSaveLoad`'s malformed-variable case had to be rewritten as a
+version-1 document -- appending junk to a v2 save is now correctly rejected, and the old test was
+only passing because nothing checked integrity. Schema, guarantees, and the "how to change the
+format" procedure are in `docs/save-format.md`.
+
+**Next:** the checkpoint world half (`IG-29-009`/`029`/`030`/`031`) -- the save carries the mission
+side of a checkpoint but not where the player and vehicle stood, so `RetryMission()` after a load
+still falls back to a full restart. The format can now absorb that as an additive change with no
+version bump.
+
 ### Branching missions, wanted-state facts, and a failure/retry loop that actually runs (plan_24)
 
 Closes the integration gap the entry below left open -- nothing in the running game could fail.
