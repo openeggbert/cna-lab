@@ -101,6 +101,38 @@
   source tree and reads `assets/` directly. Adding an asset now means adding its
   copy rule too, or only the web build breaks.
 
+## Difficulty scaling
+
+An audit traced every difficulty field to a runtime effect. The system is real, not
+a stub: enemy counts, enemy health, move speed, firing cadence, incoming damage and
+ammunition all scale, and difficulty is correctly re-derived on every level load,
+life loss and save load. All three gaps the audit found are now closed:
+
+1. ~~Reaction time does not scale.~~ Fixed: `reactionDelayMultiplier`
+   (1.4 / 1.0 / 0.65 / 0.45) and `hearingRangeMultiplier` (0.75 / 1.0 / 1.3 / 1.5)
+   scale hesitation and how far gunfire carries, and `wakeRangeMultiplier`
+   (1.0 / 1.0 / 1.15 / 1.4) scales how far an enemy will engage from.
+   `viewDotThreshold` is still difficulty-independent, which is a smaller remaining
+   gap.
+2. ~~Only one ranged enemy may fire at a time.~~ Fixed: `maximumRangedAttackers` is
+   1 / 1 / 2 / 3 and the turn goes to the nearest N eligible shooters rather than
+   the single nearest. This mattered less than expected until the engagement range
+   scaled too: three shooters almost never met in the authored corridors.
+3. ~~Player health never scales.~~ Fixed: health kits are worth 130 / 100 / 85 / 70
+   percent and a run allows 4 / 3 / 3 / 2 lives. Starting health stays at 100 on
+   every rung, as in 1992. A behavioural test measures what one authored kit
+   actually returns rather than comparing the constants.
+
+The roster ladder was reworked as well. Spawn tiers are positional, so the old
+four-step cycle already gave Veteran every authored enemy; the cycle is now eight
+steps and reserves the full roster for the top rung. Ammunition had no slack at all
+— Veteran's supply equalled its clear budget exactly — so three pickups per level
+lift every rung to a margin of 18 to 38 rounds, and the audit now demands a margin
+rather than a bare pass.
+
+Still asserted only at the constant-table level, never end to end: the
+incoming-damage multiplier reaching `health_`.
+
 ## Next tasks
 
 1. Play the native build and confirm the mouse: turning feel at each speed step, that `Escape` frees the cursor into the pause menu, that the splash and menus stay clickable, and that switching `MOUSE` off leaves keyboard turning intact.
