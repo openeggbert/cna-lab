@@ -577,6 +577,54 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Pedestrians stop walking through each other (2026-08-26)
+
+plan_20 `IG-20-010` closed. This fixes a defect the entry below **introduced**: six pedestrians per
+two-point sidewalk, half of them walking each way, meant they passed straight through one another —
+invisible at a population of two, obvious at twelve.
+
+**What changed.** Stacking and clipping are different problems, so there are two mechanisms:
+
+* **Lanes.** `Pedestrian::SetLaneOffset` shifts a pedestrian off the path centreline, always to the
+  right of its own heading, so the two directions of travel occupy two lanes and pass each other.
+  The offset moves the position **everything outside sees** — rendering, witness checks, congestion
+  queries — so it is a real position, not a drawing trick.
+* **Yielding.** `Pedestrian::Update` now takes the distance to the nearest pedestrian ahead *in its
+  own lane* and slows from 2.0 m to a full stop at 0.7 m: the same shape as `TrafficVehicle`'s
+  following distance, at walking scale. A queue forms instead of a pile, and a stopped pedestrian
+  keeps facing the way it was going rather than turning into a huddle.
+
+A **fleeing** pedestrian ignores clearance on purpose — someone running from a car does not queue —
+and that is asserted, not left implicit.
+
+The lane test moved out of `IronGangGame.cpp`, where it was a private helper with the traffic lane
+width baked into it, into a shared `DistanceAheadInLane` (`include/IronGang/Gameplay/LaneClearance.hpp`)
+that traffic and pedestrians both call with their own half-width: 2.0 m for cars, 0.55 m for people,
+which is exactly what lets two pedestrians pass shoulder to shoulder without braking each other.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestLaneClearanceSeesOnlyWhatIsAhead` covers ahead/behind/co-located/inside/outside the lane, that
+height is ignored, and that the same offset blocks in a traffic lane but not a walking lane.
+`TestPedestriansDoNotWalkThroughEachOther` walks two pedestrians head-on for 400 frames and asserts
+their closest approach stays above 0.5 m, that their lane offsets land on opposite sides of the
+centreline, that a follower behind a stopped pedestrian ends up between 0.2 m and 2.5 m behind it
+(stopped short, but actually queued up rather than halting at a distance), that it resumes once the
+way clears — a yield that deadlocks would be worse than the clipping it replaced — and that a
+fleeing pedestrian moves with zero clearance.
+
+A real `--profile-scenario mixed --smoke 400` run still reports 12 pedestrians and 4 vehicles.
+
+**Cost, stated rather than hidden:** the congestion scan is O(n²) — 144 checks per ambient update at
+12 pedestrians — and `ai_cpu` maximum moved from 0.022 ms to 0.094 ms (p95 unchanged at 0.002 ms).
+That is 350× under a 33 ms frame, so it is affordable now, but it is deliberately **not** a profiler
+counter yet: adding one revises the performance report's schema and its comparator contract, which
+is more than this scan is worth today. A streamed population (`IG-20-008`) will need both a counter
+and a spatial index.
+
+**Boundaries.** Pedestrians still do not avoid traffic or each other laterally (they yield in a
+line, they do not step around); `IG-20-004` remains partial. They are still colored boxes with no
+walk animation (`IG-20-003`).
+
 ## A deterministic RNG, and a city with people in it (2026-08-26)
 
 plan_04 `IG-04-011`/`012` closed; plan_20 `IG-20-001` and plan_21 `IG-21-001` closed — both P0

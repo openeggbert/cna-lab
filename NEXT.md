@@ -92,6 +92,30 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Pedestrians stop walking through each other (plan_20)
+
+Fixes a defect the entry below **introduced**: six pedestrians per two-point sidewalk, half walking
+each way, passed straight through one another. Invisible at a population of two, obvious at twelve.
+
+- **Lanes:** `Pedestrian::SetLaneOffset` shifts a pedestrian right of its own heading, so the two
+  directions occupy two lanes. The offset moves the position everything outside sees (rendering,
+  witness checks, congestion queries) -- a real position, not a drawing trick.
+- **Yielding:** `Update` takes the clearance to the pedestrian ahead in its own lane and slows from
+  2.0 m to a stop at 0.7 m -- `TrafficVehicle`'s following-distance shape at walking scale. A
+  **fleeing** pedestrian ignores it on purpose, and that is asserted.
+- The lane test moved out of `IronGangGame.cpp` (private helper, traffic width baked in) into a
+  shared `DistanceAheadInLane` (`Gameplay/LaneClearance.hpp`) that both movers call with their own
+  half-width: 2.0 m for cars, 0.55 m for people.
+
+Closed `IG-20-010`. Verified: build clean, CTest 11/11, two new tests -- including a 400-frame
+head-on walk asserting closest approach > 0.5 m, and that a yielding follower **resumes** (a yield
+that deadlocks would be worse than the clipping it replaced).
+
+**Known cost:** the scan is O(n squared), 144 checks per ambient update at 12 pedestrians; `ai_cpu`
+maximum went 0.022 -> 0.094 ms (p95 unchanged). Affordable now, deliberately **not** a profiler
+counter yet -- adding one revises the report schema and comparator contract. A streamed population
+(`IG-20-008`) will need both a counter and a spatial index.
+
 ### A deterministic RNG, and a city that finally has people in it (plan_04, plan_20, plan_21)
 
 Two **P0 gameplay** tasks that had sat since gate M9 -- "only 2 pedestrians spawned, not 10-20" and

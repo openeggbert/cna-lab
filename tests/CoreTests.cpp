@@ -6,6 +6,7 @@
 #include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
+#include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
@@ -926,6 +927,116 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_20 IG-20-010 / plan_21 IG-21-002: the shared lane-clearance test both movers rely on.
+    void TestLaneClearanceSeesOnlyWhatIsAhead()
+    {
+        const IronGang::Vector3 origin{0.0F, 0.0F, 0.0F};
+        constexpr float kFacingNegativeZ = 0.0F; // ForwardFromYaw(0) points down -Z
+
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.0F, 0.0F, -5.0F}, 2.0F) > 4.9F &&
+                    IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.0F, 0.0F, -5.0F}, 2.0F) < 5.1F,
+                "something straight ahead must report its distance");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.0F, 0.0F, 5.0F}, 2.0F) ==
+                    IronGang::kNoObstacleAhead,
+                "something behind must not count as an obstacle");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, origin, 2.0F) ==
+                    IronGang::kNoObstacleAhead,
+                "something in exactly the same place must not count -- it is not ahead");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {1.5F, 0.0F, -5.0F}, 2.0F) <
+                    IronGang::kNoObstacleAhead,
+                "something inside the lane must count");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {2.5F, 0.0F, -5.0F}, 2.0F) ==
+                    IronGang::kNoObstacleAhead,
+                "something beyond the lane's half-width must not count");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.0F, 9.0F, -5.0F}, 2.0F) <
+                    IronGang::kNoObstacleAhead,
+                "height must be ignored: roads and sidewalks are flat here");
+
+        // The narrow walking lane is what lets two people pass shoulder to shoulder.
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.9F, 0.0F, -2.0F},
+                                              IronGang::kWalkingLaneHalfWidth) ==
+                    IronGang::kNoObstacleAhead,
+                "a pedestrian in the next walking lane must not block this one");
+        Require(IronGang::DistanceAheadInLane(origin, kFacingNegativeZ, {0.9F, 0.0F, -2.0F},
+                                              IronGang::kTrafficLaneHalfWidth) < IronGang::kNoObstacleAhead,
+                "the same offset is inside a traffic lane, which is why the widths differ");
+    }
+
+    // plan_20 IG-20-010: twelve pedestrians on two two-point sidewalks used to walk through each
+    // other. Lanes separate the two directions of travel; yielding stops a follower rather than
+    // letting it pass through the pedestrian ahead.
+    void TestPedestriansDoNotWalkThroughEachOther()
+    {
+        const IronGang::WaypointPath sidewalk{{{0.0F, 0.9F, -20.0F}, {0.0F, 0.9F, 20.0F}}, true};
+
+        // Head-on: two pedestrians on the same line, walking opposite ways, in opposite lanes.
+        IronGang::Pedestrian northbound;
+        northbound.Reset(sidewalk, 0, 1.5F, 15.0F);
+        northbound.SetLaneOffset(0.45F);
+        IronGang::Pedestrian southbound;
+        southbound.Reset(sidewalk, 1, 1.5F, 15.0F);
+        southbound.SetLaneOffset(0.45F);
+
+        float closestApproach = 1e9F;
+        for (int frame = 0; frame < 400; ++frame)
+        {
+            northbound.Update(0.05F, false, IronGang::Vector3{}, IronGang::kNoObstacleAhead);
+            southbound.Update(0.05F, false, IronGang::Vector3{}, IronGang::kNoObstacleAhead);
+            const IronGang::Vector3 separation = northbound.GetPosition() - southbound.GetPosition();
+            closestApproach = std::min(closestApproach, separation.Length());
+        }
+        Require(closestApproach > 0.5F,
+                "pedestrians walking opposite ways must pass beside each other, not through: closest " +
+                    std::to_string(closestApproach));
+
+        // Their lane offsets put them on opposite sides of the centreline.
+        Require(std::fabs(northbound.GetPosition().X - northbound.GetPathPosition().X) > 0.1F,
+                "a lane offset must actually move where the pedestrian stands");
+        Require((northbound.GetPosition().X - northbound.GetPathPosition().X) *
+                        (southbound.GetPosition().X - southbound.GetPathPosition().X) <
+                    0.0F,
+                "opposite directions of travel must end up on opposite sides of the path");
+
+        // Following: a fast walker behind a stopped one must stop rather than pass through it.
+        IronGang::Pedestrian leader;
+        leader.Reset(sidewalk, 0, 1.4F, 10.0F);
+        IronGang::Pedestrian follower;
+        follower.Reset(sidewalk, 0, 1.4F, 8.0F);
+        const float leaderZ = leader.GetPosition().Z;
+        for (int frame = 0; frame < 200; ++frame)
+        {
+            // The leader is standing still (blocked by something of its own); the follower sees it.
+            const float clearance = IronGang::DistanceAheadInLane(follower.GetPosition(), follower.GetYaw(),
+                                                                  leader.GetPosition(),
+                                                                  IronGang::kWalkingLaneHalfWidth);
+            follower.Update(0.05F, false, IronGang::Vector3{}, clearance);
+        }
+        const float gap = leaderZ - follower.GetPosition().Z;
+        Require(gap > 0.2F, "the follower must stop short of the pedestrian ahead, not overlap it: gap " +
+                                std::to_string(gap));
+        Require(gap < 2.5F, "the follower must still close up to a queueing distance: gap " +
+                                std::to_string(gap));
+
+        // Once the way is clear it walks on again -- yielding must not deadlock a pedestrian.
+        const float stoppedZ = follower.GetPosition().Z;
+        for (int frame = 0; frame < 40; ++frame)
+        {
+            follower.Update(0.05F, false, IronGang::Vector3{}, IronGang::kNoObstacleAhead);
+        }
+        Require(follower.GetPosition().Z > stoppedZ + 1.0F,
+                "a pedestrian must resume walking once the way ahead clears");
+
+        // Fleeing ignores congestion on purpose: someone running from a car does not queue.
+        IronGang::Pedestrian fleeing;
+        fleeing.Reset(sidewalk, 0, 1.4F, 10.0F);
+        const IronGang::Vector3 threat = fleeing.GetPosition() + IronGang::Vector3(0.0F, 0.0F, -2.0F);
+        const IronGang::Vector3 beforeFlee = fleeing.GetPosition();
+        fleeing.Update(0.1F, true, threat, 0.0F); // zero clearance: blocked in every sense
+        Require(fleeing.IsFleeing(), "a threat must start the flee state");
+        Require((fleeing.GetPosition() - beforeFlee).Length() > 0.01F,
+                "a fleeing pedestrian must keep moving even with no clearance ahead");
     }
 
     // plan_20 IG-20-001 / plan_21 IG-21-001: several pedestrians share one sidewalk path without
@@ -3095,6 +3206,8 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestLaneClearanceSeesOnlyWhatIsAhead();
+        TestPedestriansDoNotWalkThroughEachOther();
         TestPedestrianSpawnOffsetSpreadsAlongPath();
         TestSimulationClockClampsStallsAndStaysMonotonic();
         TestLogSeverityAndCategoryFiltering();

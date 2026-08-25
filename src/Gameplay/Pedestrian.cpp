@@ -7,6 +7,14 @@ namespace IronGang
 {
     namespace
     {
+        // Walking scale, not driving scale: people close to within an arm's length before they
+        // stop, and only slow over the last couple of steps.
+        constexpr float kCongestionSlowDistance = 2.0F;
+        constexpr float kCongestionStopDistance = 0.7F;
+    }
+
+    namespace
+    {
         constexpr float kFleeDurationSeconds = 4.0F;
         constexpr float kFleeSpeedMultiplier = 2.5F;
         constexpr float kArrivalRadius = 0.5F;
@@ -44,7 +52,22 @@ namespace IronGang
         yaw_ = std::atan2(segment.X, -segment.Z);
     }
 
-    void Pedestrian::Update(float deltaSeconds, bool hasThreat, const Vector3& threatPosition)
+    Vector3 Pedestrian::GetPosition() const noexcept
+    {
+        if (laneOffsetMetres_ == 0.0F)
+        {
+            return position_;
+        }
+        // Right of the direction of travel, in the same yaw convention ForwardFromYaw uses.
+        const Vector3 forward = ForwardFromYaw(yaw_);
+        const Vector3 right(-forward.Z, 0.0F, forward.X);
+        return position_ + right * laneOffsetMetres_;
+    }
+
+    void Pedestrian::Update(float deltaSeconds,
+                            bool hasThreat,
+                            const Vector3& threatPosition,
+                            float clearanceAheadMetres)
     {
         if (hasThreat)
         {
@@ -71,6 +94,24 @@ namespace IronGang
             return;
         }
 
-        yaw_ = AdvanceAlongPath(path_, position_, targetIndex_, walkSpeed_, deltaSeconds, kArrivalRadius, yaw_);
+        // plan_20 IG-20-010: slow down as the pedestrian ahead gets closer, and stop rather than
+        // walk through them. The same shape as TrafficVehicle's following distance, at walking
+        // scale -- people leave far less room than cars do.
+        float speed = walkSpeed_;
+        if (clearanceAheadMetres < kCongestionSlowDistance)
+        {
+            const float t = std::clamp((clearanceAheadMetres - kCongestionStopDistance) /
+                                           (kCongestionSlowDistance - kCongestionStopDistance),
+                                       0.0F, 1.0F);
+            speed = walkSpeed_ * t;
+        }
+        if (speed <= 0.0F)
+        {
+            // Stopped, but still facing the way it was going: a queue of people all facing
+            // forward, not a huddle.
+            return;
+        }
+
+        yaw_ = AdvanceAlongPath(path_, position_, targetIndex_, speed, deltaSeconds, kArrivalRadius, yaw_);
     }
 }

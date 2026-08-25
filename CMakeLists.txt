@@ -125,6 +125,7 @@ add_library(iron_gang_core STATIC
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
+    src/Gameplay/LaneClearance.cpp
     src/Gameplay/Pedestrian.cpp
     src/Gameplay/PlayerController.cpp
     src/Gameplay/PoliceSystem.cpp

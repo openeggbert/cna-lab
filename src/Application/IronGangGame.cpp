@@ -3,6 +3,7 @@
 
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/RandomSource.hpp"
+#include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -62,8 +63,7 @@ namespace IronGang
         // Gate M9: how far ahead (and how far sideways from dead-ahead) something must be to
         // count as an obstacle a TrafficVehicle should brake for -- a simplified stand-in for a
         // real forward collision sensor, matching this system's kinematic-mover scope.
-        constexpr float kTrafficLaneHalfWidth = 2.0F;
-        constexpr float kNoObstacleAhead = 1000.0F;
+
         // How close the player's vehicle must get to a pedestrian before it flees.
         constexpr float kPedestrianThreatRadius = 6.0F;
         // Where a dispatched patrol car first appears: off to the side of the player's own
@@ -80,24 +80,6 @@ namespace IronGang
                 return "countryside";
             }
             return "unknown";
-        }
-
-        float DistanceAheadIfInLane(const Vector3& fromPosition, float fromYaw, const Vector3& obstaclePosition)
-        {
-            const Vector3 forward = ForwardFromYaw(fromYaw);
-            Vector3 toObstacle = obstaclePosition - fromPosition;
-            toObstacle.Y = 0.0F;
-            const float forwardDistance = Vector3::Dot(forward, toObstacle);
-            if (forwardDistance <= 0.0F)
-            {
-                return kNoObstacleAhead;
-            }
-            const Vector3 lateral = toObstacle - forward * forwardDistance;
-            if (lateral.Length() > kTrafficLaneHalfWidth)
-            {
-                return kNoObstacleAhead;
-            }
-            return forwardDistance;
         }
 
         Color DistrictMapBoxColor(const WorldBox& box)
@@ -691,6 +673,10 @@ namespace IronGang
                 pedestrian.Reset(sidewalk, startIndex,
                                  ambientRandom.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed),
                                  startIndex == 0 ? offset : sidewalkLength - offset);
+                // Everyone keeps to the same side of the pavement relative to their own heading,
+                // so the two directions of travel occupy two lanes and pass each other instead of
+                // walking through each other (plan_20 IG-20-010).
+                pedestrian.SetLaneOffset(ambientRandom.NextFloatInRange(0.30F, 0.55F));
                 pedestrians_.push_back(pedestrian);
             }
         }
@@ -1454,13 +1440,15 @@ namespace IronGang
                         }
                         obstacleDistance = std::min(
                             obstacleDistance,
-                            DistanceAheadIfInLane(myPosition, myYaw, trafficVehicles_[j].GetPosition()));
+                            DistanceAheadInLane(myPosition, myYaw, trafficVehicles_[j].GetPosition(),
+                                                kTrafficLaneHalfWidth));
                     }
                     if (playerDriving_)
                     {
                         obstacleDistance =
                             std::min(obstacleDistance,
-                                     DistanceAheadIfInLane(myPosition, myYaw, vehicle_.GetPosition()));
+                                     DistanceAheadInLane(myPosition, myYaw, vehicle_.GetPosition(),
+                                                         kTrafficLaneHalfWidth));
                     }
                     trafficVehicles_[i].Update(deltaSeconds, obstacleDistance);
                 }
@@ -1476,13 +1464,37 @@ namespace IronGang
                     witnessPositions.push_back(pedestrian.GetPosition());
                 }
 
-                for (Pedestrian& pedestrian : pedestrians_)
+                for (std::size_t i = 0; i < pedestrians_.size(); ++i)
                 {
+                    Pedestrian& pedestrian = pedestrians_[i];
                     const bool hasThreat =
                         playerDriving_ &&
                         DistanceSquaredXZ(pedestrian.GetPosition(), vehicle_.GetPosition()) <=
                             kPedestrianThreatRadius * kPedestrianThreatRadius;
-                    pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition());
+
+                    // plan_20 IG-20-010: how far away the nearest pedestrian ahead in this one's
+                    // walking lane is. The positions read here are the lane-offset ones, so two
+                    // people passing in opposite lanes do not brake each other.
+                    float clearanceAhead = kNoObstacleAhead;
+                    for (std::size_t j = 0; j < pedestrians_.size(); ++j)
+                    {
+                        if (i == j)
+                        {
+                            continue;
+                        }
+                        // Not counted in AiWorkloadSample: adding a counter means revising the
+                        // performance report's schema and its comparator contract, which is more
+                        // than this scan is worth today. It is O(n squared) -- 144 checks per
+                        // ambient update at 12 pedestrians -- and the moment the population is
+                        // streamed rather than fixed, it needs both a counter and a spatial index.
+                        clearanceAhead = std::min(clearanceAhead,
+                                                  DistanceAheadInLane(pedestrian.GetPosition(),
+                                                                      pedestrian.GetYaw(),
+                                                                      pedestrians_[j].GetPosition(),
+                                                                      kWalkingLaneHalfWidth));
+                    }
+
+                    pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
                 }
 
                 const PoliceUpdateWorkload policeWorkload = police_.Update(
