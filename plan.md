@@ -862,6 +862,12 @@ Phantom hits at 160%, moves and fires faster, reacts far sooner, hears further,
 fields a third simultaneous shooter, starts with two lives instead of three and
 finds health pickups worth 70%.
 
+Player resilience now scales across the whole ladder rather than only at the top:
+health kits are worth 130 / 100 / 85 / 70 percent and a run allows 4 / 3 / 3 / 2
+lives. Starting health stays at 100 on every rung, as it did in 1992 — the ladder
+moves how much a kit gives back and how many attempts a run allows instead. This
+closes the last gap the difficulty audit found.
+
 Both of the constraints that originally forced Phantom to share Veteran's roster
 have since been removed. Spawn tiers are positional, cycled over the authored
 enemies in map order, and the old four-step cycle already gave Veteran the entire
@@ -946,6 +952,9 @@ screen.
   so a game-set viewport bypasses whatever makes full screen present correctly.
 - Can the game continue without a workaround: yes, by not setting a viewport. The
   feature is parked rather than faked.
+- Status: the project owner reports this is fixable in `cnanext`. Once the public
+  setter applies the logical-to-physical mapping, the adjustable view size can be
+  restored by reverting the revert; the mechanism itself was correct.
 
 A second, smaller finding surfaced while diagnosing this:
 `GraphicsAdapter::queryCurrentDisplayMode` returns a hardcoded

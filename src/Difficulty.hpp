@@ -49,6 +49,8 @@ namespace WolfCna
         // Player resilience, and how far an enemy will engage from. Neither scaled before,
         // which is why the top rungs did not feel harder in real corridors: the extra
         // shooters the limit below allows only matter if that many enemies actually engage.
+        // Starting health stays at 100 on every rung, as it did in 1992; the ladder moves
+        // how much a kit gives back and how many attempts a run allows instead.
         int startingLives = 3;
         float healthPickupMultiplier = 1.0f;
         float wakeRangeMultiplier = 1.0f;
@@ -74,6 +76,8 @@ namespace WolfCna
                 .startingAmmunition = 16,
                 .reactionDelayMultiplier = 1.4f,
                 .hearingRangeMultiplier = 0.75f,
+                .startingLives = 4,
+                .healthPickupMultiplier = 1.3f,
                 .maximumRangedAttackers = 1};
         case Difficulty::Operative:
             return {};
@@ -88,6 +92,7 @@ namespace WolfCna
                 .startingAmmunition = 8,
                 .reactionDelayMultiplier = 0.65f,
                 .hearingRangeMultiplier = 1.3f,
+                .healthPickupMultiplier = 0.85f,
                 .wakeRangeMultiplier = 1.15f,
                 .maximumRangedAttackers = 2};
         case Difficulty::Phantom:

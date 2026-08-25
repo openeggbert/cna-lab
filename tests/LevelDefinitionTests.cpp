@@ -1407,6 +1407,39 @@ int main()
             phantomPressure > veteranPressure * 3 / 2,
         "each rung lands clearly more damage under sustained pressure");
     Expect(
+        scoutProfile.startingLives > operativeProfile.startingLives &&
+            operativeProfile.startingLives == veteranProfile.startingLives &&
+            veteranProfile.startingLives > phantomProfile.startingLives &&
+            scoutProfile.healthPickupMultiplier >
+                operativeProfile.healthPickupMultiplier &&
+            operativeProfile.healthPickupMultiplier >
+                veteranProfile.healthPickupMultiplier &&
+            veteranProfile.healthPickupMultiplier >
+                phantomProfile.healthPickupMultiplier,
+        "player resilience falls as difficulty rises, through kits and attempts");
+
+    // Behavioural, not just the table: the same authored kit must actually hand back
+    // fewer points on a harder rung. Starting health stays 100 everywhere, as in 1992.
+    const WolfCna::LevelDefinition kitLevel = WolfCna::LevelDefinition::Parse(
+        "#####\n#P.H#\n#####\n",
+        "health-scaling.level");
+    const auto kitValue = [&kitLevel](WolfCna::Difficulty difficulty)
+    {
+        WolfCna::World kitWorld(kitLevel, difficulty);
+        const WolfCna::World::PickupResult taken =
+            kitWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(3.5f, 0.0f, 1.5f), 60);
+        return taken.health;
+    };
+    const int scoutKit = kitValue(WolfCna::Difficulty::Scout);
+    const int operativeKit = kitValue(WolfCna::Difficulty::Operative);
+    const int veteranKit = kitValue(WolfCna::Difficulty::Veteran);
+    const int phantomKit = kitValue(WolfCna::Difficulty::Phantom);
+    Expect(
+        scoutKit > operativeKit && operativeKit > veteranKit &&
+            veteranKit > phantomKit && phantomKit > 0,
+        "one authored health kit restores strictly less on each harder rung");
+
+    Expect(
         phantomProfile.startingLives < veteranProfile.startingLives &&
             phantomProfile.healthPickupMultiplier <
                 veteranProfile.healthPickupMultiplier &&
