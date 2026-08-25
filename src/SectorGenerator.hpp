@@ -17,6 +17,9 @@ namespace WolfCna
         int doors = 0;
         int objectiveRoute = 0;
         int attempts = 0;
+        int theme = 0;
+        bool bossFloor = false;
+        bool secretFloor = false;
         bool valid = false;
     };
 

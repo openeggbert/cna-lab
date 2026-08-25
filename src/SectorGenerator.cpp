@@ -607,15 +607,38 @@ namespace WolfCna
 
             // The curve: deeper runs face more of everything and are given less back.
             const int tier = std::min(depth, 10);
-            const int guards = 4 + tier / 2;
-            const int hounds = 2 + tier / 3;
-            const int troopers = 2 + tier / 3;
-            const int heavies = tier / 2;
-            const int ammoLarge = std::max(3, 6 - tier / 4);
+            const int theme = depth % 5;
+            const bool bossFloor = depth > 0 && depth % 5 == 4;
+            const bool secretFloor = depth > 0 && depth % 3 == 2 && !bossFloor;
+
+            // Each theme leans on a different archetype, so consecutive sectors do not
+            // simply repeat with larger numbers.
+            int guards = 4 + tier / 2;
+            int hounds = 2 + tier / 3;
+            int troopers = 2 + tier / 3;
+            int heavies = tier / 2;
+            switch (theme)
+            {
+            case 0: guards += 2; break;                 // storage: rank and file
+            case 1: hounds += 2; break;                 // kennels
+            case 2: troopers += 2; break;               // laboratories
+            case 3: heavies += 1; troopers += 1; break; // archive garrison
+            default: guards += 1; heavies += 1; break;  // core
+            }
+            if (bossFloor)
+            {
+                // A Warden every fifth floor, with the garrison thinned so the fight is
+                // the encounter rather than an extra one on top of a full sector.
+                guards = std::max(2, guards - 2);
+                hounds = std::max(1, hounds - 1);
+            }
+            const int ammoLarge = std::max(3, 6 - tier / 4) + (bossFloor ? 2 : 0);
             const int ammoSmall = std::max(1, 3 - tier / 5);
 
             struct Entry { char symbol; int count; Placement placement; };
-            const std::array<Entry, 20> entries{{
+            const std::array<Entry, 22> entries{{
+                {'Z', bossFloor ? 1 : 0, Placement::OpenFloor},
+                {'X', secretFloor ? 1 : 0, Placement::AgainstWall},
                 {'S', 1, Placement::OpenFloor},
                 {'Y', 2, Placement::OpenFloor},
                 {'I', 3, Placement::Anywhere},
@@ -665,6 +688,9 @@ namespace WolfCna
             result.walkable = walkable;
             result.doors = doorCount;
             result.objectiveRoute = route;
+            result.theme = theme;
+            result.bossFloor = bossFloor;
+            result.secretFloor = secretFloor;
             result.valid = true;
             return result;
         }

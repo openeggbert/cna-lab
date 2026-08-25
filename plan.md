@@ -576,6 +576,13 @@ ambush, props in open floor, and an objective route between 90 and 130 cells.
 The difficulty curve is depth-driven: more guards, hounds, troopers and heavy units,
 and less ammunition, the deeper a run goes. Target times lengthen with depth too.
 
+Depth also changes a sector's character rather than only its counts. Five themes
+rotate, each leaning on a different archetype -- rank and file, kennels, laboratory
+troopers, an archive garrison, the core -- and each drives its own music track and
+plant palette. Every fifth floor is a Warden encounter with the ordinary garrison
+thinned and extra ammunition, so the boss is the fight rather than an extra one on top
+of a full sector. Some other floors hide a secret elevator.
+
 Two constraints found while fitting it. The generator's own audit originally required
 the whole 3x3 block around a prop to be plain floor, including the centre -- which the
 prop itself occupies, so no sector could ever pass; only the ring may be checked. And

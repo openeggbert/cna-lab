@@ -1362,6 +1362,30 @@ int main()
         Expect(
             WolfCna::ProceduralTargetSeconds(0) < WolfCna::ProceduralTargetSeconds(5),
             "deeper procedural sectors allow more time");
+
+        // Depth must change the character of a sector, not only its counts: a Warden
+        // every fifth floor, a hidden elevator on some others, and a rotating theme.
+        const WolfCna::GeneratedSector bossFloor = WolfCna::GenerateSector(777u, 4);
+        const WolfCna::GeneratedSector plainFloor = WolfCna::GenerateSector(777u, 3);
+        Expect(
+            bossFloor.valid && bossFloor.bossFloor &&
+                bossFloor.grid.find('Z') != std::string::npos,
+            "every fifth procedural floor is a Warden encounter");
+        Expect(
+            plainFloor.valid && !plainFloor.bossFloor &&
+                plainFloor.grid.find('Z') == std::string::npos,
+            "ordinary procedural floors carry no boss");
+        const WolfCna::GeneratedSector secretFloor = WolfCna::GenerateSector(777u, 2);
+        Expect(
+            secretFloor.valid && secretFloor.secretFloor &&
+                secretFloor.grid.find('X') != std::string::npos,
+            "some procedural floors hide a secret elevator");
+        std::vector<int> themes;
+        for (int depth = 0; depth < 5; ++depth)
+            themes.push_back(WolfCna::GenerateSector(777u, depth).theme);
+        std::sort(themes.begin(), themes.end());
+        themes.erase(std::unique(themes.begin(), themes.end()), themes.end());
+        Expect(themes.size() == 5, "five consecutive floors use five different themes");
     }
 
     // The compass needs a goal to point at in every sector, and the position has to be

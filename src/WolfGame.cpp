@@ -1373,7 +1373,9 @@ namespace WolfCna
     void WolfGame::UpdateSectorMusic()
     {
         const int selectedTheme = std::clamp(
-            GetCampaignSector(levelIndex_).audioTheme,
+            proceduralRun_
+                ? proceduralDepth_ % static_cast<int>(musicInstances_.size())
+                : GetCampaignSector(levelIndex_).audioTheme,
             0,
             static_cast<int>(musicInstances_.size()) - 1);
         for (std::size_t theme = 0; theme < musicInstances_.size(); ++theme)
@@ -4172,11 +4174,15 @@ namespace WolfCna
                 *peaceBannerTexture_,
                 *ceilingLampTexture_,
                 *lampLightTexture_,
-                levelIndex_ == 0
-                    ? *storagePlantSprite_
-                    : levelIndex_ == 1
-                        ? *foundryPlantSprite_
-                        : levelIndex_ == 2 ? *labsPlantSprite_ : *archivePlantSprite_,
+                [this]() -> Texture2D&
+                {
+                    const int palette = proceduralRun_ ? proceduralDepth_ % 4 : levelIndex_;
+                    if (palette == 0)
+                        return *storagePlantSprite_;
+                    if (palette == 1)
+                        return *foundryPlantSprite_;
+                    return palette == 2 ? *labsPlantSprite_ : *archivePlantSprite_;
+                }(),
                 propSpritePointers,
                 playerPosition_);
         }
