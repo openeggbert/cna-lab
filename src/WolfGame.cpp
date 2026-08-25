@@ -422,7 +422,11 @@ namespace WolfCna
             constexpr float sampleRate = 22050.0f;
             const float beat = 60.0f / theme.bpm;
             const float eighth = beat * 0.5f;
-            const int bars = 8;
+            // Sixteen bars rather than eight. A sector lasts minutes, so a fifteen-second
+            // loop repeats often enough to grate; the second half reuses the same chord
+            // walk with the lead figure displaced, which doubles the length without
+            // doubling the material.
+            const int bars = 16;
             const float duration = beat * 4.0f * static_cast<float>(bars);
             const int sampleCount = static_cast<int>(sampleRate * duration);
 
@@ -437,7 +441,8 @@ namespace WolfCna
                     static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
                 const float time = static_cast<float>(index) / sampleRate;
                 const int barIndex = static_cast<int>(time / (beat * 4.0f)) % bars;
-                const int chord = theme.bars[static_cast<std::size_t>(barIndex)];
+                const bool secondHalf = barIndex >= 8;
+                const int chord = theme.bars[static_cast<std::size_t>(barIndex % 8)];
 
                 // Bass: the bar root on every eighth, short and percussive.
                 const int eighthIndex = static_cast<int>(time / eighth);
@@ -448,12 +453,16 @@ namespace WolfCna
                 const float bass = SquareAt(bassHz * time, 0.5f) * 0.3f * bassEnv;
 
                 // Lead: a fixed sixteen-step figure transposed by the bar's chord.
-                const int leadStep = eighthIndex % 16;
+                // Displacing the figure by three steps in the second half turns a repeat
+                // into a variation, and lifting it an octave keeps it from blurring into
+                // the first half.
+                const int leadStep = (eighthIndex + (secondHalf ? 3 : 0)) % 16;
                 const int leadDegree = theme.lead[static_cast<std::size_t>(leadStep)];
                 float lead = 0.0f;
                 if (leadDegree >= 0)
                 {
-                    const float leadHz = ScaleHertz(theme.root, chord + leadDegree, 2);
+                    const float leadHz = ScaleHertz(
+                        theme.root, chord + leadDegree, secondHalf ? 3 : 2);
                     const float attack = std::min(1.0f, eighthPhase / 0.012f);
                     const float decay = std::exp(-eighthPhase * 4.2f);
                     lead = SquareAt(leadHz * time, 0.32f) * theme.leadLevel * attack * decay;

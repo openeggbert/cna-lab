@@ -1017,6 +1017,11 @@ The metadata assertion that pinned two themes to the two chapters was replaced: 
 is now per sector rather than per chapter, so it checks the range and that the sectors
 spread across the tracks instead of sharing one.
 
+The loops run sixteen bars rather than eight. A sector lasts minutes, so a fifteen
+second loop repeats often enough to grate. The second half reuses the same chord walk
+with the lead figure displaced by three steps and lifted an octave, which turns a
+repeat into a variation and doubles the length without doubling the material.
+
 ### CNA finding: relative mouse motion is scaled down on the web — `BACKEND`
 
 Mouse turning in the browser is far slower than the desktop build for the same hand
