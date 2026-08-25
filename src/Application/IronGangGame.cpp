@@ -848,6 +848,7 @@ namespace IronGang
         world.vehicleYaw = vehicle_.GetYaw();
         world.vehicleSpeed = vehicle_.GetSpeed();
         world.playerDriving = playerDriving_;
+        world.vehicleIntegrity = vehicle_.GetIntegrity();
         world.districtId = districtManager_.GetWorld().GetId();
         return world;
     }
@@ -1035,6 +1036,9 @@ namespace IronGang
     {
         player_.Reset(snapshot.playerPosition, snapshot.playerYaw, physics_);
         vehicle_.Restore(snapshot.vehiclePosition, snapshot.vehicleYaw, snapshot.vehicleSpeed, physics_);
+        // After Restore, not before: Reset()/Restore() decide whether the car is repaired, and the
+        // saved integrity has to win over that.
+        vehicle_.SetIntegrity(snapshot.vehicleIntegrity);
         playerDriving_ = snapshot.playerDriving;
         // A save is never taken mid-cutscene by design (nothing writes one there), but force the
         // cutscene to its terminal state anyway so restoring can never leave the game with an
@@ -1528,7 +1532,10 @@ namespace IronGang
             // state is pushed in as facts rather than derived inside PrototypeMission::Update().
             const PoliceState policeState = police_.GetState();
             std::string factError;
-            if (!mission_.SetFact("police_alerted", MissionValue::Bool(policeState != PoliceState::Clear),
+            if (!mission_.SetFact("vehicle_integrity", MissionValue::Float(vehicle_.GetIntegrity()),
+                                  factError) ||
+                !mission_.SetFact("vehicle_disabled", MissionValue::Bool(vehicle_.IsDisabled()), factError) ||
+                !mission_.SetFact("police_alerted", MissionValue::Bool(policeState != PoliceState::Clear),
                                   factError) ||
                 !mission_.SetFact("police_chasing", MissionValue::Bool(policeState == PoliceState::Chasing),
                                   factError) ||
@@ -1898,6 +1905,18 @@ namespace IronGang
                 objective << (playerDriving_ ? "Driving" : "On foot") << " | " << MissionStatusLine(mission_);
                 spriteBatch_->DrawString(*hudFont_, objective.str(), Vector2(10.0F, lineY), Color(255, 255, 255, 255));
                 lineY += kLineHeight;
+
+                if (playerDriving_ && vehicle_.GetIntegrity() < 0.999F)
+                {
+                    std::ostringstream damage;
+                    damage << (vehicle_.IsDisabled() ? "WRECKED" : "DAMAGE ")
+                           << " " << static_cast<int>(std::lround((1.0F - vehicle_.GetIntegrity()) * 100.0F))
+                           << "%";
+                    spriteBatch_->DrawString(*hudFont_, damage.str(), Vector2(10.0F, lineY),
+                                             vehicle_.IsDisabled() ? Color(230, 60, 60, 255)
+                                                                   : Color(235, 190, 80, 255));
+                    lineY += kLineHeight;
+                }
 
                 if (playerDriving_)
                 {

@@ -205,6 +205,8 @@ one. The prototype's set (`IronGang::CreatePrototypeMissionFacts`, `PrototypeMis
 | `police_alerted` | bool | The police have been dispatched or are chasing. |
 | `police_chasing` | bool | A patrol car is actively chasing the player. |
 | `police_chase_seconds` | float | How long the current chase has run. Resets when the chase resolves. |
+| `vehicle_integrity` | float | 1 for an undamaged sedan, 0 for a wreck. See `docs/vehicles.md`. |
+| `vehicle_disabled` | bool | The sedan is wrecked. It still rolls, slowly. |
 
 The three composite facts exist so every version-1 mission file keeps loading. New missions should
 prefer the primitives — `player_driving && vehicle_in_warehouse_goal` says what it means, and

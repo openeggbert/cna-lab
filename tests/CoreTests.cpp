@@ -13,6 +13,7 @@
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleConfig.hpp"
+#include "IronGang/Gameplay/VehicleDamage.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
 #include "IronGang/Missions/MissionDefinition.hpp"
 #include "IronGang/Missions/MissionExpression.hpp"
@@ -929,6 +930,123 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_17 IG-17-015: a sedan takes damage from impacts, and the thing the model has to get
+    // right is telling a crash apart from braking -- otherwise every red light wrecks the car.
+    void TestVehicleDamageDistinguishesCrashesFromBraking()
+    {
+        constexpr float kFrame = 1.0F / 60.0F;
+        IronGang::VehicleDamage damage;
+        Require(std::fabs(damage.GetIntegrity() - 1.0F) < 1e-6F, "a new vehicle must be undamaged");
+        Require(!damage.IsDisabled(), "a new vehicle must not be disabled");
+        Require(std::fabs(damage.GetSpeedFactor() - 1.0F) < 1e-6F,
+                "an undamaged vehicle must reach its full speed");
+
+        // Hard braking from 22 m/s to a stop over two seconds: about 1.1 g, and not a scratch.
+        float speed = 22.0F;
+        for (int frame = 0; frame < 120 && speed > 0.0F; ++frame)
+        {
+            const float next = std::max(0.0F, speed - 11.0F * kFrame);
+            Require(damage.RegisterFrame(speed, next, kFrame) == 0.0F,
+                    "braking must never damage the car");
+            speed = next;
+        }
+        Require(std::fabs(damage.GetIntegrity() - 1.0F) < 1e-6F,
+                "a full braking stop must leave the car undamaged");
+
+        // Accelerating, coasting, and holding speed do nothing either.
+        Require(damage.RegisterFrame(10.0F, 12.0F, kFrame) == 0.0F, "accelerating must not damage");
+        Require(damage.RegisterFrame(10.0F, 10.0F, kFrame) == 0.0F, "holding speed must not damage");
+        Require(damage.RegisterFrame(10.0F, 9.99F, kFrame) == 0.0F, "coasting must not damage");
+        Require(damage.RegisterFrame(10.0F, 5.0F, 0.0F) == 0.0F, "a zero-length frame must be ignored");
+
+        // A crash: 18 m/s into a wall, stopped within one frame.
+        const float firstImpact = damage.RegisterFrame(18.0F, 2.0F, kFrame);
+        Require(firstImpact > 0.0F, "a wall at speed must damage the car");
+        Require(damage.GetIntegrity() < 1.0F, "the damage must be recorded");
+        const float afterFirst = damage.GetIntegrity();
+
+        // A harder crash costs more than a softer one, from the same starting integrity.
+        IronGang::VehicleDamage gentle;
+        IronGang::VehicleDamage harsh;
+        const float gentleLoss = gentle.RegisterFrame(8.0F, 4.0F, kFrame);
+        const float harshLoss = harsh.RegisterFrame(22.0F, 0.0F, kFrame);
+        Require(harshLoss > gentleLoss, "a faster impact must cost more integrity");
+        Require(gentleLoss >= 0.0F, "a light knock must never restore integrity");
+
+        // Damage accumulates, and the car eventually wrecks -- but never past zero.
+        for (int impact = 0; impact < 20; ++impact)
+        {
+            damage.RegisterFrame(20.0F, 0.0F, kFrame);
+        }
+        Require(damage.GetIntegrity() < afterFirst, "repeated impacts must accumulate");
+        Require(damage.IsDisabled() && damage.GetIntegrity() == 0.0F,
+                "enough impacts must wreck the car, and integrity must floor at 0");
+        Require(std::fabs(damage.GetSpeedFactor() - damage.GetSettings().minimumSpeedFactor) < 1e-6F,
+                "a wrecked car must keep exactly its minimum speed factor");
+        Require(damage.GetSpeedFactor() > 0.0F,
+                "a wrecked car must still roll -- stranded is a situation, immobile is a trap");
+
+        // Reversing into something is a crash too: magnitudes are what count.
+        IronGang::VehicleDamage reversing;
+        Require(reversing.RegisterFrame(-6.0F, 0.0F, kFrame) > 0.0F,
+                "reversing into a wall must damage the car");
+        IronGang::VehicleDamage throughZero;
+        Require(throughZero.RegisterFrame(-0.2F, 0.2F, kFrame) == 0.0F,
+                "changing direction through zero must not read as an impact");
+
+        // Repair and restore.
+        damage.Reset();
+        Require(std::fabs(damage.GetIntegrity() - 1.0F) < 1e-6F, "Reset must repair the car");
+        damage.SetIntegrity(0.4F);
+        Require(std::fabs(damage.GetIntegrity() - 0.4F) < 1e-6F, "a saved integrity must be restored");
+        damage.SetIntegrity(5.0F);
+        Require(std::fabs(damage.GetIntegrity() - 1.0F) < 1e-6F, "an out-of-range integrity must clamp");
+        damage.SetIntegrity(-1.0F);
+        Require(damage.GetIntegrity() == 0.0F, "a negative integrity must clamp to a wreck");
+        damage.SetIntegrity(std::numeric_limits<float>::quiet_NaN());
+        Require(std::fabs(damage.GetIntegrity() - 1.0F) < 1e-6F,
+                "a NaN integrity must fall back to undamaged rather than poisoning the model");
+
+        // Tuning changes what counts as a crash.
+        IronGang::VehicleDamage tuned;
+        IronGang::VehicleDamageSettings settings;
+        // 18 -> 2 m/s in one 60 Hz frame is about 960 m/s^2; a threshold above that must ignore it,
+        // while a harder crash (25 -> 0, about 1500 m/s^2) must still register.
+        settings.impactDecelerationThreshold = 1200.0F;
+        tuned.Configure(settings);
+        Require(tuned.RegisterFrame(18.0F, 2.0F, kFrame) == 0.0F,
+                "raising the threshold must stop counting the same impact");
+        Require(tuned.RegisterFrame(25.0F, 0.0F, kFrame) > 0.0F,
+                "a crash past the raised threshold must still register");
+
+        // The saved integrity survives a save/load round trip.
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_damage.save";
+        std::string error;
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionStateId = "drive_to_warehouse";
+        snapshot.vehicleIntegrity = 0.42F;
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "writing must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value() && std::fabs(loaded->vehicleIntegrity - 0.42F) < 1e-4F,
+                "vehicle integrity must survive the save round trip: " + error);
+
+        // A save from before the field existed loads an intact car, not a wreck.
+        WriteTempJson(path,
+                      "format=iron-gang-save-v1\n"
+                      "mission_state_id=reach_vehicle\n"
+                      "player_position=1,1.7,2\n"
+                      "player_yaw=0\n"
+                      "vehicle_position=3,0.65,4\n"
+                      "vehicle_yaw=0\n"
+                      "vehicle_speed=0\n"
+                      "player_driving=0\n");
+        const std::optional<IronGang::SaveSnapshot> old = IronGang::SaveGame::Read(path.string(), error);
+        Require(old.has_value() && std::fabs(old->vehicleIntegrity - 1.0F) < 1e-6F,
+                "an older save must load an undamaged car -- the friendlier of the two defaults");
+
+        std::filesystem::remove(path);
     }
 
     // plan_36 IG-36-002/006/009: every JSON data file is bounded before a parser touches it.
@@ -2992,8 +3110,9 @@ namespace
         Require(mission.IsCompleted(), "a retried mission must be able to complete again");
     }
 
-    // Gate M11 / plan_39 IG-39-064 (vehicle-loss recovery): this prototype has no vehicle-
-    // destruction mechanic (no combat/damage system exists yet, plan_23), so "recovery" is proven
+    // Gate M11 / plan_39 IG-39-064 (vehicle-loss recovery): the sedan can now be wrecked by
+    // impacts (plan_17 IG-17-015) but never destroyed or removed -- a wreck still steers and rolls
+    // -- so "losing" a vehicle still means being separated from it. Recovery is therefore proven
     // at the level that actually exists: if the player saves while separated from their own
     // vehicle (on foot, vehicle parked somewhere else), loading must restore BOTH independently
     // rather than collapsing one onto the other -- the vehicle is never actually "lost" as long as
@@ -3457,6 +3576,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();
         TestLaneClearanceSeesOnlyWhatIsAhead();

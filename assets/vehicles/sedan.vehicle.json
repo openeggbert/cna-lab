@@ -19,5 +19,10 @@
     "maxForwardSpeed": 22.0,
     "maxReverseSpeed": 6.0
   },
+  "damage": {
+    "impactDecelerationThreshold": 40.0,
+    "integrityLostPerImpactSpeed": 0.055,
+    "minimumSpeedFactor": 0.35
+  },
   "notes": "Chassis and wheel geometry must keep matching PrototypeRenderer's body/wheel offsets; see docs/vehicles.md."
 }

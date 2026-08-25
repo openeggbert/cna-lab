@@ -92,6 +92,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The sedan can be wrecked (plan_17)
+
+Closes the gap this document has carried since gate M11: "no combat/damage system at all, so
+vehicle-loss has no real mechanic behind it".
+
+Impacts come from the vehicle's **own speed history**, not contact reports: a frame losing speed
+faster than any brake could **is** a collision. Needs nothing new from the physics layer, cannot
+miss a contact Jolt resolved internally, and the separation is wide -- braking is ~1 g, the
+threshold ~4 g, a crash is tens.
+
+- Integrity 1 -> 0, accumulates, floors at 0, scales the engine's pull toward `minimumSpeedFactor`.
+  **A wrecked sedan still steers and rolls** -- stranded is a situation, immobile is a trap.
+- `VehicleDamage` is pure arithmetic (no physics/input/rendering), so the whole model is unit-tested.
+- Tunable in `sedan.vehicle.json`'s `damage` block; integrity is saved (older saves load an intact
+  car); published to missions as `vehicle_integrity`/`vehicle_disabled`, so a mission **can** now
+  fail on a wrecked car. HUD shows `DAMAGE n%` then `WRECKED`.
+
+Verified: build clean, CTest 11/11, a 13-case damage test -- and the check that matters most, a full
+`--profile-scenario mission` run recording **zero** impacts and still completing. A model that fired
+on normal driving would have wrecked the car before the warehouse.
+
+Not done: wheel damage (wheels have no per-wheel state), visual damage, any repair beyond a mission
+reset, and **no committed mission uses the new facts yet** -- the prologue still only fails on a long
+police chase. Wiring `vehicle_disabled` into a failure branch is a one-line mission-file change
+whenever that is wanted.
+
 ### Data files are bounded before a parser sees them (plan_36)
 
 Three loaders written in the last few iterations -- mission, game config, vehicle tuning -- each read

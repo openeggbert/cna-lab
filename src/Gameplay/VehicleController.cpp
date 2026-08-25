@@ -27,6 +27,7 @@ namespace IronGang
 
     void VehicleController::Configure(const VehicleConfig& config)
     {
+        damage_.Configure(config.damage);
         if (vehicleHandle_.IsValid())
         {
             // The chassis, wheels, and mass were baked into the physics body at creation, so this
@@ -47,6 +48,10 @@ namespace IronGang
         yaw_ = yaw;
         speed_ = 0.0F;
         previousForwardInput_ = 0.0F;
+        // A reset is a fresh start or a retry: the player gets an intact car, not the wreck they
+        // arrived in.
+        damage_.Reset();
+        lastImpactSeverity_ = 0.0F;
     }
 
     void VehicleController::Restore(const Vector3& position, float yaw, float speed, Physics::PhysicsWorld& physics)
@@ -86,16 +91,32 @@ namespace IronGang
             previousForwardInput_ = forward;
         }
 
+        // A wrecked car keeps steering and rolling, but the engine no longer pulls the way it
+        // did -- being stranded in a wreck is a situation, being unable to move at all is a trap.
+        forward *= damage_.GetSpeedFactor();
+
         const float steer = std::clamp(input.steering, -1.0F, 1.0F);
         const float handBrake = input.handbrake ? 1.0F : 0.0F;
         physics.SetVehicleInput(vehicleHandle_, forward, steer, brake, handBrake);
 
         physics.Step(deltaSeconds);
 
+        const float previousSpeed = speed_;
         position_ = physics.GetVehiclePosition(vehicleHandle_);
         yaw_ = physics.GetVehicleYaw(vehicleHandle_);
 
         const Vector3 velocity = physics.GetVehicleLinearVelocity(vehicleHandle_);
         speed_ = Vector3::Dot(velocity, GetForward());
+
+        // plan_17 IG-17-015: a speed drop no brake could produce is a collision. Reading it back
+        // from the speed the solver just produced needs nothing new from the physics layer and
+        // cannot miss a contact Jolt resolved internally.
+        lastImpactSeverity_ = damage_.RegisterFrame(previousSpeed, speed_, deltaSeconds);
+        if (lastImpactSeverity_ > 0.0F)
+        {
+            Log::Info(LogCategory::Application,
+                      "vehicle impact: integrity now " + std::to_string(damage_.GetIntegrity()) +
+                          (damage_.IsDisabled() ? " (disabled)" : ""));
+        }
     }
 }

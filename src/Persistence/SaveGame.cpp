@@ -101,6 +101,7 @@ namespace IronGang
             text << "vehicle_yaw=" << snapshot.vehicleYaw << "\n";
             text << "vehicle_speed=" << snapshot.vehicleSpeed << "\n";
             text << "player_driving=" << (snapshot.playerDriving ? 1 : 0) << "\n";
+            text << "vehicle_integrity=" << snapshot.vehicleIntegrity << "\n";
             text << "district_id=" << static_cast<int>(snapshot.districtId) << "\n";
             for (const MissionVariableSnapshot& variable : snapshot.missionVariables)
             {
@@ -416,6 +417,11 @@ namespace IronGang
                 snapshot.vehicleYaw = std::stof(vehicleYaw);
                 snapshot.vehicleSpeed = std::stof(vehicleSpeed);
                 snapshot.playerDriving = std::stoi(playerDriving) != 0;
+                const auto integrityIt = values.find("vehicle_integrity");
+                if (integrityIt != values.end())
+                {
+                    snapshot.vehicleIntegrity = std::stof(integrityIt->second);
+                }
                 const auto districtIt = values.find("district_id");
                 snapshot.districtId = districtIt != values.end()
                                           ? static_cast<DistrictId>(std::stoi(districtIt->second))

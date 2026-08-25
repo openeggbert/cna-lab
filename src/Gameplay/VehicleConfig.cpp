@@ -24,7 +24,7 @@ namespace IronGang
         bool IsKnownRootKey(const std::string& key)
         {
             return key == "id" || key == "version" || key == "chassis" || key == "wheels" ||
-                   key == "performance" || key == "notes";
+                   key == "performance" || key == "damage" || key == "notes";
         }
 
         bool IsKnownKey(const std::string& section, const std::string& key)
@@ -36,6 +36,11 @@ namespace IronGang
             if (section == "wheels")
             {
                 return key == "radius" || key == "width" || key == "positions";
+            }
+            if (section == "damage")
+            {
+                return key == "impactDecelerationThreshold" || key == "integrityLostPerImpactSpeed" ||
+                       key == "minimumSpeedFactor";
             }
             return key == "maxForwardSpeed" || key == "maxReverseSpeed";
         }
@@ -245,6 +250,18 @@ namespace IronGang
                              config.maxForwardSpeed, warnings);
                 ReadPositive(performance, "performance", "maxReverseSpeed", 0.5F, 200.0F,
                              config.maxReverseSpeed, warnings);
+            }
+
+            JsonElement damage;
+            if (root.TryGetProperty("damage", damage) && damage.getValueKindProperty() == JsonValueKind::Object)
+            {
+                WarnUnknownKeys(damage, "damage", warnings);
+                ReadPositive(damage, "damage", "impactDecelerationThreshold", 5.0F, 500.0F,
+                             config.damage.impactDecelerationThreshold, warnings);
+                ReadPositive(damage, "damage", "integrityLostPerImpactSpeed", 0.0001F, 1.0F,
+                             config.damage.integrityLostPerImpactSpeed, warnings);
+                ReadPositive(damage, "damage", "minimumSpeedFactor", 0.0F, 1.0F,
+                             config.damage.minimumSpeedFactor, warnings);
             }
 
             if (config.maxReverseSpeed > config.maxForwardSpeed)

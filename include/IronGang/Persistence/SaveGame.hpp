@@ -22,6 +22,9 @@ namespace IronGang
         float vehicleYaw{0.0F};
         float vehicleSpeed{0.0F};
         bool playerDriving{false};
+        // plan_17 IG-17-015: 1 is undamaged, 0 is wrecked. Absent in older saves, which load with
+        // an intact car -- the friendlier default of the two.
+        float vehicleIntegrity{1.0F};
         // Added for gate M5 (district loading, plan_13). Older save files without this field
         // load with a WarehouseBlock default rather than failing.
         DistrictId districtId{DistrictId::WarehouseBlock};

@@ -1,5 +1,5 @@
 format=iron-gang-save-v2
-checksum=c3e0ff247bd866c0
+checksum=9e1783e97b0f33a4
 mission_state_id=busted
 player_position=40,1.7,-12
 player_yaw=2.5
@@ -7,6 +7,7 @@ vehicle_position=41,0.65,-12
 vehicle_yaw=0
 vehicle_speed=0
 player_driving=1
+vehicle_integrity=1
 district_id=0
 mission_checkpoint_state_id=drive_to_warehouse
 mission_checkpoint_var.cargo_secured=bool:true

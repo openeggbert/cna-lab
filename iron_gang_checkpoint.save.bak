@@ -1,5 +1,5 @@
 format=iron-gang-save-v2
-checksum=e1b58362d369fed1
+checksum=588bf05cf9896a05
 mission_state_id=start
 player_position=0,0,0
 player_yaw=0
@@ -7,6 +7,7 @@ vehicle_position=0,0,0
 vehicle_yaw=0
 vehicle_speed=0
 player_driving=0
+vehicle_integrity=1
 district_id=0
 mission_var.crates=int:2
 mission_checkpoint_state_id=start

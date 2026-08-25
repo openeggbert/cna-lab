@@ -20,9 +20,12 @@ namespace IronGang
     //     police_alerted                    bool   the police have been dispatched or are chasing
     //     police_chasing                    bool   a patrol car is actively chasing the player
     //     police_chase_seconds              float  how long the current chase has run, seconds
+    //     vehicle_integrity                 float  1 for an undamaged sedan, 0 for a wreck
+    //     vehicle_disabled                  bool   the sedan is wrecked (integrity 0)
     //
-    // The three police facts are pushed by the game through SetFact() rather than derived from
-    // Update()'s arguments, because PoliceSystem is the game's, not the mission's.
+    // The police and vehicle-damage facts are pushed by the game through SetFact() rather than
+    // derived from Update()'s arguments, because PoliceSystem and VehicleController are the
+    // game's, not the mission's.
     //
     // The three composite facts (player_near_vehicle and the two ..._in_warehouse_goal spellings
     // gate M7 shipped) are kept so every version-1 mission file still loads unchanged; new

@@ -23,6 +23,8 @@ namespace IronGang
         constexpr const char* kFactPoliceAlerted = "police_alerted";
         constexpr const char* kFactPoliceChasing = "police_chasing";
         constexpr const char* kFactPoliceChaseSeconds = "police_chase_seconds";
+        constexpr const char* kFactVehicleIntegrity = "vehicle_integrity";
+        constexpr const char* kFactVehicleDisabled = "vehicle_disabled";
 
         void LogMission(const std::string& message)
         {
@@ -111,7 +113,9 @@ namespace IronGang
             context.DeclareFact(kFactPlayerDrivingInWarehouseGoal, MissionValue::Bool(false), error) &&
             context.DeclareFact(kFactPoliceAlerted, MissionValue::Bool(false), error) &&
             context.DeclareFact(kFactPoliceChasing, MissionValue::Bool(false), error) &&
-            context.DeclareFact(kFactPoliceChaseSeconds, MissionValue::Float(0.0F), error);
+            context.DeclareFact(kFactPoliceChaseSeconds, MissionValue::Float(0.0F), error) &&
+            context.DeclareFact(kFactVehicleIntegrity, MissionValue::Float(1.0F), error) &&
+            context.DeclareFact(kFactVehicleDisabled, MissionValue::Bool(false), error);
         if (!declared)
         {
             LogMissionFault("failed to declare the prototype fact set: " + error);

@@ -37,6 +37,9 @@ it, it does not implement it.
 | `wheels.positions` | exactly 4 × 3 numbers | front-left, front-right, rear-left, rear-right | — | Chassis-local, in metres. |
 | `performance.maxForwardSpeed` | number | `22.0` | 1–200 | Metres per second (≈ 79 km/h). |
 | `performance.maxReverseSpeed` | number | `6.0` | 0.5–200 | Metres per second. |
+| `damage.impactDecelerationThreshold` | number | `40.0` | 5–500 | m/s² above which a speed drop counts as a crash rather than braking. |
+| `damage.integrityLostPerImpactSpeed` | number | `0.055` | 0.0001–1 | Integrity lost per m/s of impact severity. |
+| `damage.minimumSpeedFactor` | number | `0.35` | 0–1 | Fraction of top speed a wrecked car keeps. |
 | `notes` | string | — | — | Accepted and ignored. |
 
 ## The coupling the loader cannot check
@@ -59,6 +62,31 @@ The same rule as `docs/configuration.md`: a broken or partial file costs the tun
 | One malformed wheel entry | All four keep their defaults — three applied and one defaulted would be a wheelbase nobody designed. |
 | `maxReverseSpeed` > `maxForwardSpeed` | Loads, with a warning: legal, but a typo far more often than a design. |
 | Malformed JSON, non-object root, unsupported `version` | **Failures.** `LoadVehicleConfig` returns false, leaves the caller's configuration untouched, and the game logs it and drives the built-in sedan. |
+
+## Damage
+
+Impacts are detected from the vehicle's **own speed history**, not from contact reports: a frame in
+which speed drops faster than any brake could manage *is* a collision. That needs nothing new from
+the physics layer and cannot miss a contact the solver resolved internally.
+
+The separation is wide on purpose. A good car brakes at roughly 1 g — about 0.17 m/s per 60 Hz
+frame — while a 20 m/s crash stops in a frame or two. The threshold sits at about 4 g, an order of
+magnitude above braking, so ordinary driving can never scratch the paint. A full mission run records
+zero impacts.
+
+Integrity runs 1 (undamaged) to 0 (wrecked), accumulates across impacts, and floors at 0. As it
+falls, the engine's pull scales down toward `minimumSpeedFactor`: **a wrecked sedan still steers and
+rolls**, because being stranded in a wreck is a situation and being unable to move at all is a trap.
+
+* Reversing into something counts — magnitudes are compared, not signed speeds — but changing
+  direction through zero does not.
+* `Reset()` repairs the car: starting or retrying a mission gives an intact one. `Restore()` takes
+  whatever the save recorded, and a save written before integrity existed loads an intact car.
+* Missions read it as the `vehicle_integrity` (float) and `vehicle_disabled` (bool) facts, so a
+  mission can fail on a wrecked car — see `docs/mission-scripting.md`.
+* The HUD shows `DAMAGE n%` while driving a damaged car, and `WRECKED` once it is disabled.
+
+There is **no wheel damage**: wheels have no per-wheel state to damage yet.
 
 ## Applying it
 

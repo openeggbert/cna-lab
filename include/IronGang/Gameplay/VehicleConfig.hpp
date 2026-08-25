@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Core/WorldTypes.hpp"
+#include "IronGang/Gameplay/VehicleDamage.hpp"
 
 #include <array>
 #include <string>
@@ -39,6 +40,9 @@ namespace IronGang
 
         float maxForwardSpeed{22.0F};
         float maxReverseSpeed{6.0F};
+
+        // plan_17 IG-17-015: what counts as a crash and what it costs (see VehicleDamage).
+        VehicleDamageSettings damage;
     };
 
     // Loads @p path into @p out, leaving anything the file does not usably specify at its default.

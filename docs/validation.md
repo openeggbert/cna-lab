@@ -577,6 +577,50 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## The sedan can be wrecked (2026-08-26)
+
+plan_17 `IG-17-015` advanced to partial (impact damage and disabled states done; wheel damage has
+nothing to damage yet). This closes the gap `NEXT.md` had been carrying since gate M11: "no
+combat/damage system at all, so vehicle-loss has no real mechanic behind it".
+
+**How impacts are detected, and why.** From the vehicle's **own speed history**, not from contact
+reports: a frame in which speed drops faster than any brake could manage *is* a collision. That
+needs nothing new from the physics layer and cannot miss a contact Jolt resolved internally. The
+separation is wide on purpose — a good car brakes at about 1 g (0.17 m/s per 60 Hz frame), the
+threshold sits at about 4 g, and a 20 m/s crash stops in a frame or two — so ordinary driving can
+never scratch the paint.
+
+Integrity runs 1 to 0, accumulates across impacts, floors at 0, and scales the engine's pull down
+toward `minimumSpeedFactor` as it falls. **A wrecked sedan still steers and rolls**: being stranded
+in a wreck is a situation, being unable to move at all is a trap. Reversing into something counts
+(magnitudes are compared), changing direction through zero does not.
+
+`VehicleDamage` is pure arithmetic with no physics, input, or rendering in it, which is why the
+whole model is unit-tested. Thresholds are tunable in `sedan.vehicle.json`'s new `damage` block;
+integrity is saved (an older save loads an intact car — the friendlier of the two defaults) and
+published to missions as `vehicle_integrity`/`vehicle_disabled`, so a mission can now fail on a
+wrecked car. The HUD shows `DAMAGE n%`, then `WRECKED`.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestVehicleDamageDistinguishesCrashesFromBraking` covers a full 1.1 g braking stop leaving the car
+untouched, accelerating/holding/coasting/zero-length frames doing nothing, a wall at speed doing
+damage, a harder impact costing more than a softer one, accumulation to a wreck with integrity
+flooring at 0, a wrecked car keeping exactly its minimum speed factor and still rolling, reversing
+into a wall counting while a direction change through zero does not, repair/restore/clamping
+(including NaN falling back to undamaged rather than poisoning the model), a raised threshold
+ignoring an impact it used to count while a harder crash still registers, and the save round trip
+plus the older-save default.
+
+The end-to-end check that matters most: a full `--profile-scenario mission --smoke 900` run records
+**zero** impacts and still completes the delivery. A damage model that fired on normal driving would
+have wrecked the car before the warehouse.
+
+**Boundaries.** No wheel damage — wheels have no per-wheel state to damage. No visual damage, no
+smoke, no repair mechanic beyond a mission reset, and nothing in the committed prologue fails on a
+wrecked car yet (the fact exists; no mission uses it). A stale comment in
+`TestVehicleStatePersistsIndependentlyOfPlayer` claiming "no vehicle-destruction mechanic exists"
+was corrected rather than left to mislead.
+
 ## Data files are bounded before a parser sees them (2026-08-26)
 
 plan_36 `IG-36-009` closed; `IG-36-003` and `IG-36-005` recorded as already done under plan_24 and
