@@ -147,17 +147,10 @@ all the way through to the value the player loses.
 Every milestone in `plan.md` now carries an accurate status; they had gone stale, with
 M2 through M6 finished but unmarked. What is genuinely left:
 
-- **M7, advanced real 3D** — untouched. Nothing uses vertical space: one floor height
-  throughout, and the elevators are campaign transitions rather than moving geometry.
-  The largest remaining piece, touching rendering, collision and every level at once.
-- **M8, bunker systems** — partial. Terminals, power relays and the Warden's boss
-  lockdown exist; cameras, alarms, remotely opened routes, general lockdown and
-  destructible electrical infrastructure do not.
 - **M11, CNA compatibility campaign** — untouched as a campaign, though two findings
   already came out of ordinary work. Only `OPENGLES3` and `WEBGL2` have been exercised.
   Running the game across CNA's other renderers needs no game-code change, which makes
   it the cheapest way left to serve the purpose section 17 of `plan.md` describes.
-- **M9** needs only narrative messages and logs.
 - **M10** is under way and playable.
 
 ## Next tasks
@@ -171,10 +164,7 @@ M2 through M6 finished but unmarked. What is genuinely left:
 The classic 1992 gaps still open are listed at the end of `plan.md` §16: a fourth
 difficulty, attract-mode demo playback, adjustable viewport size, separate music
 and effect volume, an inter-sector loading screen and a wider set of blocking
-props. Prefer those over new M8-style extras.
-
-Longer-term M7 work keeps true vertical spaces and moving elevators separate from
-the current campaign-transition cabins.
+props.
 
 ## Verification
 

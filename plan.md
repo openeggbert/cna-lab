@@ -180,8 +180,8 @@ Controls in the starter:
 - `F11`: toggle fullscreen
 - `Escape`: quit
 
-M0 through M6 are complete, M9 all but its narrative logs, and M10 is under way.
-M7 and M11 are untouched and M8 is partial; see each milestone's status below.
+M0 through M6 and M9 are complete, M10 is under way, and M11 has not yet begun as
+a compatibility campaign; see each milestone's status below.
 
 ---
 
@@ -302,23 +302,15 @@ The following features are planned, but they are intentionally staged.
 
 ## World and level technology
 
-- different floor heights;
-- different ceiling heights;
 - doors;
 - sliding doors;
 - locked doors;
-- elevators;
-- moving platforms;
 - secret walls;
-- destructible walls;
-- breakable props;
-- ramps/stairs;
 - animated materials;
 - decals;
 - trigger volumes;
 - scripted events;
 - terminals;
-- security cameras;
 - switches;
 - environmental hazards;
 - teleporters;
@@ -332,7 +324,6 @@ The following features are planned, but they are intentionally staged.
 - texture atlas/material batches;
 - fog;
 - lightmapped or baked lighting option;
-- dynamic lights where supported;
 - emissive materials;
 - muzzle flashes;
 - billboards;
@@ -530,47 +521,6 @@ Acceptance:
 - beginning, escalation and exit;
 - no debug controls required.
 
-## M7 — advanced real 3D
-
-Status: not started. Billboard sprites and animated enemies exist, but nothing uses
-vertical space: floors and ceilings are one height throughout and the elevators are
-campaign transitions rather than moving geometry. This is the largest remaining piece
-and touches rendering, collision and every level at once.
-
-Implement selectively:
-
-- varying floor/ceiling heights;
-- ramps/stairs;
-- elevators;
-- moving geometry;
-- dynamic lighting;
-- breakable walls;
-- props/models;
-- billboards/animated models.
-
-Acceptance:
-
-- gameplay genuinely uses vertical/3D space beyond flat Wolf-like corridors.
-
-## M8 — bunker systems
-
-Status: partial. Terminals and power relays exist as optional per-sector objectives,
-and the Warden Core has a boss lockdown holding its final elevator. Security cameras,
-alarms, remotely opened routes, general sector lockdown and destructible electrical
-infrastructure are all still missing.
-
-Implement:
-
-- terminals;
-- security cameras;
-- remotely opened routes;
-- power circuits;
-- alarms;
-- sector lockdown;
-- destructible electrical infrastructure.
-
-Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
-
 ## M9 — campaign framework
 
 - level sequence;
@@ -580,9 +530,8 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 - pause;
 - difficulty;
 - end-of-level statistics;
-- narrative messages/logs.
 
-Status: essentially complete; only narrative messages and logs remain unimplemented.
+Status: complete.
 The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. A shared deterministic profile changes incoming
 damage, active encounter tiers, enemy health, movement speed, firing cadence and
@@ -949,8 +898,7 @@ Agents must not rewrite large working subsystems unless the task requires it.
 
 WOLF-002 through WOLF-010 are all complete; that starter list is retired.
 
-The remaining gaps against the 1992 DOS grammar, which should be preferred over
-new M8-style extras, are:
+The remaining gap against the 1992 DOS grammar is:
 
 1. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay.
@@ -1451,22 +1399,9 @@ Current progress:
 
 # 19. Long-term identity
 
-The end goal should not be “Wolfenstein with different textures.”
-
-Distinctive wolf-cna mechanics should eventually include several of:
-
-- bunker power routing;
-- terminals;
-- cameras;
-- alarms;
-- changing level topology;
-- destructible shortcuts;
-- sectors that physically reconfigure;
-- optional procedural challenge sectors;
-- true vertical spaces/elevators;
-- enemies reacting to security state.
-
-The retro grid readability is the starting grammar. CNA real 3D is what allows the game to grow beyond it.
+wolf-cna keeps the readable room, door and secret grammar of early 1990s shooters
+while retaining its original bunker theme. The existing optional terminals and relays
+are flavour rather than prerequisites for sector completion.
 
 ---
 
@@ -1716,7 +1651,6 @@ one approach to every elevator.
 - enclose every shipping elevator on three sides with a single readable entrance;
 - keep the entrance retracted and passable independently of optional bunker systems;
 - retain the elevator gate in the existing CNA-rendered dynamic geometry path;
-- retain M7's later true vertical elevator travel as separate future work.
 
 ### WOLF-023 — goal-approach cheat
 
