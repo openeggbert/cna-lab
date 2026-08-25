@@ -1295,6 +1295,21 @@ int main()
         }
         return shots;
     };
+    // The compass needs a goal to point at in every sector, and the position has to be
+    // the elevator itself rather than its approach cell.
+    for (const WolfCna::CampaignSector& compassSector : WolfCna::CampaignSectors)
+    {
+        const WolfCna::LevelDefinition compassLevel =
+            WolfCna::LevelDefinition::LoadFromFile(std::string(compassSector.file));
+        const WolfCna::World compassWorld(compassLevel, WolfCna::Difficulty::Operative);
+        const auto goal = compassWorld.GetExitPosition();
+        Expect(
+            goal.has_value() &&
+                goal->X > 0.0f && goal->X < 64.0f &&
+                goal->Z > 0.0f && goal->Z < 64.0f,
+            "every sector reports an exit position for the compass to bear on");
+    }
+
     Expect(
         WolfCna::World::PropTypeForSymbol('0') == WolfCna::World::PropType::SteelDrum &&
             WolfCna::World::PropTypeForSymbol('9') ==

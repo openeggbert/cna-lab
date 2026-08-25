@@ -1375,6 +1375,65 @@ namespace WolfCna
                 weaponRectangle,
                 Color(255, 255, 255, 255));
         }
+        // Compass. The rebuilt sectors are a warren of small rooms rather than open
+        // halls, so a bearing to the elevator keeps the player oriented without revealing
+        // the route -- the automap already marks the goal, so this shows nothing new.
+        if (const std::optional<Vector3> exitPosition = world_.GetExitPosition())
+        {
+            constexpr int radius = 21;
+            const int compassX = viewport.getXProperty() + viewport.getWidthProperty() - radius - 14;
+            const int compassY = panelY - radius - 14;
+
+            const float toExitX = exitPosition->X - playerPosition_.X;
+            const float toExitZ = exitPosition->Z - playerPosition_.Z;
+            // Rotate into the player's frame: forward is up on the dial, right is right.
+            const float forward = toExitX * std::sin(yaw_) + toExitZ * -std::cos(yaw_);
+            const float right = toExitX * std::cos(yaw_) + toExitZ * std::sin(yaw_);
+            const float length = std::sqrt(forward * forward + right * right);
+
+            for (int step = 0; step < 16; ++step)
+            {
+                const float tick = 2.0f * MathHelper::Pi * static_cast<float>(step) / 16.0f;
+                const int tx = compassX + static_cast<int>(std::lround(std::sin(tick) * radius));
+                const int ty = compassY - static_cast<int>(std::lround(std::cos(tick) * radius));
+                const bool cardinal = step % 4 == 0;
+                hudSpriteBatch_->Draw(
+                    *hudPixel_,
+                    Rectangle(tx - 1, ty - 1, cardinal ? 3 : 2, cardinal ? 3 : 2),
+                    cardinal ? Color(150, 186, 240, 210) : Color(96, 124, 170, 170));
+            }
+
+            if (length > 0.0001f)
+            {
+                const float dirX = right / length;
+                const float dirY = -forward / length;
+                for (int step = 2; step <= radius - 4; ++step)
+                {
+                    const int nx = compassX + static_cast<int>(std::lround(dirX * step));
+                    const int ny = compassY + static_cast<int>(std::lround(dirY * step));
+                    const int thickness = step > radius - 9 ? 3 : 2;
+                    hudSpriteBatch_->Draw(
+                        *hudPixel_,
+                        Rectangle(nx - thickness / 2, ny - thickness / 2, thickness, thickness),
+                        Color(255, 211, 104, 235));
+                }
+                // Distance readout, so the needle also says how far there is to go.
+                const std::string range = std::to_string(
+                    static_cast<int>(std::lround(length)));
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    compassX - HudTextWidth(range, 1) / 2,
+                    compassY + radius + 4,
+                    range,
+                    Color(188, 213, 255, 235),
+                    1);
+            }
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(compassX - 1, compassY - 1, 3, 3),
+                Color(232, 240, 255, 245));
+        }
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
         const Color labelColor(188, 213, 255, 255);

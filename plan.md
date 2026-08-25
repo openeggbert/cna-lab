@@ -952,7 +952,13 @@ audit demands a clear 3x3 of plain floor in the *finished* level and anything dr
 into that ring afterwards breaks it.
 
 Result: 39 to 41 percent open floor and 45 to 56 doors per sector, against 46 to 76
-percent and 3 to 10 before. The starter spawn moved, so the assertion pinning it was
+percent and 3 to 10 before.
+
+A compass was added with them. Rooms joined by fifty doors are far easier to get lost
+in than one open hall, so a needle above the HUD bears on the elevator and prints the
+distance in cells. It is not a 1992 feature, but it reveals nothing the automap does
+not already show — that marks the goal even in unvisited rooms — and it costs no
+screen space the HUD was using, since all six readout slots were full. The starter spawn moved, so the assertion pinning it was
 updated — that assertion records an authored coordinate, not an invariant.
 
 Note that the original's own levels were not generated at all: all sixty were drawn by

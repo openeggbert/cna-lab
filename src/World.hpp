@@ -346,6 +346,7 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool AreObjectivesComplete() const;
         [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
+        [[nodiscard]] std::optional<Microsoft::Xna::Framework::Vector3> GetExitPosition() const;
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] DifficultyBalance GetDifficultyBalance() const;

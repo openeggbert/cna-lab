@@ -2436,6 +2436,13 @@ namespace WolfCna
         }
     }
 
+    std::optional<Vector3> World::GetExitPosition() const
+    {
+        if (exits_.empty())
+            return std::nullopt;
+        return exits_.front().position;
+    }
+
     float World::WakeRange() const
     {
         return EnemyWakeRange * difficultyProfile_.wakeRangeMultiplier;
