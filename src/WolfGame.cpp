@@ -2230,14 +2230,16 @@ namespace WolfCna
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 72 + index * 24;
+                // Eight rows plus the prompt share the 260px panel. At the old 24px step
+                // the last row ran to top+254 and collided with the prompt at top+242.
+                const int y = top + 70 + index * 20;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
                 centered(y, options[static_cast<std::size_t>(index)], color);
             }
             centered(
-                top + 242,
+                top + 238,
                 pauseStatusMessage_.empty() ? "ARROWS ENTER SELECT" : pauseStatusMessage_,
                 pauseStatusMessage_.empty() ? normal : selected);
         }
