@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Core/WorldTypes.hpp"
+#include "IronGang/Gameplay/VehicleConfig.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
 
 namespace IronGang
@@ -25,6 +26,13 @@ namespace IronGang
     class VehicleController final
     {
     public:
+        // Applies a tuning file's values (plan_17 IG-17-003). Must be called before the vehicle
+        // body is created -- i.e. before the first Reset()/Restore() -- because the chassis, wheel
+        // geometry, and mass are baked into the physics body at creation; a later call only
+        // changes the speed limits. Never called at all means the built-in sedan, unchanged.
+        void Configure(const VehicleConfig& config);
+        [[nodiscard]] const VehicleConfig& GetConfig() const noexcept { return config_; }
+
         // Creates the vehicle body on first call; teleports it (with the given speed applied
         // along yaw's forward direction) on later calls, e.g. a mission reset.
         void Reset(const Vector3& spawnPosition, float yaw, Physics::PhysicsWorld& physics);
@@ -42,18 +50,11 @@ namespace IronGang
     private:
         void EnsureCreated(const Vector3& position, Physics::PhysicsWorld& physics);
 
+        VehicleConfig config_;
         Physics::VehicleHandle vehicleHandle_;
         Vector3 position_{0.0F, 0.65F, 0.0F};
         float yaw_{0.0F};
         float speed_{0.0F};
         float previousForwardInput_{0.0F};
-        float maxForwardSpeed_{22.0F};
-        float maxReverseSpeed_{6.0F};
-
-        // CNA's Vector3 has no constexpr constructor, so the chassis/wheel geometry constants
-        // live as local consts in VehicleController.cpp's EnsureCreated() instead of here.
-        static constexpr float kChassisMass{1400.0F};
-        static constexpr float kWheelRadius{0.33F};
-        static constexpr float kWheelWidth{0.3F};
     };
 }

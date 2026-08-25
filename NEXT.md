@@ -92,6 +92,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The sedan's numbers move into data (plan_17)
+
+plan_17 showed 0 of 97 done while a Jolt raycast vehicle had been driving the game since gate M4 --
+the file was never updated. Now: `assets/vehicles/sedan.vehicle.json` (schema v1) holds the chassis
+mass and half extents, wheel radius/width/positions, and forward/reverse speed limits that
+`VehicleController.cpp` used to hard-code, behind the same failure contract as the other loaders
+(warnings keep defaults; only malformed JSON, a non-object root, or a bad version fails, and a
+failure leaves the caller's config untouched).
+
+Two deliberate rules: a **zero mass or zero-radius wheel never reaches the physics body**, and **one
+malformed wheel entry defaults all four** rather than producing a wheelbase nobody designed.
+
+**A real bug found while wiring it:** the load was initially placed after `vehicle_.Reset()`, which
+creates the physics body -- so mass and geometry would have been baked in before the file was read
+and the tuning would have silently applied almost nothing. The load now runs before
+`districtManager_.Initialize()`, and `Configure()` warns if called once the body exists.
+
+Closed `IG-17-003`; `IG-17-002` recorded as already done under plan_15; `IG-17-001` (kinematic
+fallback) and `IG-17-004` now carry honest partial notes. Verified: build clean, CTest 11/11, and a
+test asserting the committed file loads with zero warnings **and still carries the previously
+hard-coded values**. Documented in `docs/vehicles.md`.
+
+**Watch out:** `chassis.halfExtents`/`wheels.positions` must keep matching `PrototypeRenderer`'s body
+box and wheel offsets and **nothing validates that** -- a mismatch shows up only as floating or
+sunken wheels. Suspension, steering response, and braking still use Jolt's defaults, so they are
+deliberately not in the schema: a key the game does not read would be worse than no key.
+
 ### Pedestrians stop walking through each other (plan_20)
 
 Fixes a defect the entry below **introduced**: six pedestrians per two-point sidewalk, half walking

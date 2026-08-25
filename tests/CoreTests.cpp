@@ -11,6 +11,7 @@
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
+#include "IronGang/Gameplay/VehicleConfig.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
 #include "IronGang/Missions/MissionDefinition.hpp"
 #include "IronGang/Missions/MissionExpression.hpp"
@@ -927,6 +928,132 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_17 IG-17-003: the sedan's numbers are data now. What the tests protect is that a
+    // broken or partial vehicle file leaves the car exactly as it was, rather than putting a
+    // massless chassis or a zero-radius wheel into a physics engine.
+    void TestVehicleConfigLoadsValidatesAndFallsBack()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_vehicle.json";
+        const IronGang::VehicleConfig defaults;
+        IronGang::VehicleConfig config;
+        std::string error;
+        std::vector<std::string> warnings;
+
+        Require(IronGang::LoadVehicleConfig((path.string() + ".missing"), config, error, &warnings),
+                "a missing vehicle file must not be an error");
+        Require(std::fabs(config.chassisMass - defaults.chassisMass) < 1e-4F &&
+                    std::fabs(config.maxForwardSpeed - defaults.maxForwardSpeed) < 1e-4F,
+                "a missing file must leave the built-in sedan in place");
+        Require(warnings.size() == 1, "a missing file must be reported once, as a warning");
+
+        // Everything round-trips.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({
+            "id": "coupe",
+            "version": 1,
+            "chassis": { "mass": 1200, "halfExtents": [1.0, 0.3, 2.0] },
+            "wheels": { "radius": 0.30, "width": 0.25,
+                        "positions": [[-1,-0.2,-1.3],[1,-0.2,-1.3],[-1,-0.2,1.3],[1,-0.2,1.3]] },
+            "performance": { "maxForwardSpeed": 30.0, "maxReverseSpeed": 8.0 }
+        })JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings),
+                "a well-formed vehicle file must load: " + error);
+        Require(warnings.empty(), "a well-formed vehicle file must produce no warnings");
+        Require(config.id == "coupe" && std::fabs(config.chassisMass - 1200.0F) < 1e-4F,
+                "identity and mass must round-trip");
+        Require(std::fabs(config.wheelRadius - 0.30F) < 1e-4F &&
+                    std::fabs(config.chassisHalfExtents.Z - 2.0F) < 1e-4F,
+                "geometry must round-trip");
+        Require(std::fabs(config.wheelPositions[3].X - 1.0F) < 1e-4F &&
+                    std::fabs(config.wheelPositions[0].Z + 1.3F) < 1e-4F,
+                "every wheel position must round-trip in order");
+        Require(std::fabs(config.maxForwardSpeed - 30.0F) < 1e-4F, "performance must round-trip");
+
+        // Values a physics engine cannot survive keep their defaults instead.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"chassis": {"mass": 0}, "wheels": {"radius": 0, "width": -1}})JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings),
+                "unusable numbers must not fail the load: " + error);
+        Require(warnings.size() == 3, "each unusable number must be reported");
+        Require(std::fabs(config.chassisMass - defaults.chassisMass) < 1e-4F &&
+                    std::fabs(config.wheelRadius - defaults.wheelRadius) < 1e-4F,
+                "a zero mass or zero-radius wheel must never reach the physics body");
+
+        // The wheel list is exactly four: the physics layer builds a four-wheel vehicle.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"wheels": {"positions": [[0,0,0],[1,0,0],[2,0,0]]}})JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings),
+                "a short wheel list must not fail the load: " + error);
+        Require(warnings.size() == 1 && warnings.front().find("exactly 4") != std::string::npos,
+                "the wheel count must be named in the warning: " +
+                    (warnings.empty() ? std::string() : warnings.front()));
+        Require(std::fabs(config.wheelPositions[0].X - defaults.wheelPositions[0].X) < 1e-4F,
+                "a bad wheel list must leave every default position");
+
+        // A malformed wheel entry is refused as a set rather than half-applied.
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"wheels": {"positions": [[0,0,0],[1,0],[2,0,0],[3,0,0]]}})JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings),
+                "a malformed wheel entry must not fail the load: " + error);
+        Require(std::fabs(config.wheelPositions[0].X - defaults.wheelPositions[0].X) < 1e-4F,
+                "one bad wheel must not leave three applied and one defaulted");
+
+        // Typos are named, and reversing faster than driving forward is called out.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"chassis": {"masss": 900}, "wheels": {"radius": 0.4}})JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings),
+                "an unknown key must not fail the load: " + error);
+        Require(warnings.size() == 1 && warnings.front().find("chassis.masss") != std::string::npos,
+                "the unknown key must be named with its section");
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"performance": {"maxForwardSpeed": 10, "maxReverseSpeed": 20}})JSON");
+        Require(IronGang::LoadVehicleConfig(path.string(), config, error, &warnings) &&
+                    warnings.size() == 1,
+                "reversing faster than driving forward must warn");
+
+        // Only an unreadable file or an unsupported version is a failure, and neither touches the
+        // caller's own configuration.
+        IronGang::VehicleConfig untouched;
+        untouched.id = "caller's sedan";
+        WriteTempJson(path, "{ not json");
+        Require(!IronGang::LoadVehicleConfig(path.string(), untouched, error, &warnings),
+                "malformed JSON must be an error");
+        WriteTempJson(path, R"JSON({"version": 99})JSON");
+        Require(!IronGang::LoadVehicleConfig(path.string(), untouched, error, &warnings),
+                "an unsupported version must be an error");
+        Require(error.find("99") != std::string::npos, "the refused version must be named: " + error);
+        Require(untouched.id == "caller's sedan", "a failed load must leave the caller's vehicle alone");
+
+        // The committed sedan must load cleanly **and reproduce the numbers the code used to
+        // hard-code** -- that is what proves moving them into data changed nothing about driving.
+        warnings.clear();
+        Require(IronGang::LoadVehicleConfig(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                                "/vehicles/sedan.vehicle.json",
+                                            config, error, &warnings),
+                "the committed sedan must load: " + error);
+        Require(warnings.empty(), "the committed sedan must produce no warnings: " +
+                                      (warnings.empty() ? std::string() : warnings.front()));
+        Require(config.id == "sedan" && std::fabs(config.chassisMass - 1400.0F) < 1e-4F &&
+                    std::fabs(config.wheelRadius - 0.33F) < 1e-4F &&
+                    std::fabs(config.wheelWidth - 0.30F) < 1e-4F &&
+                    std::fabs(config.maxForwardSpeed - 22.0F) < 1e-4F &&
+                    std::fabs(config.maxReverseSpeed - 6.0F) < 1e-4F,
+                "the committed sedan must carry exactly the previously hard-coded values");
+        Require(std::fabs(config.chassisHalfExtents.X - 1.05F) < 1e-4F &&
+                    std::fabs(config.chassisHalfExtents.Y - 0.325F) < 1e-4F &&
+                    std::fabs(config.chassisHalfExtents.Z - 2.1F) < 1e-4F,
+                "the committed chassis must still match PrototypeRenderer's body box");
+        for (std::size_t index = 0; index < config.wheelPositions.size(); ++index)
+        {
+            Require((config.wheelPositions[index] - defaults.wheelPositions[index]).Length() < 1e-4F,
+                    "the committed wheel positions must match the renderer's wheel offsets");
+        }
+
+        std::filesystem::remove(path);
     }
 
     // plan_20 IG-20-010 / plan_21 IG-21-002: the shared lane-clearance test both movers rely on.
@@ -3206,6 +3333,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestVehicleConfigLoadsValidatesAndFallsBack();
         TestLaneClearanceSeesOnlyWhatIsAhead();
         TestPedestriansDoNotWalkThroughEachOther();
         TestPedestrianSpawnOffsetSpreadsAlongPath();

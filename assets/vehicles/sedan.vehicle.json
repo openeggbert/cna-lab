@@ -1,0 +1,23 @@
+{
+  "id": "sedan",
+  "version": 1,
+  "chassis": {
+    "mass": 1400,
+    "halfExtents": [1.05, 0.325, 2.1]
+  },
+  "wheels": {
+    "radius": 0.33,
+    "width": 0.3,
+    "positions": [
+      [-1.05, -0.20, -1.35],
+      [1.05, -0.20, -1.35],
+      [-1.05, -0.20, 1.35],
+      [1.05, -0.20, 1.35]
+    ]
+  },
+  "performance": {
+    "maxForwardSpeed": 22.0,
+    "maxReverseSpeed": 6.0
+  },
+  "notes": "Chassis and wheel geometry must keep matching PrototypeRenderer's body/wheel offsets; see docs/vehicles.md."
+}

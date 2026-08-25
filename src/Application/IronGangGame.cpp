@@ -407,11 +407,6 @@ namespace IronGang
             CaptureGraphicsRuntimeIdentity();
             gpuFrameTimer_ = std::make_unique<GpuFrameTimer>(getGraphicsDeviceProperty());
         }
-        districtManager_.Initialize(physics_);
-        player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
-        vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
-                       districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
-
         // plan_04 IG-04-001: tunables come from data, but a missing or partly unusable file only
         // costs the tuning -- every field falls back to the default the game already runs on.
         std::vector<std::string> configWarnings;
@@ -427,6 +422,27 @@ namespace IronGang
         autosave_.Configure(config_.autosaveIntervalSeconds, config_.autosaveMinimumSpacingSeconds);
         // An explicit --log-level wins: the run is being debugged right now, and the file is not.
         Log::SetMinimumSeverity(logSeverityOverride_.value_or(config_.logSeverity));
+
+        // plan_17 IG-17-003: the sedan's mass, geometry, and speed limits are data now. Loaded
+        // before the first Reset() below, since the physics body bakes them in at creation.
+        VehicleConfig vehicleConfig;
+        std::vector<std::string> vehicleWarnings;
+        std::string vehicleError;
+        if (!LoadVehicleConfig(assetRoot_ + "/vehicles/sedan.vehicle.json", vehicleConfig, vehicleError,
+                               &vehicleWarnings))
+        {
+            Log::Error(LogCategory::Assets, vehicleError + " -- using the built-in sedan.");
+        }
+        for (const std::string& warning : vehicleWarnings)
+        {
+            Log::Warning(LogCategory::Assets, "vehicle: " + warning);
+        }
+        vehicle_.Configure(vehicleConfig);
+
+        districtManager_.Initialize(physics_);
+        player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
+                       districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
 
         // Gate M7 (plan_24-mission-framework-and-scripting.md IG-24-001/004): the mission's
         // states/objectives/transitions now live in data; PrototypeMission ships with a

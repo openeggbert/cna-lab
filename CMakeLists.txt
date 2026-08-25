@@ -130,6 +130,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/PlayerController.cpp
     src/Gameplay/PoliceSystem.cpp
     src/Gameplay/TrafficVehicle.cpp
+    src/Gameplay/VehicleConfig.cpp
     src/Gameplay/VehicleController.cpp
     src/Graphics/LightmapMesh.cpp
     src/Graphics/VideoMemoryAccounting.cpp
@@ -331,7 +332,7 @@ install(TARGETS iron_gang RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Ship only runtime content. Authoring sources, registry inputs, and build policy remain available
 # in the source repository; the generated notices below preserve package provenance.
-foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues missions)
+foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues missions vehicles)
     install(DIRECTORY "assets/${runtime_asset_directory}"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets")
 endforeach()

@@ -577,6 +577,52 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## The sedan's numbers move into data (2026-08-26)
+
+plan_17 `IG-17-003` closed, `IG-17-002` recorded as already done, `IG-17-001`/`IG-17-004` given
+honest partial notes. plan_17 had 0 of 97 entries done while a Jolt raycast vehicle had been driving
+the game since gate M4 — the file was simply never updated.
+
+**What changed.** `assets/vehicles/sedan.vehicle.json` (schema version 1) now holds the chassis mass
+and half extents, wheel radius/width/positions, and the forward/reverse speed limits that
+`VehicleController.cpp` used to hard-code. `VehicleConfig`/`LoadVehicleConfig` follow the same
+failure contract as the mission, game-config, and save loaders: a missing file, an unknown key
+(named **with its section**, so `chassis.masss` is findable), a wrong type, an out-of-range value,
+or a wheel list that is not exactly four entries are warnings that keep defaults; only malformed
+JSON, a non-object root, or an unsupported version is a failure, and a failure leaves the caller's
+configuration untouched.
+
+Two validation choices worth stating: a **zero mass or zero-radius wheel can never reach the physics
+body** (those do not degrade gracefully in a solver, they explode), and **one malformed wheel entry
+defaults all four** rather than leaving three applied and one defaulted, which would be a wheelbase
+nobody designed.
+
+**A real bug found while wiring this up.** The loader was initially called after
+`vehicle_.Reset()` — which creates the physics body — so mass, chassis, and wheel geometry would
+have been baked in *before* the file was read, and the tuning would have silently applied nothing
+but the speed limits. The load now runs before `districtManager_.Initialize()`, and
+`VehicleController::Configure` logs a warning if it is called once the body exists, so the same
+mistake cannot be silent again.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestVehicleConfigLoadsValidatesAndFallsBack` covers the missing file, a full round trip of every
+field, unusable numbers keeping defaults, a short wheel list, a malformed wheel entry defaulting all
+four, an unknown key named with its section, the reverse-faster-than-forward warning, malformed JSON
+and an unsupported version failing while leaving the caller's config alone, and — the assertion that
+proves this change did not alter driving — the **committed** sedan loading with zero warnings and
+carrying exactly the values the code used to hard-code, chassis and wheel offsets included. A
+`--smoke 60` run logs no vehicle warning, confirming the real file is read at startup. Three
+allowlists needed the new `assets/vehicles` directory: the asset registry's production directories,
+the CMake install set, and `release_archive.py`'s packaged-asset list; the registry test's fixture
+and its "15 approved shipping assets" expectation were updated with it (now 16).
+
+**Boundaries.** `chassis.halfExtents` and `wheels.positions` must keep matching
+`PrototypeRenderer`'s body box and wheel offsets, and **nothing validates that** — the physics
+chassis and the drawn car are built by different code, and a mismatch shows up only as floating or
+sunken wheels. Suspension, steering response, and braking still use Jolt's defaults and are
+therefore deliberately absent from the schema: a key the game does not read would be worse than no
+key. No gears, engine curve, per-surface grip, damage, lights, or second vehicle; no runtime reload.
+
 ## Pedestrians stop walking through each other (2026-08-26)
 
 plan_20 `IG-20-010` closed. This fixes a defect the entry below **introduced**: six pedestrians per

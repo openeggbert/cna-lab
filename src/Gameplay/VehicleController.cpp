@@ -1,5 +1,7 @@
 #include "IronGang/Gameplay/VehicleController.hpp"
 
+#include "IronGang/Core/Log.hpp"
+
 #include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <algorithm>
@@ -15,16 +17,26 @@ namespace IronGang
             return;
         }
 
-        // Matches PrototypeRenderer's existing procedural/CNJ body box (2.1 x 0.65 x 4.2) and
-        // per-wheel local offsets, so the physics chassis lines up with the rendered sedan.
-        const Vector3 chassisHalfExtents(1.05F, 0.325F, 2.1F);
-        const std::array<Vector3, 4> wheelLocalPositions = {
-            Vector3{-1.05F, -0.20F, -1.35F}, Vector3{1.05F, -0.20F, -1.35F},
-            Vector3{-1.05F, -0.20F, 1.35F},  Vector3{1.05F, -0.20F, 1.35F},
-        };
+        // The defaults in VehicleConfig are the numbers this function used to hard-code; a tuning
+        // file replaces them. They must keep matching PrototypeRenderer's body box and per-wheel
+        // offsets, or the physics chassis and the rendered sedan stop lining up.
+        vehicleHandle_ = physics.CreateFourWheelVehicle(config_.chassisHalfExtents, config_.chassisMass,
+                                                        position, config_.wheelPositions,
+                                                        config_.wheelRadius, config_.wheelWidth);
+    }
 
-        vehicleHandle_ = physics.CreateFourWheelVehicle(
-            chassisHalfExtents, kChassisMass, position, wheelLocalPositions, kWheelRadius, kWheelWidth);
+    void VehicleController::Configure(const VehicleConfig& config)
+    {
+        if (vehicleHandle_.IsValid())
+        {
+            // The chassis, wheels, and mass were baked into the physics body at creation, so this
+            // call can only change the speed limits. Saying so beats a tuning file that silently
+            // does half of what it says.
+            Log::Warning(LogCategory::Assets,
+                         "vehicle tuning applied after the body was created; mass and geometry keep "
+                         "their previous values");
+        }
+        config_ = config;
     }
 
     void VehicleController::Reset(const Vector3& spawnPosition, float yaw, Physics::PhysicsWorld& physics)
@@ -40,7 +52,7 @@ namespace IronGang
     void VehicleController::Restore(const Vector3& position, float yaw, float speed, Physics::PhysicsWorld& physics)
     {
         EnsureCreated(position, physics);
-        const float clampedSpeed = std::clamp(speed, -maxReverseSpeed_, maxForwardSpeed_);
+        const float clampedSpeed = std::clamp(speed, -config_.maxReverseSpeed, config_.maxForwardSpeed);
         physics.SetVehicleTransform(vehicleHandle_, position, yaw, clampedSpeed);
         position_ = position;
         yaw_ = yaw;
