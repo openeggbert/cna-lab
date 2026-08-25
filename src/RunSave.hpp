@@ -32,6 +32,11 @@ namespace WolfCna
         bool hasRepeater = false;
         bool hasHeavyWeapon = false;
         int combatShotSequence = 0;
+        // Procedural runs are rebuilt from these two numbers rather than from a campaign
+        // file, so the save never has to carry a grid.
+        bool procedural = false;
+        unsigned int proceduralSeed = 0;
+        int proceduralDepth = 0;
         std::vector<bool> exploredCells;
         World::SaveState world;
     };

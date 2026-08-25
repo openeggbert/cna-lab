@@ -119,7 +119,7 @@ version appends to the previous one, so an older profile keeps every setting it
 stored and adopts the defaults for whatever it predates.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
-the current run. The current run-save version 5 persists push-wall direction, travel
+the current run. The current run-save version 6 persists the procedural run's seed and depth, push-wall direction, travel
 and the deterministic combat-shot sequence while migrating versions 1–4.
 
 ## Level files

@@ -18,6 +18,7 @@ namespace WolfCna
         constexpr std::string_view MagicV3 = "WOLF-CNA-RUN-SAVE-3";
         constexpr std::string_view MagicV4 = "WOLF-CNA-RUN-SAVE-4";
         constexpr std::string_view MagicV5 = "WOLF-CNA-RUN-SAVE-5";
+        constexpr std::string_view MagicV6 = "WOLF-CNA-RUN-SAVE-6";
         constexpr std::size_t MaximumRecordCount = 65536;
 
         bool ReadTag(std::istream& input, std::string_view expected, std::string& error)
@@ -104,7 +105,7 @@ namespace WolfCna
     {
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << MagicV5 << '\n';
+        output << MagicV6 << '\n';
         output << "GAME " << state.levelIndex << ' ' << state.difficulty << ' '
             << state.playerX << ' ' << state.playerY << ' ' << state.playerZ << ' '
             << state.yaw << ' ' << state.health << ' ' << state.ammunition << ' '
@@ -112,7 +113,9 @@ namespace WolfCna
             << state.sectorEntryScore << ' ' << state.sectorEntryNextExtraLifeScore << ' '
             << state.levelElapsedSeconds << ' ' << state.accessMask << ' '
             << state.weapon << ' ' << state.lastFirearm << ' ' << state.hasRepeater << ' '
-            << state.hasHeavyWeapon << ' ' << state.combatShotSequence << '\n';
+            << state.hasHeavyWeapon << ' ' << state.combatShotSequence << ' '
+            << (state.procedural ? 1 : 0) << ' ' << state.proceduralSeed << ' '
+            << state.proceduralDepth << '\n';
         output << "EXPLORED " << state.exploredCells.size() << ' ';
         for (bool visited : state.exploredCells)
             output << (visited ? '1' : '0');
@@ -176,7 +179,7 @@ namespace WolfCna
         std::string magic;
         if (!(input >> magic) ||
             (magic != MagicV1 && magic != MagicV2 && magic != MagicV3 &&
-                magic != MagicV4 && magic != MagicV5))
+                magic != MagicV4 && magic != MagicV5 && magic != MagicV6))
         {
             error = "save has an unsupported header";
             return std::nullopt;
@@ -190,7 +193,8 @@ namespace WolfCna
                 error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV2 || magic == MagicV3 || magic == MagicV4 || magic == MagicV5)
+        if (magic == MagicV2 || magic == MagicV3 || magic == MagicV4 || magic == MagicV5 ||
+            magic == MagicV6)
         {
             if (!(input >> state.sectorEntryScore >> state.sectorEntryNextExtraLifeScore))
             {
@@ -208,7 +212,7 @@ namespace WolfCna
             error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV3 || magic == MagicV4 || magic == MagicV5)
+        if (magic == MagicV3 || magic == MagicV4 || magic == MagicV5 || magic == MagicV6)
         {
             if (!(input >> state.accessMask))
             {
@@ -231,10 +235,23 @@ namespace WolfCna
                 error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV5 && !(input >> state.combatShotSequence))
+        if ((magic == MagicV5 || magic == MagicV6) && !(input >> state.combatShotSequence))
         {
             error = "save has an invalid combat sequence";
             return std::nullopt;
+        }
+
+        if (magic == MagicV6)
+        {
+            int procedural = 0;
+            if (!(input >> procedural >> state.proceduralSeed >> state.proceduralDepth) ||
+                (procedural != 0 && procedural != 1) ||
+                state.proceduralDepth < 0 || state.proceduralDepth > 4096)
+            {
+                error = "save has an invalid procedural run";
+                return std::nullopt;
+            }
+            state.procedural = procedural != 0;
         }
 
         std::size_t count = 0;
@@ -266,7 +283,7 @@ namespace WolfCna
             if (!ReadBool(input, door.opening, error) ||
                 !(input >> door.openAmount >> door.closeDelay))
                 return std::nullopt;
-            if ((magic == MagicV4 || magic == MagicV5) &&
+            if ((magic == MagicV4 || magic == MagicV5 || magic == MagicV6) &&
                 !(input >> door.pushDirectionX >> door.pushDirectionZ >>
                     door.pushDistanceCells))
             {

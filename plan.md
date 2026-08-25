@@ -583,10 +583,11 @@ the walkable band had to be widened well beyond the authoring tool's, because th
 reachability prune can leave a small component and the resulting spread is far wider
 than the Python version's.
 
-Not yet done: run saves. A save records a campaign sector index and rebuilds from the
-authored file, so a procedural save would load back an authored level carrying
-procedural progress. Saving is refused with a message rather than writing something
-wrong; storing the seed and depth in a bumped run-save format is the fix.
+Run saves work. Format version 6 carries the run identity -- a flag, the seed and the
+depth -- rather than a grid, and loading rebuilds the sector from those two numbers.
+The downgrade fixture in the tests was rewritten while doing it: it used to locate a
+field by its position on the GAME line, which breaks silently every time a field is
+appended, and now drops trailing fields by count instead.
 
 Only begin after handcrafted level rules are stable.
 

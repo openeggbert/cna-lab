@@ -2808,6 +2808,9 @@ namespace WolfCna
             .hasRepeater = hasRepeater_,
             .hasHeavyWeapon = hasHeavyWeapon_,
             .combatShotSequence = static_cast<int>(combatShotSequence_),
+            .procedural = proceduralRun_,
+            .proceduralSeed = proceduralSeed_,
+            .proceduralDepth = proceduralDepth_,
             .exploredCells = exploration_.CaptureVisited(),
             .world = world_.CaptureSaveState()};
     }
@@ -2823,8 +2826,24 @@ namespace WolfCna
             return false;
         }
 
-        LevelDefinition loadedLevel = LevelDefinition::LoadFromFile(
-            std::string(GetCampaignSector(state.levelIndex).file));
+        // A procedural sector is rebuilt from the seed and depth the save carries; the
+        // grid itself is never stored, so the two integers have to reproduce it exactly.
+        LevelDefinition loadedLevel = [&state]()
+        {
+            if (!state.procedural)
+            {
+                return LevelDefinition::LoadFromFile(
+                    std::string(GetCampaignSector(state.levelIndex).file));
+            }
+            const GeneratedSector sector =
+                GenerateSector(state.proceduralSeed, state.proceduralDepth);
+            return LevelDefinition::Parse(sector.grid, "procedural.level");
+        }();
+        if (state.procedural && loadedLevel.Rows().empty())
+        {
+            error = "save references a sector the generator cannot rebuild";
+            return false;
+        }
         const Difficulty loadedDifficulty = static_cast<Difficulty>(state.difficulty);
         World loadedWorld(loadedLevel, loadedDifficulty);
         ExplorationMap loadedExploration(loadedLevel);
@@ -2875,6 +2894,9 @@ namespace WolfCna
         hasRepeater_ = state.hasRepeater;
         hasHeavyWeapon_ = state.hasHeavyWeapon;
         combatShotSequence_ = static_cast<std::uint32_t>(state.combatShotSequence);
+        proceduralRun_ = state.procedural;
+        proceduralSeed_ = state.proceduralSeed;
+        proceduralDepth_ = state.proceduralDepth;
         completed_ = false;
         screen_ = Screen::Playing;
         actionWasDown_ = false;
@@ -2892,17 +2914,6 @@ namespace WolfCna
 
     bool WolfGame::SaveRunToSelectedSlot()
     {
-        if (proceduralRun_)
-        {
-            // A run save records a campaign sector index and rebuilds the world from the
-            // authored file. Writing one here would load back an authored level carrying
-            // procedural progress, so refuse plainly instead of saving something wrong.
-            pauseStatusMessage_ = "PROCEDURAL RUNS ARE NOT SAVED";
-            objectiveMessage_ = pauseStatusMessage_;
-            objectiveMessageSeconds_ = 2.0f;
-            return false;
-        }
-
         std::string error;
         if (!RunSave::SaveFile(SaveSlotPath(saveSlot_), CaptureRunSaveState(), error))
         {

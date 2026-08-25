@@ -1639,19 +1639,52 @@ int main()
         "run save serialization is a deterministic round trip");
     WolfCna::RunSaveState legacyFormatRunSaveState = runSaveState;
     legacyFormatRunSaveState.world.doors.clear();
-    std::string versionFourRunSave = WolfCna::RunSave::Serialize(legacyFormatRunSaveState);
-    const std::size_t versionFourGameStart = versionFourRunSave.find('\n') + 1;
-    const std::size_t versionFourGameEnd = versionFourRunSave.find('\n', versionFourGameStart);
-    const std::size_t combatSequenceStart = versionFourRunSave.rfind(' ', versionFourGameEnd);
+    // A procedural save carries the run identity, not a grid: the sector is rebuilt from
+    // the seed and depth, so those two numbers have to survive the round trip.
+    WolfCna::RunSaveState proceduralState = runSaveState;
+    proceduralState.procedural = true;
+    proceduralState.proceduralSeed = 9182736u;
+    proceduralState.proceduralDepth = 7;
+    std::string proceduralError;
+    const auto restoredProcedural = WolfCna::RunSave::Parse(
+        WolfCna::RunSave::Serialize(proceduralState),
+        proceduralError);
     Expect(
-        versionFourGameStart > 0 && versionFourGameEnd != std::string::npos &&
-            combatSequenceStart != std::string::npos,
-        "run-save fixture locates the version-five combat sequence");
-    versionFourRunSave.erase(combatSequenceStart, versionFourGameEnd - combatSequenceStart);
-    versionFourRunSave.replace(
-        versionFourRunSave.find("WOLF-CNA-RUN-SAVE-5"),
-        std::string("WOLF-CNA-RUN-SAVE-5").size(),
-        "WOLF-CNA-RUN-SAVE-4");
+        restoredProcedural.has_value() && restoredProcedural->procedural &&
+            restoredProcedural->proceduralSeed == 9182736u &&
+            restoredProcedural->proceduralDepth == 7,
+        "a procedural run save carries its seed and depth");
+    const auto restoredAuthored = WolfCna::RunSave::Parse(
+        WolfCna::RunSave::Serialize(runSaveState),
+        proceduralError);
+    Expect(
+        restoredAuthored.has_value() && !restoredAuthored->procedural,
+        "an authored run save is still marked as not procedural");
+
+    std::string versionFourRunSave = WolfCna::RunSave::Serialize(legacyFormatRunSaveState);
+    // Older formats are built by dropping trailing fields from the GAME line rather than
+    // by pattern-matching one of them: the line grows with every version, and locating a
+    // field by its position silently breaks the next time one is appended.
+    const auto dropTrailingGameFields = [](std::string& save, int fields)
+    {
+        const std::size_t gameStart = save.find('\n') + 1;
+        std::size_t gameEnd = save.find('\n', gameStart);
+        for (int dropped = 0; dropped < fields; ++dropped)
+        {
+            const std::size_t last = save.rfind(' ', gameEnd);
+            save.erase(last, gameEnd - last);
+            gameEnd = save.find('\n', gameStart);
+        }
+    };
+    const auto renameMagic = [](std::string& save, std::string_view from, std::string_view to)
+    {
+        const std::size_t at = save.find(from);
+        Expect(at != std::string::npos, "run-save fixture locates its version header");
+        save.replace(at, from.size(), to);
+    };
+    // Version five had no procedural fields; version four had no combat sequence either.
+    dropTrailingGameFields(versionFourRunSave, 4);
+    renameMagic(versionFourRunSave, "WOLF-CNA-RUN-SAVE-6", "WOLF-CNA-RUN-SAVE-4");
     const std::optional<WolfCna::RunSaveState> parsedVersionFourRunSave =
         WolfCna::RunSave::Parse(versionFourRunSave, saveError);
     Expect(
@@ -1659,10 +1692,7 @@ int main()
             parsedVersionFourRunSave->combatShotSequence == 0,
         "version four run saves migrate with a fresh deterministic combat sequence");
     std::string versionThreeRunSave = versionFourRunSave;
-    versionThreeRunSave.replace(
-        versionThreeRunSave.find("WOLF-CNA-RUN-SAVE-4"),
-        std::string("WOLF-CNA-RUN-SAVE-4").size(),
-        "WOLF-CNA-RUN-SAVE-3");
+    renameMagic(versionThreeRunSave, "WOLF-CNA-RUN-SAVE-4", "WOLF-CNA-RUN-SAVE-3");
     const std::optional<WolfCna::RunSaveState> parsedVersionThreeRunSave =
         WolfCna::RunSave::Parse(versionThreeRunSave, saveError);
     Expect(
@@ -1670,10 +1700,7 @@ int main()
             parsedVersionThreeRunSave->world.doors.empty(),
         "version three run saves migrate without push-wall direction fields");
     std::string versionTwoRunSave = versionThreeRunSave;
-    versionTwoRunSave.replace(
-        versionTwoRunSave.find("WOLF-CNA-RUN-SAVE-3"),
-        std::string("WOLF-CNA-RUN-SAVE-3").size(),
-        "WOLF-CNA-RUN-SAVE-2");
+    renameMagic(versionTwoRunSave, "WOLF-CNA-RUN-SAVE-3", "WOLF-CNA-RUN-SAVE-2");
     const std::optional<WolfCna::RunSaveState> parsedVersionTwoRunSave =
         WolfCna::RunSave::Parse(versionTwoRunSave, saveError);
     Expect(
@@ -1681,10 +1708,7 @@ int main()
             parsedVersionTwoRunSave->accessMask == WolfCna::World::CyanAccess,
         "version two security-card state migrates to cyan access");
     std::string legacyRunSave = versionTwoRunSave;
-    legacyRunSave.replace(
-        legacyRunSave.find("WOLF-CNA-RUN-SAVE-2"),
-        std::string("WOLF-CNA-RUN-SAVE-2").size(),
-        "WOLF-CNA-RUN-SAVE-1");
+    renameMagic(legacyRunSave, "WOLF-CNA-RUN-SAVE-2", "WOLF-CNA-RUN-SAVE-1");
     const std::size_t legacyCheckpoint = legacyRunSave.find(" 1000 40000 42.5");
     Expect(legacyCheckpoint != std::string::npos, "run-save fixture locates its v2 checkpoint fields");
     legacyRunSave.erase(legacyCheckpoint, std::string(" 1000 40000").size());
