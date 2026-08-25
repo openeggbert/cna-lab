@@ -1503,7 +1503,11 @@ int main()
         {
             for (int x = 1; x < 63; ++x)
             {
-                if (findableRows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != 'E')
+                const char elevator =
+                    findableRows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+                // Both kinds: the hidden elevator is meant to look like an ordinary one,
+                // so it has to be a three-sided cabin as well.
+                if (elevator != 'E' && elevator != 'X')
                     continue;
                 int openSides = 0;
                 int approachX = 0;
@@ -1529,7 +1533,7 @@ int main()
                 }
                 Expect(
                     openSides == 1 && approachOpen >= 3,
-                    "an authored elevator opens onto a room, not a blind pocket");
+                    "an authored elevator, hidden or not, opens onto a room");
             }
         }
     }
@@ -1572,6 +1576,29 @@ int main()
         Expect(
             sampled >= 50 && matching == sampled,
             "every wall a player can see from one spot shares the level's family");
+    }
+
+    // Two sectors in a row must not be clad alike. A hash of the map cannot promise
+    // this -- unrelated levels can land on the same family by chance, and sectors three
+    // and four did exactly that.
+    {
+        std::vector<int> sectorFamilies;
+        for (int index = 0; index < static_cast<int>(WolfCna::CampaignSectors.size()); ++index)
+        {
+            const WolfCna::LevelDefinition cladLevel =
+                WolfCna::LevelDefinition::LoadFromFile(
+                    std::string(WolfCna::GetCampaignSector(index).file));
+            const WolfCna::World cladWorld(cladLevel, WolfCna::Difficulty::Operative, index);
+            sectorFamilies.push_back(cladWorld.WallMaterialIndexAt(
+                cladLevel.PlayerStartX(), cladLevel.PlayerStartZ() - 1));
+        }
+        bool allDiffer = true;
+        for (std::size_t index = 1; index < sectorFamilies.size(); ++index)
+        {
+            if (sectorFamilies[index] == sectorFamilies[index - 1])
+                allDiffer = false;
+        }
+        Expect(allDiffer, "consecutive campaign sectors are clad in different families");
     }
 
     // The sight cone was the last perception parameter that ignored difficulty.

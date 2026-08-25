@@ -68,7 +68,7 @@ namespace WolfCna
         }
     }
 
-    World::World(const LevelDefinition& level, Difficulty difficulty)
+    World::World(const LevelDefinition& level, Difficulty difficulty, int materialVariant)
         : map_(level.Rows())
         , playerStart_(
             static_cast<float>(level.PlayerStartX()) + 0.5f,
@@ -88,7 +88,9 @@ namespace WolfCna
             }
         }
         materialBias_ = static_cast<int>(signature % 4u);
-        materialDominant_ = static_cast<int>((signature >> 8) % 4u);
+        materialDominant_ = materialVariant >= 0
+            ? materialVariant % 4
+            : static_cast<int>((signature >> 8) % 4u);
 
         BuildWallMaterials();
 

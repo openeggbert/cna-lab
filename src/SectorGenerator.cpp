@@ -296,6 +296,7 @@ namespace WolfCna
         int startX = -1;
         int startZ = -1;
         int exits = 0;
+        int secretExits = 0;
         int relays = 0;
         int terminals = 0;
         int walkable = 0;
@@ -319,6 +320,7 @@ namespace WolfCna
                 {
                 case 'P': startX = x; startZ = z; break;
                 case 'E': ++exits; break;
+                case 'X': ++secretExits; break;
                 case 'O': ++relays; break;
                 case 'M': ++terminals; break;
                 case 'H': case 'h': ++health; break;
@@ -356,6 +358,7 @@ namespace WolfCna
 
         if (startX < 0) { reason = "no player spawn"; return false; }
         if (exits != 1) { reason = "not exactly one exit"; return false; }
+        if (secretExits > 1) { reason = "more than one hidden elevator"; return false; }
         if (relays != 1 || terminals != 1) { reason = "objectives are not paired"; return false; }
         if (health < 2) { reason = "fewer than two health pickups"; return false; }
         if (patrols < 1 || ambushes < 1) { reason = "missing patrol or ambush"; return false; }
@@ -392,6 +395,12 @@ namespace WolfCna
             result.attempts = attempt + 1;
             Rng rng{runSeed + static_cast<std::uint32_t>(depth) * 7919u +
                 static_cast<std::uint32_t>(attempt) * 104729u};
+
+            // Declared before the layout because the hidden elevator is carved during
+            // exit placement, not scattered afterwards.
+            const int theme = depth % 5;
+            const bool bossFloor = depth > 0 && depth % 5 == 4;
+            const bool secretFloor = depth > 0 && depth % 3 == 2 && !bossFloor;
 
             std::vector<Room> rooms{{1, 1, Size - 1, Size - 1}};
             for (int round = 0; round < 8; ++round)
@@ -580,6 +589,53 @@ namespace WolfCna
             if (exitX < 0) { continue; }
             grid[static_cast<std::size_t>(exitZ)][static_cast<std::size_t>(exitX)] = 'E';
 
+            // The hidden elevator is carved the same way as the ordinary one rather than
+            // dropped on a floor cell: it is meant to look like an exit, so it has to be a
+            // three-sided cabin too.
+            if (secretFloor)
+            {
+                bool placedSecret = false;
+                for (int z = 1; z < Size - 1 && !placedSecret; ++z)
+                {
+                    for (int x = 1; x < Size - 1 && !placedSecret; ++x)
+                    {
+                        if (grid[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != Wall)
+                            continue;
+                        int open = 0;
+                        int openX = 0;
+                        int openZ = 0;
+                        constexpr std::array<std::pair<int, int>, 4> sides{
+                            std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+                        for (const auto [dx, dz] : sides)
+                        {
+                            if (grid[static_cast<std::size_t>(z + dz)][static_cast<std::size_t>(x + dx)] == Floor)
+                            {
+                                ++open;
+                                openX = x + dx;
+                                openZ = z + dz;
+                            }
+                        }
+                        if (open != 1)
+                            continue;
+                        int approachOpen = 0;
+                        for (const auto [dx, dz] : sides)
+                        {
+                            if (grid[static_cast<std::size_t>(openZ + dz)]
+                                    [static_cast<std::size_t>(openX + dx)] != Wall)
+                                ++approachOpen;
+                        }
+                        if (approachOpen < 3)
+                            continue;
+                        if (reach[static_cast<std::size_t>(openZ)][static_cast<std::size_t>(openX)] < 20)
+                            continue;
+                        grid[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] = 'X';
+                        placedSecret = true;
+                    }
+                }
+                if (!placedSecret)
+                    continue;
+            }
+
             // Objectives, chosen so the shortest route through both lands in range.
             const auto exitDistance = Distances(grid, exitX, exitZ);
             std::vector<std::pair<int, int>> candidates;
@@ -655,9 +711,6 @@ namespace WolfCna
 
             // The curve: deeper runs face more of everything and are given less back.
             const int tier = std::min(depth, 10);
-            const int theme = depth % 5;
-            const bool bossFloor = depth > 0 && depth % 5 == 4;
-            const bool secretFloor = depth > 0 && depth % 3 == 2 && !bossFloor;
 
             // Each theme leans on a different archetype, so consecutive sectors do not
             // simply repeat with larger numbers.
@@ -684,9 +737,8 @@ namespace WolfCna
             const int ammoSmall = std::max(1, 3 - tier / 5);
 
             struct Entry { char symbol; int count; Placement placement; };
-            const std::array<Entry, 22> entries{{
+            const std::array<Entry, 21> entries{{
                 {'Z', bossFloor ? 1 : 0, Placement::OpenFloor},
-                {'X', secretFloor ? 1 : 0, Placement::AgainstWall},
                 {'S', 1, Placement::OpenFloor},
                 {'Y', 2, Placement::OpenFloor},
                 {'I', 3, Placement::Anywhere},

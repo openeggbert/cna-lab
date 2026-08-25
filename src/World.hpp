@@ -262,9 +262,14 @@ namespace WolfCna
             std::vector<ProjectileSaveState> projectiles;
         };
 
+        // materialVariant fixes which wall family clads the level. Passing the sector's
+        // position in the run guarantees consecutive sectors differ, which a hash of the
+        // map cannot: two unrelated levels can land on the same family by chance, and two
+        // sectors in a row looking identical is exactly what that would show up as.
         explicit World(
             const LevelDefinition& level,
-            Difficulty difficulty = Difficulty::Operative);
+            Difficulty difficulty = Difficulty::Operative,
+            int materialVariant = -1);
 
         [[nodiscard]] int Update(
             float elapsedSeconds,

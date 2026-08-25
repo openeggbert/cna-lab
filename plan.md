@@ -587,6 +587,11 @@ Wall materials are no longer a fixed function of position, which used to give a 
 straddling an 8x8 boundary two different families. Each level now picks one family from
 a hash of its own map.
 
+Which family a level gets is now its position in the run rather than its hash, because
+a hash cannot promise that two sectors in a row differ -- and sectors three and four
+had landed on the same one. The hash remains the fallback when no position is supplied,
+which is what the tests use.
+
 Per-room families were tried first and measured, then dropped. On a tile grid a wall
 between two rooms carries a single texture, so per-room families and shared walls are
 in direct tension: whichever room loses sees a foreign wall. With accent rooms, one
@@ -1054,6 +1059,11 @@ unplayable: props sealed a corridor while every cell stayed reachable by another
 route, and a generated elevator hid in a blind pocket the compass pointed straight
 through. Both were reported from play, not caught by an audit, because the audits ask
 whether a cell can be reached rather than whether a player can find it.
+
+The hidden elevator is now shaped like an ordinary one. It sat in the open with three
+free sides while every `E` was a recessed cabin, and nothing checked it because the
+elevator audit counted only `E`. Both authored and generated hidden elevators are now
+three-sided cabins, and the audits cover both kinds.
 
 Three checks now guard the class. Props must stand in a clear 3x3 of plain floor.
 Every elevator, authored or generated, must have exactly one open side whose approach

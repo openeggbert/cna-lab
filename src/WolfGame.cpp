@@ -2590,7 +2590,7 @@ namespace WolfCna
         UpdateSectorMusic();
         level_ = LevelDefinition::LoadFromFile(
             std::string(GetCampaignSector(levelIndex_).file));
-        world_ = World(level_, difficulty_);
+        world_ = World(level_, difficulty_, levelIndex_);
         exploration_.Reset(level_);
         world_.Upload(getGraphicsDeviceProperty());
         if (atlas_)
@@ -2659,7 +2659,7 @@ namespace WolfCna
 
         UpdateSectorMusic();
         level_ = LevelDefinition::Parse(sector.grid, "procedural.level");
-        world_ = World(level_, difficulty_);
+        world_ = World(level_, difficulty_, proceduralDepth_);
         exploration_.Reset(level_);
         world_.Upload(getGraphicsDeviceProperty());
         if (atlas_)
@@ -2865,7 +2865,12 @@ namespace WolfCna
             return false;
         }
         const Difficulty loadedDifficulty = static_cast<Difficulty>(state.difficulty);
-        World loadedWorld(loadedLevel, loadedDifficulty);
+        // The variant has to match what the live sector used, or a loaded run would be
+        // clad differently from the one that was saved.
+        World loadedWorld(
+            loadedLevel,
+            loadedDifficulty,
+            state.procedural ? state.proceduralDepth : state.levelIndex);
         ExplorationMap loadedExploration(loadedLevel);
         if (!loadedWorld.RestoreSaveState(state.world))
         {
