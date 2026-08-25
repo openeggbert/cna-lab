@@ -1498,8 +1498,12 @@ namespace WolfCna
             }
         }
 
-        Enemy* designatedRangedAttacker = nullptr;
-        float designatedDistanceSquared = std::numeric_limits<float>::max();
+        // The closest eligible shooters get the turn, up to the difficulty's limit. Keeping
+        // this as "nearest N" rather than "first N found" means the enemy in the player's
+        // face always fires, regardless of level ordering.
+        const std::size_t rangedAttackerLimit = static_cast<std::size_t>(
+            std::max(1, difficultyProfile_.maximumRangedAttackers));
+        std::vector<std::pair<float, Enemy*>> rangedCandidates;
         for (Enemy& enemy : enemies_)
         {
             if ((enemy.state != EnemyState::Chase && enemy.state != EnemyState::Attack) ||
@@ -1514,12 +1518,26 @@ namespace WolfCna
                 !HasLineOfSight(enemy.position, playerPosition))
                 continue;
 
-            if (distanceSquared < designatedDistanceSquared)
-            {
-                designatedRangedAttacker = &enemy;
-                designatedDistanceSquared = distanceSquared;
-            }
+            rangedCandidates.emplace_back(distanceSquared, &enemy);
         }
+
+        if (rangedCandidates.size() > rangedAttackerLimit)
+        {
+            std::nth_element(
+                rangedCandidates.begin(),
+                rangedCandidates.begin() + static_cast<std::ptrdiff_t>(rangedAttackerLimit),
+                rangedCandidates.end(),
+                [](const auto& left, const auto& right) { return left.first < right.first; });
+            rangedCandidates.resize(rangedAttackerLimit);
+        }
+
+        const auto hasRangedTurn = [&rangedCandidates](const Enemy& candidate)
+        {
+            return std::any_of(
+                rangedCandidates.begin(),
+                rangedCandidates.end(),
+                [&candidate](const auto& entry) { return entry.second == &candidate; });
+        };
 
         for (Enemy& enemy : enemies_)
         {
@@ -1601,7 +1619,7 @@ namespace WolfCna
             const bool canAttack = distanceSquared <= enemy.attackRange * enemy.attackRange &&
                 (enemy.melee || canSeePlayer);
 
-            const bool hasAttackTurn = enemy.melee || &enemy == designatedRangedAttacker;
+            const bool hasAttackTurn = enemy.melee || hasRangedTurn(enemy);
             if (enemy.state == EnemyState::Chase && canAttack && hasAttackTurn)
                 enemy.state = EnemyState::Attack;
             else if (enemy.state == EnemyState::Attack && (!canAttack || !hasAttackTurn))
@@ -2198,6 +2216,8 @@ namespace WolfCna
                         difficultyProfile_.enemyHealthMultiplier);
                     enemy.moveSpeed *= difficultyProfile_.enemySpeedMultiplier;
                     enemy.attackInterval *= difficultyProfile_.enemyAttackIntervalMultiplier;
+                    enemy.reactionDuration *= difficultyProfile_.reactionDelayMultiplier;
+                    enemy.hearingRange *= difficultyProfile_.hearingRangeMultiplier;
                     if (enemy.ammunitionDrop > 0)
                     {
                         enemy.ammunitionDrop = ScalePositiveAmount(

@@ -99,7 +99,7 @@
   automated visual checks of menus are not currently possible that way.
 - The stale `build-web-cna-old-20260824/` directory was deleted.
 
-## Known gaps in difficulty scaling
+## Difficulty scaling
 
 An audit traced every difficulty field to a runtime effect. The system is real, not
 a stub: enemy counts (`World.cpp` spawn-tier `continue`), enemy health, move speed,
@@ -107,16 +107,17 @@ firing cadence, incoming damage and ammunition all scale, and difficulty is
 correctly re-derived on every level load, life loss and save load. Three gaps
 remain, in priority order:
 
-1. **Reaction time does not scale at all.** `reactionDuration`, `hearingRange`,
-   `viewDotThreshold` and `EnemyWakeRange` are identical on every difficulty, so a
-   Veteran guard notices the player exactly as slowly as a Scout guard. This is the
-   part of "higher difficulty means more aggressive enemies" that is simply absent.
-2. **Only one ranged enemy may fire at a time**, on every difficulty
-   (`designatedRangedAttacker`). Veteran's extra spawns therefore add health to
-   grind through but no additional incoming fire, which is why the higher
-   difficulties do not feel proportionally harder.
+1. ~~Reaction time does not scale.~~ Fixed: `reactionDelayMultiplier` (1.4 / 1.0 /
+   0.65) and `hearingRangeMultiplier` (0.75 / 1.0 / 1.3) now scale hesitation and
+   how far gunfire carries. `viewDotThreshold` and the global `EnemyWakeRange` are
+   still difficulty-independent, which is a smaller remaining gap.
+2. ~~Only one ranged enemy may fire at a time.~~ Fixed: `maximumRangedAttackers`
+   is 1 / 1 / 2, and the turn goes to the nearest N eligible shooters rather than
+   the single nearest. Veteran's extra spawns now translate into extra incoming
+   fire, which is what made the higher tiers feel flat.
 3. **Player health never scales**: 100 HP, 3 lives and 25/10 HP pickups are
-   identical on all three.
+   identical on all three. Still open — deliberately, since it moves the clear
+   budget the campaign audits pin down.
 
 Also worth knowing: the incoming-damage multiplier is only asserted at the constant
 table level in the tests, never end to end to `health_`.

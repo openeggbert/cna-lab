@@ -50,7 +50,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - health kits remain in the level at 100% health and can be collected after the player takes damage
 - every sector provides at least two health kits, while the knife fallback keeps a deterministic full clear possible at every ammunition budget
 - no external copyrighted game assets
-- original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
+- original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, reaction delay, hearing range, how many enemies may fire at once, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, both access colors, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them

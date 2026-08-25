@@ -1205,6 +1205,45 @@ int main()
         scoutShots < operativeShots && operativeShots < veteranShots,
         "guard firing frequency increases monotonically with difficulty");
 
+    Expect(
+        scoutProfile.reactionDelayMultiplier > operativeProfile.reactionDelayMultiplier &&
+            operativeProfile.reactionDelayMultiplier >
+                veteranProfile.reactionDelayMultiplier &&
+            scoutProfile.hearingRangeMultiplier < operativeProfile.hearingRangeMultiplier &&
+            operativeProfile.hearingRangeMultiplier <
+                veteranProfile.hearingRangeMultiplier,
+        "enemies notice the player faster and hear further as difficulty rises");
+    Expect(
+        scoutProfile.maximumRangedAttackers <= operativeProfile.maximumRangedAttackers &&
+            operativeProfile.maximumRangedAttackers <
+                veteranProfile.maximumRangedAttackers,
+        "more ranged enemies may fire at once as difficulty rises");
+
+    // Two guards with line of sight. The throttle used to pin every difficulty to one
+    // shooter, so extra spawns never became extra incoming fire; Veteran must now out-shoot
+    // Operative by more than its cadence alone would explain.
+    const WolfCna::LevelDefinition crossfireLevel = WolfCna::LevelDefinition::Parse(
+        "######\n#PGG.#\n######\n",
+        "difficulty-crossfire.level");
+    const auto countCrossfireShots = [&crossfireLevel](WolfCna::Difficulty difficulty)
+    {
+        WolfCna::World crossfireWorld(crossfireLevel, difficulty);
+        const Microsoft::Xna::Framework::Vector3 target(1.5f, 0.62f, 1.5f);
+        int shots = 0;
+        for (int tick = 0; tick < 120; ++tick)
+        {
+            static_cast<void>(crossfireWorld.Update(0.05f, target));
+            shots += crossfireWorld.ConsumeRangedShotCount();
+        }
+        return shots;
+    };
+    const int operativeCrossfire = countCrossfireShots(WolfCna::Difficulty::Operative);
+    const int veteranCrossfire = countCrossfireShots(WolfCna::Difficulty::Veteran);
+    Expect(
+        veteranCrossfire > operativeCrossfire &&
+            veteranCrossfire - operativeCrossfire > veteranShots - operativeShots,
+        "a second visible shooter adds incoming fire beyond the cadence difference");
+
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",
         "valid.level");
