@@ -60,7 +60,7 @@ namespace WolfCna
             2,
             4,
             1,
-            0},
+            1},
         {
             "assets/levels/sector-03.level",
             "SECTOR 3 LABS",
@@ -72,7 +72,7 @@ namespace WolfCna
             3,
             -1,
             2,
-            1},
+            2},
         {
             "assets/levels/sector-04.level",
             "SECTOR 4 ARCHIVE",
@@ -84,7 +84,7 @@ namespace WolfCna
             5,
             -1,
             3,
-            1},
+            3},
         {
             "assets/levels/hidden-reservoir.level",
             "HIDDEN RESERVOIR",
@@ -96,7 +96,7 @@ namespace WolfCna
             2,
             -1,
             -1,
-            0},
+            1},
         {
             "assets/levels/warden-core.level",
             "SECTOR 5 CORE",
@@ -108,7 +108,7 @@ namespace WolfCna
             -1,
             -1,
             4,
-            1}
+            4}
     }};
 
     inline constexpr std::array<int, 5> SelectableCampaignSectors = {0, 1, 2, 3, 5};

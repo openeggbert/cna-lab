@@ -23,7 +23,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - explicit weapon profiles give knife, sidearm, repeater and heavy automatic distinct range, damage, spread and cadence; firearm damage falls with distance and movement widens deterministic seeded spread
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage; every ranged archetype has its own alert and attack timbre
-- a generated looping bunker ambience, with five master-volume levels in the title menu
+- five original generated music tracks, one per sector, each with its own key, tempo, chord walk and lead figure over the bunker drone; five master-volume levels in the title menu
 - a persisted 60/72/84/96-degree view-angle choice in the title menu
 - uncapped run score for treasure, defeated enemies, secrets and deterministic sector bonuses; every 40,000 points awards another life
 - a centered completion card shows kill, treasure and secret percentages plus clear, target-time and perfect-category awards

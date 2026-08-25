@@ -387,6 +387,122 @@ namespace WolfCna
             return pcm;
         }
 
+        // Original sector music. The whole audio stack is generated PCM -- there is no file
+        // loading path for sound at all -- so the tracks are composed here rather than
+        // shipped as assets, which also keeps the "no third-party asset" rule intact.
+        struct MusicTheme
+        {
+            float bpm;
+            int root;              // semitones above A1 (55 Hz)
+            std::array<int, 8> bars;   // scale degree per bar
+            std::array<int, 16> lead;  // scale degree per eighth, -1 rests
+            float leadLevel;
+            bool driving;          // busier percussion and an octave bass pulse
+        };
+
+        constexpr std::array<int, 7> NaturalMinor{0, 2, 3, 5, 7, 8, 10};
+
+        [[nodiscard]] float ScaleHertz(int root, int degree, int octave)
+        {
+            const int step = NaturalMinor[static_cast<std::size_t>(
+                ((degree % 7) + 7) % 7)];
+            const int wrap = degree >= 0 ? degree / 7 : (degree - 6) / 7;
+            const int semitone = root + step + 12 * (octave + wrap);
+            return 55.0f * std::pow(2.0f, static_cast<float>(semitone) / 12.0f);
+        }
+
+        [[nodiscard]] float SquareAt(float phase, float duty)
+        {
+            const float wrapped = phase - std::floor(phase);
+            return wrapped < duty ? 1.0f : -1.0f;
+        }
+
+        std::vector<SharpRuntime::bytecs> MakeSectorMusic(const MusicTheme& theme)
+        {
+            constexpr float sampleRate = 22050.0f;
+            const float beat = 60.0f / theme.bpm;
+            const float eighth = beat * 0.5f;
+            const int bars = 8;
+            const float duration = beat * 4.0f * static_cast<float>(bars);
+            const int sampleCount = static_cast<int>(sampleRate * duration);
+
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount) * 2);
+            std::uint32_t noiseState = 0x1f3d5b79u;
+
+            for (int index = 0; index < sampleCount; ++index)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float noise = static_cast<float>(
+                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
+                const float time = static_cast<float>(index) / sampleRate;
+                const int barIndex = static_cast<int>(time / (beat * 4.0f)) % bars;
+                const int chord = theme.bars[static_cast<std::size_t>(barIndex)];
+
+                // Bass: the bar root on every eighth, short and percussive.
+                const int eighthIndex = static_cast<int>(time / eighth);
+                const float eighthPhase = time - static_cast<float>(eighthIndex) * eighth;
+                const float bassEnv = std::exp(-eighthPhase * (theme.driving ? 9.0f : 13.0f));
+                const int bassDegree = chord + (theme.driving && eighthIndex % 2 == 1 ? 7 : 0);
+                const float bassHz = ScaleHertz(theme.root, bassDegree, 0);
+                const float bass = SquareAt(bassHz * time, 0.5f) * 0.3f * bassEnv;
+
+                // Lead: a fixed sixteen-step figure transposed by the bar's chord.
+                const int leadStep = eighthIndex % 16;
+                const int leadDegree = theme.lead[static_cast<std::size_t>(leadStep)];
+                float lead = 0.0f;
+                if (leadDegree >= 0)
+                {
+                    const float leadHz = ScaleHertz(theme.root, chord + leadDegree, 2);
+                    const float attack = std::min(1.0f, eighthPhase / 0.012f);
+                    const float decay = std::exp(-eighthPhase * 4.2f);
+                    lead = SquareAt(leadHz * time, 0.32f) * theme.leadLevel * attack * decay;
+                }
+
+                // Percussion: kick on the beat, snare on the backbeat, hats on eighths.
+                const int beatIndex = static_cast<int>(time / beat);
+                const float beatPhase = time - static_cast<float>(beatIndex) * beat;
+                const float kick = std::sin(2.0f * MathHelper::Pi *
+                        (48.0f + 60.0f * std::exp(-beatPhase * 26.0f)) * beatPhase) *
+                    0.34f * std::exp(-beatPhase * 12.0f);
+                const float snare = (beatIndex % 4 == 2 || (theme.driving && beatIndex % 4 == 0))
+                    ? noise * 0.16f * std::exp(-beatPhase * 24.0f)
+                    : 0.0f;
+                const float hat = noise * (theme.driving ? 0.07f : 0.05f) *
+                    std::exp(-eighthPhase * 60.0f);
+
+                // Bed: the drone the sectors used before music existed.
+                const float drone = std::sin(2.0f * MathHelper::Pi *
+                    ScaleHertz(theme.root, 0, -1) * time) * 0.1f;
+
+                const float signal = bass + lead + kick + snare + hat + drone;
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp(signal, -1.0f, 1.0f) * 23000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
+        // One track per sector. Root, tempo, chord walk and lead figure differ so the
+        // sectors are told apart by ear, not just by their palette.
+        constexpr std::array<MusicTheme, 5> SectorMusic{{
+            // Storage: plain marching minor, the calmest of the five.
+            {104.0f, 0, {0, 0, 5, 5, 3, 3, 4, 4},
+             {0, -1, 2, -1, 4, -1, 2, -1, 3, -1, 2, -1, 0, -1, -1, -1}, 0.20f, false},
+            // Foundry: faster and busier, with the octave bass pulse.
+            {126.0f, 7, {0, 0, 6, 6, 5, 5, 4, 4},
+             {0, 4, 2, 4, 0, 4, 3, 4, 2, 5, 4, 5, 2, 4, 0, -1}, 0.22f, true},
+            // Labs: slow and sparse, more rests than notes.
+            {92.0f, 5, {0, 0, 3, 3, 5, 5, 2, 2},
+             {0, -1, -1, 4, -1, -1, 2, -1, 3, -1, -1, 5, -1, 2, -1, -1}, 0.18f, false},
+            // Archive: darker walk, steady tread.
+            {112.0f, 3, {0, 5, 3, 4, 0, 5, 6, 4},
+             {4, -1, 3, -1, 2, -1, 0, -1, 2, -1, 3, -1, 4, -1, 5, -1}, 0.19f, false},
+            // Warden Core: fastest and most insistent, for the boss sector.
+            {140.0f, 9, {0, 0, 1, 1, 5, 5, 6, 6},
+             {0, 7, 4, 7, 2, 7, 0, 7, 3, 7, 5, 7, 4, 7, 2, 7}, 0.24f, true}}};
+
         std::vector<SharpRuntime::bytecs> MakeAmbientLoop(int theme)
         {
             constexpr float sampleRate = 22050.0f;
@@ -1215,32 +1331,32 @@ namespace WolfCna
             MakeSectorCompletionFanfare(),
             22050,
             AudioChannels::Mono);
-        for (std::size_t theme = 0; theme < ambientSounds_.size(); ++theme)
+        for (std::size_t theme = 0; theme < musicSounds_.size(); ++theme)
         {
-            ambientSounds_[theme] = std::make_unique<SoundEffect>(
-                MakeAmbientLoop(static_cast<int>(theme)),
+            musicSounds_[theme] = std::make_unique<SoundEffect>(
+                MakeSectorMusic(SectorMusic[theme]),
                 22050,
                 AudioChannels::Mono);
-            ambientInstances_[theme] = std::make_unique<SoundEffectInstance>(
-                ambientSounds_[theme]->CreateInstance());
-            ambientInstances_[theme]->setIsLoopedProperty(true);
-            ambientInstances_[theme]->setVolumeProperty(0.0f);
-            ambientInstances_[theme]->Play();
+            musicInstances_[theme] = std::make_unique<SoundEffectInstance>(
+                musicSounds_[theme]->CreateInstance());
+            musicInstances_[theme]->setIsLoopedProperty(true);
+            musicInstances_[theme]->setVolumeProperty(0.0f);
+            musicInstances_[theme]->Play();
         }
-        UpdateAmbientTheme();
+        UpdateSectorMusic();
     }
 
-    void WolfGame::UpdateAmbientTheme()
+    void WolfGame::UpdateSectorMusic()
     {
         const int selectedTheme = std::clamp(
             GetCampaignSector(levelIndex_).audioTheme,
             0,
-            static_cast<int>(ambientInstances_.size()) - 1);
-        for (std::size_t theme = 0; theme < ambientInstances_.size(); ++theme)
+            static_cast<int>(musicInstances_.size()) - 1);
+        for (std::size_t theme = 0; theme < musicInstances_.size(); ++theme)
         {
-            if (ambientInstances_[theme])
+            if (musicInstances_[theme])
             {
-                ambientInstances_[theme]->setVolumeProperty(
+                musicInstances_[theme]->setVolumeProperty(
                     static_cast<int>(theme) == selectedTheme ? 0.12f : 0.0f);
             }
         }
@@ -2387,7 +2503,7 @@ namespace WolfCna
     {
         const int maximumIndex = static_cast<int>(CampaignSectors.size()) - 1;
         levelIndex_ = std::clamp(index, 0, maximumIndex);
-        UpdateAmbientTheme();
+        UpdateSectorMusic();
         level_ = LevelDefinition::LoadFromFile(
             std::string(GetCampaignSector(levelIndex_).file));
         world_ = World(level_, difficulty_);
@@ -2592,7 +2708,7 @@ namespace WolfCna
         if (atlas_)
             CreateProceduralAtlas();
         levelIndex_ = state.levelIndex;
-        UpdateAmbientTheme();
+        UpdateSectorMusic();
         const int selectableIndex = GetCampaignSector(state.levelIndex).selectableIndex;
         if (selectableIndex >= 0)
         {

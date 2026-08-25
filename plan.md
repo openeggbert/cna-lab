@@ -965,6 +965,25 @@ Note that the original's own levels were not generated at all: all sixty were dr
 hand in TED5, id's tile editor. Generating *in* its grammar is the achievable goal;
 generating *like* it is a category error.
 
+### Sector music
+
+Each sector now has its own track: storage a plain marching minor at 104 BPM,
+foundry busier at 126 with an octave bass pulse, labs slow and sparse at 92,
+archive a darker walk at 112, and the Warden Core the fastest and most insistent at
+140. Each is a bass line, a sixteen-step lead figure transposed by the bar's chord,
+percussion and the drone the sectors used before music existed.
+
+The tracks are composed in code rather than shipped as audio files, for three
+reasons. The project's provenance rule states plainly that no third-party asset was
+supplied, and a freely licensed track is still a third-party asset needing its own
+licence record. The audio stack has no file-loading path at all -- every sound is
+built from a PCM vector, so an external track would need a decoder, not just a file.
+And choosing to take someone else's work into the repository is the owner's call.
+
+The metadata assertion that pinned two themes to the two chapters was replaced: music
+is now per sector rather than per chapter, so it checks the range and that the sectors
+spread across the tracks instead of sharing one.
+
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 
 The adjustable view size was implemented by restricting the device viewport around

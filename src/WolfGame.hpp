@@ -134,10 +134,10 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> exitSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> completionFanfareSound_;
-        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect>, 2>
-            ambientSounds_;
-        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance>, 2>
-            ambientInstances_;
+        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect>, 5>
+            musicSounds_;
+        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance>, 5>
+            musicInstances_;
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};
@@ -264,7 +264,7 @@ namespace WolfCna
         void CreateHudResources();
         void CreateProceduralHudPortraits();
         void CreateSoundEffects();
-        void UpdateAmbientTheme();
+        void UpdateSectorMusic();
         void PlaySpatialSound(
             Microsoft::Xna::Framework::Audio::SoundEffect& sound,
             const Microsoft::Xna::Framework::Vector3& source,

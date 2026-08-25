@@ -998,12 +998,24 @@ int main()
             WolfCna::GetCampaignSector(2).chapter == 2 &&
             WolfCna::GetCampaignSector(5).chapterName == "WARDEN NETWORK",
         "campaign metadata groups main and secret sectors into two named chapters");
-    Expect(
-        WolfCna::GetCampaignSector(0).audioTheme == 0 &&
-            WolfCna::GetCampaignSector(4).audioTheme == 0 &&
-            WolfCna::GetCampaignSector(2).audioTheme == 1 &&
-            WolfCna::GetCampaignSector(5).audioTheme == 1,
-        "campaign metadata routes both chapter families to distinct audio themes");
+    // Music is now one track per sector rather than one per chapter, so this checks the
+    // range and that the sectors genuinely spread across the tracks instead of sharing one.
+    {
+        std::vector<int> sectorThemes;
+        for (const WolfCna::CampaignSector& musicSector : WolfCna::CampaignSectors)
+            sectorThemes.push_back(musicSector.audioTheme);
+        const bool inRange = std::all_of(
+            sectorThemes.begin(),
+            sectorThemes.end(),
+            [](int theme) { return theme >= 0 && theme < 5; });
+        std::vector<int> distinct = sectorThemes;
+        std::sort(distinct.begin(), distinct.end());
+        distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+        Expect(
+            inRange && distinct.size() >= 4 &&
+                WolfCna::GetCampaignSector(5).audioTheme == 4,
+            "each sector carries its own music track and the boss sector its own");
+    }
     Expect(
         std::all_of(
             WolfCna::CampaignSectors.begin(),
