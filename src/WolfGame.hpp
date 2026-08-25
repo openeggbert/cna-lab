@@ -13,6 +13,7 @@
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
+#include "Microsoft/Xna/Framework/Input/MouseState.hpp"
 #include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
 #include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 
@@ -166,6 +167,7 @@ namespace WolfCna
             SectorSelect,
             Difficulty,
             Controls,
+            MouseSetup,
             Playing,
             Map,
             Paused,
@@ -225,6 +227,9 @@ namespace WolfCna
         void HandleInput(float elapsedSeconds);
         void HandleMenuInput();
         void UpdateMouseLookMode();
+        [[nodiscard]] bool IsMouseActionHeld(
+            const Microsoft::Xna::Framework::Input::MouseState& mouse,
+            MouseButtonAction action) const;
         void TryMove(float dx, float dz);
         void ResetRun();
         void LoadCampaignLevel(int index);

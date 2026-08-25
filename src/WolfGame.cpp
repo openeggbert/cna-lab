@@ -2076,12 +2076,11 @@ namespace WolfCna
             }
 
             constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
-            const std::array<std::string, 5> trailingOptions{
+            const std::array<std::string, 4> trailingOptions{
                 "TURN SPEED  " + std::to_string(
                     TurnSensitivityPercent(controlSettings_.turnSensitivityStep)) + "%",
-                std::string("MOUSE  ") + (controlSettings_.mouseEnabled ? "ON" : "OFF"),
-                "MOUSE SPEED  " + std::to_string(
-                    MouseSensitivityPercent(controlSettings_.mouseSensitivityStep)) + "%",
+                std::string("MOUSE SETUP  ") +
+                    (controlSettings_.mouseEnabled ? "ON" : "OFF"),
                 "RESTORE DEFAULTS",
                 "BACK"};
             for (int index = 0; index < static_cast<int>(trailingOptions.size()); ++index)
@@ -2099,9 +2098,55 @@ namespace WolfCna
                 : controlsStatusMessage_.empty()
                     ? "ENTER REBIND  ARROWS SELECT"
                     : std::string_view(controlsStatusMessage_);
-            // Fifteen rows plus the prompt share the 260px panel, so the 13px step and this
-            // baseline are what keep the last line clear of the bottom border at top+257.
+            // Fourteen rows plus the prompt share the 260px panel, so the 13px step and
+            // this baseline keep the last line clear of the bottom border at top+257.
             centeredSmall(top + 240, prompt, waitingForBinding_ ? selected : normal);
+        }
+        else if (screen_ == Screen::MouseSetup)
+        {
+            centered(top + 15, "MOUSE SETUP", title);
+            const auto centeredSmall = [&](int y, std::string_view text, Color color)
+            {
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    left + 160 - HudTextWidth(text, 1) / 2,
+                    y,
+                    text,
+                    color,
+                    1);
+            };
+            std::array<std::string, 7> options{
+                std::string("MOUSE  ") + (controlSettings_.mouseEnabled ? "ON" : "OFF"),
+                "MOUSE SPEED  " + std::to_string(
+                    MouseSensitivityPercent(controlSettings_.mouseSensitivityStep)) + "%",
+                std::string("MOUSE Y  ") +
+                    (controlSettings_.mouseYMovesForward ? "MOVES" : "OFF"),
+                std::string{},
+                std::string{},
+                std::string{},
+                "BACK"};
+            for (std::size_t button = 0; button < MouseButtonCount; ++button)
+            {
+                options[3 + button] = std::string(MouseButtonName(button)) + "  " +
+                    std::string(MouseButtonActionName(controlSettings_.mouseButtons[button]));
+            }
+            for (int index = 0; index < static_cast<int>(options.size()); ++index)
+            {
+                const int y = top + 52 + index * 22;
+                const bool isSelected = menuSelection_ == index;
+                if (isSelected)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
+                centeredSmall(y, options[static_cast<std::size_t>(index)],
+                    isSelected ? selected : normal);
+            }
+            centeredSmall(
+                top + 226,
+                controlsStatusMessage_.empty()
+                    ? "LEFT RIGHT CHANGE  ESC BACK"
+                    : std::string_view(controlsStatusMessage_),
+                normal);
+            centeredSmall(top + 240, "MOUSE Y MOVES IS THE 1992 DEFAULT", normal);
         }
         hudSpriteBatch_->End();
     }
@@ -2577,9 +2622,8 @@ namespace WolfCna
         else if (screen_ == Screen::Controls)
         {
             constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
-            constexpr int mouseToggleIndex = sensitivityIndex + 1;
-            constexpr int mouseSpeedIndex = mouseToggleIndex + 1;
-            constexpr int restoreIndex = mouseSpeedIndex + 1;
+            constexpr int mouseSetupIndex = sensitivityIndex + 1;
+            constexpr int restoreIndex = mouseSetupIndex + 1;
             constexpr int backIndex = restoreIndex + 1;
             constexpr int itemCount = backIndex + 1;
 
@@ -2636,25 +2680,6 @@ namespace WolfCna
                     controlsStatusMessage_ = "TURN SPEED UPDATED";
                     SaveCampaignProfile();
                 }
-                if (menuSelection_ == mouseToggleIndex && (decrease || increase))
-                {
-                    controlSettings_.mouseEnabled = !controlSettings_.mouseEnabled;
-                    controlsStatusMessage_ = controlSettings_.mouseEnabled
-                        ? "MOUSE ENABLED"
-                        : "MOUSE DISABLED";
-                    SaveCampaignProfile();
-                }
-                if (menuSelection_ == mouseSpeedIndex && (decrease || increase))
-                {
-                    const int direction = increase ? 1 : -1;
-                    controlSettings_.mouseSensitivityStep =
-                        (controlSettings_.mouseSensitivityStep + MaximumMouseSensitivityStep + 1 +
-                            direction) %
-                        (MaximumMouseSensitivityStep + 1);
-                    controlsStatusMessage_ = "MOUSE SPEED UPDATED";
-                    SaveCampaignProfile();
-                }
-
                 if (confirmIsDown && !confirmWasDown_)
                 {
                     if (menuSelection_ < sensitivityIndex)
@@ -2671,21 +2696,11 @@ namespace WolfCna
                         controlsStatusMessage_ = "TURN SPEED UPDATED";
                         SaveCampaignProfile();
                     }
-                    else if (menuSelection_ == mouseToggleIndex)
+                    else if (menuSelection_ == mouseSetupIndex)
                     {
-                        controlSettings_.mouseEnabled = !controlSettings_.mouseEnabled;
-                        controlsStatusMessage_ = controlSettings_.mouseEnabled
-                            ? "MOUSE ENABLED"
-                            : "MOUSE DISABLED";
-                        SaveCampaignProfile();
-                    }
-                    else if (menuSelection_ == mouseSpeedIndex)
-                    {
-                        controlSettings_.mouseSensitivityStep =
-                            (controlSettings_.mouseSensitivityStep + 1) %
-                            (MaximumMouseSensitivityStep + 1);
-                        controlsStatusMessage_ = "MOUSE SPEED UPDATED";
-                        SaveCampaignProfile();
+                        screen_ = Screen::MouseSetup;
+                        menuSelection_ = 0;
+                        controlsStatusMessage_.clear();
                     }
                     else if (menuSelection_ == restoreIndex)
                     {
@@ -2704,6 +2719,89 @@ namespace WolfCna
                     screen_ = Screen::Title;
                     menuSelection_ = 3;
                 }
+            }
+        }
+        else if (screen_ == Screen::MouseSetup)
+        {
+            constexpr int enableIndex = 0;
+            constexpr int speedIndex = 1;
+            constexpr int verticalIndex = 2;
+            constexpr int firstButtonIndex = 3;
+            constexpr int backIndex = firstButtonIndex + static_cast<int>(MouseButtonCount);
+            constexpr int itemCount = backIndex + 1;
+
+            if (upIsDown && !upWasDown_)
+                menuSelection_ = (menuSelection_ + itemCount - 1) % itemCount;
+            if (downIsDown && !downWasDown_)
+                menuSelection_ = (menuSelection_ + 1) % itemCount;
+
+            const bool decrease = leftIsDown && !leftWasDown_;
+            const bool increase = rightIsDown && !rightWasDown_;
+            const bool confirmed = confirmIsDown && !confirmWasDown_;
+            const bool cycled = increase || confirmed;
+
+            if (menuSelection_ == enableIndex && (decrease || cycled))
+            {
+                controlSettings_.mouseEnabled = !controlSettings_.mouseEnabled;
+                controlsStatusMessage_ = controlSettings_.mouseEnabled
+                    ? "MOUSE ENABLED"
+                    : "MOUSE DISABLED";
+                SaveCampaignProfile();
+            }
+            else if (menuSelection_ == speedIndex && (decrease || cycled))
+            {
+                const int direction = decrease ? -1 : 1;
+                controlSettings_.mouseSensitivityStep =
+                    (controlSettings_.mouseSensitivityStep + MaximumMouseSensitivityStep + 1 +
+                        direction) %
+                    (MaximumMouseSensitivityStep + 1);
+                controlsStatusMessage_ = "MOUSE SPEED UPDATED";
+                SaveCampaignProfile();
+            }
+            else if (menuSelection_ == verticalIndex && (decrease || cycled))
+            {
+                controlSettings_.mouseYMovesForward = !controlSettings_.mouseYMovesForward;
+                controlsStatusMessage_ = controlSettings_.mouseYMovesForward
+                    ? "MOUSE Y MOVES FORWARD"
+                    : "MOUSE Y IGNORED";
+                SaveCampaignProfile();
+            }
+            else if (menuSelection_ >= firstButtonIndex && menuSelection_ < backIndex &&
+                (decrease || cycled))
+            {
+                // Buttons cycle through the assignable actions. Duplicates are allowed on
+                // purpose: the original let two buttons share an action, and forbidding it
+                // would make reassigning a button a two-step dance.
+                const std::size_t button =
+                    static_cast<std::size_t>(menuSelection_ - firstButtonIndex);
+                const auto current = std::find(
+                    AssignableMouseButtonActions.begin(),
+                    AssignableMouseButtonActions.end(),
+                    controlSettings_.mouseButtons[button]);
+                const int count = static_cast<int>(AssignableMouseButtonActions.size());
+                const int position = current == AssignableMouseButtonActions.end()
+                    ? 0
+                    : static_cast<int>(
+                        std::distance(AssignableMouseButtonActions.begin(), current));
+                const int direction = decrease ? -1 : 1;
+                controlSettings_.mouseButtons[button] =
+                    AssignableMouseButtonActions[
+                        static_cast<std::size_t>((position + count + direction) % count)];
+                controlsStatusMessage_ = std::string(MouseButtonName(button)) + " SET";
+                SaveCampaignProfile();
+            }
+            else if (menuSelection_ == backIndex && confirmed)
+            {
+                screen_ = Screen::Controls;
+                menuSelection_ = static_cast<int>(ControlActionCount) + 1;
+                controlsStatusMessage_.clear();
+            }
+
+            if (escapeIsDown && !escapeWasDown_)
+            {
+                screen_ = Screen::Controls;
+                menuSelection_ = static_cast<int>(ControlActionCount) + 1;
+                controlsStatusMessage_.clear();
             }
         }
         else if (screen_ == Screen::Initials)
@@ -2733,6 +2831,27 @@ namespace WolfCna
         confirmWasDown_ = confirmIsDown;
         escapeWasDown_ = escapeIsDown;
         mouseWasDown_ = mouseIsDown;
+    }
+
+    bool WolfGame::IsMouseActionHeld(
+        const MouseState& mouse,
+        MouseButtonAction action) const
+    {
+        if (action == MouseButtonAction::None)
+            return false;
+        for (std::size_t index = 0; index < MouseButtonCount; ++index)
+        {
+            if (controlSettings_.mouseButtons[index] != action)
+                continue;
+            const ButtonState state = index == 0
+                ? mouse.getLeftButtonProperty()
+                : index == 1
+                    ? mouse.getMiddleButtonProperty()
+                    : mouse.getRightButtonProperty();
+            if (state == ButtonState::Pressed)
+                return true;
+        }
+        return false;
     }
 
     void WolfGame::UpdateMouseLookMode()
@@ -2773,8 +2892,8 @@ namespace WolfCna
             // Buttons are not consume-on-read, so seed their edge state: one already held
             // as capture begins must not register as a fresh press on the next frame.
             const MouseState entry = Mouse::GetState();
-            attackWasDown_ = entry.getLeftButtonProperty() == ButtonState::Pressed;
-            actionWasDown_ = entry.getRightButtonProperty() == ButtonState::Pressed;
+            attackWasDown_ = IsMouseActionHeld(entry, MouseButtonAction::Attack);
+            actionWasDown_ = IsMouseActionHeld(entry, MouseButtonAction::Action);
         }
     }
 
@@ -2789,10 +2908,14 @@ namespace WolfCna
         const float mouseYawDelta = mouseLookActive_
             ? MouseYawDeltaRadians(mouse.getXProperty(), controlSettings_)
             : 0.0f;
-        const bool mouseAttackIsDown = mouseLookActive_ &&
-            mouse.getLeftButtonProperty() == ButtonState::Pressed;
-        const bool mouseActionIsDown = mouseLookActive_ &&
-            mouse.getRightButtonProperty() == ButtonState::Pressed;
+        const auto mouseButtonHeld = [&](MouseButtonAction action)
+        {
+            return mouseLookActive_ && IsMouseActionHeld(mouse, action);
+        };
+        const bool mouseAttackIsDown = mouseButtonHeld(MouseButtonAction::Attack);
+        const bool mouseActionIsDown = mouseButtonHeld(MouseButtonAction::Action);
+        const bool mouseStrafeIsDown = mouseButtonHeld(MouseButtonAction::StrafeModifier);
+        const bool mouseRunIsDown = mouseButtonHeld(MouseButtonAction::Run);
         const bool ilmIsDown =
             keyboard.IsKeyDown(Keys::I) &&
             keyboard.IsKeyDown(Keys::L) &&
@@ -3202,15 +3325,6 @@ namespace WolfCna
         const float turnStep = KeyboardTurnSpeed *
             TurnSensitivityMultiplier(controlSettings_.turnSensitivityStep) * elapsedSeconds;
 
-        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnLeft))
-            yaw_ -= turnStep;
-        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnRight))
-            yaw_ += turnStep;
-
-        // Mouse yaw is additive with the keyboard turn keys, which stay available as the
-        // fallback whenever mouse control is switched off.
-        yaw_ = WrapYawRadians(yaw_ + mouseYawDelta);
-
         MovementInput movement;
         if (IsControlDown(keyboard, controlSettings_, ControlAction::MoveForward))
             movement.forward += 1.0f;
@@ -3220,6 +3334,28 @@ namespace WolfCna
             movement.strafe += 1.0f;
         if (IsControlDown(keyboard, controlSettings_, ControlAction::StrafeLeft))
             movement.strafe -= 1.0f;
+        movement.forward += MouseForwardAxis(mouse.getYProperty(), controlSettings_);
+
+        float turnAxis = 0.0f;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnLeft))
+            turnAxis -= 1.0f;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnRight))
+            turnAxis += 1.0f;
+
+        if (mouseStrafeIsDown)
+        {
+            // The classic strafe modifier: while it is held the turning input sidesteps
+            // instead of rotating, for both the turn keys and horizontal mouse travel.
+            movement.strafe += turnAxis +
+                MouseStrafeAxis(mouse.getXProperty(), controlSettings_);
+        }
+        else
+        {
+            // Mouse yaw is additive with the keyboard turn keys, which stay available as
+            // the fallback whenever mouse control is switched off.
+            yaw_ = WrapYawRadians(yaw_ + turnAxis * turnStep + mouseYawDelta);
+        }
+
         movement = NormalizeMovementInput(movement);
 
         if (movement.forward == 0.0f && movement.strafe == 0.0f)
@@ -3230,7 +3366,8 @@ namespace WolfCna
         const float rightX = std::cos(yaw_);
         const float rightZ = std::sin(yaw_);
 
-        const bool isRunning = IsControlDown(keyboard, controlSettings_, ControlAction::Run);
+        const bool isRunning =
+            IsControlDown(keyboard, controlSettings_, ControlAction::Run) || mouseRunIsDown;
         const float speed = WalkSpeed * (isRunning ? RunSpeedMultiplier : 1.0f);
         const float distance = speed * elapsedSeconds;
         const float dx = (forwardX * movement.forward + rightX * movement.strafe) * distance;
@@ -3258,6 +3395,7 @@ namespace WolfCna
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
+            screen_ == Screen::MouseSetup ||
             screen_ == Screen::Initials || screen_ == Screen::CampaignComplete)
         {
             HandleMenuInput();
@@ -3550,6 +3688,7 @@ namespace WolfCna
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
+            screen_ == Screen::MouseSetup ||
             screen_ == Screen::Initials || screen_ == Screen::CampaignComplete)
             DrawMenu();
         else

@@ -62,12 +62,13 @@ This starter is deliberately small. It proves the basic direction before local A
 - `A` / `D`: strafe left / right; diagonal movement is normalized to the same maximum speed
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
-- mouse: turn left / right with a fixed horizon; the left button attacks and the right button activates, exactly like the bound attack and action keys
+- mouse: turn left / right with a fixed horizon; the left button attacks, the middle button activates and the right button is the classic strafe modifier, which sidesteps with the turn keys and horizontal mouse travel instead of rotating
+- optional classic vertical axis: pushing the mouse away walks forward and pulling it back walks backward, at twice the horizontal gain as in 1992; it is off by default
 - the cursor is captured only during live gameplay and is released for every menu, so `Escape` into the pause menu always frees it; keyboard turning stays available whether the mouse is on or off
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
 - `CONTROLS`: rebind forward/back, turning, strafing, run, action, attack and map; assigning an occupied key swaps the two actions, reserved menu/system keys are rejected, and `RESTORE DEFAULTS` restores the classic layout
 - control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
-- control setup switches the mouse on or off and offers 40/70/100/130/160% mouse speed; both persist with the rest of the control layout
+- `MOUSE SETUP` is its own screen: mouse on/off, 40/70/100/130/160% mouse speed, the vertical axis, and an assignable action for each of the three buttons — none, attack, strafe, use or run — mirroring the original's `buttonmouse[]`
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
 - three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
 - `Space`: open the door in front of you, deliberately close a fully open ordinary door, or activate a faced sector elevator (doors close after four seconds unless the player, an enemy or a body blocks them)
@@ -105,8 +106,9 @@ After the campaign finale, a qualifying score enters three initials and joins a
 validated, descending table of the best eight results shown on the ending screen.
 Unlocked sectors and high scores are stored in `wolf-cna-progress.dat` in the launch
 working directory. Invalid progress data safely falls back to sector 1 with an empty
-score table; profile versions 1–6 migrate into the current version 7 format, where
-a version 6 profile keeps its bindings and adopts the default mouse settings.
+score table; profile versions 1–7 migrate into the current version 8 format. Each
+version appends to the previous one, so an older profile keeps every setting it
+stored and adopts the defaults for whatever it predates.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
 the current run. The current run-save version 5 persists push-wall direction, travel

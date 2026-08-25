@@ -553,6 +553,39 @@ int main()
             std::abs(WolfCna::WrapYawRadians(-0.25f) + 0.25f) < 0.001f &&
             std::abs(WolfCna::WrapYawRadians(0.25f) - 0.25f) < 0.001f,
         "yaw wraps to a bounded range so long sessions keep constant aim precision");
+    Expect(
+        defaultMouse.mouseButtons[0] == WolfCna::MouseButtonAction::Attack &&
+            defaultMouse.mouseButtons[1] == WolfCna::MouseButtonAction::Action &&
+            defaultMouse.mouseButtons[2] == WolfCna::MouseButtonAction::StrafeModifier,
+        "mouse buttons default to the original attack, use and strafe assignment");
+    Expect(
+        !defaultMouse.mouseYMovesForward &&
+            WolfCna::MouseForwardAxis(50, defaultMouse) == 0.0f,
+        "vertical mouse travel is ignored until the classic behaviour is switched on");
+    WolfCna::ControlSettings verticalMouse = defaultMouse;
+    verticalMouse.mouseYMovesForward = true;
+    Expect(
+        WolfCna::MouseForwardAxis(-20, verticalMouse) > 0.0f &&
+            WolfCna::MouseForwardAxis(20, verticalMouse) < 0.0f,
+        "pushing the mouse away moves forward and pulling it back moves backward");
+    Expect(
+        WolfCna::MouseForwardAxis(-100000, verticalMouse) == 1.0f &&
+            WolfCna::MouseForwardAxis(100000, verticalMouse) == -1.0f &&
+            WolfCna::MouseStrafeAxis(100000, defaultMouse) == 1.0f,
+        "mouse movement axes saturate instead of exceeding full stick deflection");
+    Expect(
+        std::abs(WolfCna::MouseForwardAxis(-40, verticalMouse)) ==
+                2.0f * std::abs(WolfCna::MouseStrafeAxis(40, verticalMouse)),
+        "vertical travel drives movement at twice the horizontal gain, as in 1992");
+    Expect(
+        WolfCna::MouseStrafeAxis(40, disabledMouse) == 0.0f &&
+            WolfCna::MouseForwardAxis(-40, disabledMouse) == 0.0f,
+        "switching the mouse off silences its movement axes as well as its yaw");
+    WolfCna::ControlSettings invalidButtons = defaultMouse;
+    invalidButtons.mouseButtons[1] = static_cast<WolfCna::MouseButtonAction>(97);
+    Expect(
+        !WolfCna::AreValidControlSettings(invalidButtons),
+        "an unknown persisted mouse-button action is rejected");
     WolfCna::ControlSettings invalidMouse = defaultMouse;
     invalidMouse.mouseSensitivityStep = WolfCna::MaximumMouseSensitivityStep + 1;
     WolfCna::ControlSettings negativeMouse = defaultMouse;
@@ -786,14 +819,56 @@ int main()
             mouseProfile.controls.mouseSensitivityStep == 4 &&
             mouseProfile.fieldOfView == 96,
         "a disabled mouse and its sensitivity survive a profile round trip");
+    const WolfCna::CampaignProfile mouseLookOnlyProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n0\n4\n10\n") +
+            std::string(classicBindings) + "0\n",
+        3);
+    Expect(
+        mouseLookOnlyProfile.highestUnlocked == 2 &&
+            !mouseLookOnlyProfile.controls.mouseEnabled &&
+            mouseLookOnlyProfile.controls.mouseSensitivityStep == 4 &&
+            !mouseLookOnlyProfile.controls.mouseYMovesForward &&
+            mouseLookOnlyProfile.controls.mouseButtons ==
+                WolfCna::ControlSettings{}.mouseButtons,
+        "version seven keeps its look settings and adopts the classic button assignment");
+    WolfCna::ControlSettings remappedButtons;
+    remappedButtons.mouseYMovesForward = true;
+    remappedButtons.mouseButtons = {
+        WolfCna::MouseButtonAction::Run,
+        WolfCna::MouseButtonAction::None,
+        WolfCna::MouseButtonAction::Attack};
+    const WolfCna::CampaignProfile remappedProfile = WolfCna::CampaignProgress::Parse(
+        WolfCna::CampaignProgress::Serialize(
+            WolfCna::CampaignProfile{
+                .highestUnlocked = 1,
+                .soundVolume = 2,
+                .difficulty = 0,
+                .fieldOfView = 60,
+                .controls = remappedButtons,
+                .highScores = {}},
+            3),
+        3);
+    Expect(
+        remappedProfile.controls == remappedButtons &&
+            remappedProfile.controls.mouseYMovesForward &&
+            remappedProfile.controls.mouseButtons[2] == WolfCna::MouseButtonAction::Attack,
+        "reassigned mouse buttons and the vertical axis survive a profile round trip");
     const WolfCna::CampaignProfile invalidMouseFlagProfile = WolfCna::CampaignProgress::Parse(
-        std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n2\n2\n10\n") +
+        std::string("WOLF-CNA-PROGRESS-8\n2\n4\n1\n72\n3\n2\n2\n0\n3\n1\n3\n2\n10\n") +
             std::string(classicBindings) + "0\n",
         3);
     const WolfCna::CampaignProfile invalidMouseSpeedProfile = WolfCna::CampaignProgress::Parse(
-        std::string("WOLF-CNA-PROGRESS-7\n2\n4\n1\n72\n3\n1\n9\n10\n") +
+        std::string("WOLF-CNA-PROGRESS-8\n2\n4\n1\n72\n3\n1\n9\n0\n3\n1\n3\n2\n10\n") +
             std::string(classicBindings) + "0\n",
         3);
+    const WolfCna::CampaignProfile invalidButtonProfile = WolfCna::CampaignProgress::Parse(
+        std::string("WOLF-CNA-PROGRESS-8\n2\n4\n1\n72\n3\n1\n2\n0\n3\n1\n97\n2\n10\n") +
+            std::string(classicBindings) + "0\n",
+        3);
+    Expect(
+        invalidButtonProfile.highestUnlocked == 0 &&
+            invalidButtonProfile.controls == WolfCna::ControlSettings{},
+        "an out-of-range persisted button action invalidates the whole profile");
     Expect(
         invalidMouseFlagProfile.highestUnlocked == 0 &&
             invalidMouseFlagProfile.controls == WolfCna::ControlSettings{} &&

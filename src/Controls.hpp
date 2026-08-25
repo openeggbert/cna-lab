@@ -42,6 +42,27 @@ namespace WolfCna
         ControlAction::Attack,
         ControlAction::Map};
     inline constexpr std::size_t ControlActionCount = BindableControlActions.size();
+
+    // What a physical mouse button does. These mirror the original's bt_attack, bt_strafe,
+    // bt_use, bt_run and bt_nobutton, which is what its buttonmouse[] array selected from.
+    enum class MouseButtonAction : int
+    {
+        None,
+        Attack,
+        StrafeModifier,
+        Action,
+        Run
+    };
+
+    inline constexpr std::array AssignableMouseButtonActions{
+        MouseButtonAction::None,
+        MouseButtonAction::Attack,
+        MouseButtonAction::StrafeModifier,
+        MouseButtonAction::Action,
+        MouseButtonAction::Run};
+
+    // Index order is physical: left, middle, right.
+    inline constexpr std::size_t MouseButtonCount = 3;
     inline constexpr int DefaultTurnSensitivityStep = 2;
     inline constexpr int MaximumTurnSensitivityStep = 4;
     inline constexpr int DefaultMouseSensitivityStep = 2;
@@ -75,6 +96,21 @@ namespace WolfCna
         int turnSensitivityStep = DefaultTurnSensitivityStep;
         bool mouseEnabled = true;
         int mouseSensitivityStep = DefaultMouseSensitivityStep;
+
+        // The original moved the player forward and backward with vertical mouse motion,
+        // since it had no vertical look to spend the axis on. That is preserved as an
+        // option but defaults off: it is the one 1992 mouse behaviour players actively
+        // worked around at the time.
+        bool mouseYMovesForward = false;
+
+        // Classic defaults. The original's buttonmouse[] held {bt_attack, bt_strafe,
+        // bt_use} against an INT 33h button mask whose bits are left, RIGHT, middle in
+        // that order, so the original assignment is left attack, right strafe, middle use
+        // -- not the left/middle/right reading the array order suggests at a glance.
+        std::array<MouseButtonAction, MouseButtonCount> mouseButtons{
+            MouseButtonAction::Attack,
+            MouseButtonAction::Action,
+            MouseButtonAction::StrafeModifier};
 
         bool operator==(const ControlSettings&) const = default;
     };
@@ -129,6 +165,16 @@ namespace WolfCna
             settings.mouseSensitivityStep > MaximumMouseSensitivityStep)
         {
             return false;
+        }
+        for (const MouseButtonAction action : settings.mouseButtons)
+        {
+            if (std::find(
+                    AssignableMouseButtonActions.begin(),
+                    AssignableMouseButtonActions.end(),
+                    action) == AssignableMouseButtonActions.end())
+            {
+                return false;
+            }
         }
 
         for (std::size_t index = 0; index < settings.bindings.size(); ++index)
@@ -239,6 +285,67 @@ namespace WolfCna
             yaw,
             -MaximumMouseYawRadiansPerFrame,
             MaximumMouseYawRadiansPerFrame);
+    }
+
+    // The original drove forward motion from vertical mouse travel at twice the gain of
+    // the turning axis (controly took *20 where controlx took *10). That ratio is kept,
+    // but the result is a movement axis rather than a raw displacement, so it feeds the
+    // same normalization, speed and collision path as the movement keys.
+    inline constexpr float BaseMouseForwardAxisPerCount = 0.025f;
+
+    // Counts grow downward on screen, and pushing the mouse away from you must move the
+    // player forward, so the axis is negated.
+    [[nodiscard]] constexpr float MouseForwardAxis(
+        int counts,
+        const ControlSettings& settings)
+    {
+        if (!settings.mouseEnabled || !settings.mouseYMovesForward)
+            return 0.0f;
+        const float axis = static_cast<float>(-counts) *
+            BaseMouseForwardAxisPerCount *
+            (static_cast<float>(MouseSensitivityPercent(settings.mouseSensitivityStep)) /
+                100.0f);
+        return std::clamp(axis, -1.0f, 1.0f);
+    }
+
+    // Half the forward gain, mirroring the original's *10 horizontal against *20 vertical.
+    // Unlike the forward axis this is not opt-in: it only ever applies while the strafe
+    // modifier is held, which is already an explicit request to sidestep.
+    [[nodiscard]] constexpr float MouseStrafeAxis(
+        int counts,
+        const ControlSettings& settings)
+    {
+        if (!settings.mouseEnabled)
+            return 0.0f;
+        const float axis = static_cast<float>(counts) *
+            (BaseMouseForwardAxisPerCount / 2.0f) *
+            (static_cast<float>(MouseSensitivityPercent(settings.mouseSensitivityStep)) /
+                100.0f);
+        return std::clamp(axis, -1.0f, 1.0f);
+    }
+
+    [[nodiscard]] constexpr std::string_view MouseButtonName(std::size_t button)
+    {
+        switch (button)
+        {
+        case 0: return "LEFT BUTTON";
+        case 1: return "MIDDLE BUTTON";
+        case 2: return "RIGHT BUTTON";
+        }
+        return "BUTTON";
+    }
+
+    [[nodiscard]] constexpr std::string_view MouseButtonActionName(MouseButtonAction action)
+    {
+        switch (action)
+        {
+        case MouseButtonAction::None: return "NONE";
+        case MouseButtonAction::Attack: return "ATTACK";
+        case MouseButtonAction::StrafeModifier: return "STRAFE";
+        case MouseButtonAction::Action: return "USE";
+        case MouseButtonAction::Run: return "RUN";
+        }
+        return "NONE";
     }
 
     // Yaw accumulates every frame and mouse look raises its growth rate by more than an

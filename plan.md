@@ -952,6 +952,31 @@ No CNA finding: relative mouse mode, capture and cursor visibility were all
 available through CNA's public `Mouse` and `Game` surfaces, and no native
 platform API is called from game code.
 
+The mouse model was later completed against the released id Software source
+rather than from memory. `PollMouseMove` fed `controlx += mousexmove*10/…` and
+`controly += mouseymove*20/…`, so vertical travel drove forward and backward
+motion at twice the horizontal gain. That is reproduced as an opt-in `MOUSE Y`
+setting, defaulting off: it is the single 1992 mouse behaviour players actively
+worked around at the time, so it is offered rather than imposed. It contributes a
+movement axis rather than a raw displacement, which keeps it on the same
+normalization, speed and collision path as the movement keys.
+
+`buttonmouse[4] = {bt_attack, bt_strafe, bt_use, bt_nobutton}` was indexed by an
+INT 33h button mask whose bits are left, **right**, middle in that order, so the
+original assignment is left attack, right strafe, middle use — not the
+left/middle/right reading the array order suggests. Those are now the defaults,
+and all three buttons are assignable to none, attack, strafe, use or run.
+Duplicate assignments are permitted, as they were originally.
+
+The strafe modifier itself was missing from the engine entirely: the original had
+no dedicated strafe keys and sidestepped by holding `bt_strafe` while turning.
+Holding it now diverts both the turn keys and horizontal mouse travel into
+strafing. The modern `A`/`D` strafe keys remain.
+
+Six mouse settings no longer fit the shared 260px menu panel, so they moved to
+their own `MOUSE SETUP` screen reached from control setup. Profile version 8
+persists the vertical axis and the button assignments and migrates versions 1–7.
+
 ### WOLF-003 — level file
 
 Status: complete.
