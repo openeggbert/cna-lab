@@ -852,13 +852,27 @@ WOLF-002 through WOLF-010 are all complete; that starter list is retired.
 The remaining gaps against the 1992 DOS grammar, which should be preferred over
 new M8-style extras, are:
 
-1. a fourth difficulty, since the classic ladder has four rungs and this has three;
-2. attract-mode demo playback from an idle title screen, which needs deterministic
+1. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay;
 3. an adjustable viewport size, currently fixed at a third of the window height
    (attempted and reverted, see the CNA finding below);
 4. a wider set of blocking static props, which is still only four decoration kinds
    plus tables.
+
+The classic four-rung ladder is complete: Scout, Operative, Veteran and Phantom.
+Phantom deliberately shares Veteran's roster, health and ammunition and escalates
+only behaviour — 160% incoming damage, faster movement and cadence, a much shorter
+reaction delay, longer hearing and a third simultaneous shooter. Two constraints
+forced that shape. Veteran already selects `maximumEnemySpawnTier = 2`, the highest
+authored tier, so a fourth rung cannot add enemies without authoring new encounters;
+and Veteran's ammunition supply already equals its clear budget exactly, with zero
+slack, so taking rounds away would make the campaign unclearable rather than harder.
+
+Enemy aggression itself was extended first, because the three existing rungs did not
+differ as much as they claimed. Reaction delay and hearing range now scale, and the
+single-ranged-attacker throttle is now a per-difficulty limit: previously only one
+enemy could ever fire at a time on every difficulty, so extra spawns added health to
+grind through but never additional incoming fire.
 
 ### CNA finding: a game-set sub-viewport breaks full screen — `CNA-BLOCKER`
 

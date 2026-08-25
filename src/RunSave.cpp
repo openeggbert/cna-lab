@@ -1,5 +1,7 @@
 #include "RunSave.hpp"
 
+#include "Difficulty.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -61,7 +63,7 @@ namespace WolfCna
         bool ValidateGameState(const RunSaveState& state, std::string& error)
         {
             if (state.levelIndex < 0 || state.levelIndex > 63 ||
-                state.difficulty < 0 || state.difficulty > 2 ||
+                !IsValidDifficultyValue(state.difficulty) ||
                 !IsFinite(state.playerX) || !IsFinite(state.playerY) ||
                 !IsFinite(state.playerZ) || !IsFinite(state.yaw) ||
                 state.health < 1 || state.health > 100 ||

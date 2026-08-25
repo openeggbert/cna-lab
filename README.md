@@ -50,7 +50,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - health kits remain in the level at 100% health and can be collected after the player takes damage
 - every sector provides at least two health kits, while the knife fallback keeps a deterministic full clear possible at every ammunition budget
 - no external copyrighted game assets
-- original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, reaction delay, hearing range, how many enemies may fire at once, incoming damage and ammunition supply
+- original title menu with the classic four deterministic difficulty rungs — Scout, Operative, Veteran and Phantom — changing enemy count, health, speed, firing cadence, reaction delay, hearing range, how many enemies may fire at once, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, both access colors, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
@@ -73,7 +73,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
 - `MOUSE SETUP` is its own screen: mouse on/off, 40/70/100/130/160% mouse speed, the vertical axis, and an assignable action for each of the three buttons — none, attack, strafe, use or run — mirroring the original's `buttonmouse[]`
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
-- three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
+- four difficulty rungs: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage; Phantom keeps Veteran's roster and supply but hits at 160%, reacts far sooner, hears further and lets a third enemy fire at once
 - `Space`: open the door in front of you, deliberately close a fully open ordinary door, or activate a faced sector elevator (doors close after four seconds unless the player, an enemy or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / repeater / heavy automatic; weapons 3 and 4 must be found first, and each automatic projectile consumes exactly one round

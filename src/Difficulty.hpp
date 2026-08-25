@@ -6,8 +6,28 @@ namespace WolfCna
     {
         Scout,
         Operative,
-        Veteran
+        Veteran,
+        Phantom
     };
+
+    inline constexpr int DifficultyCount = 4;
+
+    [[nodiscard]] constexpr bool IsValidDifficultyValue(int value)
+    {
+        return value >= 0 && value < DifficultyCount;
+    }
+
+    [[nodiscard]] constexpr const char* DifficultyName(Difficulty difficulty)
+    {
+        switch (difficulty)
+        {
+        case Difficulty::Scout: return "SCOUT";
+        case Difficulty::Operative: return "OPERATIVE";
+        case Difficulty::Veteran: return "VETERAN";
+        case Difficulty::Phantom: return "PHANTOM";
+        }
+        return "OPERATIVE";
+    }
 
     struct DifficultyProfile
     {
@@ -62,6 +82,26 @@ namespace WolfCna
                 .reactionDelayMultiplier = 0.65f,
                 .hearingRangeMultiplier = 1.3f,
                 .maximumRangedAttackers = 2};
+        case Difficulty::Phantom:
+            // Veteran already spawns every authored encounter tier, so a fourth rung
+            // cannot add enemies without new level authoring. Phantom therefore keeps
+            // Veteran's exact roster, health and ammunition -- which also keeps the
+            // campaign clear-budget audits meaningful -- and escalates only behaviour:
+            // it hits harder, reacts sooner, hears further and fields a third shooter.
+            // Ammunition in particular cannot be reduced: Veteran's supply already equals
+            // its clear budget exactly, with zero slack, so taking rounds away would make
+            // the campaign unclearable rather than merely harder.
+            return {
+                .incomingDamageMultiplier = 1.6f,
+                .enemyHealthMultiplier = 1.25f,
+                .enemySpeedMultiplier = 1.25f,
+                .enemyAttackIntervalMultiplier = 0.65f,
+                .ammunitionMultiplier = 0.7f,
+                .maximumEnemySpawnTier = 2,
+                .startingAmmunition = 8,
+                .reactionDelayMultiplier = 0.45f,
+                .hearingRangeMultiplier = 1.5f,
+                .maximumRangedAttackers = 3};
         }
         return {};
     }

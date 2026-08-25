@@ -1988,10 +1988,14 @@ namespace WolfCna
         {
             centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "SELECT DIFFICULTY", normal);
-            constexpr std::array<std::string_view, 3> options{"SCOUT", "OPERATIVE", "VETERAN"};
+            constexpr std::array<std::string_view, DifficultyCount> options{
+                DifficultyName(Difficulty::Scout),
+                DifficultyName(Difficulty::Operative),
+                DifficultyName(Difficulty::Veteran),
+                DifficultyName(Difficulty::Phantom)};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 96 + index * 30;
+                const int y = top + 92 + index * 27;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
@@ -2429,7 +2433,7 @@ namespace WolfCna
     {
         if (state.levelIndex < 0 ||
             state.levelIndex >= static_cast<int>(CampaignSectors.size()) ||
-            state.difficulty < 0 || state.difficulty > 2 ||
+            !IsValidDifficultyValue(state.difficulty) ||
             state.playerY < 0.0f || state.playerY > 4.0f)
         {
             error = "save references unsupported campaign state";
@@ -2657,9 +2661,9 @@ namespace WolfCna
         else if (screen_ == Screen::Difficulty)
         {
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + 2) % 3;
+                menuSelection_ = (menuSelection_ + DifficultyCount - 1) % DifficultyCount;
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % 3;
+                menuSelection_ = (menuSelection_ + 1) % DifficultyCount;
             if (confirmIsDown && !confirmWasDown_)
             {
                 difficulty_ = static_cast<Difficulty>(menuSelection_);

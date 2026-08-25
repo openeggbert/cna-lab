@@ -1,5 +1,7 @@
 #include "CampaignProgress.hpp"
 
+#include "Difficulty.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -81,7 +83,7 @@ namespace WolfCna
             int soundEnabled = 1;
             if (!(input >> soundEnabled >> profile.difficulty) ||
                 (soundEnabled != 0 && soundEnabled != 1) ||
-                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsValidDifficultyValue(profile.difficulty) ||
                 (input >> trailing))
             {
                 return {};
@@ -92,7 +94,7 @@ namespace WolfCna
         {
             if (!(input >> profile.soundVolume >> profile.difficulty) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
-                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsValidDifficultyValue(profile.difficulty) ||
                 (input >> trailing))
             {
                 return {};
@@ -102,7 +104,7 @@ namespace WolfCna
         {
             if (!(input >> profile.soundVolume >> profile.difficulty >> profile.fieldOfView) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
-                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsValidDifficultyValue(profile.difficulty) ||
                 !IsSupportedFieldOfView(profile.fieldOfView) ||
                 (input >> trailing))
             {
@@ -115,7 +117,7 @@ namespace WolfCna
             if (!(input >> profile.soundVolume >> profile.difficulty >>
                     profile.fieldOfView >> highScoreCount) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
-                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsValidDifficultyValue(profile.difficulty) ||
                 !IsSupportedFieldOfView(profile.fieldOfView) ||
                 highScoreCount > MaximumHighScoreEntries)
             {
@@ -155,7 +157,7 @@ namespace WolfCna
             if (!(input >> profile.soundVolume >> profile.difficulty >>
                     profile.fieldOfView >> profile.controls.turnSensitivityStep) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
-                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsValidDifficultyValue(profile.difficulty) ||
                 !IsSupportedFieldOfView(profile.fieldOfView))
             {
                 return {};
@@ -302,7 +304,7 @@ namespace WolfCna
         output << Header << '\n'
             << std::clamp(profile.highestUnlocked, 0, maximum) << '\n'
             << std::clamp(profile.soundVolume, 0, 4) << '\n'
-            << std::clamp(profile.difficulty, 0, 2) << '\n'
+            << std::clamp(profile.difficulty, 0, DifficultyCount - 1) << '\n'
             << fieldOfView << '\n'
             << controls.turnSensitivityStep << '\n'
             << (controls.mouseEnabled ? 1 : 0) << '\n'

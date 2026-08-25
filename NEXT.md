@@ -101,6 +101,12 @@
 
 ## Difficulty scaling
 
+The ladder now has the classic four rungs: Scout, Operative, Veteran, Phantom.
+Phantom shares Veteran's roster and supply and escalates only behaviour, because
+Veteran already spawns the highest authored encounter tier and its ammunition
+already equals its clear budget exactly. Adding enemies or removing rounds at a
+fourth rung therefore needs new level authoring first.
+
 An audit traced every difficulty field to a runtime effect. The system is real, not
 a stub: enemy counts (`World.cpp` spawn-tier `continue`), enemy health, move speed,
 firing cadence, incoming damage and ammunition all scale, and difficulty is

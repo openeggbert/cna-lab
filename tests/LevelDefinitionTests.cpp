@@ -729,6 +729,8 @@ int main()
         WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Operative);
     constexpr WolfCna::DifficultyProfile veteranProfile =
         WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Veteran);
+    constexpr WolfCna::DifficultyProfile phantomProfile =
+        WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Phantom);
     Expect(
         scoutProfile.incomingDamageMultiplier < operativeProfile.incomingDamageMultiplier &&
             operativeProfile.incomingDamageMultiplier < veteranProfile.incomingDamageMultiplier,
@@ -811,6 +813,20 @@ int main()
             savedProfile.controls == savedControls &&
             savedProfile.highScores == std::vector<WolfCna::HighScoreEntry>{{"TOP", 9800}, {"LOW", 1200}},
         "campaign profile restores controls, settings and a normalized high-score table");
+    WolfCna::CampaignProfile phantomSource;
+    phantomSource.highestUnlocked = 2;
+    phantomSource.difficulty = static_cast<int>(WolfCna::Difficulty::Phantom);
+    const WolfCna::CampaignProfile phantomRoundTrip = WolfCna::CampaignProgress::Parse(
+        WolfCna::CampaignProgress::Serialize(phantomSource, 3),
+        3);
+    Expect(
+        phantomRoundTrip.difficulty == 3,
+        "the fourth difficulty survives a profile round trip");
+    const WolfCna::CampaignProfile outOfRangeDifficulty = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-4\n1\n3\n4\n84\n", 3);
+    Expect(
+        outOfRangeDifficulty.highestUnlocked == 0 && outOfRangeDifficulty.difficulty == 1,
+        "a difficulty past the last rung is still rejected");
     const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-4\n2\n5\n1\n72\n", 3);
     Expect(
@@ -1149,6 +1165,21 @@ int main()
             scoutSupply >= scoutClearRounds && operativeSupply >= operativeClearRounds &&
                 veteranSupply >= veteranClearRounds,
             "each difficulty supplies enough rounds for its rebalanced close-sidearm health budget");
+
+        // Phantom deliberately shares Veteran's roster and supplies: Veteran already spawns
+        // every authored encounter tier, so a fourth rung can only escalate behaviour. This
+        // pins that intent, and keeps the clear budget above valid for Phantom too.
+        const WolfCna::World phantomWorld(*campaignLevel, WolfCna::Difficulty::Phantom);
+        const WolfCna::World::DifficultyBalance phantom = phantomWorld.GetDifficultyBalance();
+        const int phantomSupply = phantomProfile.startingAmmunition +
+            phantom.fixedAmmunition + phantom.potentialDroppedAmmunition;
+        const int phantomClearRounds = (phantom.totalEnemyHealth + phantom.activeEnemies) / 2;
+        Expect(
+            phantom.activeEnemies == veteran.activeEnemies &&
+                phantom.totalEnemyHealth == veteran.totalEnemyHealth &&
+                phantom.fixedAmmunition == veteran.fixedAmmunition &&
+                phantomSupply >= phantomClearRounds,
+            "phantom keeps veteran's roster and supply while staying clearable");
         Expect(
             scoutBehavior.patrollingEnemies >= 1 && operativeBehavior.patrollingEnemies >= 1 &&
                 veteranBehavior.patrollingEnemies >= 1 &&
@@ -1205,6 +1236,31 @@ int main()
         scoutShots < operativeShots && operativeShots < veteranShots,
         "guard firing frequency increases monotonically with difficulty");
 
+    Expect(
+        WolfCna::DifficultyCount == 4 &&
+            std::string_view(WolfCna::DifficultyName(WolfCna::Difficulty::Phantom)) ==
+                "PHANTOM" &&
+            WolfCna::IsValidDifficultyValue(3) && !WolfCna::IsValidDifficultyValue(4) &&
+            !WolfCna::IsValidDifficultyValue(-1),
+        "the classic four-rung difficulty ladder is complete and range-checked");
+    Expect(
+        phantomProfile.incomingDamageMultiplier > veteranProfile.incomingDamageMultiplier &&
+            phantomProfile.enemySpeedMultiplier > veteranProfile.enemySpeedMultiplier &&
+            phantomProfile.enemyAttackIntervalMultiplier <
+                veteranProfile.enemyAttackIntervalMultiplier &&
+            phantomProfile.reactionDelayMultiplier <
+                veteranProfile.reactionDelayMultiplier &&
+            phantomProfile.hearingRangeMultiplier >
+                veteranProfile.hearingRangeMultiplier &&
+            phantomProfile.maximumRangedAttackers >
+                veteranProfile.maximumRangedAttackers,
+        "phantom escalates every behavioural lever beyond veteran");
+    Expect(
+        phantomProfile.maximumEnemySpawnTier == veteranProfile.maximumEnemySpawnTier &&
+            phantomProfile.enemyHealthMultiplier == veteranProfile.enemyHealthMultiplier &&
+            phantomProfile.ammunitionMultiplier == veteranProfile.ammunitionMultiplier &&
+            phantomProfile.startingAmmunition == veteranProfile.startingAmmunition,
+        "phantom shares veteran's roster and resources because no higher spawn tier exists");
     Expect(
         scoutProfile.reactionDelayMultiplier > operativeProfile.reactionDelayMultiplier &&
             operativeProfile.reactionDelayMultiplier >
