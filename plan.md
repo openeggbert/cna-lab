@@ -855,10 +855,17 @@ new M8-style extras, are:
 1. a fourth difficulty, since the classic ladder has four rungs and this has three;
 2. attract-mode demo playback from an idle title screen, which needs deterministic
    input recording and replay;
-3. an adjustable viewport size, currently fixed at a third of the window height;
-4. an inter-sector loading screen;
-5. a wider set of blocking static props, which is still only four decoration kinds
+3. an inter-sector loading screen;
+4. a wider set of blocking static props, which is still only four decoration kinds
    plus tables.
+
+The adjustable view size is done. Restricting the device viewport before the 3D
+pass is what shrinks the window, so `ProjectionMatrix` picks up the aspect ratio
+without further work, and an RAII guard restores the full viewport for the HUD,
+automap and menus. The HUD panel is never covered: the view shrinks inside the
+area above it and stays centred, leaving the classic border. The weapon belongs
+to the 3D window rather than the panel, so it scales and sits with it. Profile
+version 10 persists the step.
 
 An earlier revision of this list also claimed separate music and sound-effect
 volume as a classic gap. That was wrong and has been removed: the 1992 sound menu

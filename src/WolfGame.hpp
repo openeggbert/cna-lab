@@ -205,6 +205,7 @@ namespace WolfCna
         std::string pauseStatusMessage_;
         int soundVolumeStep_ = 4;
         int fieldOfViewDegrees_ = 72;
+        int viewSizeStep_ = MaximumViewSizeStep;
         ControlSettings controlSettings_;
         bool waitingForBinding_ = false;
         std::vector<Keys> bindingKeysHeld_;
@@ -223,6 +224,9 @@ namespace WolfCna
         static constexpr float RunSpeedMultiplier = 1.65f;
         static constexpr float KeyboardTurnSpeed = 1.65f;
         static constexpr int MaxAmmo = 99;
+        static constexpr int HudPanelHeight = 84;
+
+        [[nodiscard]] Microsoft::Xna::Framework::Rectangle WorldViewBounds();
 
         void HandleInput(float elapsedSeconds);
         void HandleMenuInput();
