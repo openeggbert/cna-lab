@@ -4,6 +4,8 @@
 
 This repository is not a clone of any existing game. It uses the broad genre idea of a cinematic city story with walking, driving, interiors, dialogue, missions, and cutscenes while keeping its own fictional city, characters, plot, map, assets, and identity.
 
+![On-foot gameplay: the warehouse district, the player character, and the mission sedan, with the HUD showing the current objective](screenshot.png)
+
 ## What already works in this foundation
 
 The current C++ prototype is intentionally simple but not empty. It provides:
