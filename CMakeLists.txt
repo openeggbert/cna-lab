@@ -8,10 +8,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
 
-get_filename_component(PEOPLE_CNA_ROOT
-    "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext" ABSOLUTE)
+# Default to the documented sibling layout, but let an explicit
+# -DPEOPLE_CNA_ROOT / -DPEOPLE_SHARP_RUNTIME_ROOT win. Computing the default
+# unconditionally would create a normal variable that shadows the cache entry,
+# making the override in the error messages below impossible to use.
+if(NOT PEOPLE_CNA_ROOT)
+    get_filename_component(PEOPLE_CNA_ROOT
+        "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext" ABSOLUTE)
+endif()
+if(NOT PEOPLE_SHARP_RUNTIME_ROOT)
+    get_filename_component(PEOPLE_SHARP_RUNTIME_ROOT
+        "${CMAKE_CURRENT_SOURCE_DIR}/../sharp-runtimenext" ABSOLUTE)
+endif()
+
+get_filename_component(PEOPLE_CNA_ROOT "${PEOPLE_CNA_ROOT}" ABSOLUTE)
 get_filename_component(PEOPLE_SHARP_RUNTIME_ROOT
-    "${CMAKE_CURRENT_SOURCE_DIR}/../sharp-runtimenext" ABSOLUTE)
+    "${PEOPLE_SHARP_RUNTIME_ROOT}" ABSOLUTE)
 
 set(PEOPLE_CNA_ROOT "${PEOPLE_CNA_ROOT}" CACHE PATH
     "Path to the newer CNA checkout used by People")
