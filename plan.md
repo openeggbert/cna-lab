@@ -847,17 +847,23 @@ Agents must not download random art assets merely to make a demo look better.
 
 Agents must not rewrite large working subsystems unless the task requires it.
 
-Preferred next agent tasks:
+WOLF-002 through WOLF-010 are all complete; that starter list is retired.
 
-1. **WOLF-002:** add CNA-only mouse look and cursor capture.
-2. **WOLF-003:** extract level definition from C++ into a small external level file.
-3. **WOLF-004:** add door entity with collision and animation.
-4. **WOLF-005:** add a minimal HUD/crosshair.
-5. **WOLF-006:** add hitscan sidearm and impact marker.
-6. **WOLF-007:** add first enemy state machine.
-7. **WOLF-008:** add A* navigation over the logical grid.
-8. **WOLF-009:** add health/ammo pickups.
-9. **WOLF-010:** produce first 5-minute level.
+The remaining gaps against the 1992 DOS grammar, which should be preferred over
+new M8-style extras, are:
+
+1. a fourth difficulty, since the classic ladder has four rungs and this has three;
+2. attract-mode demo playback from an idle title screen, which needs deterministic
+   input recording and replay;
+3. an adjustable viewport size, currently fixed at a third of the window height;
+4. separate music and sound-effect volume instead of one master step;
+5. an inter-sector loading screen;
+6. a wider set of blocking static props, which is still only four decoration kinds
+   plus tables.
+
+Note that the explored-area automap (WOLF-018) has no 1992 counterpart, so the
+project already carries deliberate additions; the ordering preference above is
+about finishing the classic core first, not about refusing extras.
 
 Keep task IDs stable after they are introduced.
 
@@ -895,6 +901,8 @@ Recommended sequence for local agents:
 
 ### WOLF-002 — mouse look
 
+Status: complete.
+
 Acceptance:
 
 - mouse controls yaw while the horizon remains fixed;
@@ -902,6 +910,39 @@ Acceptance:
 - Escape releases/quits according to chosen UX;
 - implementation uses CNA input only;
 - keyboard turning remains available as fallback.
+
+Yaw comes from CNA's FNA-compatible relative mouse mode
+(`Mouse::setIsRelativeMouseModeEXTProperty`). The horizon stays fixed because the
+game keeps a single yaw angle and ignores relative vertical displacement
+entirely; there is no pitch to leak.
+
+Relative mode is deliberately confined to live gameplay. CNA reports relative
+displacement through the same `MouseState` x/y fields the menus read as absolute
+cursor coordinates, so enabling it globally would break every clickable menu
+button. Capture is reconciled once per frame from the screen the previous frame
+settled on, which is what makes Escape release the cursor before the pause menu
+reads a coordinate. The cursor now also starts visible instead of using the
+hidden XNA default, because the splash and menus are pointer-driven.
+
+Relative displacement is consume-on-read, so the gameplay path holds exactly one
+`Mouse::GetState()` call — a second reader would silently eat the frame's motion
+— and it discards the menu's accumulated travel when play begins. Per-frame
+counts are clamped to `MaximumMouseCountsPerFrame`, since deltas accumulate while
+the window is unfocused and an unbounded frame could otherwise spin the player
+through several full turns. Unlike keyboard turning, mouse yaw is not scaled by
+elapsed time: relative counts already describe distance moved.
+
+Mouse yaw is additive with the keyboard turn keys, which stay available as the
+fallback whenever mouse control is switched off. The left button attacks and the
+right button activates, both folded into the existing rebindable actions rather
+than duplicating their logic. Control setup gains a `MOUSE` on/off row and five
+`MOUSE SPEED` steps (40–160%); profile version 7 persists both and migrates
+versions 1–6, where an existing profile keeps its bindings and adopts the mouse
+defaults.
+
+No CNA finding: relative mouse mode, capture and cursor visibility were all
+available through CNA's public `Mouse` and `Game` surfaces, and no native
+platform API is called from game code.
 
 ### WOLF-003 — level file
 

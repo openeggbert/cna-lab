@@ -78,6 +78,8 @@
 - Hound bark noise is gently filtered while preserving its louder two-part alert bark and distinct defeat whimper.
 - WOLF-047 is complete: Emscripten 6.0.3 builds a CNA `WEBGL2` HTML/JS/WASM/data deployment with every game asset preloaded.
 - The corrected web target uses the matching `cnanext`/`sharp-runtimenext` pair, JavaScript-lowered exceptions and Asyncify so CNA's blocking browser loop preserves the game object's lifetime; executable-level WebGL 2 limits prevent Firefox from silently creating WebGL 1.
+- WOLF-002 is complete: CNA relative mouse mode turns the player with a fixed horizon, the left and right buttons attack and activate, and the cursor is captured only during live gameplay so every menu keeps working.
+- Control setup switches the mouse on or off with five speed steps; profile version 7 persists both and migrates versions 1–6.
 
 ## Current handoff
 
@@ -85,13 +87,24 @@
 - Native `build-cnanext` compiles `wolf-cna` and `level-definition-tests`; the focused test suite passes.
 - Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were rebuilt from a clean configure against explicit `cnanext`/`sharp-runtimenext` paths and served successfully over local HTTP.
 - Firefox 140.10.1 ESR completed a clean-profile headless smoke test without a page exception and rendered the 800×480 Wolf CNA title screen; manual audio/fullscreen testing still needs an interactive browser.
+- Mouse control has not been played yet. It is covered by unit tests for the yaw
+  conversion, the per-frame clamp and profile migration, but capture, cursor
+  release and pointer feel need a real window; the web build has not been
+  rebuilt since, so pointer lock in the browser is entirely unverified.
+- The stale `build-web-cna-old-20260824/` directory was deleted.
 
 ## Next tasks
 
-1. Interactively smoke-test menu/game keyboard input, audio unlock and fullscreen behavior in `build-web-cnanext/wolf-cna.html`; basic loading and title-screen rendering already pass in Firefox.
-2. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
-3. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
-4. Review the remaining longer-term milestones in `plan.md` before selecting the next coherent implementation task.
+1. Play the native build and confirm the mouse: turning feel at each speed step, that `Escape` frees the cursor into the pause menu, that the splash and menus stay clickable, and that switching `MOUSE` off leaves keyboard turning intact.
+2. Rebuild the web target and check whether CNA's relative mouse mode reaches browser pointer lock; if it does not, that is a genuine CNA finding to record under `plan.md` §17 rather than a game bug.
+3. Interactively smoke-test menu/game keyboard input, audio unlock and fullscreen behavior in `build-web-cnanext/wolf-cna.html`; basic loading and title-screen rendering already pass in Firefox.
+4. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
+5. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
+
+The classic 1992 gaps still open are listed at the end of `plan.md` §16: a fourth
+difficulty, attract-mode demo playback, adjustable viewport size, separate music
+and effect volume, an inter-sector loading screen and a wider set of blocking
+props. Prefer those over new M8-style extras.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.
