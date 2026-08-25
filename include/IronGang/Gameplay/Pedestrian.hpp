@@ -15,7 +15,13 @@ namespace IronGang
     class Pedestrian final
     {
     public:
-        void Reset(WaypointPath path, std::size_t startIndex, float walkSpeed);
+        // startOffsetMetres moves the pedestrian that far along the segment from
+        // path.points[startIndex] toward the next waypoint before it starts walking, clamped to
+        // that segment. It exists so several pedestrians can share one sidewalk path without all
+        // of them standing on the same endpoint (plan_20 IG-20-001); 0 keeps the original
+        // behaviour exactly.
+        void Reset(WaypointPath path, std::size_t startIndex, float walkSpeed,
+                   float startOffsetMetres = 0.0F);
 
         // hasThreat/threatPosition describe the single nearest thing this pedestrian should
         // consider fleeing from this frame; pass hasThreat=false once nothing is close (the

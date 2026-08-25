@@ -92,6 +92,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A deterministic RNG, and a city that finally has people in it (plan_04, plan_20, plan_21)
+
+Two **P0 gameplay** tasks that had sat since gate M9 -- "only 2 pedestrians spawned, not 10-20" and
+"only 2 traffic vehicles, not 3-5" -- are closed, along with the RNG they needed.
+
+- `RandomSource` (`Core/RandomSource.hpp`): splitmix64, hand-written rather than `<random>` because
+  `std::uniform_*_distribution` is **not** specified exactly and so gives different numbers per
+  standard library -- "seed 42" has to mean one thing everywhere. `NextIndex` rejection-samples
+  (modulo bias is what makes one option keep winning). `Derive(label)` gives an independent stream
+  **without consuming from the parent**, so a new caller cannot shift an existing system's sequence.
+- `WarehouseBlock` now has **12 pedestrians** (six per sidewalk, spread by `Pedestrian::Reset`'s new
+  start offset, speeds 1.1-2.0, both directions) and **4 traffic vehicles** (speeds 5-7). Varied
+  traffic speeds are not cosmetic: identical speeds hold their spacing forever, so the
+  following-distance braking that already existed would never fire.
+- The population derives from a seed mixed with the district id, so a district repopulates
+  **identically** every time -- otherwise the profiling scenarios would stop being comparable.
+
+Measured in a real `mixed --smoke 400` run: exactly 12 and 4, `ai_cpu` p95 0.002 ms, max 0.022 ms.
+
+**Read this before trusting any M12 number:** every capture in `docs/performance-baseline.md` was
+taken with 2 pedestrians and 2 vehicles. Anything comparing across this change compares two
+different workloads, the comparator's `NO REGRESSION` included. A dated note now sits at the top of
+that file; a fresh baseline pair is needed.
+
+Still open nearby: pedestrians are colored boxes with no skinned model or walk animation
+(`IG-20-003`), they do not avoid each other, and the population is fixed rather than streamed by
+attention; traffic has no signals, turning, or lane graph.
+
 ### A simulation clock between CNA and the world (plan_04)
 
 `Update` fed `GameTime`'s raw delta straight to physics, movement, AI, the mission, and autosave.

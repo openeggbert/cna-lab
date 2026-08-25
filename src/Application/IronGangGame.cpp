@@ -2,6 +2,7 @@
 #include "IronGang/Application/IronGangGame.hpp"
 
 #include "IronGang/Core/Log.hpp"
+#include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -631,31 +632,67 @@ namespace IronGang
 
     void IronGangGame::RespawnTrafficAndPedestrians()
     {
+        // Fixed so the ambient city is reproducible run to run; derive from it rather than
+        // replacing it if a system ever needs its own stream.
+        constexpr std::uint64_t kAmbientPopulationSeed = 0x51DEA1C9B2E77F03ULL;
+
         const PrototypeWorld& world = districtManager_.GetWorld();
+
+        // plan_20 IG-20-001 / plan_21 IG-21-001: the locked Mafia-1 target is 10-20 pedestrians and
+        // 3-5 traffic vehicles near the player, not the one-per-path pair gate M9 shipped. The
+        // variation comes from a seed derived from the district id, so a district always
+        // repopulates identically -- a retry, a load, and a profiling run all see the same city,
+        // which is what makes the performance scenarios comparable at all.
+        RandomSource ambientRandom =
+            RandomSource(kAmbientPopulationSeed).Derive(static_cast<std::uint64_t>(world.GetId()));
 
         trafficVehicles_.clear();
         const WaypointPath& loop = world.GetTrafficLoop();
         if (!loop.Empty())
         {
-            constexpr int kTrafficVehicleCount = 2;
-            constexpr float kCruiseSpeed = 6.0F;
+            constexpr int kTrafficVehicleCount = 4; // inside plan_21's three-to-five band
+            constexpr float kSlowestCruiseSpeed = 5.0F;
+            constexpr float kFastestCruiseSpeed = 7.0F;
             for (int i = 0; i < kTrafficVehicleCount; ++i)
             {
                 const std::size_t startIndex =
                     (loop.points.size() * static_cast<std::size_t>(i)) / static_cast<std::size_t>(kTrafficVehicleCount);
                 TrafficVehicle vehicle;
-                vehicle.Reset(loop, startIndex, kCruiseSpeed);
+                // Different cruise speeds are what keep the loop from looking like a carousel:
+                // identical speeds hold their spacing forever and never produce the braking the
+                // following-distance logic exists for.
+                vehicle.Reset(loop, startIndex,
+                              ambientRandom.NextFloatInRange(kSlowestCruiseSpeed, kFastestCruiseSpeed));
                 trafficVehicles_.push_back(vehicle);
             }
         }
 
         pedestrians_.clear();
-        constexpr float kWalkSpeed = 1.6F;
+        constexpr int kPedestriansPerSidewalk = 6;
+        constexpr float kSlowestWalkSpeed = 1.1F;
+        constexpr float kFastestWalkSpeed = 2.0F;
         for (const WaypointPath& sidewalk : world.GetSidewalkPaths())
         {
-            Pedestrian pedestrian;
-            pedestrian.Reset(sidewalk, 0, kWalkSpeed);
-            pedestrians_.push_back(pedestrian);
+            if (sidewalk.points.size() < 2)
+            {
+                continue;
+            }
+            const float sidewalkLength = (sidewalk.points[1] - sidewalk.points[0]).Length();
+            for (int i = 0; i < kPedestriansPerSidewalk; ++i)
+            {
+                // Spread along the sidewalk, and start half of them from each end so the two
+                // directions of travel are both represented instead of a single-file queue.
+                const float spacing = sidewalkLength / static_cast<float>(kPedestriansPerSidewalk);
+                const float jitter = ambientRandom.NextFloatInRange(-0.35F, 0.35F) * spacing;
+                const float offset = std::clamp(spacing * (static_cast<float>(i) + 0.5F) + jitter,
+                                                0.0F, sidewalkLength);
+                const std::size_t startIndex = ambientRandom.NextBool() ? 0U : 1U;
+                Pedestrian pedestrian;
+                pedestrian.Reset(sidewalk, startIndex,
+                                 ambientRandom.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed),
+                                 startIndex == 0 ? offset : sidewalkLength - offset);
+                pedestrians_.push_back(pedestrian);
+            }
         }
 
         police_.Reset();

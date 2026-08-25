@@ -577,6 +577,60 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## A deterministic RNG, and a city with people in it (2026-08-26)
+
+plan_04 `IG-04-011`/`012` closed; plan_20 `IG-20-001` and plan_21 `IG-21-001` closed — both P0
+gameplay tasks that had been sitting at "only 2 spawned, not 10-20" and "only 2 spawned, not 3-5"
+since gate M9.
+
+**The RNG.** `RandomSource` (`include/IronGang/Core/RandomSource.hpp`, `src/Core/RandomSource.cpp`)
+is splitmix64, hand-written rather than `<random>` **on purpose**: `std::mt19937` is specified
+exactly, but `std::uniform_int_distribution` and `std::uniform_real_distribution` are not, so the
+same seed produces different numbers on different standard libraries. "Seed 42" in a bug report, a
+save, or a profiling run has to mean the same thing everywhere, so the range mapping is written out
+here. `NextIndex` rejection-samples instead of taking a modulo — that bias is what shows up as the
+same option being picked too often. `Derive(label)` gives an independent stream **without consuming
+from the parent**, so adding a caller cannot shift an existing system's sequence out from under it.
+
+**The city.** `WarehouseBlock` now spawns 12 pedestrians (six per sidewalk path, spread along it by
+`Pedestrian::Reset`'s new start offset rather than stacking on its endpoint, speeds 1.1–2.0, both
+directions of travel represented) and 4 traffic vehicles (one per corner of the oval, cruise speeds
+5–7). The varied traffic speeds matter beyond appearance: identical speeds hold their spacing
+forever, so the following-distance braking that already exists would never actually fire.
+
+The whole population derives from a seed mixed with the district id, so a district repopulates
+**identically** every time — a retry, a load, and a profiling run all see the same city. That is not
+a detail: without it the performance scenarios would stop being comparable to each other.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestRandomSourceIsDeterministicAndUniform` replays four golden draws (so changing the generator is
+a deliberate act, not a silent one), checks that different seeds diverge, that `Derive` neither
+consumes from its parent nor collides across labels while reproducing for the same label, that every
+range holds across 2000 draws including the degenerate ones (bound 0 and 1, empty and reversed
+ranges), and smoke-tests for gross bias with 8000 draws over 8 buckets.
+`TestPedestrianSpawnOffsetSpreadsAlongPath` checks that a zero offset preserves gate M9's exact
+behaviour, that six offsets give six positions no two of which are within a metre, that an offset
+past the segment clamps rather than overshooting, and — the one that matters for how it looks — that
+a pedestrian spawned mid-segment keeps walking the way it was headed instead of turning round on its
+first step, from both endpoints.
+
+A real `--profile-scenario mixed --smoke 400` run reports exactly 12 pedestrians and 4 traffic
+vehicles, with `ai_cpu` average 0.001 ms, p95 0.002 ms, maximum 0.022 ms, at most 16 traffic
+obstacle checks, 12 pedestrian threat checks, and 16 police witness checks per update, and
+`update_cpu` p95 0.429 ms — the six-fold population increase is far below anything the budgets can
+see.
+
+**Consequence recorded rather than glossed over:** every M12 capture in
+`docs/performance-baseline.md` was taken with 2 pedestrians and 2 vehicles. A comparison that crosses
+this change is comparing two different workloads, including the comparator's `NO REGRESSION`
+verdict, so a dated note now sits at the top of that file saying a fresh baseline pair is needed
+before those numbers can be treated as current.
+
+**Boundaries.** Pedestrians are still colored boxes with no skinned model or walk animation
+(`IG-20-003`), they do not avoid each other, and there is no spawn/despawn by attention — 12 is a
+fixed population, not a streamed one. Traffic still has no signals, turning, or lane graph. The
+seed is a compile-time constant rather than a `game.json` tunable.
+
 ## A simulation clock between CNA and the world (2026-08-25)
 
 plan_04 `IG-04-003`/`004`/`005`/`007` closed.

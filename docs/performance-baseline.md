@@ -1,5 +1,20 @@
 # Performance baseline
 
+## 2026-08-26 — ambient population raised: earlier captures are not comparable
+
+`WarehouseBlock` now populates with **12 pedestrians and 4 traffic vehicles** (plan_20 `IG-20-001`,
+plan_21 `IG-21-001`) instead of the 2 and 2 every capture below was measured with. Any frame, CPU,
+or AI-workload comparison that crosses this date is comparing two different workloads — the
+comparator's `NO REGRESSION` verdict included. A new baseline pair has to be captured before the M12
+numbers below can be treated as current.
+
+What the change costs, measured in a no-display `mixed --smoke 400` run: `ai_cpu` average 0.001 ms,
+p95 0.002 ms, maximum 0.022 ms; at most 16 traffic obstacle checks, 12 pedestrian threat checks, and
+16 police witness checks per update; `update_cpu` p95 0.429 ms. In other words the extra population
+is far below anything the budgets can see — but the *numbers below were still taken with a different
+city in them*.
+
+
 ## 2026-08-24 — Linux EasyGL first-district capture
 
 Environment: Linux, CNA `OPENGLES3`/EasyGL, OpenGL ES 3.2 Mesa 25.0.7, 1280x720, vertical sync

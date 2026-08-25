@@ -3,6 +3,7 @@
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
+#include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -27,6 +28,7 @@
 
 #include "Microsoft/Xna/Framework/Graphics/SurfaceFormat.hpp"
 
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -850,6 +852,136 @@ namespace
 
         std::filesystem::remove(savePath);
         std::filesystem::remove(path);
+    }
+
+    // plan_04 IG-04-011/012: the same seed must produce the same sequence -- on any platform and
+    // any standard library, which is why this generator is hand-written rather than <random>.
+    void TestRandomSourceIsDeterministicAndUniform()
+    {
+        // Golden values: if these change, every seeded thing in the game changes with them, and
+        // that must be a deliberate decision rather than a silent consequence of an edit here.
+        IronGang::RandomSource golden(1);
+        const std::uint64_t expected[] = {
+            golden.NextUInt64(), golden.NextUInt64(), golden.NextUInt64(), golden.NextUInt64()};
+        IronGang::RandomSource replay(1);
+        for (const std::uint64_t value : expected)
+        {
+            Require(replay.NextUInt64() == value, "the same seed must replay the same sequence");
+        }
+        Require(expected[0] != expected[1] && expected[1] != expected[2],
+                "consecutive draws must differ");
+
+        IronGang::RandomSource other(2);
+        Require(other.NextUInt64() != expected[0], "a different seed must produce a different sequence");
+
+        // Derive() gives an independent stream without disturbing the parent's own sequence.
+        IronGang::RandomSource parent(7);
+        IronGang::RandomSource derivedA = parent.Derive(1);
+        IronGang::RandomSource derivedB = parent.Derive(2);
+        IronGang::RandomSource untouched(7);
+        Require(parent.NextUInt64() == untouched.NextUInt64(),
+                "deriving must not consume from the parent");
+        Require(derivedA.NextUInt64() != derivedB.NextUInt64(),
+                "two labels must give two different streams");
+        IronGang::RandomSource sameLabelA = IronGang::RandomSource(7).Derive(1);
+        IronGang::RandomSource sameLabelB = IronGang::RandomSource(7).Derive(1);
+        Require(sameLabelA.NextUInt64() == sameLabelB.NextUInt64(),
+                "the same parent seed and label must derive the same stream");
+
+        // Ranges hold, including the degenerate ones.
+        IronGang::RandomSource source(12345);
+        for (int draw = 0; draw < 2000; ++draw)
+        {
+            const float unit = source.NextUnitFloat();
+            Require(unit >= 0.0F && unit < 1.0F, "NextUnitFloat must stay in [0, 1)");
+            const float ranged = source.NextFloatInRange(-2.5F, 4.0F);
+            Require(ranged >= -2.5F && ranged <= 4.0F, "NextFloatInRange must stay within its bounds");
+            const std::uint32_t index = source.NextIndex(7);
+            Require(index < 7, "NextIndex must stay below its bound");
+        }
+        Require(source.NextIndex(0) == 0, "a zero bound must yield 0 rather than dividing by it");
+        Require(source.NextIndex(1) == 0, "a bound of 1 must always yield 0");
+        Require(std::fabs(source.NextFloatInRange(3.0F, 3.0F) - 3.0F) < 1e-6F,
+                "an empty range must yield its single value");
+        Require(std::fabs(source.NextFloatInRange(5.0F, 1.0F) - 5.0F) < 1e-6F,
+                "a reversed range must yield the minimum rather than a value outside it");
+
+        // Distribution sanity: uniform enough that no bucket is starved. This is a smoke test for
+        // gross bias (a broken modulo, a stuck bit), not a statistical proof.
+        IronGang::RandomSource spread(999);
+        std::array<int, 8> buckets{};
+        constexpr int kDraws = 8000;
+        for (int draw = 0; draw < kDraws; ++draw)
+        {
+            ++buckets[spread.NextIndex(static_cast<std::uint32_t>(buckets.size()))];
+        }
+        for (const int count : buckets)
+        {
+            Require(count > kDraws / 16 && count < kDraws / 4,
+                    "no bucket may be starved or flooded: " + std::to_string(count));
+        }
+        int heads = 0;
+        for (int draw = 0; draw < kDraws; ++draw)
+        {
+            heads += spread.NextBool() ? 1 : 0;
+        }
+        Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_20 IG-20-001 / plan_21 IG-21-001: several pedestrians share one sidewalk path without
+    // stacking on its endpoint, and a spawn offset leaves them walking the way they were headed.
+    void TestPedestrianSpawnOffsetSpreadsAlongPath()
+    {
+        const IronGang::WaypointPath sidewalk{{{-7.5F, 0.9F, -38.0F}, {-7.5F, 0.9F, 38.0F}}, true};
+        const float length = (sidewalk.points[1] - sidewalk.points[0]).Length();
+
+        // No offset keeps gate M9's exact behaviour: standing on the chosen waypoint.
+        IronGang::Pedestrian atStart;
+        atStart.Reset(sidewalk, 0, 1.6F);
+        Require(std::fabs(atStart.GetPosition().Z - sidewalk.points[0].Z) < 1e-4F,
+                "a zero offset must leave the pedestrian on its start waypoint");
+
+        // An offset walks it along the segment, and several offsets give several distinct places.
+        std::vector<float> spawnedZ;
+        for (int i = 0; i < 6; ++i)
+        {
+            const float offset = length * (static_cast<float>(i) + 0.5F) / 6.0F;
+            IronGang::Pedestrian pedestrian;
+            pedestrian.Reset(sidewalk, 0, 1.6F, offset);
+            Require(std::fabs(pedestrian.GetPosition().Z - (sidewalk.points[0].Z + offset)) < 1e-3F,
+                    "the pedestrian must stand exactly its offset along the segment");
+            for (const float existing : spawnedZ)
+            {
+                Require(std::fabs(existing - pedestrian.GetPosition().Z) > 1.0F,
+                        "spawned pedestrians must not stack on each other");
+            }
+            spawnedZ.push_back(pedestrian.GetPosition().Z);
+        }
+
+        // Offsetting past the end of the segment clamps to it rather than overshooting the path.
+        IronGang::Pedestrian clamped;
+        clamped.Reset(sidewalk, 0, 1.6F, length * 10.0F);
+        Require(std::fabs(clamped.GetPosition().Z - sidewalk.points[1].Z) < 1e-3F,
+                "an offset past the segment must clamp to its far end");
+
+        // A pedestrian spawned mid-segment keeps walking toward the far end, not back to the one
+        // it started from.
+        IronGang::Pedestrian walking;
+        walking.Reset(sidewalk, 0, 4.0F, length * 0.5F);
+        const float before = walking.GetPosition().Z;
+        walking.Update(1.0F, false, IronGang::Vector3{});
+        Require(walking.GetPosition().Z > before,
+                "a mid-segment spawn must continue toward the next waypoint, not turn round");
+
+        // The other endpoint works the same way, in the other direction.
+        IronGang::Pedestrian reversed;
+        reversed.Reset(sidewalk, 1, 4.0F, length * 0.25F);
+        Require(reversed.GetPosition().Z < sidewalk.points[1].Z && reversed.GetPosition().Z > sidewalk.points[0].Z,
+                "an offset from the far waypoint must land inside the segment");
+        const float reversedBefore = reversed.GetPosition().Z;
+        reversed.Update(1.0F, false, IronGang::Vector3{});
+        Require(reversed.GetPosition().Z < reversedBefore,
+                "a pedestrian started from the far end must walk back toward the near one");
     }
 
     // plan_04 IG-04-003/004/007: the simulation clock clamps a stall instead of letting it
@@ -2962,6 +3094,8 @@ int main()
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
+        TestRandomSourceIsDeterministicAndUniform();
+        TestPedestrianSpawnOffsetSpreadsAlongPath();
         TestSimulationClockClampsStallsAndStaysMonotonic();
         TestLogSeverityAndCategoryFiltering();
         TestGameConfigLoadsValidatesAndFallsBack();
