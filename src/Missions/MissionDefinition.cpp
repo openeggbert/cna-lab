@@ -30,6 +30,23 @@ namespace IronGang
         return false;
     }
 
+    const char* MissionRetryPolicyName(MissionRetryPolicy policy) noexcept
+    {
+        switch (policy)
+        {
+            case MissionRetryPolicy::Checkpoint: return "checkpoint";
+            case MissionRetryPolicy::MissionStart: return "mission_start";
+        }
+        return "checkpoint";
+    }
+
+    bool ParseMissionRetryPolicy(const std::string& name, MissionRetryPolicy& out)
+    {
+        if (name == "checkpoint") { out = MissionRetryPolicy::Checkpoint; return true; }
+        if (name == "mission_start") { out = MissionRetryPolicy::MissionStart; return true; }
+        return false;
+    }
+
     MissionOutcome MissionDefinition::GetOutcome(const std::string& stateId) const
     {
         const MissionStateDefinition* state = FindState(stateId);
@@ -350,6 +367,21 @@ namespace IronGang
                 return false;
             }
             definition.initialState = GetOptionalString(root, "initialState");
+            const std::string retryPolicyName = GetOptionalString(root, "retry");
+            if (!retryPolicyName.empty())
+            {
+                if (definition.version < 2)
+                {
+                    errorMessage = "Mission file declares \"retry\", which requires \"version\": 2: " + path;
+                    return false;
+                }
+                if (!ParseMissionRetryPolicy(retryPolicyName, definition.retryPolicy))
+                {
+                    errorMessage = "Mission file has an unknown \"retry\" policy \"" + retryPolicyName +
+                                   "\" (expected checkpoint/mission_start): " + path;
+                    return false;
+                }
+            }
 
             if (!ParseVariables(root, definition.version, definition.declaredContext, errorMessage))
             {
@@ -388,6 +420,31 @@ namespace IronGang
                     errorMessage = "Mission state \"" + state.id +
                                    "\" declares \"outcome\", which requires \"version\": 2: " + path;
                     return false;
+                }
+                state.reason = GetOptionalString(stateElement, "reason");
+                if (!state.reason.empty() && definition.version < 2)
+                {
+                    errorMessage = "Mission state \"" + state.id +
+                                   "\" declares \"reason\", which requires \"version\": 2: " + path;
+                    return false;
+                }
+                JsonElement checkpointElement;
+                if (stateElement.TryGetProperty("checkpoint", checkpointElement))
+                {
+                    const JsonValueKind checkpointKind = checkpointElement.getValueKindProperty();
+                    if (checkpointKind != JsonValueKind::True && checkpointKind != JsonValueKind::False)
+                    {
+                        errorMessage = "Mission state \"" + state.id +
+                                       "\" has a \"checkpoint\" that is not true or false: " + path;
+                        return false;
+                    }
+                    if (definition.version < 2)
+                    {
+                        errorMessage = "Mission state \"" + state.id +
+                                       "\" declares \"checkpoint\", which requires \"version\": 2: " + path;
+                        return false;
+                    }
+                    state.checkpoint = checkpointElement.GetBoolean();
                 }
                 if (!ParseStateCondition(stateElement, state.id, definition.declaredContext, state.condition,
                                          errorMessage) ||
@@ -442,6 +499,20 @@ namespace IronGang
                 errorMessage = "Mission state \"" + state.id + "\" declares a condition (\"" +
                                state.condition.GetSource() +
                                "\") but no \"next\" state, so the condition could never do anything: " + path;
+                return false;
+            }
+            if (!state.reason.empty() && state.outcome != MissionOutcome::Failed)
+            {
+                errorMessage = "Mission state \"" + state.id +
+                               "\" declares a failure \"reason\" without \"outcome\": \"failed\", so "
+                               "nothing would ever show it: " + path;
+                return false;
+            }
+            if (state.checkpoint && state.outcome != MissionOutcome::None)
+            {
+                errorMessage = "Mission state \"" + state.id + "\" is both a checkpoint and an outcome "
+                               "(\"" + MissionOutcomeName(state.outcome) +
+                               "\"); a state that ends the mission cannot be retried from: " + path;
                 return false;
             }
             if (state.outcome != MissionOutcome::None && !state.next.empty())

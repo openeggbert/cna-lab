@@ -34,6 +34,19 @@ namespace IronGang
 
     namespace
     {
+        // What the HUD and window title say about the mission: its current objective, or -- once a
+        // state with "outcome": "failed" has been reached -- that state's own explanation
+        // (plan_24 IG-24-009).
+        std::string MissionStatusLine(const PrototypeMission& mission)
+        {
+            if (!mission.IsFailed())
+            {
+                return "Objective: " + mission.GetObjectiveText();
+            }
+            const std::string reason = mission.GetFailureReason();
+            return reason.empty() ? "Mission failed" : "Mission failed: " + reason;
+        }
+
 #ifndef IRON_GANG_GRAPHICS_BACKEND
 #define IRON_GANG_GRAPHICS_BACKEND "unknown"
 #endif
@@ -777,6 +790,7 @@ namespace IronGang
         snapshot.playerDriving = playerDriving_;
         snapshot.districtId = districtManager_.GetWorld().GetId();
         snapshot.missionVariables = mission_.CaptureVariables();
+        snapshot.missionCheckpoint = mission_.GetCheckpoint();
 
         std::string error;
         if (SaveGame::Write(SavePath(), snapshot, error))
@@ -842,6 +856,7 @@ namespace IronGang
         // is reported and skipped rather than failing the load (IG-24-019).
         std::vector<std::string> missionVariableWarnings;
         mission_.ApplyVariables(snapshot->missionVariables, &missionVariableWarnings);
+        mission_.ApplyCheckpoint(snapshot->missionCheckpoint, &missionVariableWarnings);
         for (const std::string& warning : missionVariableWarnings)
         {
             std::cerr << "[IronGang] save file mission variable ignored: " << warning << "\n";
@@ -1343,8 +1358,7 @@ namespace IronGang
         }
         else
         {
-            title << (playerDriving_ ? "Driving" : "On foot")
-                  << " | Objective: " << mission_.GetObjectiveText();
+            title << (playerDriving_ ? "Driving" : "On foot") << " | " << MissionStatusLine(mission_);
             if (playerDriving_)
             {
                 title << " | " << static_cast<int>(std::round(vehicle_.GetSpeedKph())) << " km/h";
@@ -1609,7 +1623,7 @@ namespace IronGang
             else
             {
                 std::ostringstream objective;
-                objective << (playerDriving_ ? "Driving" : "On foot") << " | Objective: " << mission_.GetObjectiveText();
+                objective << (playerDriving_ ? "Driving" : "On foot") << " | " << MissionStatusLine(mission_);
                 spriteBatch_->DrawString(*hudFont_, objective.str(), Vector2(10.0F, lineY), Color(255, 255, 255, 255));
                 lineY += kLineHeight;
 

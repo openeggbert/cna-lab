@@ -130,8 +130,40 @@ namespace IronGang
     void PrototypeMission::Reset()
     {
         context_.ResetVariables();
+        checkpoint_ = {};
         stateId_ = definition_.initialState;
         EnterState(stateId_);
+    }
+
+    void PrototypeMission::Retry()
+    {
+        const bool restoresCheckpoint =
+            definition_.retryPolicy == MissionRetryPolicy::Checkpoint && HasCheckpoint();
+        if (!restoresCheckpoint)
+        {
+            LogMission(definition_.id + ": retry from the beginning (" +
+                       MissionRetryPolicyName(definition_.retryPolicy) +
+                       (HasCheckpoint() ? " policy)" : " policy, no checkpoint reached yet)"));
+            Reset();
+            return;
+        }
+
+        // Restore the recorded variables on top of their declared values, so a variable that did
+        // not exist when the checkpoint was taken still starts from a defined value.
+        context_.ResetVariables();
+        for (const MissionVariableSnapshot& variable : checkpoint_.variables)
+        {
+            std::string error;
+            if (!context_.SetVariable(variable.name, variable.value, error))
+            {
+                LogMission("checkpoint variable ignored: " + error);
+            }
+        }
+        stateId_ = checkpoint_.stateId;
+        conditionFaultLogged_ = false;
+        // Entry actions are deliberately not re-run: the checkpoint was recorded after they ran,
+        // so their effects are already in the variables just restored.
+        LogMission(definition_.id + ": retry from checkpoint \"" + stateId_ + "\"");
     }
 
     bool PrototypeMission::SetStateId(const std::string& stateId)
@@ -183,6 +215,15 @@ namespace IronGang
                     LogMission(definition_.id + ": " + action.message);
                     break;
             }
+        }
+
+        // Recorded after the entry actions have run, so a retry that restores it does not need to
+        // re-run them (IG-24-010/042).
+        if (definition->checkpoint)
+        {
+            checkpoint_.stateId = definition->id;
+            checkpoint_.variables = context_.CaptureVariables();
+            LogMission(definition_.id + ": checkpoint \"" + definition->id + "\"");
         }
     }
 
@@ -259,6 +300,58 @@ namespace IronGang
     {
         const MissionStateDefinition* current = definition_.FindState(stateId_);
         return current != nullptr ? current->objective : "Unknown objective";
+    }
+
+    std::string PrototypeMission::GetFailureReason() const
+    {
+        const MissionStateDefinition* current = definition_.FindState(stateId_);
+        if (current == nullptr || current->outcome != MissionOutcome::Failed)
+        {
+            return {};
+        }
+        return current->reason;
+    }
+
+    void PrototypeMission::ApplyCheckpoint(const MissionCheckpointSnapshot& checkpoint,
+                                           std::vector<std::string>* warnings)
+    {
+        if (checkpoint.stateId.empty())
+        {
+            checkpoint_ = {};
+            return;
+        }
+        if (definition_.FindState(checkpoint.stateId) == nullptr)
+        {
+            // A checkpoint into a state this mission no longer defines would send a retry nowhere,
+            // so drop the whole checkpoint and fall back to a restart (IG-24-019).
+            checkpoint_ = {};
+            if (warnings != nullptr)
+            {
+                warnings->push_back("Checkpoint state \"" + checkpoint.stateId +
+                                    "\" is not defined by the loaded mission");
+            }
+            return;
+        }
+
+        MissionCheckpointSnapshot accepted;
+        accepted.stateId = checkpoint.stateId;
+        for (const MissionVariableSnapshot& variable : checkpoint.variables)
+        {
+            MissionValueType declaredType{};
+            if (!context_.IsVariable(variable.name) ||
+                !context_.TryGetType(variable.name, declaredType) ||
+                declaredType != variable.value.GetType())
+            {
+                if (warnings != nullptr)
+                {
+                    warnings->push_back("Checkpoint variable \"" + variable.name +
+                                        "\" no longer matches this mission's declaration");
+                }
+                continue;
+            }
+            accepted.variables.push_back(variable);
+        }
+        checkpoint_ = std::move(accepted);
     }
 
     std::vector<MissionVariableSnapshot> PrototypeMission::CaptureVariables() const

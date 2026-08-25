@@ -47,6 +47,7 @@ halfway through a playthrough.
 | `id`, `title` | Mission identity. `id` is what mission log lines are prefixed with. |
 | `version` | Schema version. `1` is gate M7's original shape (a `condition` naming one engine signal); `2` adds `variables`, `when`, and `onEnter`. Version 1 files still load unchanged. |
 | `initialState` | Must name a state in `states`. |
+| `retry` | `checkpoint` (default) or `mission_start` — where `PrototypeMission::Retry()` puts the player after a failure. Version 2 only. |
 | `variables` | This mission's own typed state — see below. Version 2 only. |
 | `states[].id` | Unique within the mission. Any identifier you like — the save file stores this id, so states are not a fixed set. |
 | `states[].objective` | The objective line the HUD shows while this state is current. |
@@ -54,6 +55,8 @@ halfway through a playthrough.
 | `states[].when` | Bool expression evaluated every frame; when it becomes true the mission moves to `next`. `condition` is the version-1 spelling of the same field — a state must not use both. |
 | `states[].next` | The state to move to. A state with no `next` is terminal and must not declare a condition. |
 | `states[].outcome` | `completed` or `failed` — what reaching this state means for the run. An outcome state ends the mission and must therefore have no `next`. Version 2 only. |
+| `states[].reason` | Why the mission failed, shown to the player. Only allowed on a state whose outcome is `failed`. Version 2 only. |
+| `states[].checkpoint` | `true` marks this state as a checkpoint: entering it records the state and the mission's variables for a later retry. A checkpoint state cannot also be an outcome. Version 2 only. |
 
 ## Ending a mission
 
@@ -68,6 +71,43 @@ Every mission must have at least one state that ends it. Say so explicitly:
 nothing keys off a particular state id. For compatibility, a file that declares no outcome at all
 falls back to the pre-`outcome` rule: a terminal state literally named `completed` counts as the
 success outcome. A file with neither is a load error, because nothing in it could ever finish.
+
+## Failing, checkpoints, and retry
+
+A mission fails by reaching a state with `"outcome": "failed"`, which may explain itself:
+
+```json
+{ "id": "busted", "objective": "Busted", "outcome": "failed",
+  "reason": "The police took the shipment" }
+```
+
+`GetFailureReason()` returns that text; the HUD and window title show `Mission failed: <reason>`
+in place of the objective line.
+
+Mark the states worth returning to:
+
+```json
+{ "id": "loading", "objective": "Load the crates", "checkpoint": true,
+  "onEnter": [ { "action": "set", "variable": "crates", "value": "crates + 3" } ],
+  "when": "player_driving", "next": "delivered" }
+```
+
+Entering a checkpoint state records its id **and the mission's variables as they stand once its
+entry actions have run**. `Retry()` then restores exactly that — without re-running those entry
+actions, because their effects are already in the recorded values. Retrying does not consume the
+checkpoint; you can fail and retry from it repeatedly.
+
+`"retry": "mission_start"` at the top level makes `Retry()` a full restart instead. A `checkpoint`
+retry before any checkpoint has been reached is also a full restart, so a mission that declares no
+checkpoint behaves identically under either policy.
+
+`Reset()` is always a restart from the very beginning and discards the recorded checkpoint;
+`Retry()` is the one that honours the policy.
+
+The checkpoint is saved (`mission_checkpoint_state_id` plus one `mission_checkpoint_var.<name>`
+line per variable) and restored. A checkpoint naming a state the loaded mission no longer defines
+is dropped entirely — a retry that went nowhere would be worse than a restart — and a checkpoint
+variable that no longer matches its declaration is dropped individually; both are reported.
 
 ## Variables
 
@@ -212,6 +252,8 @@ is, rather than advancing or silently failing.
 | `Mission state "x" declares a condition … but no "next" state` | A terminal state must not have a condition. |
 | `Mission file has no state that ends the mission` | Give one state `"outcome": "completed"`. |
 | `Mission state "x" declares outcome "completed" and a "next" state` | An outcome ends the mission; drop the `next`. |
+| `Mission state "x" declares a failure "reason" without "outcome": "failed"` | Only a failing state can explain a failure. |
+| `Mission state "x" is both a checkpoint and an outcome` | A state that ends the mission cannot be retried from. |
 | `save file mission state "x" is not defined by the loaded mission` | The save was written against a different mission file. The mission keeps its current state rather than resuming into a state that does not exist. |
 | The game logs `… -- using built-in fallback mission.` | The file failed to load; the message above it says why. The game keeps running on the hardcoded prologue. |
 
@@ -221,5 +263,6 @@ is, rather than advancing or silently failing.
 `TestMissionExpressionEvaluatesTypedOperations`, `TestMissionExpressionRejectsMalformedInput`,
 `TestMissionVariablesEnforceTypes`, `TestMissionEntryActionsRunOncePerEntry`,
 `TestMissionVariablesSurviveSaveLoad`, `TestMissionStateIdsAreNotAFixedSet`,
+`TestMissionCheckpointRetryAndFailureReason`, `TestMissionCheckpointSurvivesSaveLoad`,
 `TestSaveMigratesLegacyMissionState`, plus the flow tests `TestMissionFlow` and
 `TestMissionLoadsCommittedFile`.

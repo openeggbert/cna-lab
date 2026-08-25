@@ -30,13 +30,14 @@ namespace IronGang
         }
 
         constexpr const char* kMissionVariablePrefix = "mission_var.";
+        constexpr const char* kMissionCheckpointVariablePrefix = "mission_checkpoint_var.";
 
         // "mission_var.<name>" / "<type>:<text>". A malformed entry is skipped rather than
         // failing the whole load: the rest of the save is still a valid, resumable game.
-        bool ParseMissionVariable(const std::string& key, const std::string& text,
+        bool ParseMissionVariable(const std::string& key, const char* prefix, const std::string& text,
                                   MissionVariableSnapshot& out)
         {
-            const std::string name = key.substr(std::strlen(kMissionVariablePrefix));
+            const std::string name = key.substr(std::strlen(prefix));
             const std::size_t typeSeparator = text.find(':');
             if (name.empty() || typeSeparator == std::string::npos)
             {
@@ -90,6 +91,16 @@ namespace IronGang
                      << MissionValueTypeName(variable.value.GetType()) << ":"
                      << variable.value.ToText() << "\n";
             }
+            if (!snapshot.missionCheckpoint.stateId.empty())
+            {
+                text << "mission_checkpoint_state_id=" << snapshot.missionCheckpoint.stateId << "\n";
+                for (const MissionVariableSnapshot& variable : snapshot.missionCheckpoint.variables)
+                {
+                    text << kMissionCheckpointVariablePrefix << variable.name << "="
+                         << MissionValueTypeName(variable.value.GetType()) << ":"
+                         << variable.value.ToText() << "\n";
+                }
+            }
             System::IO::File::WriteAllText(path, text.str());
             return true;
         }
@@ -113,6 +124,7 @@ namespace IronGang
         {
             std::unordered_map<std::string, std::string> values;
             std::vector<MissionVariableSnapshot> missionVariables;
+            std::vector<MissionVariableSnapshot> checkpointVariables;
             for (const std::string& line : System::IO::File::ReadAllLines(path))
             {
                 const std::size_t separator = line.find('=');
@@ -125,9 +137,19 @@ namespace IronGang
                 if (key.compare(0, std::strlen(kMissionVariablePrefix), kMissionVariablePrefix) == 0)
                 {
                     MissionVariableSnapshot variable;
-                    if (ParseMissionVariable(key, value, variable))
+                    if (ParseMissionVariable(key, kMissionVariablePrefix, value, variable))
                     {
                         missionVariables.push_back(std::move(variable));
+                    }
+                    continue;
+                }
+                if (key.compare(0, std::strlen(kMissionCheckpointVariablePrefix),
+                                kMissionCheckpointVariablePrefix) == 0)
+                {
+                    MissionVariableSnapshot variable;
+                    if (ParseMissionVariable(key, kMissionCheckpointVariablePrefix, value, variable))
+                    {
+                        checkpointVariables.push_back(std::move(variable));
                     }
                     continue;
                 }
@@ -185,6 +207,12 @@ namespace IronGang
                                       ? static_cast<DistrictId>(std::stoi(districtIt->second))
                                       : DistrictId::WarehouseBlock;
             snapshot.missionVariables = std::move(missionVariables);
+            const auto checkpointStateIt = values.find("mission_checkpoint_state_id");
+            if (checkpointStateIt != values.end() && !checkpointStateIt->second.empty())
+            {
+                snapshot.missionCheckpoint.stateId = checkpointStateIt->second;
+                snapshot.missionCheckpoint.variables = std::move(checkpointVariables);
+            }
             return snapshot;
         }
         catch (const std::exception& exception)

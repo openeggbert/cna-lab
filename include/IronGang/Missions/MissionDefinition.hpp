@@ -52,6 +52,18 @@ namespace IronGang
     [[nodiscard]] const char* MissionOutcomeName(MissionOutcome outcome) noexcept;
     [[nodiscard]] bool ParseMissionOutcome(const std::string& name, MissionOutcome& out);
 
+    // plan_24 IG-24-009: where a retry puts the player after a failure. `Checkpoint` falls back to
+    // the mission start until a checkpoint has actually been reached, so a mission that declares no
+    // checkpoint behaves identically under either policy.
+    enum class MissionRetryPolicy
+    {
+        Checkpoint,
+        MissionStart,
+    };
+
+    [[nodiscard]] const char* MissionRetryPolicyName(MissionRetryPolicy policy) noexcept;
+    [[nodiscard]] bool ParseMissionRetryPolicy(const std::string& name, MissionRetryPolicy& out);
+
     // One state in a mission's graph: what to show the player, what to do on arrival, what to
     // wait for, and where to go next.
     struct MissionStateDefinition
@@ -59,6 +71,12 @@ namespace IronGang
         std::string id;
         std::string objective;
         MissionOutcome outcome{MissionOutcome::None};
+        // Shown to the player when this state ends the mission in failure; load-rejected on any
+        // other state, where nothing would ever read it.
+        std::string reason;
+        // plan_24 IG-24-010: entering this state records a checkpoint (its id plus the mission's
+        // variables as they stand once its entry actions have run) for a later retry to return to.
+        bool checkpoint{false};
         // Bool expression evaluated every frame while this state is current. Empty means a
         // terminal state with no automatic transition.
         MissionExpression condition;
@@ -75,6 +93,7 @@ namespace IronGang
         std::string title;
         int version{kMaxMissionFileVersion};
         std::string initialState;
+        MissionRetryPolicy retryPolicy{MissionRetryPolicy::Checkpoint};
         std::vector<MissionStateDefinition> states;
         // Facts supplied by the caller plus this file's own variables, each at its declared
         // initial value. PrototypeMission copies this to build its live, per-run context.
@@ -96,8 +115,9 @@ namespace IronGang
     // Validation: supported schema version; unique non-empty state ids; initialState and every
     // non-empty "next" refer to a real state; each variable has a known type and a value of that
     // type; each condition is a bool expression; a terminal state (empty "next") declares no
-    // condition; an outcome state is terminal; at least one state ends the mission; each action is
-    // well formed and assigns a declared variable a matching type.
+    // condition; an outcome state is terminal; at least one state ends the mission; a failure
+    // reason belongs only to a failing state; a checkpoint state is not itself an outcome; each
+    // action is well formed and assigns a declared variable a matching type.
     // Returns false with errorMessage set on any failure -- callers should fall back to a known
     // good default (see PrototypeMission) rather than run with a partially-valid mission.
     [[nodiscard]] bool LoadMissionDefinition(const std::string& path,

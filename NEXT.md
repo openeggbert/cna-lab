@@ -92,6 +92,31 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Mission failure reasons, checkpoints, and retry policies (plan_24)
+
+The outcome states from the entry below could mark a mission failed but gave it nowhere to go. Now:
+
+- A failing state carries `"reason"`, returned by `GetFailureReason()` and shown by the HUD and
+  window title as `Mission failed: <reason>` instead of the objective line.
+- `"checkpoint": true` on a state records its id and the mission's variables **after** its entry
+  actions have run, so `Retry()` restores them without re-running those actions (a counter
+  incremented on entry is not incremented twice).
+- `"retry": "checkpoint"` (default) or `"mission_start"`. `Retry()` honours the policy and restarts
+  when no checkpoint has been reached. Retrying does not consume the checkpoint; `Reset()` discards
+  it.
+- The checkpoint is saved and restored fail-safe: a checkpoint into a state the mission no longer
+  defines is dropped whole, a variable that no longer matches is dropped individually, both reported.
+
+Closed: `IG-24-009`/`010`/`041`/`042`/`044`/`045`. Verified: build clean, CTest 11/11, 2 new core
+tests, 7 new rejection cases, `--profile-scenario mission` still completes the mission.
+
+**`IG-24-043` is deliberately left open, and it is the natural next task: nothing in the running
+game can fail yet**, so failure/retry has no integration scenario -- only unit tests. The obvious
+fix is a real fail condition from the existing `PoliceSystem` chase state (which would also close
+part of `IG-24-006`'s wanted-state conditions): add a `police_chasing`-style fact, give the prologue
+a failure state and a checkpoint, and make sure the deterministic `--profile-scenario mission` run
+still completes rather than tripping the new failure.
+
 ### Mission states are no longer a fixed set; outcomes and save migration (plan_24)
 
 Immediately after the entry below, which had left `PrototypeMission` still restricting mission files

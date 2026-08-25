@@ -30,6 +30,11 @@ namespace IronGang
         // name/type the current mission file no longer declares is reported and skipped on load
         // (see PrototypeMission::ApplyVariables) rather than failing the load.
         std::vector<MissionVariableSnapshot> missionVariables;
+        // Added for plan_24 IG-24-044: the mission's last checkpoint, written as
+        // "mission_checkpoint_state_id" plus one "mission_checkpoint_var.<name>" line per variable.
+        // An empty stateId means no checkpoint was reached, which is what a save from a mission
+        // with no checkpoint states -- and every save written before this field existed -- has.
+        MissionCheckpointSnapshot missionCheckpoint;
     };
 
     class SaveGame final

@@ -577,6 +577,54 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Mission failure reasons, checkpoints, and retry policies (2026-08-25)
+
+plan_24 `IG-24-009`/`010`/`041`/`042`/`044`/`045` closed; `IG-24-002`/`019`/`029` extended;
+`IG-24-043` left open on purpose (see Boundaries). Builds directly on the outcome states added in
+the entry below, which could mark a mission failed but gave it nowhere to go afterwards.
+
+**What changed.**
+
+* A failing state explains itself: `"reason": "The police took the shipment"` alongside
+  `"outcome": "failed"`. `PrototypeMission::GetFailureReason()` returns it, and both the on-screen
+  HUD and the window title show `Mission failed: <reason>` in place of the objective line (one
+  shared `MissionStatusLine` helper, so the two paths cannot drift). A reason on a non-failing state
+  is a load error — nothing would ever read it.
+* A state may declare `"checkpoint": true`. Entering it records its id **and the mission's variables
+  as they stand once its entry actions have run**. That ordering is the point: `Retry()` restores
+  the recorded values without re-running those actions, so a counter incremented on entry is not
+  incremented twice by a retry. A checkpoint state may not also be an outcome (a state that ends the
+  mission cannot be retried from).
+* `"retry": "checkpoint"` (default) or `"mission_start"` at the mission's top level. `Retry()`
+  honours the policy and falls back to a full restart when no checkpoint has been reached yet, so a
+  mission declaring no checkpoint behaves identically under either. Retrying does not consume the
+  checkpoint — repeated failures return to the same place. `Reset()` remains the unconditional
+  restart and discards the checkpoint.
+* The checkpoint is persisted: `mission_checkpoint_state_id` plus one
+  `mission_checkpoint_var.<name>=<type>:<value>` line per recorded variable. Restoration is
+  fail-safe — a checkpoint naming a state the loaded mission no longer defines is dropped entirely
+  (a retry that went nowhere would be worse than a restart), and a variable whose declaration or
+  type changed is dropped individually; both are reported through the same warning path the game
+  already prints for mission variables.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests —
+`TestMissionCheckpointRetryAndFailureReason` (reach a checkpoint, fail, retry, and land back on the
+checkpoint with the recorded counter rather than the declared one or a doubly-incremented one; the
+same mission under `mission_start` restarts; a checkpoint retry with no checkpoint yet restarts;
+a retry does not consume the checkpoint) and `TestMissionCheckpointSurvivesSaveLoad` (round trip,
+undefined-state checkpoint dropped with a warning, type-changed checkpoint variable dropped with a
+warning, checkpoint-free save loads as having none) — plus seven new rejection cases in
+`TestMissionValidationRejectsMalformedData` (unknown retry policy, retry/checkpoint/reason in a
+version-1 file, reason without a failed outcome, checkpoint that is also an outcome, non-boolean
+checkpoint). `--profile-scenario mission` still completes the whole mission through the real game
+loop; `scripts/check-syntax.sh` clean; `git diff --check` clean.
+
+**Boundaries.** `IG-24-043`'s integration scenario is deliberately still open: **nothing in the
+running game can fail yet**, so no `--smoke`/`--profile-scenario` run exercises failure or retry —
+only the unit tests do. The obvious way to close it is a real fail condition driven by the existing
+`PoliceSystem` chase state, which would also close part of `IG-24-006`'s wanted-state conditions.
+The prologue mission is unchanged by this entry: it declares no checkpoint and cannot fail.
+
 ## Free-form mission state ids, outcomes, and save migration (2026-08-25)
 
 plan_24 `IG-24-018` closed; `IG-24-002`/`009`/`019`/`029` advanced. Follows directly from the

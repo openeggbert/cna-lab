@@ -29,6 +29,7 @@
 #include <iostream>
 #include <iterator>
 #include <numbers>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -340,6 +341,30 @@ namespace
                       R"JSON({"version":2,"initialState":"a","states":[{"id":"a","objective":"Nowhere"}]})JSON");
         Require(!load(), "a mission no state can end must be rejected");
 
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","retry":"from_orbit","states":[{"id":"a","outcome":"completed"}]})JSON");
+        Require(!load(), "an unknown retry policy must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":1,"initialState":"a","retry":"checkpoint","states":[{"id":"completed"},{"id":"a","next":"completed"}]})JSON");
+        Require(!load(), "declaring a retry policy in a version-1 file must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","outcome":"completed","reason":"why"}]})JSON");
+        Require(!load(), "a failure reason on a non-failing state must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","outcome":"failed","checkpoint":true}]})JSON");
+        Require(!load(), "a state that is both an outcome and a checkpoint must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":2,"initialState":"a","states":[{"id":"a","checkpoint":"yes","outcome":"completed"}]})JSON");
+        Require(!load(), "a non-boolean \"checkpoint\" must be rejected");
+
+        WriteTempJson(path,
+                      R"JSON({"version":1,"initialState":"a","states":[{"id":"a","checkpoint":true,"next":"completed"},{"id":"completed"}]})JSON");
+        Require(!load(), "declaring a checkpoint in a version-1 file must be rejected");
+
         // One well-formed, minimal two-state mission must still succeed after all the rejections
         // above -- proves failures didn't corrupt LoadMissionDefinition's own state. Neither state
         // is called "completed", so this also proves state ids are no longer a fixed set and that
@@ -382,6 +407,188 @@ namespace
                     crates.GetType() == IronGang::MissionValueType::Int && crates.AsInt() == 2,
                 "a declared variable must keep its declared type and initial value");
 
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-009/010/042/043: a failure ends the mission with its own reason, and a retry
+    // returns to the last checkpoint -- or to the mission start, depending on the declared policy.
+    void TestMissionCheckpointRetryAndFailureReason()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_checkpoint.json";
+        const std::string missionText = R"JSON({
+            "id": "checkpoint_mission",
+            "version": 2,
+            "initialState": "briefing",
+            "retry": "POLICY",
+            "variables": [
+                { "id": "crates", "type": "int", "value": 0 },
+                { "id": "briefed", "type": "bool", "value": false }
+            ],
+            "states": [
+                { "id": "briefing", "objective": "Hear the plan",
+                  "onEnter": [ { "action": "set", "variable": "briefed", "value": "true" } ],
+                  "when": "dialogue_finished", "next": "loading" },
+                { "id": "loading", "objective": "Load the crates", "checkpoint": true,
+                  "onEnter": [ { "action": "set", "variable": "crates", "value": "crates + 3" } ],
+                  "when": "player_driving", "next": "delivered" },
+                { "id": "delivered", "objective": "Delivered", "outcome": "completed" },
+                { "id": "busted", "objective": "Busted", "outcome": "failed",
+                  "reason": "The police took the shipment" }
+            ]
+        })JSON";
+
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
+        std::string error;
+
+        // Default policy: retry returns to the checkpoint with the variables it recorded.
+        WriteTempJson(path, std::regex_replace(missionText, std::regex("POLICY"), "checkpoint"));
+        Require(mission.LoadMission(path.string(), error), "the checkpoint mission must load: " + error);
+        Require(mission.GetRetryPolicy() == IronGang::MissionRetryPolicy::Checkpoint,
+                "the declared retry policy must round-trip");
+        mission.Reset();
+        Require(!mission.HasCheckpoint(), "no checkpoint exists before one has been entered");
+
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.IsInState("loading"), "the mission must reach the checkpoint state");
+        Require(mission.HasCheckpoint() && mission.GetCheckpoint().stateId == "loading",
+                "entering a checkpoint state must record a checkpoint");
+        IronGang::MissionValue crates;
+        Require(mission.TryGetVariable("crates", crates) && crates.AsInt() == 3,
+                "the checkpoint state's entry action must have run");
+
+        // Move on, change a variable, then fail.
+        Require(mission.SetStateId("busted"), "moving to the failure state must succeed");
+        Require(mission.IsFailed() && mission.IsFinished() && !mission.IsCompleted(),
+                "a failed state must report failure");
+        Require(mission.GetFailureReason() == "The police took the shipment",
+                "the failing state's reason must be reported verbatim");
+        std::string ignored;
+        Require(mission.GetContext().IsVariable("crates"), "crates must still be a declared variable");
+
+        mission.Retry();
+        Require(mission.IsInState("loading"), "a checkpoint retry must return to the checkpoint state");
+        Require(!mission.IsFailed(), "a retry must clear the failed state");
+        Require(mission.GetFailureReason().empty(), "a non-failed mission must report no reason");
+        Require(mission.TryGetVariable("crates", crates) && crates.AsInt() == 3,
+                "a checkpoint retry must restore the recorded values, not re-run the entry action");
+        IronGang::MissionValue briefed;
+        Require(mission.TryGetVariable("briefed", briefed) && briefed.AsBool(),
+                "a checkpoint retry must keep variables set before the checkpoint");
+        Require(mission.HasCheckpoint(), "a retry must not consume the checkpoint");
+
+        // The same mission under the mission_start policy restarts from the beginning instead.
+        WriteTempJson(path, std::regex_replace(missionText, std::regex("POLICY"), "mission_start"));
+        IronGang::PrototypeMission restarting;
+        Require(restarting.LoadMission(path.string(), error), "the restart mission must load: " + error);
+        Require(restarting.GetRetryPolicy() == IronGang::MissionRetryPolicy::MissionStart,
+                "the mission_start policy must round-trip");
+        restarting.Reset();
+        restarting.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false,
+                          world.GetWarehouseGoal());
+        Require(restarting.HasCheckpoint(), "a checkpoint is still recorded under either policy");
+        Require(restarting.SetStateId("busted"), "moving to the failure state must succeed");
+        restarting.Retry();
+        Require(restarting.IsInState("briefing"), "a mission_start retry must go back to the beginning");
+        Require(restarting.TryGetVariable("crates", crates) && crates.AsInt() == 0,
+                "a mission_start retry must restore declared values");
+        Require(!restarting.HasCheckpoint(), "restarting must discard the checkpoint");
+
+        // Before any checkpoint has been reached, a checkpoint retry is a plain restart.
+        IronGang::PrototypeMission fresh;
+        WriteTempJson(path, std::regex_replace(missionText, std::regex("POLICY"), "checkpoint"));
+        Require(fresh.LoadMission(path.string(), error), "the checkpoint mission must load again: " + error);
+        fresh.Reset();
+        Require(fresh.SetStateId("busted"), "moving to the failure state must succeed");
+        fresh.Retry();
+        Require(fresh.IsInState("briefing"),
+                "a checkpoint retry with no checkpoint reached must restart the mission");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-044: the checkpoint survives a save/load round trip, and a checkpoint the
+    // loaded mission can no longer honour is dropped rather than sending a retry nowhere.
+    void TestMissionCheckpointSurvivesSaveLoad()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_checkpoint_save.json";
+        WriteTempJson(path, R"JSON({
+            "id": "checkpoint_save_mission",
+            "version": 2,
+            "initialState": "start",
+            "variables": [ { "id": "crates", "type": "int", "value": 0 } ],
+            "states": [
+                { "id": "start", "objective": "Go", "checkpoint": true,
+                  "onEnter": [ { "action": "set", "variable": "crates", "value": "crates + 2" } ],
+                  "when": "player_driving", "next": "done" },
+                { "id": "done", "objective": "Done", "outcome": "completed" }
+            ]
+        })JSON");
+
+        IronGang::PrototypeMission mission;
+        std::string error;
+        Require(mission.LoadMission(path.string(), error), "the mission must load: " + error);
+        mission.Reset();
+        Require(mission.HasCheckpoint() && mission.GetCheckpoint().stateId == "start",
+                "an initial checkpoint state must record a checkpoint on Reset");
+
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionStateId = mission.GetStateId();
+        snapshot.missionVariables = mission.CaptureVariables();
+        snapshot.missionCheckpoint = mission.GetCheckpoint();
+
+        const std::filesystem::path savePath =
+            std::filesystem::current_path() / "iron_gang_checkpoint.save";
+        Require(IronGang::SaveGame::Write(savePath.string(), snapshot, error),
+                "writing must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> restored =
+            IronGang::SaveGame::Read(savePath.string(), error);
+        Require(restored.has_value(), "reading must succeed: " + error);
+        Require(restored->missionCheckpoint.stateId == "start",
+                "the checkpoint state id must survive the round trip");
+        Require(restored->missionCheckpoint.variables.size() == 1 &&
+                    restored->missionCheckpoint.variables.front().name == "crates" &&
+                    restored->missionCheckpoint.variables.front().value.AsInt() == 2,
+                "the checkpoint's variables must survive the round trip");
+
+        IronGang::PrototypeMission reloaded;
+        Require(reloaded.LoadMission(path.string(), error), "the mission must load again: " + error);
+        reloaded.Reset();
+        std::vector<std::string> warnings;
+        reloaded.ApplyCheckpoint(restored->missionCheckpoint, &warnings);
+        Require(warnings.empty(), "restoring a matching checkpoint must not warn");
+        Require(reloaded.HasCheckpoint() && reloaded.GetCheckpoint().stateId == "start",
+                "the restored checkpoint must be usable");
+
+        // A checkpoint into a state (or with a variable) this mission no longer has is dropped.
+        IronGang::MissionCheckpointSnapshot stale;
+        stale.stateId = "no_such_state";
+        warnings.clear();
+        reloaded.ApplyCheckpoint(stale, &warnings);
+        Require(!reloaded.HasCheckpoint() && warnings.size() == 1,
+                "a checkpoint naming an undefined state must be dropped with a warning");
+
+        IronGang::MissionCheckpointSnapshot mismatched;
+        mismatched.stateId = "start";
+        mismatched.variables.push_back(
+            IronGang::MissionVariableSnapshot{"crates", IronGang::MissionValue::String("two")});
+        warnings.clear();
+        reloaded.ApplyCheckpoint(mismatched, &warnings);
+        Require(reloaded.HasCheckpoint() && reloaded.GetCheckpoint().variables.empty() &&
+                    warnings.size() == 1,
+                "a checkpoint variable whose type changed must be dropped with a warning");
+
+        // A save from a mission with no checkpoint round-trips as "no checkpoint".
+        IronGang::SaveSnapshot plain;
+        plain.missionStateId = "start";
+        Require(IronGang::SaveGame::Write(savePath.string(), plain, error),
+                "writing a checkpoint-free save must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> plainRestored =
+            IronGang::SaveGame::Read(savePath.string(), error);
+        Require(plainRestored.has_value() && plainRestored->missionCheckpoint.stateId.empty(),
+                "a save with no checkpoint must load as having none");
+
+        std::filesystem::remove(savePath);
         std::filesystem::remove(path);
     }
 
@@ -1839,6 +2046,8 @@ int main()
         TestMissionLoadsCommittedFile();
         TestMissionValidationRejectsMalformedData();
         TestMissionStateIdsAreNotAFixedSet();
+        TestMissionCheckpointRetryAndFailureReason();
+        TestMissionCheckpointSurvivesSaveLoad();
         TestSaveMigratesLegacyMissionState();
         TestMissionExpressionEvaluatesTypedOperations();
         TestMissionExpressionRejectsMalformedInput();

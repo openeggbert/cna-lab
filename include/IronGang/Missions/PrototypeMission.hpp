@@ -23,6 +23,16 @@ namespace IronGang
     // missions should prefer the primitives, e.g. "player_driving && vehicle_in_warehouse_goal".
     [[nodiscard]] MissionContext CreatePrototypeMissionFacts();
 
+    // plan_24 IG-24-010/044: everything a retry needs to put a mission back at its last
+    // checkpoint -- which state it was, and what the mission's variables held once that state had
+    // been entered and its entry actions had run. An empty stateId means no checkpoint has been
+    // reached yet, which is also how a save from a mission with no checkpoints round-trips.
+    struct MissionCheckpointSnapshot
+    {
+        std::string stateId;
+        std::vector<MissionVariableSnapshot> variables;
+    };
+
     // Gate M7: a data-driven mission runtime for the prototype's one delivery mission. Ships with
     // a hardcoded default (constructor) reproducing the original hand-coded flow exactly, so
     // existing callers/tests that never call LoadMission() keep working unchanged; LoadMission()
@@ -40,9 +50,18 @@ namespace IronGang
         // left unchanged. Call Reset() afterwards to start the loaded mission.
         [[nodiscard]] bool LoadMission(const std::string& path, std::string& errorMessage);
 
-        // Returns to the initial state, restores every mission variable to its declared value, and
-        // runs the initial state's entry actions -- i.e. a retry from the beginning (IG-24-009).
+        // Returns to the initial state, restores every mission variable to its declared value,
+        // discards any recorded checkpoint, and runs the initial state's entry actions -- i.e. a
+        // restart from the very beginning.
         void Reset();
+
+        // Retry after a failure (IG-24-009/042). Under the mission's default `checkpoint` policy
+        // this returns to the last checkpoint state with the variables it recorded, without
+        // re-running that state's entry actions -- their effects are already part of what was
+        // recorded. Under `mission_start`, or before any checkpoint has been reached, it is
+        // exactly Reset().
+        void Retry();
+        [[nodiscard]] MissionRetryPolicy GetRetryPolicy() const noexcept { return definition_.retryPolicy; }
         void Update(bool dialogueFinished,
                     const Vector3& playerPosition,
                     const Vector3& vehiclePosition,
@@ -62,6 +81,9 @@ namespace IronGang
         [[nodiscard]] bool IsCompleted() const { return GetOutcome() == MissionOutcome::Completed; }
         [[nodiscard]] bool IsFailed() const { return GetOutcome() == MissionOutcome::Failed; }
         [[nodiscard]] bool IsFinished() const { return GetOutcome() != MissionOutcome::None; }
+        // The failing state's own explanation of what went wrong, or empty when the mission has
+        // not failed. Mission-authored text, shown to the player as-is.
+        [[nodiscard]] std::string GetFailureReason() const;
 
         // Restores a state without re-running its entry actions: loading a save resumes a mission
         // that already ran them, and running them again would double every counter they touch.
@@ -78,6 +100,15 @@ namespace IronGang
         void ApplyVariables(const std::vector<MissionVariableSnapshot>& variables,
                             std::vector<std::string>* warnings = nullptr);
         [[nodiscard]] bool TryGetVariable(const std::string& name, MissionValue& out) const;
+
+        // Checkpoint state (IG-24-044). GetCheckpoint() is what SaveGame writes; ApplyCheckpoint()
+        // restores it, dropping -- and reporting through @p warnings, when given -- a state id the
+        // loaded mission no longer defines or a variable that no longer matches, exactly as
+        // ApplyVariables() does.
+        [[nodiscard]] bool HasCheckpoint() const noexcept { return !checkpoint_.stateId.empty(); }
+        [[nodiscard]] const MissionCheckpointSnapshot& GetCheckpoint() const noexcept { return checkpoint_; }
+        void ApplyCheckpoint(const MissionCheckpointSnapshot& checkpoint,
+                             std::vector<std::string>* warnings = nullptr);
         [[nodiscard]] const MissionContext& GetContext() const noexcept { return context_; }
         [[nodiscard]] const MissionDefinition& GetDefinition() const noexcept { return definition_; }
 
@@ -98,5 +129,6 @@ namespace IronGang
         // refreshed every Update() and whose variables the mission's own actions write.
         MissionContext context_;
         std::string stateId_;
+        MissionCheckpointSnapshot checkpoint_;
     };
 }
