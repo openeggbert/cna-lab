@@ -326,6 +326,14 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 
+    # plan_09 IG-09-006/007: Mesh Craft's XSD leaves collision and units open; these are Iron
+    # Gang's own closures of them, and a convention nothing checks is not a convention.
+    add_test(NAME iron_gang_mc3_conventions_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mc3_conventions.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_mc3_conventions.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
     # plan_09 IG-09-002/003: invalid MC3 must fail the asset build, with file and line. The
     # validator existed and was called; nothing ever checked that it rejects anything.
     add_test(NAME iron_gang_validate_mc3_tests

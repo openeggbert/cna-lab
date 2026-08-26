@@ -1867,6 +1867,56 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Closing what the MC3 schema leaves open (2026-08-26)
+
+plan_09 `IG-09-007` closed. Gates M12 and M14 untouched.
+
+**The finding.** Mesh Craft's XSD types `collision` as `xs:string` with a default of `"none"`, so
+**any spelling validates**. Iron Gang had been writing `collision="static"` (12 objects) and
+`collision="trigger"` (1) across six files -- values that are **not** in MC3's own documented
+vocabulary (`none / box / sphere / capsule / mesh / convex`) -- and nothing had ever checked them.
+
+**The resolution, which is a decision rather than a fix.** The two vocabularies mean different
+things: MC3's describes the collider's **shape**, Iron Gang's describes its **role**. Every collider
+in this game is an axis-aligned box (`PrototypeWorld`'s `Aabb`), so shape carries no information at
+all, while "is this a wall, a trigger volume, or decoration?" carries all of it. So Iron Gang keeps
+its role vocabulary, and `docs/mc3-conventions.md` writes down *why*, along with the cost: Mesh
+Craft's own Walk Mode reads the shape vocabulary and will not understand `static`. A file authored
+to be walked in the editor as well as shipped would need revisiting.
+
+The values are not lost on export -- they reach the glTF verbatim as `node.extras.collision`, 51
+nodes' worth in `warehouse_block_props.glb` -- so a future importer reads the role directly rather
+than guessing it back from geometry.
+
+**Required metadata.** Every geometry object must **state** its collision rather than inherit the
+schema default: silence and a deliberate `none` are otherwise indistinguishable, and only one of
+them is an authoring decision. The rule applies inside `<definition>`s and `<group>`s too, because a
+rule that stopped at the top level would be avoided by wrapping. Every document must declare a
+`model` name, `unit="meter"` and `coordinate_system="right_handed_y_up"`, so nothing rescales on
+import.
+
+`scripts/check_mc3_conventions.py` enforces all of it, from `ctest` and from inside
+`build-assets.sh`. The whole tree already conformed; this makes that a property rather than a habit.
+
+**Verified.** `tests/test_mc3_conventions.py` breaks each rule against its own fixture: an unstated
+collision; a value outside the allowed set (using `"box"` -- MC3's *shape* vocabulary, which is
+exactly the confusion the rule exists to stop); every allowed value accepted; geometry hidden inside
+a `<definition>`; geometry inside a `<group>`; a definition without an id; wrong units; wrong axes;
+a missing model name. Plus the two vacuous-pass guards -- a document with no geometry, and an empty
+source list -- both of which raise rather than reporting success. 17 CTest targets, all passing.
+
+**Mutation-checked, three ways.** Not recursing into containers fails 5 assertions; widening the
+allowed set to include MC3's shape values fails 5; misspelling one entry of the geometry tag list
+(`"box"` -> `"bx"`) fails 13, because the checker then examines almost nothing and the vacuous-pass
+guard fires. That last one is the property that matters: the checker cannot quietly stop policing.
+
+**Not verified, and it is the interesting part.** `collision` reaches the glTF and **nothing reads
+it back into the physics world**. The benches and bins authored this morning are walk-through, and
+the lamp posts collide only because `PrototypeWorld` still authors placeholder boxes at their
+positions. Importing collision proxies is plan_14 `IG-14-011`/`IG-14-012`, and this prop set is now
+the content that will exercise it. `IG-09-006`'s naming and pivot conventions are only partly closed
+-- units, axes and the model name are enforced; naming and pivots are not.
+
 ## A prop set authored once and instanced (2026-08-26)
 
 plan_09 `IG-09-008` closed; `IG-09-005` re-closed against a real *set* rather than the single prop

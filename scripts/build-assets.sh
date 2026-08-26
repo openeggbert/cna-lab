@@ -25,6 +25,7 @@ if [[ ! -x "$gltf_to_cnj" ]]; then
 fi
 
 "$project_root/scripts/validate-mc3.sh" "$input"
+"$project_root/scripts/check_mc3_conventions.py" --project-root "$project_root" "$input"
 "$project_root/scripts/content_budget.py" \
   --policy "$project_root/assets/content-budgets.json" \
   --source "$input"

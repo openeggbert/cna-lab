@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Closing what the MC3 schema leaves open (plan_09)
+
+**The finding.** Mesh Craft's XSD types `collision` as `xs:string` defaulting to `"none"` — so *any*
+spelling validates. Iron Gang had been writing `collision="static"` (12 objects) and `"trigger"` (1)
+across six files, values **not** in MC3's documented vocabulary
+(`none/box/sphere/capsule/mesh/convex`), with nothing checking them.
+
+**The resolution is a decision, not a fix.** The vocabularies mean different things: MC3's describes
+the collider's **shape**, Iron Gang's its **role**. Every collider here is an axis-aligned box, so
+shape carries no information and role carries all of it. `docs/mc3-conventions.md` writes down why,
+and the cost: Mesh Craft's Walk Mode reads the shape vocabulary and will not understand `static`.
+The values survive export as `node.extras.collision` (51 nodes in the prop set's glb), so a future
+importer reads the role directly.
+
+Required metadata: every geometry object must **state** its collision rather than inherit the
+default — silence and a deliberate `none` are otherwise identical — including inside `<definition>`s
+and `<group>`s, since a top-level-only rule is avoided by wrapping. Plus `model`, `unit="meter"`,
+`coordinate_system="right_handed_y_up"`.
+
+Closed `IG-09-007`. Verified: CTest 17/17, nine rule fixtures plus two vacuous-pass guards, three
+mutation checks — the sharpest being a one-letter typo in the geometry tag list, which fails 13
+assertions because the checker then examines nothing and the vacuous-pass guard fires.
+
+**Not done, and it is the interesting part:** `collision` reaches the glTF and **nothing reads it
+back into physics**. The benches and bins are walk-through; the lamp posts collide only because
+`PrototypeWorld` still authors placeholder boxes there. That is plan_14 `IG-14-011`/`IG-14-012`, and
+this prop set is now the content that will exercise it.
+
 ### A prop set authored once and instanced (plan_09)
 
 **The convention is MC3's own.** `<definitions>` + `<instance>` already exist: author a prop once,
