@@ -21,6 +21,18 @@ namespace IronGang
     //
     // Shared by traffic (plan_21 IG-21-002's following distance) and pedestrians (plan_20
     // IG-20-010's congestion avoidance) rather than written twice: they differ only in lane width.
+    // plan_22 IG-22-001: whether a mover went **past** @p linePosition between two frames, moving
+    // in @p approachYaw's direction and within @p laneHalfWidth of the line's centre.
+    //
+    // Tested as a segment crossing rather than "is it past the line now", because at 20 m/s a
+    // 60 Hz frame covers a third of a metre and a car can be behind the line one frame and well
+    // past it the next -- a position test would miss exactly the fast crossings that matter.
+    [[nodiscard]] bool CrossedLine(const Vector3& previousPosition,
+                                   const Vector3& currentPosition,
+                                   const Vector3& linePosition,
+                                   float approachYaw,
+                                   float laneHalfWidth);
+
     [[nodiscard]] float DistanceAheadInLane(const Vector3& fromPosition,
                                             float fromYaw,
                                             const Vector3& obstaclePosition,

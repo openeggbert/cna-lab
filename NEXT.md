@@ -98,6 +98,29 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Running a red is an offence, and the player is told why (plan_22)
+
+Closes the gap the entry below left: the player's car ignored the lights and `PoliceSystem` never
+heard about it.
+
+- **Detection lives where the knowledge is:** speeding and collisions inside `PoliceSystem`, running
+  a red computed by the game (which owns both signal and vehicle) and passed in via a new
+  `PoliceObservation` -- which also replaced a parameter list that was one argument from unreadable.
+- **A segment, not a position:** at 20 m/s a 60 Hz frame covers a third of a metre, so a car is
+  behind the line one frame and past it the next. Reversing back over a line does not re-run it;
+  crossing the same plane on the pavement does not count.
+- **The worst offence wins the label**, so the reason shown is the worst thing the player did rather
+  than whichever check ran first.
+- The HUD says `WANTED - ran a red light` rather than a bare `WANTED`; the record clears when the
+  chase resolves.
+
+`IG-22-001` completed, `IG-22-011` partial. CTest 12/12. Ten existing call sites were migrated with
+a targeted regex rather than a blanket replace -- last iteration's lesson.
+
+Still open: witness perception is a fixed-radius check with **no line of sight** (`IG-22-002`), so a
+witness through a wall sees everything -- that is the false-positive half of `IG-22-011`. No ticket
+or traffic-stop flow: running a red gets the same chase as anything else.
+
 ### The crossing gets a light (plan_21)
 
 **A red light is modelled as an obstacle at the stop line**, folded into the same in-lane distance

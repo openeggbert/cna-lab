@@ -577,6 +577,45 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Running a red is an offence, and the player is told why (2026-08-26)
+
+plan_22 `IG-22-001` completed (its note had said "no running a light -- no signals exist yet");
+`IG-22-011` advanced to partial (feedback done; false-positive prevention still needs line of sight).
+
+**Detection lives where the knowledge is.** Speeding and collisions are inside `PoliceSystem`;
+running a red is computed by the game, which owns both the signal and the vehicle, and passed in
+through a new `PoliceObservation`. That replaced a growing positional parameter list — the signature
+was already `(delta, driving, position, speed, witnesses, spawn)` and a seventh argument would have
+made call sites unreadable.
+
+**A segment, not a position.** At 20 m/s a 60 Hz frame covers a third of a metre, so a car is behind
+the stop line one frame and well past it the next. `CrossedLine` tests the segment between the two
+frames, which is what makes it catch precisely the fast crossings that matter. Reversing back over a
+line does not count as running it again, and crossing the same plane on the pavement beside the lane
+does not count at all.
+
+**The worst offence wins the label.** Hitting someone while speeding through a red reports the
+collision, so the reason shown is the worst thing the player did rather than whichever check
+happened to run first.
+
+**The HUD says why.** `WANTED - ran a red light` rather than a bare `WANTED`. The information already
+existed at the moment of detection; withholding it is the most common complaint about systems like
+this. The record clears when the chase resolves.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestRunningARedLightIsAWitnessedOffence` covers six crossing cases (through, short of, beyond,
+reversing, beside the lane, and a barely-there crossing), no witness / a distant witness / a close
+witness, not-driving, worst-offence precedence, speeding still reporting speeding, and the record
+clearing on escape. Ten existing `PoliceSystem::Update` call sites were migrated to the observation
+struct by a targeted regex rather than a blanket replace — the lesson from the previous iteration,
+where a global rename broke an unrelated assertion 2000 lines away.
+
+**Boundaries.** Witness perception is still a fixed-radius proximity check with no line of sight
+(`IG-22-002`), so a "witness" through a wall sees everything — that is the false-positive half of
+`IG-22-011` and it is untouched. Traffic AI obeys the lights; the player is now merely *observed*
+disobeying them. No ticket or traffic-stop flow (`IG-22-005`): the response to running a red is the
+same chase as any other offence.
+
 ## The crossing gets a light (2026-08-26)
 
 plan_21 `IG-21-003` and `IG-21-007` closed.

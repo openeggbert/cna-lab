@@ -514,7 +514,8 @@ namespace
         int frames = 0;
         while (!mission.IsFailed() && frames < 1000)
         {
-            police.Update(kDeltaSeconds, true, vehicleSpawn, kSpeedingKph, witnesses, patrolSpawn);
+            police.Update(kDeltaSeconds, IronGang::PoliceObservation{true, kSpeedingKph, false}, vehicleSpawn,
+                          witnesses, patrolSpawn);
             publishPoliceFacts();
             mission.Update(true, vehicleSpawn, vehicleSpawn, true, goal);
             ++frames;
@@ -537,7 +538,8 @@ namespace
         // resetting the police response on retry is for.
         for (int frame = 0; frame < 30; ++frame)
         {
-            police.Update(kDeltaSeconds, true, vehicleSpawn, 0.0F, {}, patrolSpawn);
+            police.Update(kDeltaSeconds, IronGang::PoliceObservation{true, 0.0F, false}, vehicleSpawn, {},
+                          patrolSpawn);
             publishPoliceFacts();
             mission.Update(true, vehicleSpawn, vehicleSpawn, true, goal);
         }
@@ -2082,6 +2084,96 @@ namespace
         }
 
         std::filesystem::remove(path);
+    }
+
+    // plan_22 IG-22-001/011: running a red is an offence now that lights exist, and the player is
+    // told which offence they are being chased for.
+    void TestRunningARedLightIsAWitnessedOffence()
+    {
+        const IronGang::Vector3 line{3.0F, 0.4F, 8.0F};
+        constexpr float kApproachYaw = 0.0F; // ForwardFromYaw(0) points down -Z
+        constexpr float kLane = IronGang::kTrafficLaneHalfWidth;
+
+        // The crossing test is a segment, not a position: at 20 m/s a 60 Hz frame covers a third
+        // of a metre, so a car is behind the line one frame and well past it the next.
+        Require(IronGang::CrossedLine({3.0F, 0.4F, 12.0F}, {3.0F, 0.4F, 4.0F}, line, kApproachYaw, kLane),
+                "passing the line between two frames must count as crossing it");
+        Require(!IronGang::CrossedLine({3.0F, 0.4F, 12.0F}, {3.0F, 0.4F, 9.0F}, line, kApproachYaw, kLane),
+                "stopping short of the line must not count");
+        Require(!IronGang::CrossedLine({3.0F, 0.4F, 4.0F}, {3.0F, 0.4F, 0.0F}, line, kApproachYaw, kLane),
+                "driving on beyond the line must not count a second time");
+        Require(!IronGang::CrossedLine({3.0F, 0.4F, 4.0F}, {3.0F, 0.4F, 12.0F}, line, kApproachYaw, kLane),
+                "reversing back over the line must not count as running it");
+        Require(!IronGang::CrossedLine({9.0F, 0.4F, 12.0F}, {9.0F, 0.4F, 4.0F}, line, kApproachYaw, kLane),
+                "crossing the same plane on the pavement beside the lane must not count");
+        Require(IronGang::CrossedLine({3.0F, 0.4F, 8.001F}, {3.0F, 0.4F, 7.999F}, line, kApproachYaw, kLane),
+                "even a crossing that barely happens must count");
+
+        // The police only react to what a witness sees.
+        const IronGang::Vector3 crossing{3.0F, 0.4F, 8.0F};
+        const IronGang::Vector3 spawn{20.0F, 0.0F, 0.0F};
+        IronGang::PoliceObservation ranRed;
+        ranRed.driving = true;
+        ranRed.vehicleSpeedKph = 30.0F; // well under the speeding threshold
+        ranRed.ranRedLight = true;
+
+        IronGang::PoliceSystem unseen;
+        unseen.Update(1.0F, ranRed, crossing, {}, spawn);
+        Require(unseen.GetState() == IronGang::PoliceState::Clear,
+                "running a red with nobody watching must not be noticed");
+        Require(unseen.GetOffence() == IronGang::PoliceOffence::None,
+                "an unwitnessed offence must leave no record");
+
+        IronGang::PoliceSystem farAway;
+        farAway.Update(1.0F, ranRed, crossing, {IronGang::Vector3(500.0F, 0.0F, 0.0F)}, spawn);
+        Require(farAway.GetState() == IronGang::PoliceState::Clear,
+                "a witness outside the radius must not see it either");
+
+        IronGang::PoliceSystem seen;
+        seen.Update(1.0F, ranRed, crossing, {crossing + IronGang::Vector3(6.0F, 0.0F, 0.0F)}, spawn);
+        Require(seen.GetState() == IronGang::PoliceState::Dispatched,
+                "running a red in front of a witness must dispatch a patrol");
+        Require(seen.GetOffence() == IronGang::PoliceOffence::RanRedLight,
+                "the recorded offence must be the one committed");
+        Require(std::strlen(IronGang::PoliceOffenceName(seen.GetOffence())) > 0,
+                "the offence must have player-facing text -- WANTED with no reason is the complaint "
+                "every game like this gets");
+
+        // Not driving is not an offence, however red the light.
+        IronGang::PoliceObservation onFoot = ranRed;
+        onFoot.driving = false;
+        IronGang::PoliceSystem walking;
+        walking.Update(1.0F, onFoot, crossing, {crossing}, spawn);
+        Require(walking.GetState() == IronGang::PoliceState::Clear,
+                "a pedestrian crossing against a light is not what this system is for");
+
+        // Worse offences win the label: hitting someone while also speeding reports the collision.
+        IronGang::PoliceObservation everything;
+        everything.driving = true;
+        everything.vehicleSpeedKph = 120.0F;
+        everything.ranRedLight = true;
+        IronGang::PoliceSystem worst;
+        worst.Update(1.0F, everything, crossing, {crossing + IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawn);
+        Require(worst.GetOffence() == IronGang::PoliceOffence::Collision,
+                "the reported reason must be the worst thing the player did, not the first checked");
+
+        // Speeding alone still reports speeding, and the record clears when the chase resolves.
+        IronGang::PoliceObservation speeding;
+        speeding.driving = true;
+        speeding.vehicleSpeedKph = 120.0F;
+        IronGang::PoliceSystem chase;
+        chase.Update(1.0F, speeding, crossing, {crossing + IronGang::Vector3(6.0F, 0.0F, 0.0F)}, spawn);
+        Require(chase.GetOffence() == IronGang::PoliceOffence::Speeding, "speeding must report speeding");
+        IronGang::PoliceObservation quiet;
+        quiet.driving = true;
+        const IronGang::Vector3 escaped{5000.0F, 0.0F, 0.0F};
+        for (int step = 0; step < 40; ++step)
+        {
+            chase.Update(1.0F, quiet, escaped, {}, spawn);
+        }
+        Require(chase.GetState() == IronGang::PoliceState::Clear, "escaping must end the chase");
+        Require(chase.GetOffence() == IronGang::PoliceOffence::None,
+                "a resolved chase must forget what it was for");
     }
 
     // plan_21 IG-21-003/007: the light's own timing, and the rule that decides who stops.
@@ -3736,23 +3828,21 @@ namespace
         const IronGang::Vector3 spawnPosition(20.0F, 0.0F, 0.0F);
 
         // Not driving: even a very close, very fast "witness" must never trigger a chase.
-        const IronGang::PoliceUpdateWorkload onFootWorkload = police.Update(
-            1.0F, false, origin, 120.0F, {IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
+        const IronGang::PoliceUpdateWorkload onFootWorkload = police.Update(1.0F, IronGang::PoliceObservation{false, 120.0F, false}, origin, {IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
         Require(onFootWorkload.witnessChecks == 0 && onFootWorkload.patrolUpdates == 0,
                 "police workload must count only loops that actually execute");
         Require(police.GetState() == IronGang::PoliceState::Clear,
                 "an offense while not driving must never be witnessed");
 
         // Driving fast, but the only witness is far outside the witness radius (15 units).
-        const IronGang::PoliceUpdateWorkload farWitnessWorkload = police.Update(
-            1.0F, true, origin, 120.0F, {IronGang::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
+        const IronGang::PoliceUpdateWorkload farWitnessWorkload = police.Update(1.0F, IronGang::PoliceObservation{true, 120.0F, false}, origin, {IronGang::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
         Require(farWitnessWorkload.witnessChecks == 1 && farWitnessWorkload.patrolUpdates == 0,
                 "police workload must count each tested witness even when no offense is seen");
         Require(police.GetState() == IronGang::PoliceState::Clear,
                 "a witness outside the witness radius must not trigger a chase");
 
         // Driving over the speed threshold with a witness inside the radius: must dispatch.
-        police.Update(1.0F, true, origin, 100.0F, {IronGang::Vector3(5.0F, 0.0F, 0.0F)}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 100.0F, false}, origin, {IronGang::Vector3(5.0F, 0.0F, 0.0F)}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Dispatched,
                 "speeding witnessed within radius must dispatch a patrol car");
         Require(police.GetActivePatrolCount() == 1, "dispatch must spawn exactly one patrol car");
@@ -3760,16 +3850,16 @@ namespace
                 "the dispatched patrol car must appear at the given spawn position");
 
         // Dispatched has a fixed delay (2s) before patrol cars actually start moving/chasing.
-        police.Update(1.0F, true, origin, 0.0F, {}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 0.0F, false}, origin, {}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Dispatched,
                 "the dispatch delay must not elapse after only 1 of its 2 seconds");
-        police.Update(1.5F, true, origin, 0.0F, {}, spawnPosition);
+        police.Update(1.5F, IronGang::PoliceObservation{true, 0.0F, false}, origin, {}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "the dispatch delay must elapse and start the chase");
 
         // One chase tick at normal speed: hand-verified pursuit math (patrol starts 20 units from
         // the player at (0,0,0); closes 9 units/s for 1s).
-        police.Update(1.0F, true, origin, 0.0F, {}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 0.0F, false}, origin, {}, spawnPosition);
         Require(std::abs(police.GetPatrolPosition(0).X - 11.0F) < 1e-4F,
                 "the patrol car must close the distance to the player at its own patrol speed");
 
@@ -3777,7 +3867,7 @@ namespace
         // car appears) and let both patrol cars close in (clamped so neither overshoots the
         // player's position).
         const IronGang::PoliceUpdateWorkload escalationWorkload =
-            police.Update(19.0F, true, origin, 0.0F, {}, spawnPosition);
+            police.Update(19.0F, IronGang::PoliceObservation{true, 0.0F, false}, origin, {}, spawnPosition);
         Require(escalationWorkload.patrolUpdates == 2,
                 "police workload must count both patrol updates on the escalation tick");
         Require(police.GetActivePatrolCount() == 2,
@@ -3792,13 +3882,13 @@ namespace
         // they stay far behind (closestDistance stays well over the 40-unit resolve distance) for
         // 3 full seconds -- the chase must then resolve back to Clear.
         const IronGang::Vector3 farAway(1000.0F, 0.0F, 0.0F);
-        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 0.0F, false}, farAway, {}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "the resolve distance must be sustained, not trigger instantly");
-        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 0.0F, false}, farAway, {}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "resolve must require the full sustain duration (2 of 3 seconds so far)");
-        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        police.Update(1.0F, IronGang::PoliceObservation{true, 0.0F, false}, farAway, {}, spawnPosition);
         Require(police.GetState() == IronGang::PoliceState::Clear,
                 "sustaining the resolve distance for the full 3 seconds must clear the chase");
         Require(police.GetActivePatrolCount() == 0, "clearing a chase must remove all patrol cars");
@@ -4496,6 +4586,7 @@ int main()
         TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();
+        TestRunningARedLightIsAWitnessedOffence();
         TestTrafficSignalCyclesAndOpposesItself();
         TestLaneClearanceSeesOnlyWhatIsAhead();
         TestPedestriansDoNotWalkThroughEachOther();

@@ -15,6 +15,30 @@ namespace IronGang
         Chasing,
     };
 
+    // plan_22 IG-22-001/011: what started the chase. Recorded so the player can be told why they
+    // are being chased -- "WANTED" with no reason is the single most common complaint about
+    // systems like this, and the information already exists at the moment of detection.
+    enum class PoliceOffence
+    {
+        None,
+        Speeding,
+        Collision,
+        RanRedLight,
+    };
+
+    // Short player-facing text: "speeding", "hit someone", "ran a red light".
+    [[nodiscard]] const char* PoliceOffenceName(PoliceOffence offence) noexcept;
+
+    // What the player did this frame that a witness could report. The game decides these, because
+    // signals and collisions are its knowledge, not the police system's.
+    struct PoliceObservation
+    {
+        bool driving{false};
+        float vehicleSpeedKph{0.0F};
+        // True on the frame the player's vehicle crossed a stop line whose signal said stop.
+        bool ranRedLight{false};
+    };
+
     struct PoliceUpdateWorkload
     {
         std::size_t witnessChecks{0};
@@ -39,9 +63,8 @@ namespace IronGang
         // newly dispatched patrol car appears; it is only read at the moment a chase starts (or
         // escalates), not every frame.
         PoliceUpdateWorkload Update(float deltaSeconds,
-                                    bool playerDriving,
+                                    const PoliceObservation& observation,
                                     const Vector3& playerVehiclePosition,
-                                    float playerVehicleSpeedKph,
                                     const std::vector<Vector3>& witnessPositions,
                                     const Vector3& spawnPosition);
 
@@ -51,6 +74,8 @@ namespace IronGang
         // a chase resolves. Missions read this through the police_chase_seconds fact (plan_24
         // IG-24-006), which is how a mission can fail for staying wanted too long.
         [[nodiscard]] float GetChaseSeconds() const noexcept { return chaseTimer_; }
+        // What the current response is for; None while Clear.
+        [[nodiscard]] PoliceOffence GetOffence() const noexcept { return offence_; }
         [[nodiscard]] const Vector3& GetPatrolPosition(int index) const
         {
             return patrolPositions_[static_cast<std::size_t>(index)];
@@ -61,9 +86,10 @@ namespace IronGang
         }
 
     private:
-        void TriggerChase(const Vector3& spawnPosition);
+        void TriggerChase(const Vector3& spawnPosition, PoliceOffence offence);
 
         PoliceState state_{PoliceState::Clear};
+        PoliceOffence offence_{PoliceOffence::None};
         float dispatchTimer_{0.0F};
         float chaseTimer_{0.0F};
         float resolveTimer_{0.0F};

@@ -23,9 +23,22 @@ namespace IronGang
         *this = PoliceSystem{};
     }
 
-    void PoliceSystem::TriggerChase(const Vector3& spawnPosition)
+    const char* PoliceOffenceName(PoliceOffence offence) noexcept
+    {
+        switch (offence)
+        {
+            case PoliceOffence::None: return "";
+            case PoliceOffence::Speeding: return "speeding";
+            case PoliceOffence::Collision: return "hit someone";
+            case PoliceOffence::RanRedLight: return "ran a red light";
+        }
+        return "";
+    }
+
+    void PoliceSystem::TriggerChase(const Vector3& spawnPosition, PoliceOffence offence)
     {
         state_ = PoliceState::Dispatched;
+        offence_ = offence;
         dispatchTimer_ = kDispatchDelaySeconds;
         chaseTimer_ = 0.0F;
         resolveTimer_ = 0.0F;
@@ -35,9 +48,8 @@ namespace IronGang
     }
 
     PoliceUpdateWorkload PoliceSystem::Update(float deltaSeconds,
-                                               bool playerDriving,
+                                               const PoliceObservation& observation,
                                                const Vector3& playerVehiclePosition,
-                                               float playerVehicleSpeedKph,
                                                const std::vector<Vector3>& witnessPositions,
                                                const Vector3& spawnPosition)
     {
@@ -46,22 +58,27 @@ namespace IronGang
         {
         case PoliceState::Clear:
         {
-            if (!playerDriving)
+            if (!observation.driving)
             {
                 break;
             }
 
             bool witnessedSpeeding = false;
             bool witnessedCrime = false;
+            bool witnessedRedLight = false;
             for (const Vector3& witness : witnessPositions)
             {
                 ++workload.witnessChecks;
                 const float distanceSquared = DistanceSquaredXZ(witness, playerVehiclePosition);
                 if (distanceSquared <= kWitnessRadius * kWitnessRadius)
                 {
-                    if (playerVehicleSpeedKph > kOffenseSpeedThresholdKph)
+                    if (observation.vehicleSpeedKph > kOffenseSpeedThresholdKph)
                     {
                         witnessedSpeeding = true;
+                    }
+                    if (observation.ranRedLight)
+                    {
+                        witnessedRedLight = true;
                     }
                     if (distanceSquared <= kCrimeContactDistance * kCrimeContactDistance)
                     {
@@ -70,9 +87,19 @@ namespace IronGang
                 }
             }
 
-            if (witnessedSpeeding || witnessedCrime)
+            // Ordered by how serious it is, so the reason the player is told is the worst thing
+            // they did rather than whichever check happened to run first.
+            if (witnessedCrime)
             {
-                TriggerChase(spawnPosition);
+                TriggerChase(spawnPosition, PoliceOffence::Collision);
+            }
+            else if (witnessedRedLight)
+            {
+                TriggerChase(spawnPosition, PoliceOffence::RanRedLight);
+            }
+            else if (witnessedSpeeding)
+            {
+                TriggerChase(spawnPosition, PoliceOffence::Speeding);
             }
             break;
         }
@@ -119,6 +146,7 @@ namespace IronGang
                 if (resolveTimer_ >= kResolveSustainSeconds)
                 {
                     state_ = PoliceState::Clear;
+                    offence_ = PoliceOffence::None;
                     activePatrolCount_ = 0;
                     chaseTimer_ = 0.0F;
                     resolveTimer_ = 0.0F;

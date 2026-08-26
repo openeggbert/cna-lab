@@ -195,6 +195,10 @@ namespace IronGang
         // plan_21 IG-21-003/007: one signal drives the crossing; each stop line reads either its
         // phase or its opposing one, so the two directions cannot both be green.
         TrafficSignal trafficSignal_;
+        // Where the player's vehicle was last frame, so crossing a stop line can be detected as a
+        // segment rather than a position -- at speed a car is behind the line one frame and past
+        // it the next (plan_22 IG-22-001).
+        Vector3 previousVehiclePosition_{};
 
         // Gate M10 audio (plan_27-audio-music-ambience-and-radio.md): real CC0 sound assets
         // (Nox Sound Design's "Essentials Series", itch.io, tracked in

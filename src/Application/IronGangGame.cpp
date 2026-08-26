@@ -1821,15 +1821,38 @@ namespace IronGang
                 }
                 renderer_.UpdatePedestrianAnimations(simulationSeconds, pedestrianAnimationPoses);
 
+                // plan_22 IG-22-001: running a red is an offence now that lights exist. Detected
+                // where the knowledge is -- the game owns both the signal and the vehicle.
+                PoliceObservation observation;
+                observation.driving = playerDriving_;
+                observation.vehicleSpeedKph = vehicle_.GetSpeedKph();
+                for (const TrafficStopLine& stopLine : districtManager_.GetWorld().GetTrafficStopLines())
+                {
+                    const SignalPhase phase = stopLine.opposingPhase
+                                                  ? trafficSignal_.GetOpposingPhase()
+                                                  : trafficSignal_.GetPhase();
+                    if (!TrafficSignal::RequiresStop(phase))
+                    {
+                        continue;
+                    }
+                    if (CrossedLine(previousVehiclePosition_, vehicle_.GetPosition(), stopLine.position,
+                                    stopLine.approachYaw, kTrafficLaneHalfWidth))
+                    {
+                        observation.ranRedLight = true;
+                        break;
+                    }
+                }
+
                 const PoliceUpdateWorkload policeWorkload = police_.Update(
-                    simulationSeconds, playerDriving_, vehicle_.GetPosition(), vehicle_.GetSpeedKph(),
-                    witnessPositions, districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
+                    simulationSeconds, observation, vehicle_.GetPosition(), witnessPositions,
+                    districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
                 if (recordsAiWorkload)
                 {
                     aiWorkload.policeWitnessChecks = policeWorkload.witnessChecks;
                     aiWorkload.policePatrolUpdates = policeWorkload.patrolUpdates;
                 }
                 peakPoliceVehicleCount_ = std::max(peakPoliceVehicleCount_, police_.GetActivePatrolCount());
+                previousVehiclePosition_ = vehicle_.GetPosition();
             }
 
             // plan_24 IG-24-006: PoliceSystem is the game's, not the mission's, so its wanted
@@ -2303,7 +2326,12 @@ namespace IronGang
                 }
                 else if (police_.GetState() == PoliceState::Chasing)
                 {
-                    spriteBatch_->DrawString(*hudFont_, "WANTED", Vector2(10.0F, lineY), Color(230, 60, 60, 255));
+                    // plan_22 IG-22-011: "WANTED" with no reason is the complaint every game like
+                    // this gets; the reason is already known at the moment of detection.
+                    const std::string wanted =
+                        std::string("WANTED - ") + PoliceOffenceName(police_.GetOffence());
+                    spriteBatch_->DrawString(*hudFont_, wanted, Vector2(10.0F, lineY),
+                                             Color(230, 60, 60, 255));
                     lineY += kLineHeight;
                 }
 
