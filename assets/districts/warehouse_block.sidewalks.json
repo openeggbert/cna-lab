@@ -3,21 +3,33 @@
   "version": 1,
   "nodes": [
     { "id": "west_south", "position": [-7.5, 0.9, 38.0] },
+    { "id": "west_hotel", "position": [-7.5, 0.9, 18.0] },
+    { "id": "west_crossing", "position": [-7.5, 0.9, 0.0] },
     { "id": "west_north", "position": [-7.5, 0.9, -38.0] },
     { "id": "east_south", "position": [7.5, 0.9, 38.0] },
-    { "id": "east_north", "position": [7.5, 0.9, -38.0] },
-    { "id": "west_crossing", "position": [-7.5, 0.9, 0.0] },
+    { "id": "east_apartments", "position": [7.5, 0.9, 19.0] },
     { "id": "east_crossing", "position": [7.5, 0.9, 0.0] },
+    { "id": "east_north", "position": [7.5, 0.9, -38.0] },
     { "id": "hotel_door", "position": [-9.0, 0.9, 18.0] },
     { "id": "apartments_door", "position": [9.0, 0.9, 19.0] }
   ],
   "walkways": [
-    { "id": "west_pavement", "from": "west_north", "to": "west_south", "width": 3.0 },
-    { "id": "east_pavement", "from": "east_north", "to": "east_south", "width": 3.0 }
+    { "id": "west_north_leg", "from": "west_north", "to": "west_crossing", "width": 3.0 },
+    { "id": "west_mid_leg", "from": "west_crossing", "to": "west_hotel", "width": 3.0 },
+    { "id": "west_south_leg", "from": "west_hotel", "to": "west_south", "width": 3.0 },
+    { "id": "east_north_leg", "from": "east_north", "to": "east_crossing", "width": 3.0 },
+    { "id": "east_mid_leg", "from": "east_crossing", "to": "east_apartments", "width": 3.0 },
+    { "id": "east_south_leg", "from": "east_apartments", "to": "east_south", "width": 3.0 },
+    { "id": "hotel_spur", "from": "west_hotel", "to": "hotel_door", "width": 2.0 },
+    { "id": "apartments_spur", "from": "east_apartments", "to": "apartments_door", "width": 2.0 }
   ],
   "crossings": [
     { "id": "main_crossing", "from": "west_crossing", "to": "east_crossing",
       "roadSegment": "main_northbound", "signalControlled": true }
+  ],
+  "routes": [
+    { "id": "west_pavement_patrol", "from": "west_north", "to": "west_south" },
+    { "id": "east_pavement_patrol", "from": "east_north", "to": "east_south" }
   ],
   "entrances": [
     { "id": "hotel_entrance", "node": "hotel_door", "building": "hotel" },

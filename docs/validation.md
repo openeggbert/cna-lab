@@ -1867,6 +1867,69 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Routing on the pavement graph, and the disconnected district it found (2026-08-26)
+
+plan_19 `IG-19-004` and `IG-19-022` closed. Gates M12 and M14 untouched.
+
+**What was added.** `SidewalkGraph::FindWalkingRoute()` (Dijkstra over nodes, with walkways **and**
+crossings as bidirectional edges weighted by distance), `BuildRoutePath()`, and
+`FindUnreachableNodes()`. Dijkstra rather than A*: a district has a handful of nodes, so the
+simplest correct thing is also the right thing and a heuristic would buy nothing.
+
+A crossing is an ordinary edge to the router. What makes a crossing special -- that a pedestrian has
+to wait at it -- is `Pedestrian`'s problem, not the router's.
+
+**The connectivity rule found a real bug in content I shipped the previous iteration.** Loading now
+refuses a graph with any node unreachable from the first, naming one, and the very first run said:
+
+```
+sidewalk graph is disconnected: "east_south" cannot be walked to from "west_south"
+(6 unreachable node(s))
+```
+
+The warehouse block's crossing nodes and door nodes had never been joined to the pavements. Six of
+its eight nodes were stranded, the district loaded happily, and nothing noticed -- because nothing
+had yet tried to walk between two of them. That is exactly the failure `IG-19-004` exists to catch,
+and it caught it on its own author.
+
+**The content fix, and the schema growth it forced.**
+`assets/districts/warehouse_block.sidewalks.json` is now a connected graph: each pavement split at
+its crossing and its doorway (`west_north -> west_crossing -> west_hotel -> west_south`), with short
+spurs to the two doors. But splitting means "the west pavement" is no longer one walkway, so *which*
+end-to-end walk an ambient pedestrian patrols became an authoring decision -- and belongs in data,
+not as node ids compiled into the game. Hence a `routes` section: named from/to pairs, validated
+like everything else (missing node, same node at both ends, duplicate id). `BuildWalkingPaths()`
+returns one looping path per route, falling back to one per walkway for a graph that declares none.
+
+**A test that had to get stronger rather than be relaxed.** The equivalence test compared the
+data-driven pavements to the hand-authored two-point paths *exactly*. A route has intermediate
+waypoints, so that comparison could no longer hold. Rather than loosen it to "roughly similar", it
+now asserts what actually matters: the same endpoints, every intermediate point between them along
+the span, and every point within 1 mm of the straight line joining them. The walked line is
+provably unchanged; only its waypoint count is not.
+
+**Verified.** `TestSidewalkRoutingAcrossTheDistrict`: the hotel-door-to-apartments-door route exists,
+starts and ends where asked, and **must contain both crossing nodes** -- the only way to the other
+pavement -- then a `Pedestrian` walks the built path at a fixed 60 Hz step and must arrive within a
+metre of the far door (`IG-19-022`'s end-to-end case). Plus symmetry, a route to oneself, a route to
+a nonexistent node, adjacent nodes routing directly rather than the long way round, and nothing in
+the shipped district stranded. `TestSidewalkGraphRejectsADisconnectedDistrict` rebuilds the exact
+bug -- two pavements with nothing between them -- requires rejection with the offending node named,
+then adds a crossing and requires the same graph to load *and* route `b -> a -> c -> d`. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean, and the game loads the rewritten district with no
+warning at all.
+
+**Mutation-checked.** Disabling the connectivity rule fails with `a disconnected sidewalk graph must
+be rejected`; dropping crossings from the router's edge set fails with `the shipped sidewalk graph
+must load` -- because without them the shipped district *is* disconnected, which is a neat
+demonstration that the crossing is load-bearing rather than decorative.
+
+**Not verified.** Ambient pedestrians patrol routes; they still do not *choose* a destination and
+route to it, so nobody yet walks from the hotel door to the apartments door in the running game --
+the machinery is there and only the ambient AI's goal selection is missing. No path smoothing
+(`IG-19-010`), no async requests (`IG-19-008`), and no local avoidance beyond the existing lane
+clearance (`IG-19-015`). The countryside still has no sidewalk file, so it exercises the fallback.
+
 ## Iron Gang, played (2026-08-26)
 
 **This entry corrects a claim repeated throughout this file.** Almost every milestone above ends

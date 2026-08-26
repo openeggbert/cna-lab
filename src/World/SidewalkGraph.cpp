@@ -4,6 +4,7 @@
 #include "../Core/JsonReadHelpers.hpp"
 
 #include <algorithm>
+#include <limits>
 
 namespace IronGang
 {
@@ -35,6 +36,19 @@ namespace IronGang
     std::vector<WaypointPath> SidewalkGraph::BuildWalkingPaths() const
     {
         std::vector<WaypointPath> paths;
+        if (!routes_.empty())
+        {
+            paths.reserve(routes_.size());
+            for (const SidewalkRoute& route : routes_)
+            {
+                WaypointPath path;
+                if (BuildRoutePath(route.fromNodeId, route.toNodeId, true, path))
+                {
+                    paths.push_back(std::move(path));
+                }
+            }
+            return paths;
+        }
         paths.reserve(walkways_.size());
         for (const SidewalkWalkway& walkway : walkways_)
         {
@@ -49,6 +63,163 @@ namespace IronGang
             paths.push_back(WaypointPath{{from->position, to->position}, true});
         }
         return paths;
+    }
+
+    namespace
+    {
+        struct Edge
+        {
+            std::size_t to;
+            float cost;
+        };
+    }
+
+    std::vector<std::string> SidewalkGraph::FindWalkingRoute(const std::string& fromNodeId,
+                                                             const std::string& toNodeId) const
+    {
+        const auto indexOf = [this](const std::string& id) -> std::size_t {
+            for (std::size_t index = 0; index < nodes_.size(); ++index)
+            {
+                if (nodes_[index].id == id)
+                {
+                    return index;
+                }
+            }
+            return nodes_.size();
+        };
+
+        const std::size_t start = indexOf(fromNodeId);
+        const std::size_t goal = indexOf(toNodeId);
+        if (start == nodes_.size() || goal == nodes_.size())
+        {
+            return {};
+        }
+        if (start == goal)
+        {
+            return {fromNodeId};
+        }
+
+        // Walkways and crossings are the same kind of edge here: both are ways to walk from one
+        // node to another, both bidirectional. What distinguishes a crossing is that a pedestrian
+        // has to wait at it, which is Pedestrian's problem, not the router's.
+        std::vector<std::vector<Edge>> adjacency(nodes_.size());
+        const auto addEdge = [&](const std::string& a, const std::string& b) {
+            const std::size_t from = indexOf(a);
+            const std::size_t to = indexOf(b);
+            if (from == nodes_.size() || to == nodes_.size())
+            {
+                return;
+            }
+            const float cost = (nodes_[to].position - nodes_[from].position).Length();
+            adjacency[from].push_back(Edge{to, cost});
+            adjacency[to].push_back(Edge{from, cost});
+        };
+        for (const SidewalkWalkway& walkway : walkways_)
+        {
+            addEdge(walkway.fromNodeId, walkway.toNodeId);
+        }
+        for (const SidewalkCrossing& crossing : crossings_)
+        {
+            addEdge(crossing.fromNodeId, crossing.toNodeId);
+        }
+
+        // Dijkstra: a handful of nodes per district, so the simplest correct thing is also the
+        // right thing. A* would need a heuristic and buy nothing at this size.
+        constexpr float kInfinity = std::numeric_limits<float>::max();
+        std::vector<float> distance(nodes_.size(), kInfinity);
+        std::vector<std::size_t> previous(nodes_.size(), nodes_.size());
+        std::vector<bool> settled(nodes_.size(), false);
+        distance[start] = 0.0F;
+
+        for (std::size_t step = 0; step < nodes_.size(); ++step)
+        {
+            std::size_t current = nodes_.size();
+            float best = kInfinity;
+            for (std::size_t index = 0; index < nodes_.size(); ++index)
+            {
+                if (!settled[index] && distance[index] < best)
+                {
+                    best = distance[index];
+                    current = index;
+                }
+            }
+            if (current == nodes_.size())
+            {
+                break; // nothing reachable is left
+            }
+            if (current == goal)
+            {
+                break;
+            }
+            settled[current] = true;
+            for (const Edge& edge : adjacency[current])
+            {
+                const float candidate = distance[current] + edge.cost;
+                if (candidate < distance[edge.to])
+                {
+                    distance[edge.to] = candidate;
+                    previous[edge.to] = current;
+                }
+            }
+        }
+
+        if (distance[goal] == kInfinity)
+        {
+            return {};
+        }
+        std::vector<std::string> route;
+        for (std::size_t index = goal; index != nodes_.size(); index = previous[index])
+        {
+            route.push_back(nodes_[index].id);
+            if (index == start)
+            {
+                break;
+            }
+        }
+        std::reverse(route.begin(), route.end());
+        return route;
+    }
+
+    bool SidewalkGraph::BuildRoutePath(const std::string& fromNodeId,
+                                       const std::string& toNodeId,
+                                       bool loop,
+                                       WaypointPath& out) const
+    {
+        const std::vector<std::string> route = FindWalkingRoute(fromNodeId, toNodeId);
+        if (route.size() < 2)
+        {
+            return false;
+        }
+        WaypointPath path;
+        path.loop = loop;
+        for (const std::string& nodeId : route)
+        {
+            const SidewalkNode* node = FindNode(nodeId);
+            if (node == nullptr)
+            {
+                return false;
+            }
+            path.points.push_back(node->position);
+        }
+        out = std::move(path);
+        return true;
+    }
+
+    std::vector<std::string> SidewalkGraph::FindUnreachableNodes(const std::string& fromNodeId) const
+    {
+        std::vector<std::string> unreachable;
+        if (FindNode(fromNodeId) == nullptr)
+        {
+            return unreachable;
+        }
+        for (const SidewalkNode& node : nodes_)
+        {
+            if (node.id != fromNodeId && FindWalkingRoute(fromNodeId, node.id).empty())
+            {
+                unreachable.push_back(node.id);
+            }
+        }
+        return unreachable;
     }
 
     std::vector<WaypointPath> SidewalkGraph::BuildCrossingPaths() const
@@ -102,11 +273,12 @@ namespace IronGang
         std::vector<SidewalkNode> nodes;
         std::vector<SidewalkWalkway> walkways;
         std::vector<SidewalkCrossing> crossings;
+        std::vector<SidewalkRoute> routes;
         std::vector<SidewalkEntrance> entrances;
 
         try
         {
-            if (!JsonRead::OnlyFields(root, {"id", "version", "nodes", "walkways", "crossings", "entrances"},
+            if (!JsonRead::OnlyFields(root, {"id", "version", "nodes", "walkways", "crossings", "routes", "entrances"},
                                       "sidewalk graph", path, errorMessage))
             {
                 return false;
@@ -287,6 +459,48 @@ namespace IronGang
                 }
             }
 
+            JsonElement routesElement;
+            if (root.TryGetProperty("routes", routesElement))
+            {
+                if (routesElement.getValueKindProperty() != JsonValueKind::Array)
+                {
+                    errorMessage = "sidewalk graph \"routes\" must be an array: " + path;
+                    return false;
+                }
+                for (const JsonElement& entry : routesElement.EnumerateArray())
+                {
+                    if (!JsonRead::OnlyFields(entry, {"id", "from", "to"}, "a route", path, errorMessage))
+                    {
+                        return false;
+                    }
+                    SidewalkRoute route;
+                    if (!JsonRead::StringField(entry, "id", route.id) ||
+                        !JsonRead::StringField(entry, "from", route.fromNodeId) ||
+                        !JsonRead::StringField(entry, "to", route.toNodeId))
+                    {
+                        errorMessage = "every route needs an \"id\", a \"from\" and a \"to\": " + path;
+                        return false;
+                    }
+                    if (HasId(routes, route.id))
+                    {
+                        errorMessage = "duplicate route id \"" + route.id + "\": " + path;
+                        return false;
+                    }
+                    if (findNode(route.fromNodeId) == nodes.end() ||
+                        findNode(route.toNodeId) == nodes.end())
+                    {
+                        errorMessage = "route \"" + route.id + "\" names a node that does not exist: " + path;
+                        return false;
+                    }
+                    if (route.fromNodeId == route.toNodeId)
+                    {
+                        errorMessage = "route \"" + route.id + "\" starts and ends at the same node: " + path;
+                        return false;
+                    }
+                    routes.push_back(std::move(route));
+                }
+            }
+
             JsonElement entrancesElement;
             if (root.TryGetProperty("entrances", entrancesElement))
             {
@@ -341,10 +555,30 @@ namespace IronGang
             return false;
         }
 
+        // plan_19 IG-19-004: connectivity, checked on the candidate data before it is committed,
+        // so a rejected graph leaves the previous one intact.
+        SidewalkGraph candidate;
+        candidate.id_ = id;
+        candidate.nodes_ = nodes;
+        candidate.walkways_ = walkways;
+        candidate.crossings_ = crossings;
+        candidate.routes_ = routes;
+        candidate.entrances_ = entrances;
+        const std::vector<std::string> unreachable =
+            candidate.FindUnreachableNodes(candidate.nodes_.front().id);
+        if (!unreachable.empty())
+        {
+            errorMessage = "sidewalk graph is disconnected: \"" + unreachable.front() +
+                           "\" cannot be walked to from \"" + candidate.nodes_.front().id + "\" (" +
+                           std::to_string(unreachable.size()) + " unreachable node(s)): " + path;
+            return false;
+        }
+
         id_ = std::move(id);
         nodes_ = std::move(nodes);
         walkways_ = std::move(walkways);
         crossings_ = std::move(crossings);
+        routes_ = std::move(routes);
         entrances_ = std::move(entrances);
         return true;
     }

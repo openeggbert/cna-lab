@@ -1,0 +1,7 @@
+{
+            "id":"split","version":1,
+            "nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]},
+                     {"id":"c","position":[10,0,0]},{"id":"d","position":[10,0,10]}],
+            "walkways":[{"id":"left","from":"a","to":"b","width":3},
+                        {"id":"right","from":"c","to":"d","width":3}]
+        }

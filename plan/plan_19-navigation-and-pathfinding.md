@@ -13,7 +13,7 @@ Delivered the smallest possible version of IG-19-001 only: `WaypointPath` (`incl
 - [x] **IG-19-001 P0** — Choose a simple waypoint/graph approach for pedestrian navigation (reuses the sidewalk-graph schema from plan 14). *(Done in the smallest possible form: a single ordered polyline per mover, not a graph — see the Gate M9 status note above.)*
 - [ ] **IG-19-002 P0** — Connect exterior and interior navigation graphs through portals (ties to plan 14's interior portals).
 - [ ] **IG-19-003 P1** — Define agent size, slope, and step-clearance classes for pedestrians (a single "adult pedestrian" class is enough for v1).
-- [ ] **IG-19-004 P1** — Validate a district's navigation graph for disconnected authored destinations at load time.
+- [x] **IG-19-004 P1** — Validate a district's navigation graph for disconnected authored destinations at load time. *(`SidewalkGraph::FindUnreachableNodes()`, run at load: a graph with any node unreachable from the first is **rejected**, naming one. It immediately caught a real content bug shipped the previous iteration -- the warehouse block's crossing and door nodes were never joined to the pavements, leaving six of eight nodes stranded and nothing noticing. `assets/districts/warehouse_block.sidewalks.json` was rewritten as a connected graph: each pavement split at its crossing and its doorway, with spurs to the two doors.)*
 - [ ] **IG-19-005 P1** — Add debug rendering for waypoint nodes, edges, portals, and active paths.
 - [ ] **IG-19-006 P1** — Add focused unit tests for waypoint-graph loading, connectivity, and portal linking.
 - [ ] **IG-19-007 P2** — Document the waypoint-graph authoring convention alongside the sidewalk-graph docs in plan 14.
@@ -46,7 +46,7 @@ Delivered the smallest possible version of IG-19-001 only: `WaypointPath` (`incl
 ## Save integration and tests
 
 - [ ] **IG-19-021 P1** — Define save/checkpoint restoration rules for in-progress pedestrian paths (simplest correct behavior: re-request a fresh path on load).
-- [ ] **IG-19-022 P0** — Add an integration test that walks a scripted pedestrian across one hand-authored district end to end using the waypoint graph.
+- [x] **IG-19-022 P0** — Add an integration test that walks a scripted pedestrian across one hand-authored district end to end using the waypoint graph. *(`TestSidewalkRoutingAcrossTheDistrict` routes from the hotel door to the apartments door -- opposite sides of the road, so the route can only exist through the crossing -- then walks a `Pedestrian` along the built path at a fixed 60 Hz step and requires it to arrive within a metre of the far door. Also checks symmetry, a route to oneself, a route to a node that does not exist, that adjacent nodes route directly rather than the long way round, and that nothing in the shipped district is stranded.)*
 - [ ] **IG-19-023 P2** — Document this system's scope and explicit non-goals (no navmesh, no crowd heatmaps, no danger-cost routing) for contributors.
 
 ## Deferred / only if actually needed later

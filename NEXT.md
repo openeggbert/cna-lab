@@ -98,6 +98,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Routing on the pavement graph — and the broken district it found (plan_19)
+
+`SidewalkGraph::FindWalkingRoute()` (Dijkstra, walkways **and** crossings as bidirectional edges),
+`BuildRoutePath()`, and `FindUnreachableNodes()`. A crossing is an ordinary edge to the router; that
+a pedestrian must *wait* at one is `Pedestrian`'s problem, not the router's.
+
+**The connectivity rule caught a real bug in content I shipped the iteration before.** The first run
+said: `sidewalk graph is disconnected: "east_south" cannot be walked to from "west_south" (6
+unreachable node(s))`. The crossing and door nodes had never been joined to the pavements — six of
+eight nodes stranded, the district loading happily, nothing noticing, because nothing had yet tried
+to walk between two of them.
+
+Fixed by rewriting the district as a connected graph (each pavement split at its crossing and
+doorway, spurs to the two doors). That split forced honest schema growth: "the west pavement" is no
+longer one walkway, so which end-to-end walk a pedestrian patrols is an authoring decision — a
+`routes` section, validated like everything else.
+
+**A test that had to get stronger, not looser.** The equivalence test compared data pavements to the
+hand-authored two-point paths exactly, which a route cannot satisfy. Instead of relaxing it to
+"roughly similar", it now asserts the same endpoints, every intermediate point between them, and
+every point within 1 mm of the straight line joining them — the walked line is provably unchanged.
+
+Closed `IG-19-004`, `IG-19-022`. Verified: CTest 15/15, two new tests, two mutation checks (one of
+which shows the crossing is load-bearing: drop it from the edge set and the shipped district stops
+being connected). Not done: ambient pedestrians patrol routes but do not yet **choose** a
+destination and route to it — the machinery is there, the goal selection is not.
+
 ### Iron Gang was played, on a real screen (correction)
 
 **A claim repeated all through this file and `docs/validation.md` was wrong.** Nearly every
@@ -720,7 +747,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 302/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 304/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

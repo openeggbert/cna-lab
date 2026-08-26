@@ -4531,6 +4531,133 @@ namespace
     // plan_14 IG-14-007/008: pavements as their own graph, and the same equivalence requirement
     // the road graph had -- data must reproduce the hand-authored layout exactly.
     // plan_20 IG-20-012: crossing at the marked crossing, and waiting for the signal.
+    // plan_19 IG-19-004/022: routing across the district's own sidewalk graph, and the
+    // connectivity rule that makes routing possible at all.
+    void TestSidewalkRoutingAcrossTheDistrict()
+    {
+        const IronGang::PrototypeWorld world(IronGang::DistrictId::WarehouseBlock,
+                                             std::string(IRON_GANG_SOURCE_ASSET_DIR));
+        const IronGang::SidewalkGraph& graph = world.GetSidewalkGraph();
+        Require(!graph.IsEmpty(), "the shipped sidewalk graph must load");
+
+        // IG-19-022, the integration case: a pedestrian at the hotel door must be able to reach
+        // the apartments door on the other side of the road. That route can only exist by using
+        // the crossing, which is exactly what a graph buys over a polyline.
+        const std::vector<std::string> route = graph.FindWalkingRoute("hotel_door", "apartments_door");
+        Require(route.size() >= 4,
+                "the cross-district route must pass through several nodes, got " +
+                    std::to_string(route.size()));
+        Require(route.front() == "hotel_door" && route.back() == "apartments_door",
+                "a route must start and end where it was asked to");
+        Require(std::find(route.begin(), route.end(), "west_crossing") != route.end() &&
+                    std::find(route.begin(), route.end(), "east_crossing") != route.end(),
+                "the only way to the other pavement is the crossing, so the route must use it");
+
+        // And the walk itself: a scripted pedestrian following that route must actually arrive.
+        IronGang::WaypointPath path;
+        Require(graph.BuildRoutePath("hotel_door", "apartments_door", false, path),
+                "the route must build a walkable path");
+        Require(path.points.size() == route.size(), "the path must have one point per route node");
+        const IronGang::Vector3 destination = path.points.back();
+
+        IronGang::Pedestrian pedestrian;
+        pedestrian.Reset(path, 0, 1.6F);
+        constexpr float kStep = 1.0F / 60.0F;
+        int updates = 0;
+        float closest = IronGang::DistanceSquaredXZ(pedestrian.GetPathPosition(), destination);
+        while (updates < 60 * 120)
+        {
+            pedestrian.Update(kStep, false, IronGang::Vector3());
+            closest = std::min(closest,
+                               IronGang::DistanceSquaredXZ(pedestrian.GetPathPosition(), destination));
+            if (closest < 1.0F)
+            {
+                break;
+            }
+            ++updates;
+        }
+        Require(closest < 1.0F,
+                "a pedestrian walking the route must reach the far door; got no closer than " +
+                    std::to_string(std::sqrt(closest)) + " m after " + std::to_string(updates) +
+                    " updates");
+
+        // Routing is symmetric, and a route to yourself is just you.
+        const std::vector<std::string> back = graph.FindWalkingRoute("apartments_door", "hotel_door");
+        Require(back.size() == route.size(), "the return route must be the same length");
+        Require(graph.FindWalkingRoute("hotel_door", "hotel_door").size() == 1,
+                "a route from a node to itself is that node");
+        Require(graph.FindWalkingRoute("hotel_door", "no_such_node").empty(),
+                "a route to a node that does not exist must be empty, not a crash");
+
+        // IG-19-004: nothing in the shipped district is stranded.
+        Require(graph.FindUnreachableNodes("hotel_door").empty(),
+                "every node in the shipped district must be reachable from every other");
+
+        // The shortest route is genuinely shortest: going the long way round the pavement would
+        // pass through the far end, and it must not.
+        const std::vector<std::string> shortHop = graph.FindWalkingRoute("west_crossing", "west_hotel");
+        Require(shortHop.size() == 2,
+                "adjacent nodes must route directly, got " + std::to_string(shortHop.size()) + " nodes");
+    }
+
+    void TestSidewalkGraphRejectsADisconnectedDistrict()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_split.json";
+        std::string error;
+        IronGang::SidewalkGraph graph;
+
+        // Two pavements with no crossing between them: this is exactly the bug the shipped
+        // district had when crossings and doors were first added and nothing joined them to the
+        // pavements. Six of its eight nodes were unreachable and nothing noticed.
+        WriteTempJson(path, R"JSON({
+            "id":"split","version":1,
+            "nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]},
+                     {"id":"c","position":[10,0,0]},{"id":"d","position":[10,0,10]}],
+            "walkways":[{"id":"left","from":"a","to":"b","width":3},
+                        {"id":"right","from":"c","to":"d","width":3}]
+        })JSON");
+        Require(!graph.LoadFromFile(path.string(), {}, {}, error),
+                "a disconnected sidewalk graph must be rejected");
+        Require(error.find("disconnected") != std::string::npos,
+                "the error must say what is wrong: " + error);
+        Require(error.find("c") != std::string::npos || error.find("d") != std::string::npos,
+                "the error must name a node nobody can reach: " + error);
+
+        // Joined by a crossing, the same graph is fine -- a crossing is a real edge for walking.
+        WriteTempJson(path, R"JSON({
+            "id":"split","version":1,
+            "nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]},
+                     {"id":"c","position":[10,0,0]},{"id":"d","position":[10,0,10]}],
+            "walkways":[{"id":"left","from":"a","to":"b","width":3},
+                        {"id":"right","from":"c","to":"d","width":3}],
+            "crossings":[{"id":"x","from":"a","to":"c"}]
+        })JSON");
+        Require(graph.LoadFromFile(path.string(), {}, {}, error),
+                "a crossing must connect the two pavements: " + error);
+        Require(graph.FindWalkingRoute("b", "d").size() == 4,
+                "the route from one pavement to the other must go b -> a -> c -> d");
+
+        // Routes are validated too.
+        WriteTempJson(path, R"JSON({
+            "id":"split","version":1,
+            "nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]}],
+            "walkways":[{"id":"left","from":"a","to":"b","width":3}],
+            "routes":[{"id":"r","from":"a","to":"nowhere"}]
+        })JSON");
+        Require(!graph.LoadFromFile(path.string(), {}, {}, error),
+                "a route to a missing node must be rejected");
+        WriteTempJson(path, R"JSON({
+            "id":"split","version":1,
+            "nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]}],
+            "walkways":[{"id":"left","from":"a","to":"b","width":3}],
+            "routes":[{"id":"r","from":"a","to":"a"}]
+        })JSON");
+        Require(!graph.LoadFromFile(path.string(), {}, {}, error),
+                "a route that starts and ends at the same node must be rejected");
+
+        std::filesystem::remove(path);
+    }
+
     void TestPedestrianCrossingRespectsTheSignal()
     {
         using IronGang::PedestrianMayCross;
@@ -4630,16 +4757,36 @@ namespace
         Require(actual.size() == expected.size(),
                 "the pavement count must match: " + std::to_string(actual.size()) + " vs " +
                     std::to_string(expected.size()));
+        // The data-driven pavements are **routes** now, not single walkways: connecting the graph
+        // meant splitting each pavement at its crossing and its doorway (plan_19 IG-19-004), so a
+        // route has intermediate waypoints the two-point hand-authored path did not. The walked
+        // line must still be the same, which is what this checks: same endpoints, and every
+        // intermediate point on the straight line between them.
         for (std::size_t path = 0; path < expected.size(); ++path)
         {
             Require(actual[path].loop == expected[path].loop, "the loop flag must match");
-            Require(actual[path].points.size() == expected[path].points.size(),
-                    "pavement " + std::to_string(path) + " must have the same number of points");
-            for (std::size_t point = 0; point < expected[path].points.size(); ++point)
+            Require(actual[path].points.size() >= 2, "a pavement route needs at least two points");
+            const IronGang::Vector3 start = actual[path].points.front();
+            const IronGang::Vector3 end = actual[path].points.back();
+            Require((start - expected[path].points.front()).Length() < 1e-3F,
+                    "pavement " + std::to_string(path) + " must start where the hand-authored one did");
+            Require((end - expected[path].points.back()).Length() < 1e-3F,
+                    "pavement " + std::to_string(path) + " must end where the hand-authored one did");
+
+            const IronGang::Vector3 span = end - start;
+            const float spanLength = span.Length();
+            Require(spanLength > 1e-3F, "a pavement must have length");
+            for (const IronGang::Vector3& point : actual[path].points)
             {
-                Require((actual[path].points[point] - expected[path].points[point]).Length() < 1e-3F,
-                        "pavement " + std::to_string(path) + " point " + std::to_string(point) +
-                            " must match the hand-authored one");
+                const IronGang::Vector3 offset = point - start;
+                const float along = IronGang::Vector3::Dot(offset, span) / (spanLength * spanLength);
+                Require(along >= -1e-3F && along <= 1.0F + 1e-3F,
+                        "every route point must lie between the pavement's two ends");
+                const IronGang::Vector3 lateral = offset - span * along;
+                Require(lateral.Length() < 1e-3F,
+                        "pavement " + std::to_string(path) +
+                            " must still walk the same straight line the hand-authored one did; a "
+                            "route point is " + std::to_string(lateral.Length()) + " m off it");
             }
         }
 
@@ -6476,6 +6623,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestSidewalkRoutingAcrossTheDistrict();
+        TestSidewalkGraphRejectsADisconnectedDistrict();
         TestPedestrianCrossingRespectsTheSignal();
         TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();
         TestSidewalkGraphRejectsUnusableData();
