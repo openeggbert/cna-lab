@@ -577,6 +577,41 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Dialogue gets the stable ids a locked decision already required (2026-08-26)
+
+plan_25 `IG-25-001` closed; plan_34 `IG-34-015` advanced; `IG-34-006`'s dialogue gap closed.
+
+**A locked decision that was quietly untrue.** `plan.md`'s decision 10 and plan_25's own header both
+say every line of dialogue uses a stable string ID **from day one**, so a second language can be
+added without touching the system or rewriting content. The shipped dialogue was
+`speaker|text` — no ids at all. The decision had been recorded, agreed, and not implemented, and
+nothing in the repository would have noticed.
+
+**What changed.** `assets/dialogues/prologue.dialogue.json`, schema version 1, with an id per line.
+The ids name what a line **is** (`prologue.mara.no_heroics`) rather than what it says, so editing
+the English never invalidates a reference or a translation — which is the entire point of having
+them.
+
+Validation refuses an unsupported version, a missing or duplicate line id, an empty speaker or text,
+an unknown field, a non-string field, and a conversation with no lines. A **duplicate id** is worth
+calling out: it makes every reference ambiguous and would silently make one line's translation serve
+both. A rejected file leaves the previously loaded conversation intact — half a conversation is
+worse than the built-in fallback, which now carries the same ids as the file it stands in for.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestDialogueLinesCarryStableIds` covers the committed file, lookup by id, a **missing reference**
+returning null rather than silently resolving to line 0, ids resolving identically regardless of
+where the conversation has got to, fallback parity, and ten rejection cases. A `--smoke 200` run
+prints the first line, confirming the game reads the new file. Three places referenced the old
+`.txt` and were updated together: the game, `scripts/release_archive.py`'s packaged-asset list, and
+`scripts/test-missing-asset-fallback.sh` — the last of which **failed the suite** until it was, which
+is the regression test doing its job.
+
+**Boundaries.** One conversation, one language, and no locale files: the ids exist so a second
+language *can* be added, not because one has been. Nothing else references a dialogue line yet — no
+mission, cutscene, or subtitle file names one — so `IG-34-015`'s cross-content stale-reference case
+has nothing to test.
+
 ## A property test that could not fail, and the audit of a plan nobody had updated (2026-08-26)
 
 plan_34 `IG-34-001`/`007`/`008`/`010`/`012`/`016` closed; `IG-34-006`/`011` given honest partial

@@ -98,6 +98,27 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Dialogue gets the stable ids a locked decision already required (plan_25)
+
+**A locked decision that was quietly untrue.** `plan.md`'s decision 10 and plan_25's header both say
+every dialogue line carries a stable string ID **from day one**. The shipped dialogue was
+`speaker|text` with no ids at all -- recorded, agreed, not implemented, and nothing in the repository
+would have noticed.
+
+`assets/dialogues/prologue.dialogue.json` (schema v1) now gives each line an id naming what the line
+**is** (`prologue.mara.no_heroics`), not what it says, so editing the English never invalidates a
+reference or a translation. Validation refuses an unsupported version, a missing or **duplicate** id
+(which would make every reference ambiguous and one translation serve two lines), an empty speaker or
+text, and unknown or non-string fields; a rejected file leaves the previous conversation intact.
+
+Closed `IG-25-001`. Verified: CTest 12/12, ten rejection cases, a missing reference returning null
+rather than silently showing line 0, and a `--smoke` run reading the new file. Three places
+referenced the old `.txt` -- the game, the release validator, and the missing-asset fallback script,
+which **failed the suite** until updated.
+
+Not done: one conversation, one language, no locale files. Nothing else references a dialogue line
+yet, so `IG-34-015`'s cross-content stale-reference case has nothing to test.
+
 ### A property test that could not fail, and an audit of plan_34 (plan_34)
 
 `TestSaveRoundTripsRandomSnapshots` puts 250 random snapshots through write/read, with values from

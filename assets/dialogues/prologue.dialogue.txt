@@ -1,4 +1,0 @@
-# Iron Shadows prototype dialogue format: speaker|text
-Mara|Iron City is quiet tonight. That usually means trouble is already moving.
-Elias|The sedan is outside. Take it to the warehouse before the river shift changes.
-Mara|No heroics. This city remembers every mistake.

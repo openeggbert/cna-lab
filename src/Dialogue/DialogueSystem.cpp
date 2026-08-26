@@ -1,67 +1,154 @@
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 
-#include "System/IO/File.hpp"
+#include "../Core/JsonDataFileInternal.hpp"
+
+#include "System/Text/Json/JsonProperty.hpp"
 
 #include <sstream>
+#include <unordered_set>
 
 namespace IronGang
 {
+    using System::Text::Json::JsonElement;
+    using System::Text::Json::JsonValueKind;
+
     bool DialogueSystem::LoadFromFile(const std::string& path, std::string& errorMessage)
     {
-        lines_.clear();
-        index_ = 0;
-        active_ = false;
-        finished_ = false;
+        // The previous state is only replaced once the whole file has validated: half a
+        // conversation is worse than the built-in fallback.
+        std::string conversationId;
+        std::vector<DialogueLine> loaded;
 
-        if (!System::IO::File::Exists(path))
+        JsonDataFile file;
+        if (!LoadJsonDataFile(path, file, errorMessage))
         {
-            errorMessage = "Dialogue file not found: " + path;
             return false;
         }
 
         try
         {
-            const std::vector<std::string> sourceLines = System::IO::File::ReadAllLines(path);
-            for (const std::string& raw : sourceLines)
+            const JsonElement& root = file.root;
+            JsonElement versionElement;
+            int version = kDialogueFileVersion;
+            if (root.TryGetProperty("version", versionElement))
             {
-                if (raw.empty() || raw.starts_with('#'))
+                if (versionElement.getValueKindProperty() != JsonValueKind::Number)
                 {
-                    continue;
+                    errorMessage = "Dialogue \"version\" must be a number: " + path;
+                    return false;
                 }
-                const std::size_t separator = raw.find('|');
-                if (separator == std::string::npos)
+                version = static_cast<int>(versionElement.GetInt32());
+            }
+            if (version != kDialogueFileVersion)
+            {
+                errorMessage = "Dialogue file has unsupported \"version\" " + std::to_string(version) +
+                               " (expected " + std::to_string(kDialogueFileVersion) + "): " + path;
+                return false;
+            }
+
+            JsonElement idElement;
+            if (root.TryGetProperty("id", idElement) &&
+                idElement.getValueKindProperty() == JsonValueKind::String)
+            {
+                conversationId = idElement.GetString();
+            }
+
+            JsonElement linesElement;
+            if (!root.TryGetProperty("lines", linesElement) ||
+                linesElement.getValueKindProperty() != JsonValueKind::Array)
+            {
+                errorMessage = "Dialogue file is missing a \"lines\" array: " + path;
+                return false;
+            }
+
+            std::unordered_set<std::string> seenIds;
+            for (const JsonElement& entry : linesElement.EnumerateArray())
+            {
+                if (loaded.size() >= kMaxDialogueLines)
                 {
-                    continue;
+                    errorMessage = "Dialogue file has more than " + std::to_string(kMaxDialogueLines) +
+                                   " lines: " + path;
+                    return false;
                 }
                 DialogueLine line;
-                line.speaker = raw.substr(0, separator);
-                line.text = raw.substr(separator + 1);
-                if (!line.text.empty())
+                for (const auto& property : entry.EnumerateObject())
                 {
-                    lines_.push_back(std::move(line));
+                    const std::string& name = property.getNameProperty();
+                    if (name != "id" && name != "speaker" && name != "text")
+                    {
+                        errorMessage = "Dialogue line has an unknown field \"" + name + "\": " + path;
+                        return false;
+                    }
+                    if (property.getValueProperty().getValueKindProperty() != JsonValueKind::String)
+                    {
+                        errorMessage = "Dialogue line field \"" + name + "\" must be a string: " + path;
+                        return false;
+                    }
+                    const std::string value = property.getValueProperty().GetString();
+                    if (name == "id") { line.id = value; }
+                    else if (name == "speaker") { line.speaker = value; }
+                    else { line.text = value; }
                 }
+
+                if (line.id.empty() || line.speaker.empty() || line.text.empty())
+                {
+                    errorMessage = "Every dialogue line needs a non-empty \"id\", \"speaker\", and "
+                                   "\"text\": " + path;
+                    return false;
+                }
+                if (!seenIds.insert(line.id).second)
+                {
+                    // Two lines with one id means every reference to it is ambiguous -- and the
+                    // translation of one would silently become the translation of both.
+                    errorMessage = "Dialogue file has a duplicate line id \"" + line.id + "\": " + path;
+                    return false;
+                }
+                loaded.push_back(std::move(line));
             }
         }
         catch (const std::exception& exception)
         {
-            errorMessage = exception.what();
+            errorMessage = std::string(exception.what()) + " (" + path + ")";
             return false;
         }
 
-        if (lines_.empty())
+        if (loaded.empty())
         {
-            errorMessage = "Dialogue file contains no usable speaker|text lines: " + path;
+            errorMessage = "Dialogue file contains no lines: " + path;
             return false;
         }
+
+        conversationId_ = std::move(conversationId);
+        lines_ = std::move(loaded);
+        index_ = 0;
+        active_ = false;
+        finished_ = false;
         return true;
+    }
+
+    const DialogueLine* DialogueSystem::FindLine(const std::string& lineId) const noexcept
+    {
+        for (const DialogueLine& line : lines_)
+        {
+            if (line.id == lineId)
+            {
+                return &line;
+            }
+        }
+        return nullptr;
     }
 
     void DialogueSystem::LoadFallbackPrologue()
     {
+        // Ids match the committed file, so a fallback line and its shipped counterpart are the
+        // same line as far as anything referencing it -- or translating it -- is concerned.
+        conversationId_ = "prologue";
         lines_ = {
-            {"Mara", "Iron City is quiet tonight. That usually means trouble is already moving."},
-            {"Elias", "The sedan is outside. Take it to the warehouse before the river shift changes."},
-            {"Mara", "No heroics. This city remembers every mistake."}
+            {"prologue.mara.quiet_tonight", "Mara",
+             "Iron City is quiet tonight. That usually means trouble is already moving."},
+            {"prologue.elias.take_the_sedan", "Elias",
+             "The sedan is outside. Take it to the warehouse before the river shift changes."},
+            {"prologue.mara.no_heroics", "Mara", "No heroics. This city remembers every mistake."}
         };
         index_ = 0;
         active_ = false;

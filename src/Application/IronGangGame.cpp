@@ -477,7 +477,7 @@ namespace IronGang
         }
 
         std::string dialogueError;
-        if (!dialogue_.LoadFromFile(assetRoot_ + "/dialogues/prologue.dialogue.txt", dialogueError))
+        if (!dialogue_.LoadFromFile(assetRoot_ + "/dialogues/prologue.dialogue.json", dialogueError))
         {
             Log::Warning(LogCategory::Dialogue, dialogueError + " -- using built-in fallback.");
             dialogue_.LoadFallbackPrologue();

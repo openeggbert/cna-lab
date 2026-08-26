@@ -34,7 +34,7 @@ REQUIRED_ASSETS = (
     "audio/horn.wav",
     "config/game.json",
     "cutscenes/prologue_intro.cutscene.json",
-    "dialogues/prologue.dialogue.txt",
+    "dialogues/prologue.dialogue.json",
     "missions/prologue.mission.json",
     "vehicles/sedan.vehicle.json",
     "generated/models/cnj/warehouse.cnj",

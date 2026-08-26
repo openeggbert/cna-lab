@@ -13,7 +13,7 @@ trap 'rm -rf "$work_dir"' EXIT
 
 # Minimal asset root: dialogues only, deliberately no generated/ subdirectory.
 mkdir -p "$work_dir/dialogues"
-cp "$project_root/assets/dialogues/prologue.dialogue.txt" "$work_dir/dialogues/"
+cp "$project_root/assets/dialogues/prologue.dialogue.json" "$work_dir/dialogues/"
 
 set +e
 output="$("$executable" --assets "$work_dir" --smoke 5 2>&1)"

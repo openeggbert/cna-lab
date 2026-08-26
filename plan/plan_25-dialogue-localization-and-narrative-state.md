@@ -11,7 +11,7 @@ actually planned.
 
 ## Core dialogue data and flow
 
-- [ ] **IG-25-001 P0** — Replace the prototype delimiter text with versioned JSON or XML dialogue data.
+- [x] **IG-25-001 P0** — Replace the prototype delimiter text with versioned JSON or XML dialogue data. *(`assets/dialogues/prologue.dialogue.json`, schema version 1, replacing the `speaker|text` file. Every line carries a **stable id** (`prologue.mara.no_heroics`) -- named for what the line *is* rather than what it says, so editing the English text never invalidates a reference or a translation. That is plan.md's locked decision 10 and this group's own header, which the prototype format had quietly made untrue for as long as it shipped. Validation refuses an unsupported version, a missing or duplicate line id, an empty speaker or text, an unknown field, a non-string field, and a conversation with no lines; a rejected file leaves the previously loaded conversation intact, because half a conversation is worse than the built-in fallback. `DialogueSystem::FindLine` resolves an id to a line and returns null for one that no longer exists. The fallback carries the same ids as the file it stands in for. Covered by `TestDialogueLinesCarryStableIds`.)*
 - [ ] **IG-25-002 P0** — Assign stable dialogue, conversation, line, and speaker IDs; the same ID doubles as the future localization key.
 - [ ] **IG-25-003 P0** — Display dialogue through a proper subtitle UI.
 - [ ] **IG-25-004 P0** — Bind dialogue completion to the data-driven mission.

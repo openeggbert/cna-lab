@@ -1,0 +1,21 @@
+{
+  "id": "prologue",
+  "version": 1,
+  "lines": [
+    {
+      "id": "prologue.mara.quiet_tonight",
+      "speaker": "Mara",
+      "text": "Iron City is quiet tonight. That usually means trouble is already moving."
+    },
+    {
+      "id": "prologue.elias.take_the_sedan",
+      "speaker": "Elias",
+      "text": "The sedan is outside. Take it to the warehouse before the river shift changes."
+    },
+    {
+      "id": "prologue.mara.no_heroics",
+      "speaker": "Mara",
+      "text": "No heroics. This city remembers every mistake."
+    }
+  ]
+}

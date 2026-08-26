@@ -3076,6 +3076,85 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_25 IG-25-001 / plan_34 IG-34-015: dialogue is versioned data whose every line carries a
+    // stable id. plan.md's locked decision 10 asks for those ids "from day one"; the prototype's
+    // `speaker|text` format had none, which made the decision quietly untrue for as long as it
+    // shipped.
+    void TestDialogueLinesCarryStableIds()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_dialogue.json";
+        IronGang::DialogueSystem dialogue;
+        std::string error;
+
+        // The committed conversation loads, and its ids are what other content would reference.
+        Require(dialogue.LoadFromFile(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                          "/dialogues/prologue.dialogue.json",
+                                      error),
+                "the committed dialogue must load: " + error);
+        Require(dialogue.GetLineCount() == 3, "the prologue must still be three lines");
+        Require(dialogue.GetConversationId() == "prologue", "the conversation must be identified");
+        const IronGang::DialogueLine* opening = dialogue.FindLine("prologue.mara.quiet_tonight");
+        Require(opening != nullptr, "a committed line must be findable by its id");
+        Require(opening->speaker == "Mara" && !opening->text.empty(),
+                "the found line must carry its speaker and text");
+        Require(dialogue.FindLine("prologue.mara.a_line_we_cut") == nullptr,
+                "an id that does not exist must return nothing -- that is how a stale reference is "
+                "caught rather than silently showing the first line");
+
+        // Ids are independent of position: playing through does not change what an id resolves to.
+        dialogue.Start();
+        dialogue.Advance();
+        Require(dialogue.FindLine("prologue.mara.quiet_tonight") == opening,
+                "a line id must resolve the same way whatever the conversation is doing");
+
+        // The built-in fallback uses the same ids, so a fallback line and its shipped counterpart
+        // are the same line to anything referencing -- or translating -- it.
+        IronGang::DialogueSystem fallback;
+        fallback.LoadFallbackPrologue();
+        Require(fallback.GetLineCount() == dialogue.GetLineCount(),
+                "the fallback must match the shipped conversation's shape");
+        for (std::size_t index = 0; index < fallback.GetLineCount(); ++index)
+        {
+            fallback.Start();
+            Require(fallback.FindLine("prologue.mara.no_heroics") != nullptr,
+                    "the fallback must carry the same ids as the file it stands in for");
+        }
+
+        // Malformed content is refused, and the previously loaded conversation survives -- half a
+        // conversation is worse than the fallback.
+        const auto rejects = [&](const std::string& json, const std::string& why) {
+            WriteTempJson(path, json);
+            IronGang::DialogueSystem target;
+            Require(target.LoadFromFile(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                            "/dialogues/prologue.dialogue.json",
+                                        error),
+                    "the good conversation must load first: " + error);
+            Require(!target.LoadFromFile(path.string(), error), why);
+            Require(target.GetLineCount() == 3, why + " (leaving the previous conversation intact)");
+        };
+        rejects(R"JSON({"version":99,"lines":[{"id":"a","speaker":"A","text":"t"}]})JSON",
+                "an unsupported version must be refused");
+        rejects(R"JSON({"version":1})JSON", "a file with no lines array must be refused");
+        rejects(R"JSON({"version":1,"lines":[]})JSON", "a conversation with no lines must be refused");
+        rejects(R"JSON({"version":1,"lines":[{"speaker":"A","text":"t"}]})JSON",
+                "a line with no id must be refused -- that is the decision this format exists for");
+        rejects(R"JSON({"version":1,"lines":[{"id":"a","text":"t"}]})JSON",
+                "a line with no speaker must be refused");
+        rejects(R"JSON({"version":1,"lines":[{"id":"a","speaker":"A","text":""}]})JSON",
+                "a line with no text must be refused");
+        rejects(R"JSON({"version":1,"lines":[{"id":"a","speaker":"A","text":"one"},
+                        {"id":"a","speaker":"B","text":"two"}]})JSON",
+                "a duplicate line id must be refused -- every reference to it would be ambiguous, "
+                "and one translation would silently become both");
+        rejects(R"JSON({"version":1,"lines":[{"id":"a","speaker":"A","text":"t","tone":"angry"}]})JSON",
+                "an unknown field must be refused rather than silently dropped");
+        rejects(R"JSON({"version":1,"lines":[{"id":7,"speaker":"A","text":"t"}]})JSON",
+                "a non-string field must be refused");
+        rejects(R"JSON(["not","an","object"])JSON", "a non-object root must be refused");
+
+        std::filesystem::remove(path);
+    }
+
     // plan_34 IG-34-007: property tests for the save round trip. Hand-written cases check the
     // situations someone thought of; this checks a few hundred nobody did -- odd characters in
     // variable names and values, floats that print badly, empty collections, long lists.
@@ -4839,6 +4918,7 @@ int main()
         TestCutscenePlayerSkipAppliesTerminalState();
         TestCutsceneValidationRejectsMalformedData();
         TestDialogueFallback();
+        TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
         TestPedestrianFleesAndResumesPath();
