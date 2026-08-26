@@ -98,6 +98,30 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The crossing gets a light (plan_21)
+
+**A red light is modelled as an obstacle at the stop line**, folded into the same in-lane distance
+test traffic already uses for the car ahead. `TrafficVehicle` needed **no new state**, and a car
+queued behind one waiting at a red brakes for the car rather than the light -- which a separate
+"stopped at signal" state would have had to reproduce.
+
+**One signal drives both directions:** `GetOpposingPhase()` derives the crossing direction from the
+same timer, so "both green" is impossible by construction; two independent lights eventually drift
+into exactly that. Amber stops traffic on purpose -- "can I make it?" is a rule nobody would notice
+and one that leaves cars in the crossing when the phase flips.
+
+Closed `IG-21-003`/`007`. Verified: CTest 12/12, and two invariants checked over 2000 steps that do
+not divide the cycle -- never both moving, **and both directions do get a green** (an intersection
+nobody may cross satisfies the first and is still broken).
+
+**Mistake worth remembering:** a blanket `GetSpeed()` -> `GetForwardSpeed()` replace over the test
+file broke an unrelated assertion 2000 lines away; the build caught it, but a test run before it had
+passed against a stale binary.
+
+Not done: one crossing, fixed timing, placed in code rather than district data. **The player's car
+ignores the light** -- running a red is not an offence and `PoliceSystem` never hears about it. No
+stop signs, priority junctions, or pedestrian crossings.
+
 ### Pedestrians become people, and a measurement I almost got wrong (plan_20)
 
 The nearest few pedestrians (`maxSkinnedPedestrians`, default 6) are now drawn as the **same skinned

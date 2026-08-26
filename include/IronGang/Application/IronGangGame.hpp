@@ -192,6 +192,9 @@ namespace IronGang
         std::vector<TrafficVehicle> trafficVehicles_;
         std::vector<Pedestrian> pedestrians_;
         PoliceSystem police_;
+        // plan_21 IG-21-003/007: one signal drives the crossing; each stop line reads either its
+        // phase or its opposing one, so the two directions cannot both be green.
+        TrafficSignal trafficSignal_;
 
         // Gate M10 audio (plan_27-audio-music-ambience-and-radio.md): real CC0 sound assets
         // (Nox Sound Design's "Essentials Series", itch.io, tracked in

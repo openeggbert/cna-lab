@@ -1710,6 +1710,8 @@ namespace IronGang
                 // Gate M9: traffic/pedestrians/police keep ticking through dialogue and cutscenes
                 // (ambient city life, matching Mafia 1's own feel) -- only a district transition
                 // suspends them, same as everything else gated on `transitioning` in this function.
+                trafficSignal_.Update(simulationSeconds);
+
                 for (std::size_t i = 0; i < trafficVehicles_.size(); ++i)
                 {
                     const Vector3 myPosition = trafficVehicles_[i].GetPosition();
@@ -1733,6 +1735,34 @@ namespace IronGang
                                      DistanceAheadInLane(myPosition, myYaw, vehicle_.GetPosition(),
                                                          kTrafficLaneHalfWidth));
                     }
+                    // plan_21 IG-21-003: a red light is just an obstacle at the stop line, so the
+                    // following-distance braking that already exists does the stopping. No new
+                    // vehicle state, and a car queued behind one waiting at a red brakes for the
+                    // car, not the light.
+                    for (const TrafficStopLine& stopLine :
+                         districtManager_.GetWorld().GetTrafficStopLines())
+                    {
+                        const SignalPhase phase = stopLine.opposingPhase
+                                                      ? trafficSignal_.GetOpposingPhase()
+                                                      : trafficSignal_.GetPhase();
+                        if (!TrafficSignal::RequiresStop(phase))
+                        {
+                            continue;
+                        }
+                        // Only the lane this line governs: a line stops the traffic approaching
+                        // it, not the traffic crossing it. Compared as directions rather than
+                        // angles, which needs no wrapping to get right.
+                        if (Vector3::Dot(ForwardFromYaw(myYaw), ForwardFromYaw(stopLine.approachYaw)) <
+                            0.8F)
+                        {
+                            continue;
+                        }
+                        obstacleDistance =
+                            std::min(obstacleDistance, DistanceAheadInLane(myPosition, myYaw,
+                                                                          stopLine.position,
+                                                                          kTrafficLaneHalfWidth));
+                    }
+
                     trafficVehicles_[i].Update(simulationSeconds, obstacleDistance);
                 }
 
@@ -2177,6 +2207,18 @@ namespace IronGang
         MarkNearestPedestriansSkinned(pedestrianPoses, playerDriving_ ? vehicle_.GetPosition()
                                                                       : player_.GetPosition());
         renderer_.DrawTraffic(device, view, projection, trafficPoses, pedestrianPoses, policePoses);
+
+        std::vector<SignalLight> signalLights;
+        for (const TrafficStopLine& stopLine : districtManager_.GetWorld().GetTrafficStopLines())
+        {
+            const SignalPhase phase =
+                stopLine.opposingPhase ? trafficSignal_.GetOpposingPhase() : trafficSignal_.GetPhase();
+            const Color color = phase == SignalPhase::Green    ? Color(60, 220, 90, 255)
+                                : phase == SignalPhase::Amber  ? Color(240, 190, 60, 255)
+                                                               : Color(230, 60, 60, 255);
+            signalLights.push_back({stopLine.signalPosition, color});
+        }
+        renderer_.DrawTrafficSignals(device, view, projection, signalLights);
 
         // Gate M10: a real on-screen HUD, replacing the window-title-only display (which stays,
         // for window-manager/taskbar visibility, but is no longer the only place this shows).

@@ -1,5 +1,7 @@
 #include "IronGang/World/PrototypeWorld.hpp"
 
+#include <numbers>
+
 #include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <utility>
@@ -111,6 +113,21 @@ namespace IronGang
             {-3.0F, 0.4F, 38.0F},
         };
         trafficLoop_.loop = true;
+
+        // plan_21 IG-21-003/007: one signalled crossing where the loop's two straights meet the
+        // east-west road. Two stop lines, one per direction of travel, sharing a single signal --
+        // the second reads its opposing phase, so the two can never show green together.
+        // ForwardFromYaw(0) points down -Z, so the northbound lane (x=+3, travelling -Z) has an
+        // approach yaw of 0 and the southbound lane (x=-3) has pi.
+        trafficStopLines_ = {
+            TrafficStopLine{{3.0F, 0.4F, 8.0F}, 0.0F, {5.5F, 2.6F, 8.0F}, false},
+            TrafficStopLine{{-3.0F, 0.4F, -8.0F}, std::numbers::pi_v<float>, {-5.5F, 2.6F, -8.0F}, true},
+        };
+        for (const TrafficStopLine& stopLine : trafficStopLines_)
+        {
+            AddBox("stop_line", stopLine.position + Vector3(0.0F, -0.35F, 0.0F), {5.0F, 0.08F, 0.5F},
+                   Color(225, 225, 215, 255), false);
+        }
         sidewalkPaths_ = {
             WaypointPath{{{-7.5F, 0.9F, -38.0F}, {-7.5F, 0.9F, 38.0F}}, true},
             WaypointPath{{{7.5F, 0.9F, -38.0F}, {7.5F, 0.9F, 38.0F}}, true},

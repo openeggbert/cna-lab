@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**273 of 2148 tasks done** (12%). Open by priority: P0 200 · P1 1020 · P2 598 · P3 57.
+**275 of 2148 tasks done** (12%). Open by priority: P0 199 · P1 1019 · P2 598 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -67,7 +67,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 18 | [Characters, skeletons, and animation](../plan/plan_18-characters-skeletons-and-animation.md) | 7/98 | 7% |
 | 19 | [Navigation and pathfinding](../plan/plan_19-navigation-and-pathfinding.md) | 1/26 | 3% |
 | 20 | [Pedestrians and ambient AI](../plan/plan_20-pedestrians-and-ambient-ai.md) | 4/60 | 6% |
-| 21 | [Traffic simulation](../plan/plan_21-traffic-simulation.md) | 3/60 | 5% |
+| 21 | [Traffic simulation](../plan/plan_21-traffic-simulation.md) | 5/60 | 8% |
 | 22 | [Police, witnesses, crime, and wanted response](../plan/plan_22-police-witnesses-crime-and-wanted-response.md) | 4/60 | 6% |
 | 23 | [Combat, damage, and interaction](../plan/plan_23-combat-damage-and-interaction.md) | 0/44 | 0% |
 | 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 28/55 | 50% |

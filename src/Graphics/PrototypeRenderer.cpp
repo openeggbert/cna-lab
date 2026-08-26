@@ -185,6 +185,12 @@ namespace IronGang
         pedestrianBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.5F, 1.15F, 0.35F}, Color(120, 108, 96, 255));
         pedestrianMesh_.Upload(device, pedestrianBuilder);
 
+        // plan_21 IG-21-003: the lamp itself is white here and tinted per phase at draw time, so
+        // one mesh serves all three colours.
+        MeshBuilder signalBuilder;
+        signalBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.45F, 0.45F, 0.45F}, Color(255, 255, 255, 255));
+        signalLightMesh_.Upload(device, signalBuilder);
+
         // Black-and-white patrol livery so a police response reads clearly against ordinary
         // traffic even as plain colored boxes.
         MeshBuilder policeCarBuilder;
@@ -300,6 +306,7 @@ namespace IronGang
                                 playerMesh_.GetTrackedVideoMemoryBytes() +
                                 trafficVehicleMesh_.GetTrackedVideoMemoryBytes() +
                                 pedestrianMesh_.GetTrackedVideoMemoryBytes() +
+                                signalLightMesh_.GetTrackedVideoMemoryBytes() +
                                 policeCarMesh_.GetTrackedVideoMemoryBytes() +
                                 shadowDecalMesh_.GetTrackedVideoMemoryBytes() + lightmapTextureBytes_;
         result.importedModels = importedModels.GetBreakdown();
@@ -580,6 +587,29 @@ namespace IronGang
         if (workloadTrackingEnabled_)
         {
             frameWorkload_.stateChanges += 2;
+        }
+    }
+
+    void PrototypeRenderer::DrawTrafficSignals(GraphicsDevice& device,
+                                              const Matrix& view,
+                                              const Matrix& projection,
+                                              const std::vector<SignalLight>& lights)
+    {
+        effect_->View = view;
+        effect_->Projection = projection;
+        for (const SignalLight& light : lights)
+        {
+            // Deliberately not tinted by the sun like everything else: a traffic light is a light,
+            // and dimming it at dusk would make the one thing that must stay readable the first
+            // thing to go.
+            DrawMesh(device, signalLightMesh_, Matrix::CreateTranslation(light.position),
+                     Vector3(static_cast<float>(light.color.getRProperty()) / 255.0F,
+                             static_cast<float>(light.color.getGProperty()) / 255.0F,
+                             static_cast<float>(light.color.getBProperty()) / 255.0F));
+        }
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(lights.size());
         }
     }
 

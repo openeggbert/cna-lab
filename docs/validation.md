@@ -577,6 +577,46 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## The crossing gets a light (2026-08-26)
+
+plan_21 `IG-21-003` and `IG-21-007` closed.
+
+**The design decision worth keeping: a red light is an obstacle.** Traffic already brakes for
+whatever is ahead in its lane, so a red is folded into the same `DistanceAheadInLane` minimum as the
+car in front. `TrafficVehicle` needed **no new state at all**, and a car queued behind one waiting
+at a red brakes for the car rather than the light — which a separate "stopped at signal" state would
+have had to reproduce.
+
+**One signal drives both directions.** `GetOpposingPhase()` derives the crossing direction's colour
+from the same timer rather than running a second light, which makes "both green at once" impossible
+by construction; two independent lights at one crossing eventually drift into exactly that. The
+opposing direction gets its own amber before this one turns green, so nobody is in the crossing when
+it flips.
+
+**Amber stops traffic**, deliberately. At this scale, a car deciding whether it can "make it" is a
+rule nobody watching would notice, and one that puts vehicles in the intersection at the moment the
+phase changes.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestTrafficSignalCyclesAndOpposesItself` covers phase order and durations, the wrap, offsets
+(including past the cycle and negative), refused zero-length phases and negative/NaN deltas, the
+world's two stop lines reading opposing phases, a vehicle seeing its own line ahead but not after
+passing it, and a vehicle braking to a halt and pulling away again. Two invariants are checked over
+2000 steps whose size deliberately does not divide the cycle: **never both moving**, and — the one
+that is easy to forget — **both directions do get a green**, since an intersection nobody may cross
+satisfies the first and is still broken. A real `mixed --smoke 400` run shows no errors, obstacle
+checks unchanged at 16 per update, `ai_cpu` p95 0.068 ms.
+
+**A mistake worth recording.** Renaming a call in my new test, I ran a blanket
+`GetSpeed()` → `GetForwardSpeed()` replace over the whole test file and silently broke an unrelated
+`VehicleController` assertion 2000 lines away. The build caught it, but the run before it had passed
+against a stale binary — a global replace over a file I only meant to touch in one place.
+
+**Boundaries.** One crossing, fixed timing, hand-placed in code rather than in district data. The
+**player's** vehicle ignores the light entirely: running a red is not an offence, and `PoliceSystem`
+never hears about it. No turn signals, no stop signs, no priority junctions, and pedestrians do not
+use crossings (`IG-20-012`).
+
 ## Pedestrians become people, and a measurement I almost got wrong (2026-08-26)
 
 plan_20 `IG-20-003` advanced to partial (walk/idle clips and per-instance phase; no turn clip).

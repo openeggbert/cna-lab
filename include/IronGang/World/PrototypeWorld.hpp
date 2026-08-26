@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Core/WorldTypes.hpp"
+#include "IronGang/Gameplay/TrafficSignal.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
 #include "IronGang/World/WaypointPath.hpp"
 
@@ -34,6 +35,12 @@ namespace IronGang
         [[nodiscard]] const Vector3& GetVehicleSpawn() const noexcept { return vehicleSpawn_; }
         [[nodiscard]] float GetVehicleSpawnYaw() const noexcept { return vehicleSpawnYaw_; }
         [[nodiscard]] const TriggerZone& GetWarehouseGoal() const noexcept { return warehouseGoal_; }
+        // plan_21 IG-21-003: where traffic must stop on a red. Empty in districts with no
+        // signalled crossing, which is every district but the warehouse block.
+        [[nodiscard]] const std::vector<TrafficStopLine>& GetTrafficStopLines() const noexcept
+        {
+            return trafficStopLines_;
+        }
         [[nodiscard]] const DistrictExit& GetDistrictExit() const noexcept { return districtExit_; }
 
         // Gate M9 (plan_19-navigation-and-pathfinding.md IG-19-001/002): hand-authored loops for
@@ -69,6 +76,7 @@ namespace IronGang
         Vector3 playerSpawn_{0.0F, 1.70F, 20.0F};
         Vector3 vehicleSpawn_{0.0F, 0.65F, 11.0F};
         float vehicleSpawnYaw_{0.0F};
+        std::vector<TrafficStopLine> trafficStopLines_;
         TriggerZone warehouseGoal_{"warehouse_delivery", {{0.0F, 0.0F, -34.0F}, {4.5F, 2.0F, 4.5F}}};
         DistrictExit districtExit_{};
         WaypointPath trafficLoop_{};

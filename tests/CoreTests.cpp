@@ -14,6 +14,7 @@
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
+#include "IronGang/Gameplay/TrafficSignal.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleConfig.hpp"
 #include "IronGang/Gameplay/VehicleDamage.hpp"
@@ -2081,6 +2082,115 @@ namespace
         }
 
         std::filesystem::remove(path);
+    }
+
+    // plan_21 IG-21-003/007: the light's own timing, and the rule that decides who stops.
+    void TestTrafficSignalCyclesAndOpposesItself()
+    {
+        IronGang::TrafficSignal signal;
+        const IronGang::TrafficSignalTiming timing = signal.GetTiming();
+        Require(timing.CycleSeconds() > 0.0F, "a signal must have a cycle");
+        Require(signal.GetPhase() == IronGang::SignalPhase::Green, "a signal starts on green");
+
+        // The phases follow in order and last exactly as long as their timings say.
+        signal.Update(timing.greenSeconds - 0.01F);
+        Require(signal.GetPhase() == IronGang::SignalPhase::Green, "green must last its full time");
+        signal.Update(0.02F);
+        Require(signal.GetPhase() == IronGang::SignalPhase::Amber, "green must be followed by amber");
+        signal.Update(timing.amberSeconds);
+        Require(signal.GetPhase() == IronGang::SignalPhase::Red, "amber must be followed by red");
+        signal.Update(timing.redSeconds);
+        Require(signal.GetPhase() == IronGang::SignalPhase::Green, "the cycle must wrap to green");
+
+        // **The invariant that matters**: the two directions of a crossing are never both moving.
+        IronGang::TrafficSignal crossing;
+        crossing.Reset();
+        for (int step = 0; step < 2000; ++step)
+        {
+            crossing.Update(timing.CycleSeconds() / 97.0F); // a step that does not divide the cycle
+            const bool thisMoves = !IronGang::TrafficSignal::RequiresStop(crossing.GetPhase());
+            const bool otherMoves = !IronGang::TrafficSignal::RequiresStop(crossing.GetOpposingPhase());
+            Require(!(thisMoves && otherMoves),
+                    std::string("both directions showed a moving phase at once: ") +
+                        IronGang::SignalPhaseName(crossing.GetPhase()) + "/" +
+                        IronGang::SignalPhaseName(crossing.GetOpposingPhase()));
+        }
+
+        // Both directions do get to move over a full cycle -- an intersection that never lets
+        // anyone through satisfies the invariant above and is still broken.
+        IronGang::TrafficSignal fairness;
+        bool sawThisGreen = false;
+        bool sawOpposingGreen = false;
+        for (int step = 0; step < 400; ++step)
+        {
+            fairness.Update(timing.CycleSeconds() / 200.0F);
+            sawThisGreen = sawThisGreen || fairness.GetPhase() == IronGang::SignalPhase::Green;
+            sawOpposingGreen =
+                sawOpposingGreen || fairness.GetOpposingPhase() == IronGang::SignalPhase::Green;
+        }
+        Require(sawThisGreen && sawOpposingGreen, "both directions must get a green within a cycle");
+
+        // Offsets start a light partway through, and wrap rather than running off the end.
+        IronGang::TrafficSignal offset;
+        offset.Reset(timing.greenSeconds + timing.amberSeconds + 0.5F);
+        Require(offset.GetPhase() == IronGang::SignalPhase::Red, "an offset must place the phase");
+        offset.Reset(timing.CycleSeconds() * 3.5F);
+        Require(offset.GetSecondsIntoCycle() < timing.CycleSeconds(),
+                "an offset past the cycle must wrap into it");
+        offset.Reset(-5.0F);
+        Require(offset.GetSecondsIntoCycle() >= 0.0F, "a negative offset must not run the light backwards");
+
+        // Amber stops traffic: at this scale, deciding whether a car "can make it" is a rule
+        // nobody would notice and one that leaves cars in the crossing when the phase flips.
+        Require(IronGang::TrafficSignal::RequiresStop(IronGang::SignalPhase::Red) &&
+                    IronGang::TrafficSignal::RequiresStop(IronGang::SignalPhase::Amber) &&
+                    !IronGang::TrafficSignal::RequiresStop(IronGang::SignalPhase::Green),
+                "only green may let traffic through");
+
+        // Bad timings and bad deltas are ignored rather than producing a light that skips a colour.
+        IronGang::TrafficSignal tuned;
+        IronGang::TrafficSignalTiming broken;
+        broken.amberSeconds = 0.0F;
+        tuned.Configure(broken);
+        Require(tuned.GetTiming().amberSeconds > 0.0F, "a zero-length phase must be refused");
+        const float before = tuned.GetSecondsIntoCycle();
+        tuned.Update(-1.0F);
+        tuned.Update(std::numeric_limits<float>::quiet_NaN());
+        Require(std::fabs(tuned.GetSecondsIntoCycle() - before) < 1e-6F,
+                "a negative or NaN delta must not move the light");
+
+        // The world places a stop line per direction, and the two read opposing phases.
+        IronGang::PrototypeWorld block;
+        const std::vector<IronGang::TrafficStopLine>& stopLines = block.GetTrafficStopLines();
+        Require(stopLines.size() == 2, "the warehouse block must have a signalled crossing");
+        Require(stopLines[0].opposingPhase != stopLines[1].opposingPhase,
+                "the crossing's two stop lines must read opposing phases");
+        Require(IronGang::DistanceAheadInLane(IronGang::Vector3{3.0F, 0.4F, 30.0F}, stopLines[0].approachYaw,
+                                              stopLines[0].position, IronGang::kTrafficLaneHalfWidth) <
+                    IronGang::kNoObstacleAhead,
+                "a vehicle approaching in the governed lane must see its stop line ahead");
+        Require(IronGang::DistanceAheadInLane(IronGang::Vector3{3.0F, 0.4F, -30.0F}, stopLines[0].approachYaw,
+                                              stopLines[0].position, IronGang::kTrafficLaneHalfWidth) ==
+                    IronGang::kNoObstacleAhead,
+                "a vehicle that has passed the line must not still see it");
+
+        // A vehicle told the stop line is close brakes to a halt, and moves again once told the
+        // way is clear -- the same braking that already existed, which is the point of modelling a
+        // red light as an obstacle.
+        IronGang::TrafficVehicle vehicle;
+        IronGang::WaypointPath lane{{{3.0F, 0.4F, 38.0F}, {3.0F, 0.4F, -38.0F}}, true};
+        vehicle.Reset(lane, 0, 6.0F);
+        for (int frame = 0; frame < 240; ++frame)
+        {
+            vehicle.Update(1.0F / 60.0F, 0.4F); // something stopped just ahead
+        }
+        Require(vehicle.GetForwardSpeed() < 0.05F, "a vehicle must stop for a red light: " +
+                                                std::to_string(vehicle.GetForwardSpeed()));
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            vehicle.Update(1.0F / 60.0F, IronGang::kNoObstacleAhead);
+        }
+        Require(vehicle.GetForwardSpeed() > 1.0F, "and must pull away once the light turns green");
     }
 
     // plan_20 IG-20-010 / plan_21 IG-21-002: the shared lane-clearance test both movers rely on.
@@ -4386,6 +4496,7 @@ int main()
         TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();
+        TestTrafficSignalCyclesAndOpposesItself();
         TestLaneClearanceSeesOnlyWhatIsAhead();
         TestPedestriansDoNotWalkThroughEachOther();
         TestPedestrianSpawnOffsetSpreadsAlongPath();

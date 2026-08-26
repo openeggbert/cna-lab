@@ -25,6 +25,13 @@ namespace IronGang
     // Gate M9: the minimal per-actor state PrototypeRenderer needs to draw one traffic vehicle,
     // pedestrian, or police car this frame -- position/yaw only, matching how the player/vehicle
     // boxes are already drawn in Draw() below.
+    // A traffic light to draw: where it stands and what colour it is showing.
+    struct SignalLight
+    {
+        Microsoft::Xna::Framework::Vector3 position;
+        Microsoft::Xna::Framework::Color color;
+    };
+
     struct ActorPose
     {
         Microsoft::Xna::Framework::Vector3 position;
@@ -139,6 +146,13 @@ namespace IronGang
         // deliberately shaped/colored distinctly from the player's own sedan/character meshes so
         // the three actor kinds (and the player) stay visually distinguishable in a screenshot
         // despite all being colored-box debug geometry.
+        // plan_21 IG-21-003: one small box per signal, coloured by its phase, drawn in the same
+        // pass as the ambient actors.
+        void DrawTrafficSignals(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                                const Microsoft::Xna::Framework::Matrix& view,
+                                const Microsoft::Xna::Framework::Matrix& projection,
+                                const std::vector<SignalLight>& lights);
+
         void DrawTraffic(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                          const Microsoft::Xna::Framework::Matrix& view,
                          const Microsoft::Xna::Framework::Matrix& projection,
@@ -211,6 +225,7 @@ namespace IronGang
         PrimitiveMesh trafficVehicleMesh_;
         PrimitiveMesh pedestrianMesh_;
         PrimitiveMesh policeCarMesh_;
+        PrimitiveMesh signalLightMesh_;
         PrimitiveMesh shadowDecalMesh_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
 
