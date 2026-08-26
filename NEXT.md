@@ -98,6 +98,30 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A campaign, and a second mission to put in it (plan_24)
+
+Closes the two threads at the top of the open list below: nothing used `vehicle_disabled`, and no
+mission but the prologue existed to exercise checkpoints or branching.
+
+- `CampaignDefinition` (content: missions, paths, prerequisites) and `CampaignState` (progress) are
+  **separate types** -- one is shipped data, the other belongs in a save.
+- Validation refuses every unfinishable shape, including **dependency cycles reported as the path
+  that loops** (`a -> b -> a`), because "cycle detected" tells an author nothing about which link to
+  cut, and a campaign where everything has a prerequisite and so can never start.
+- `countryside_run` is a real second mission: out of the block, across into the countryside (new
+  `current_district` fact, plus a real delivery trigger added to that district), into the farmhouse
+  yard. Two checkpoints and a failure branch on `vehicle_disabled` -- **the first user of the wreck
+  fact**.
+- The game starts the first available mission and advances on completion; the `mission` profiling
+  scenario exits **before** the advance, so its workload is unchanged (both verified by running
+  them).
+
+Closed `IG-24-020`/`046`/`047`; `IG-24-021`/`048` advanced. CTest 12/12.
+
+**Next obvious task: campaign progress is not saved** (`IG-24-049`) -- completing the prologue and
+reloading loses the unlock. It needs `missionId` plus the completed list in the save format, both
+additive.
+
 ### Autonomous session, 2026-08-25/26: twenty iterations
 
 Each line links the plan entries it closed; **every one has a full verification record in

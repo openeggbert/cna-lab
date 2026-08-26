@@ -3,6 +3,7 @@
 #include "IronGang/Core/Log.hpp"
 
 #include <cmath>
+#include <string>
 
 namespace IronGang
 {
@@ -25,6 +26,9 @@ namespace IronGang
         constexpr const char* kFactPoliceChaseSeconds = "police_chase_seconds";
         constexpr const char* kFactVehicleIntegrity = "vehicle_integrity";
         constexpr const char* kFactVehicleDisabled = "vehicle_disabled";
+        constexpr const char* kFactCurrentDistrict = "current_district";
+        constexpr const char* kFactPlayerInDeliveryGoal = "player_in_delivery_goal";
+        constexpr const char* kFactVehicleInDeliveryGoal = "vehicle_in_delivery_goal";
 
         void LogMission(const std::string& message)
         {
@@ -115,7 +119,10 @@ namespace IronGang
             context.DeclareFact(kFactPoliceChasing, MissionValue::Bool(false), error) &&
             context.DeclareFact(kFactPoliceChaseSeconds, MissionValue::Float(0.0F), error) &&
             context.DeclareFact(kFactVehicleIntegrity, MissionValue::Float(1.0F), error) &&
-            context.DeclareFact(kFactVehicleDisabled, MissionValue::Bool(false), error);
+            context.DeclareFact(kFactVehicleDisabled, MissionValue::Bool(false), error) &&
+            context.DeclareFact(kFactCurrentDistrict, MissionValue::String("warehouse_block"), error) &&
+            context.DeclareFact(kFactPlayerInDeliveryGoal, MissionValue::Bool(false), error) &&
+            context.DeclareFact(kFactVehicleInDeliveryGoal, MissionValue::Bool(false), error);
         if (!declared)
         {
             LogMissionFault("failed to declare the prototype fact set: " + error);
@@ -247,7 +254,8 @@ namespace IronGang
                                         const Vector3& playerPosition,
                                         const Vector3& vehiclePosition,
                                         bool playerDriving,
-                                        const TriggerZone& warehouseGoal)
+                                        const TriggerZone& warehouseGoal,
+                                        const std::string& districtId)
     {
         const float distance = std::sqrt(DistanceSquaredXZ(playerPosition, vehiclePosition));
         const bool vehicleInGoal = warehouseGoal.bounds.ContainsXZ(vehiclePosition);
@@ -263,7 +271,11 @@ namespace IronGang
             context_.SetFact(kFactPlayerInWarehouseGoal, MissionValue::Bool(playerInGoal), error) &&
             context_.SetFact(kFactVehicleInWarehouseGoal, MissionValue::Bool(vehicleInGoal), error) &&
             context_.SetFact(kFactPlayerDrivingInWarehouseGoal,
-                             MissionValue::Bool(playerDriving && vehicleInGoal), error);
+                             MissionValue::Bool(playerDriving && vehicleInGoal), error) &&
+            context_.SetFact(kFactPlayerInDeliveryGoal, MissionValue::Bool(playerInGoal), error) &&
+            context_.SetFact(kFactVehicleInDeliveryGoal, MissionValue::Bool(vehicleInGoal), error) &&
+            (districtId.empty() ||
+             context_.SetFact(kFactCurrentDistrict, MissionValue::String(districtId), error));
         if (!applied)
         {
             LogMissionFault("could not refresh mission facts: " + error);
@@ -274,9 +286,11 @@ namespace IronGang
                                   const Vector3& playerPosition,
                                   const Vector3& vehiclePosition,
                                   bool playerDriving,
-                                  const TriggerZone& warehouseGoal)
+                                  const TriggerZone& warehouseGoal,
+                                  const std::string& districtId)
     {
-        RefreshFacts(dialogueFinished, playerPosition, vehiclePosition, playerDriving, warehouseGoal);
+        RefreshFacts(dialogueFinished, playerPosition, vehiclePosition, playerDriving, warehouseGoal,
+                     districtId);
 
         const MissionStateDefinition* current = definition_.FindState(stateId_);
         if (current == nullptr || current->transitions.empty())

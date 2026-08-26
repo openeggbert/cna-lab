@@ -157,7 +157,11 @@ namespace IronGang
         // area so it can never accidentally fire (IronGangGame only evaluates the mission's
         // warehouse-delivery goal while in the WarehouseBlock district, but this keeps the value
         // itself harmless regardless).
-        warehouseGoal_ = TriggerZone{"none", {{0.0F, -500.0F, 0.0F}, {0.1F, 0.1F, 0.1F}}};
+        // A real delivery target, so a mission can be set here rather than only in the warehouse
+        // block: the yard in front of the farmhouse.
+        warehouseGoal_ = TriggerZone{"farmhouse_delivery", {{15.0F, 0.5F, -6.0F}, {5.0F, 2.0F, 4.5F}}};
+        AddBox("farmhouse_delivery_marker", warehouseGoal_.bounds.center + Vector3(0.0F, -0.45F, 0.0F),
+               {10.0F, 0.10F, 9.0F}, Color(75, 230, 115, 255), false);
 
         districtExit_.trigger = TriggerZone{"exit_to_warehouse_block", {{0.0F, 0.5F, 47.0F}, {6.0F, 1.5F, 3.0F}}};
         districtExit_.targetDistrict = DistrictId::WarehouseBlock;

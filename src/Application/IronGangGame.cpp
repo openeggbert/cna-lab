@@ -457,16 +457,23 @@ namespace IronGang
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
                        districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
 
-        // Gate M7 (plan_24-mission-framework-and-scripting.md IG-24-001/004): the mission's
-        // states/objectives/transitions now live in data; PrototypeMission ships with a
-        // hardcoded default reproducing the same flow, so a missing/corrupt file degrades to
-        // that rather than breaking the mission.
-        std::string missionError;
-        if (!mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", missionError))
+        // plan_24 IG-24-021: which mission runs is the campaign's decision now, not a hardcoded
+        // path. A campaign that cannot be read falls back to the prologue alone, so a broken
+        // campaign file costs the ordering rather than the game -- and a mission file that cannot
+        // be read leaves PrototypeMission's own built-in fallback in place.
+        std::string campaignError;
+        if (!LoadCampaignDefinition(assetRoot_ + "/missions/campaign.json", campaign_, campaignError))
         {
-            Log::Warning(LogCategory::Mission, missionError + " -- using built-in fallback mission.");
+            Log::Warning(LogCategory::Mission, campaignError + " -- running the prologue alone.");
+            campaign_ = CampaignDefinition{};
+            campaign_.missions.push_back(CampaignMission{
+                "prototype_delivery", "missions/prologue.mission.json", "The Quiet Delivery", {}});
         }
-        mission_.Reset();
+        campaignState_.Reset();
+        if (!StartMission(campaignState_.NextAvailable(campaign_)))
+        {
+            mission_.Reset();
+        }
 
         std::string dialogueError;
         if (!dialogue_.LoadFromFile(assetRoot_ + "/dialogues/prologue.dialogue.txt", dialogueError))
@@ -1150,6 +1157,47 @@ namespace IronGang
         }
     }
 
+    bool IronGangGame::StartMission(const std::string& missionId)
+    {
+        const CampaignMission* mission = campaign_.Find(missionId);
+        if (mission == nullptr)
+        {
+            return false;
+        }
+        std::string error;
+        if (!mission_.LoadMission(assetRoot_ + "/" + mission->path, error))
+        {
+            Log::Warning(LogCategory::Mission, error + " -- keeping the previously loaded mission.");
+            return false;
+        }
+        currentMissionId_ = mission->id;
+        mission_.Reset();
+        // A new mission has no checkpoint yet; carrying the previous one over would let a retry
+        // drop the player into a place this mission never sent them.
+        missionCheckpointWorld_.reset();
+        missionCheckpointWorldStateId_.clear();
+        Log::Info(LogCategory::Mission, "starting \"" + mission->title + "\" (" + mission->id + ")");
+        return true;
+    }
+
+    void IronGangGame::AdvanceCampaign()
+    {
+        campaignState_.MarkCompleted(campaign_, currentMissionId_);
+        const std::string next = campaignState_.NextAvailable(campaign_);
+        if (next.empty())
+        {
+            Log::Info(LogCategory::Mission, "campaign complete");
+            transientStatus_ = "Campaign complete";
+            transientStatusSeconds_ = 4.0F;
+            return;
+        }
+        if (StartMission(next))
+        {
+            transientStatus_ = "New mission: " + mission_.GetDefinition().title;
+            transientStatusSeconds_ = 4.0F;
+        }
+    }
+
     void IronGangGame::RetryMission()
     {
         if (!mission_.HasCheckpoint() || !missionCheckpointWorld_.has_value())
@@ -1714,14 +1762,21 @@ namespace IronGang
             }
 
             mission_.Update(dialogue_.IsFinished(), player_.GetPosition(), vehicle_.GetPosition(),
-                            playerDriving_, districtManager_.GetWorld().GetWarehouseGoal());
+                            playerDriving_, districtManager_.GetWorld().GetWarehouseGoal(),
+                            DistrictName(districtManager_.GetWorld().GetId()));
             CaptureMissionCheckpointWorld();
             if (performanceScenario_ == PerformanceScenario::Mission && mission_.IsCompleted())
             {
-                // End at the exact successful mission boundary. Continuing toward the fixed
-                // --smoke limit would let the still-moving sedan reach the district exit and
-                // contaminate this dedicated mission workload with a district transition.
+                // End at the exact successful mission boundary -- **before** the campaign would
+                // advance, so this workload stays exactly what it has always measured. Continuing
+                // toward the fixed --smoke limit would also let the still-moving sedan reach the
+                // district exit and contaminate it with a transition.
                 Exit();
+            }
+            else if (mission_.IsCompleted() && !currentMissionId_.empty() &&
+                     !campaignState_.IsCompleted(currentMissionId_))
+            {
+                AdvanceCampaign();
             }
         }
 

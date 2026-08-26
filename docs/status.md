@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**269 of 2148 tasks done** (12%). Open by priority: P0 200 · P1 1024 · P2 598 · P3 57.
+**272 of 2148 tasks done** (12%). Open by priority: P0 200 · P1 1021 · P2 598 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -70,7 +70,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 21 | [Traffic simulation](../plan/plan_21-traffic-simulation.md) | 3/60 | 5% |
 | 22 | [Police, witnesses, crime, and wanted response](../plan/plan_22-police-witnesses-crime-and-wanted-response.md) | 4/60 | 6% |
 | 23 | [Combat, damage, and interaction](../plan/plan_23-combat-damage-and-interaction.md) | 0/44 | 0% |
-| 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 24/55 | 43% |
+| 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 27/55 | 49% |
 | 25 | [Dialogue, localization, and narrative state](../plan/plan_25-dialogue-localization-and-narrative-state.md) | 0/50 | 0% |
 | 26 | [Cutscenes and cinematic sequencing](../plan/plan_26-cutscenes-and-cinematic-sequencing.md) | 7/35 | 20% |
 | 27 | [Audio, music, ambience, and radio](../plan/plan_27-audio-music-ambience-and-radio.md) | 0/57 | 0% |

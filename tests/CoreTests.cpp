@@ -18,6 +18,7 @@
 #include "IronGang/Gameplay/VehicleConfig.hpp"
 #include "IronGang/Gameplay/VehicleDamage.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
+#include "IronGang/Missions/CampaignDefinition.hpp"
 #include "IronGang/Missions/MissionDefinition.hpp"
 #include "IronGang/Missions/MissionExpression.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
@@ -936,6 +937,171 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_24 IG-24-020/021/046/047/048: the campaign graph -- which missions exist, what unlocks
+    // them, and the ways a campaign file can describe something unfinishable.
+    void TestCampaignGraphUnlocksAndRejectsCycles()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_campaign.json";
+        IronGang::CampaignDefinition campaign;
+        std::string error;
+
+        // The committed campaign must load, and must actually gate the second mission behind the
+        // first -- that is the only thing a two-mission campaign can get wrong.
+        Require(IronGang::LoadCampaignDefinition(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                                     "/missions/campaign.json",
+                                                 campaign, error),
+                "the committed campaign must load: " + error);
+        Require(campaign.missions.size() == 2, "the committed campaign must list both missions");
+        Require(campaign.Find("prototype_delivery") != nullptr &&
+                    campaign.Find("countryside_run") != nullptr,
+                "both mission ids must be present");
+        Require(campaign.Find("countryside_run")->requires_.size() == 1 &&
+                    campaign.Find("countryside_run")->requires_.front() == "prototype_delivery",
+                "the countryside run must require the prologue");
+
+        IronGang::CampaignState state;
+        Require(state.NextAvailable(campaign) == "prototype_delivery",
+                "the mission with no prerequisites must be the one available first");
+        Require(!state.IsAvailable(campaign, "countryside_run"),
+                "a mission with an unmet prerequisite must not be available");
+        Require(!state.IsFinished(campaign), "a campaign with nothing completed is not finished");
+
+        state.MarkCompleted(campaign, "prototype_delivery");
+        Require(state.IsCompleted("prototype_delivery"), "completion must be recorded");
+        Require(!state.IsAvailable(campaign, "prototype_delivery"),
+                "a completed mission must not be offered again");
+        Require(state.NextAvailable(campaign) == "countryside_run",
+                "completing the prerequisite must unlock the next mission");
+
+        state.MarkCompleted(campaign, "countryside_run");
+        Require(state.IsFinished(campaign) && state.NextAvailable(campaign).empty(),
+                "a finished campaign must offer nothing further");
+
+        // Progress from a save cannot invent missions, and completing twice cannot duplicate.
+        state.SetCompleted(campaign, {"prototype_delivery", "prototype_delivery", "a_mission_we_cut"});
+        Require(state.GetCompleted().size() == 1 && state.IsCompleted("prototype_delivery"),
+                "restored progress must ignore duplicates and missions the campaign no longer has");
+        state.Reset();
+        Require(state.GetCompleted().empty() && state.NextAvailable(campaign) == "prototype_delivery",
+                "Reset must start the campaign over");
+
+        // Every way a campaign file can describe something that cannot be finished.
+        const auto rejects = [&](const std::string& json, const std::string& why) {
+            WriteTempJson(path, json);
+            IronGang::CampaignDefinition rejected;
+            Require(!IronGang::LoadCampaignDefinition(path.string(), rejected, error), why);
+            Require(!error.empty(), why + " (with a reason)");
+        };
+        rejects(R"JSON({"version":99,"missions":[{"id":"a","path":"a.json"}]})JSON",
+                "an unsupported version must be refused");
+        rejects(R"JSON({"version":1})JSON", "a campaign with no missions array must be refused");
+        rejects(R"JSON({"version":1,"missions":[]})JSON", "a campaign with no missions must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"","path":"a.json"}]})JSON",
+                "a mission with no id must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a"}]})JSON",
+                "a mission with no path must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json"},{"id":"a","path":"b.json"}]})JSON",
+                "a duplicate mission id must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["ghost"]}]})JSON",
+                "a prerequisite that is not in the campaign must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["a"]}]})JSON",
+                "a mission requiring itself must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["b"]},
+                        {"id":"b","path":"b.json","requires":["a"]}]})JSON",
+                "a dependency cycle must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["c"]},
+                        {"id":"b","path":"b.json","requires":["a"]},
+                        {"id":"c","path":"c.json","requires":["b"]}]})JSON",
+                "a longer cycle must be refused too");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["b"]},
+                        {"id":"b","path":"b.json","requires":["a"]}]})JSON",
+                "a two-mission cycle must be refused");
+        rejects(R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":"b"}]})JSON",
+                "a non-array \"requires\" must be refused");
+
+        // The cycle message names the cycle, not merely its existence.
+        WriteTempJson(path, R"JSON({"version":1,"missions":[{"id":"a","path":"a.json","requires":["b"]},
+                        {"id":"b","path":"b.json","requires":["a"]}]})JSON");
+        IronGang::CampaignDefinition cyclic;
+        Require(!IronGang::LoadCampaignDefinition(path.string(), cyclic, error), "the cycle must be refused");
+        Require(error.find("->") != std::string::npos,
+                "the cycle error must show the path that loops: " + error);
+
+        // A valid chain of three loads and unlocks in order.
+        WriteTempJson(path, R"JSON({"version":1,"missions":[
+            {"id":"first","path":"1.json"},
+            {"id":"second","path":"2.json","requires":["first"]},
+            {"id":"third","path":"3.json","requires":["second","first"]}]})JSON");
+        IronGang::CampaignDefinition chain;
+        Require(IronGang::LoadCampaignDefinition(path.string(), chain, error),
+                "a valid chain must load: " + error);
+        IronGang::CampaignState progress;
+        Require(progress.NextAvailable(chain) == "first", "the chain must start at its first mission");
+        progress.MarkCompleted(chain, "first");
+        Require(progress.NextAvailable(chain) == "second", "the chain must advance");
+        Require(!progress.IsAvailable(chain, "third"), "a mission with two prerequisites needs both");
+        progress.MarkCompleted(chain, "second");
+        Require(progress.NextAvailable(chain) == "third", "both prerequisites met must unlock it");
+
+        std::filesystem::remove(path);
+    }
+
+    // plan_24 IG-24-021: the second committed mission runs, is gated behind the prologue, and
+    // fails on a wrecked sedan -- the failure fact that had nothing using it until now.
+    void TestCountrysideMissionRunsAndFailsOnAWreck()
+    {
+        IronGang::PrototypeWorld countryside(IronGang::DistrictId::Countryside);
+        IronGang::PrototypeMission mission;
+        std::string error;
+        const std::string missionPath =
+            std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/missions/countryside_run.mission.json";
+        Require(mission.LoadMission(missionPath, error), "the countryside mission must load: " + error);
+        mission.Reset();
+        Require(mission.IsInState("briefing"), "it must start at its briefing");
+
+        const IronGang::TriggerZone& goal = countryside.GetWarehouseGoal();
+        Require(goal.id == "farmhouse_delivery",
+                "the countryside must have a real delivery target for the mission to use");
+
+        // Driving off starts the run; the district fact is what carries the player across.
+        mission.Update(true, countryside.GetPlayerSpawn(), countryside.GetVehicleSpawn(), true, goal,
+                       "warehouse_block");
+        Require(mission.IsInState("drive_to_countryside"), "driving must start the run");
+        IronGang::MissionValue cargo;
+        Require(mission.TryGetVariable("cargo_loaded", cargo) && cargo.AsBool(),
+                "the entry action must load the cargo");
+
+        mission.Update(true, countryside.GetPlayerSpawn(), countryside.GetVehicleSpawn(), true, goal,
+                       "countryside");
+        Require(mission.IsInState("reach_farmhouse"),
+                "arriving in the countryside must advance the mission");
+
+        mission.Update(true, goal.bounds.center, goal.bounds.center, true, goal, "countryside");
+        Require(mission.IsCompleted(), "reaching the farmhouse yard must complete the run");
+        IronGang::MissionValue runs;
+        Require(mission.TryGetVariable("runs_made", runs) && runs.AsInt() == 1, "the run must be counted");
+
+        // The failure branch: a wrecked sedan ends the run, and a retry returns to the checkpoint.
+        mission.Reset();
+        mission.Update(true, countryside.GetPlayerSpawn(), countryside.GetVehicleSpawn(), true, goal,
+                       "warehouse_block");
+        Require(mission.IsInState("drive_to_countryside") && mission.HasCheckpoint(),
+                "the driving state must be a checkpoint");
+        Require(mission.SetFact("vehicle_disabled", IronGang::MissionValue::Bool(true), error),
+                "publishing the wreck must succeed: " + error);
+        mission.Update(true, countryside.GetPlayerSpawn(), countryside.GetVehicleSpawn(), true, goal,
+                       "warehouse_block");
+        Require(mission.IsFailed() && mission.IsInState("wrecked"),
+                "a wrecked sedan must fail the run -- the branch the vehicle_disabled fact existed for");
+        Require(mission.GetFailureReason() == "The sedan was wrecked before the cargo arrived",
+                "the failure must explain itself");
+
+        mission.Retry();
+        Require(mission.IsInState("drive_to_countryside"), "a retry must return to the checkpoint");
+        Require(mission.TryGetVariable("cargo_loaded", cargo) && cargo.AsBool(),
+                "the retry must restore the checkpoint's variables");
     }
 
     // plan_28 IG-28-007: rebinding, whose whole difficulty is conflicts -- and whose whole
@@ -4133,6 +4299,8 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestCampaignGraphUnlocksAndRejectsCycles();
+        TestCountrysideMissionRunsAndFailsOnAWreck();
         TestInputBindingsDetectConflictsWithinContexts();
         TestUserSettingsRoundTripAndFallBack();
         TestMenuModelSkipsDisabledAndWraps();

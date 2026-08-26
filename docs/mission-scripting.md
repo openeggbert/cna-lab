@@ -207,6 +207,9 @@ one. The prototype's set (`IronGang::CreatePrototypeMissionFacts`, `PrototypeMis
 | `police_chase_seconds` | float | How long the current chase has run. Resets when the chase resolves. |
 | `vehicle_integrity` | float | 1 for an undamaged sedan, 0 for a wreck. See `docs/vehicles.md`. |
 | `vehicle_disabled` | bool | The sedan is wrecked. It still rolls, slowly. |
+| `current_district` | string | `warehouse_block` or `countryside`. |
+| `player_in_delivery_goal` | bool | The player stands in this district's delivery zone. |
+| `vehicle_in_delivery_goal` | bool | The sedan is in this district's delivery zone. |
 
 The three composite facts exist so every version-1 mission file keeps loading. New missions should
 prefer the primitives — `player_driving && vehicle_in_warehouse_goal` says what it means, and
@@ -316,6 +319,33 @@ is, rather than advancing or silently failing.
 | `save file mission state "x" is not defined by the loaded mission` | The save was written against a different mission file. The mission keeps its current state rather than resuming into a state that does not exist. |
 | The game logs `… -- using built-in fallback mission.` | The file failed to load; the message above it says why. The game keeps running on the hardcoded prologue. |
 
+## Campaigns
+
+`assets/missions/campaign.json` says which missions exist and what unlocks them:
+
+```json
+{
+  "version": 1,
+  "missions": [
+    { "id": "prototype_delivery", "title": "The Quiet Delivery", "path": "missions/prologue.mission.json" },
+    { "id": "countryside_run", "title": "Out of Town", "path": "missions/countryside_run.mission.json",
+      "requires": ["prototype_delivery"] }
+  ]
+}
+```
+
+A mission with no `requires` is available from the start; the game runs the first available one and,
+on completion, marks it done and starts whatever that unlocks.
+
+The loader refuses every shape that describes a campaign nobody could finish: an unsupported
+version, an empty or duplicate id, an empty path, a prerequisite naming a mission that is not in the
+file, a mission requiring itself, **a dependency cycle** — reported as the path that loops, since
+"cycle detected" tells an author nothing — and a campaign where every mission has a prerequisite,
+which can never start.
+
+Campaign **progress is not saved yet**, so loading a save restarts the campaign at its first
+mission (`IG-24-049`).
+
 ## Tests
 
 `tests/CoreTests.cpp`: `TestMissionValidationRejectsMalformedData`,
@@ -323,6 +353,7 @@ is, rather than advancing or silently failing.
 `TestMissionVariablesEnforceTypes`, `TestMissionEntryActionsRunOncePerEntry`,
 `TestMissionVariablesSurviveSaveLoad`, `TestMissionStateIdsAreNotAFixedSet`,
 `TestMissionCheckpointRetryAndFailureReason`, `TestMissionCheckpointSurvivesSaveLoad`,
+`TestCampaignGraphUnlocksAndRejectsCycles`, `TestCountrysideMissionRunsAndFailsOnAWreck`,
 `TestMissionBranchesOnFirstMatchingTransition`, `TestPrologueFailsAndRetriesUnderPoliceChase`,
 `TestSaveMigratesLegacyMissionState`, plus the flow tests `TestMissionFlow` and
 `TestMissionLoadsCommittedFile`.

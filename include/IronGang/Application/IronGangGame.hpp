@@ -14,6 +14,7 @@
 #include "IronGang/Gameplay/VehicleController.hpp"
 #include "IronGang/Graphics/GpuFrameTimer.hpp"
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
+#include "IronGang/Missions/CampaignDefinition.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
 #include "IronGang/Persistence/AutosavePolicy.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
@@ -101,6 +102,12 @@ namespace IronGang
         // response, which would otherwise re-trigger the same failure within a frame. Falls back
         // to ResetPrototype() when the mission has no checkpoint to return to.
         void RetryMission();
+        // plan_24 IG-24-021: loads a campaign mission by id and starts it. Falls back to whatever
+        // mission is already loaded if the file cannot be read, so a broken mission file costs
+        // that mission rather than the session.
+        bool StartMission(const std::string& missionId);
+        // Records the current mission as complete and starts whatever that unlocks.
+        void AdvanceCampaign();
         // plan_28 IG-28-003/004: fills the pause menu for the state the game is in right now.
         void BuildPauseMenu();
         // Runs the selected entry. Kept separate from the input handling so what each entry does
@@ -159,6 +166,9 @@ namespace IronGang
         PlayerController player_;
         VehicleController vehicle_;
         PrototypeMission mission_;
+        CampaignDefinition campaign_;
+        CampaignState campaignState_;
+        std::string currentMissionId_;
         DialogueSystem dialogue_;
         CutscenePlayer cutscene_;
         PrototypeRenderer renderer_;

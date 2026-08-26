@@ -22,6 +22,13 @@ namespace IronGang
     //     police_chase_seconds              float  how long the current chase has run, seconds
     //     vehicle_integrity                 float  1 for an undamaged sedan, 0 for a wreck
     //     vehicle_disabled                  bool   the sedan is wrecked (integrity 0)
+    //     current_district                  string "warehouse_block" or "countryside"
+    //     player_in_delivery_goal           bool   the player stands in this district's delivery zone
+    //     vehicle_in_delivery_goal          bool   the sedan is in this district's delivery zone
+    //
+    // The ..._delivery_goal pair is the district-neutral spelling of the two ..._warehouse_goal
+    // facts, which are kept because gate M7's mission file uses them. New missions should use the
+    // neutral names: the countryside's delivery zone is a farmhouse yard, not a warehouse.
     //
     // The police and vehicle-damage facts are pushed by the game through SetFact() rather than
     // derived from Update()'s arguments, because PoliceSystem and VehicleController are the
@@ -71,11 +78,14 @@ namespace IronGang
         // exactly Reset().
         void Retry();
         [[nodiscard]] MissionRetryPolicy GetRetryPolicy() const noexcept { return definition_.retryPolicy; }
+        // districtId names the district the goal belongs to, so a mission can require being in one
+        // (the `current_district` fact). Empty keeps whatever was last set.
         void Update(bool dialogueFinished,
                     const Vector3& playerPosition,
                     const Vector3& vehiclePosition,
                     bool playerDriving,
-                    const TriggerZone& warehouseGoal);
+                    const TriggerZone& deliveryGoal,
+                    const std::string& districtId = {});
 
         // The current state's id. This is the authoritative state -- there is no fixed enum of
         // allowed states any more, so a mission file may name its states whatever it likes
@@ -133,7 +143,8 @@ namespace IronGang
                           const Vector3& playerPosition,
                           const Vector3& vehiclePosition,
                           bool playerDriving,
-                          const TriggerZone& warehouseGoal);
+                          const TriggerZone& deliveryGoal,
+                          const std::string& districtId);
 
         MissionDefinition definition_;
         // Set once a state's condition has already reported a runtime failure, so a fault that

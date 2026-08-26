@@ -577,6 +577,49 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## A campaign, and a second mission to put in it (2026-08-26)
+
+plan_24 `IG-24-020`/`046`/`047` closed; `IG-24-021`/`048` advanced. This closes the two open threads
+at the top of the previous entry's list: nothing used `vehicle_disabled`, and no mission but the
+prologue existed to exercise checkpoints or branching.
+
+**The graph.** `CampaignDefinition` is content (missions, paths, prerequisites); `CampaignState` is
+progress (which are done, therefore which are available). Separate types on purpose — one is shipped
+data, the other belongs in a save, and merging them would put content in the save file.
+
+Validation refuses every shape that describes a campaign nobody could finish: unsupported version,
+empty or duplicate id, empty path, a prerequisite naming a mission that is not there, a mission
+requiring itself, **a dependency cycle**, and a campaign where every mission has a prerequisite and
+so can never start. The cycle error reports **the path that loops** (`a -> b -> a`) rather than
+"cycle detected", because the second tells an author nothing about which link to cut.
+
+**The second mission.** `countryside_run` is real, not a placeholder: drive out of the block, cross
+into the countryside — which required a new `current_district` fact and a real delivery trigger in
+that district, since it had only a dummy one — and pull into the farmhouse yard. Two checkpoints,
+and a failure branch on `vehicle_disabled`, which is **what finally uses the wreck fact** added two
+iterations ago. Facts also gained district-neutral `player_in_delivery_goal`/`vehicle_in_delivery_goal`
+aliases; the `..._warehouse_goal` names stay because the prologue uses them, but "warehouse" is the
+wrong word for a farmhouse yard.
+
+**Wiring.** `IronGangGame` loads the campaign, starts the first available mission, and on completion
+marks it done and starts what that unlocks. The `--profile-scenario mission` workload exits at the
+prologue's completion **before** any advance, so the measurement it has always taken is unchanged —
+verified by running both: the `mission` scenario logs the prologue only, while a `mixed` run logs
+`starting "Out of Town" (countryside_run)` after the prologue completes.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestCampaignGraphUnlocksAndRejectsCycles` covers the committed campaign, unlock ordering, a
+three-mission chain needing two prerequisites, restored progress ignoring duplicates and deleted
+missions, and eleven rejection cases including two cycle shapes;
+`TestCountrysideMissionRunsAndFailsOnAWreck` drives the **committed** second mission through its
+full flow, its wreck failure with the file's own reason, and a checkpoint retry. Both new assets are
+in the registry (18 shipping assets now).
+
+**Boundaries.** **Campaign progress is not saved** (`IG-24-049`): a load restores the mission *state*
+but restarts the campaign at its first mission, so completing the prologue and reloading loses the
+unlock. That is the next obvious task, and it needs `missionId` plus the completed list in the save
+format. No chapters above missions, and two missions is not fifteen.
+
 ## A status dashboard that cannot go stale, and a continuity document that fits (2026-08-26)
 
 plan_38 `IG-38-014` closed. Also fixes a defect in my own test code from the previous iteration.

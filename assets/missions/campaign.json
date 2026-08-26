@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "missions": [
+    {
+      "id": "prototype_delivery",
+      "title": "The Quiet Delivery",
+      "path": "missions/prologue.mission.json"
+    },
+    {
+      "id": "countryside_run",
+      "title": "Out of Town",
+      "path": "missions/countryside_run.mission.json",
+      "requires": ["prototype_delivery"]
+    }
+  ]
+}
