@@ -16,6 +16,7 @@
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficSignal.hpp"
+#include "IronGang/Gameplay/CameraCollision.hpp"
 #include "IronGang/Gameplay/Visibility.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleConfig.hpp"
@@ -4515,6 +4516,116 @@ namespace
     // white, which is exactly how everything rendered before this data existed.
     // plan_25 IG-25-003: the wrapping a subtitle needs. The failure this replaces was a single
     // unwrapped HUD line running off the right edge of the screen mid-word.
+    // plan_16 IG-16-003: the follow camera sits a fixed distance behind the player, so standing
+    // with a building at your back puts it inside the building. It must be pulled in instead.
+    void TestCameraObstructionPullsIn()
+    {
+        std::vector<IronGang::WorldBox> boxes;
+        // A wall 4 m behind the target, 1 m thick, tall and wide enough not to be missed.
+        boxes.push_back(IronGang::WorldBox{"wall", IronGang::Vector3(0.0F, 3.0F, 4.5F),
+                                           IronGang::Vector3(20.0F, 6.0F, 1.0F),
+                                           Microsoft::Xna::Framework::Color(255, 255, 255, 255), true});
+
+        const IronGang::Vector3 target(0.0F, 1.5F, 0.0F);
+        const IronGang::Vector3 desired(0.0F, 1.5F, 8.0F); // 8 m behind, straight through the wall
+
+        IronGang::CameraObstruction result =
+            IronGang::ResolveCameraObstruction(target, desired, boxes, 0.35F, 0.6F);
+        Require(result.obstructed, "a wall between the target and the camera must be detected");
+        Require(result.position.Z < 4.0F,
+                "the camera must end up in front of the wall's near face (z=4.0), got " +
+                    std::to_string(result.position.Z));
+        Require(result.position.Z > 0.0F, "the camera must stay behind the target, not in front of it");
+        // The skin: it stops short of the surface, because a camera exactly on it still clips.
+        Require(std::abs(result.position.Z - (4.0F - 0.35F)) < 1e-3F,
+                "the camera must stop exactly one skin width in front of the wall, got " +
+                    std::to_string(result.position.Z));
+
+        // Nothing in the way: the camera is left exactly where it was asked to be. A collision
+        // system that nudges an unobstructed camera is worse than none.
+        boxes[0].center = IronGang::Vector3(0.0F, 3.0F, -20.0F);
+        result = IronGang::ResolveCameraObstruction(target, desired, boxes, 0.35F, 0.6F);
+        Require(!result.obstructed, "a wall nowhere near the segment must not obstruct");
+        Require(std::abs(result.position.Z - 8.0F) < 1e-4F,
+                "an unobstructed camera must be left exactly where it was asked to be");
+        Require(std::abs(result.fraction - 1.0F) < 1e-4F, "an unobstructed camera is at fraction 1");
+
+        // Paint on the ground is not a wall -- the same rule HasLineOfSight() uses. Without this a
+        // lane marking would pull the camera in every time the player stood on a road.
+        boxes[0].center = IronGang::Vector3(0.0F, 3.0F, 4.5F);
+        boxes[0].collidable = false;
+        result = IronGang::ResolveCameraObstruction(target, desired, boxes, 0.35F, 0.6F);
+        Require(!result.obstructed, "a non-collidable box must be ignored");
+
+        // The nearest of several obstructions wins.
+        boxes[0].collidable = true;
+        boxes.push_back(IronGang::WorldBox{"closer", IronGang::Vector3(0.0F, 3.0F, 2.0F),
+                                           IronGang::Vector3(20.0F, 6.0F, 0.5F),
+                                           Microsoft::Xna::Framework::Color(255, 255, 255, 255), true});
+        result = IronGang::ResolveCameraObstruction(target, desired, boxes, 0.35F, 0.6F);
+        Require(result.position.Z < 2.0F,
+                "the nearest obstruction must win, got z=" + std::to_string(result.position.Z));
+
+        // The target itself inside geometry: the camera must not collapse onto the player's own
+        // head, or the view becomes the inside of their model.
+        std::vector<IronGang::WorldBox> enclosing;
+        enclosing.push_back(IronGang::WorldBox{"inside", IronGang::Vector3(0.0F, 1.5F, 4.0F),
+                                               IronGang::Vector3(40.0F, 10.0F, 40.0F),
+                                               Microsoft::Xna::Framework::Color(255, 255, 255, 255), true});
+        result = IronGang::ResolveCameraObstruction(target, desired, enclosing, 0.35F, 0.6F);
+        Require(std::abs((result.position - target).Length() - 0.6F) < 1e-3F,
+                "with the target inside geometry the camera must hold the minimum standoff rather "
+                "than collapse onto the player's own head, got " +
+                    std::to_string((result.position - target).Length()) + " m");
+
+        // And the case that made the minimum a distance rather than a fraction: a wall one metre
+        // behind a target on the end of a 7.5 m boom. A fractional minimum of 0.18 would put the
+        // camera 1.35 m back -- through the wall it was pulled in to avoid.
+        std::vector<IronGang::WorldBox> nearWall;
+        nearWall.push_back(IronGang::WorldBox{"near", IronGang::Vector3(0.0F, 3.0F, 1.5F),
+                                              IronGang::Vector3(20.0F, 6.0F, 1.0F),
+                                              Microsoft::Xna::Framework::Color(255, 255, 255, 255), true});
+        result = IronGang::ResolveCameraObstruction(target, IronGang::Vector3(0.0F, 1.5F, 7.5F),
+                                                    nearWall, 0.35F, 0.6F);
+        Require(result.position.Z < 1.0F,
+                "a wall one metre behind the target must not be overridden by the minimum standoff, "
+                "got z=" + std::to_string(result.position.Z));
+
+        // Degenerate: target and camera at the same point.
+        result = IronGang::ResolveCameraObstruction(target, target, boxes, 0.35F, 0.6F);
+        Require(!result.obstructed, "a zero-length segment has nothing to pull in along");
+    }
+
+    // The same thing against the district the game actually loads, rather than a hand-made wall.
+    void TestCameraObstructionAgainstRealDistrict()
+    {
+        const IronGang::PrototypeWorld world(IronGang::DistrictId::WarehouseBlock);
+        const std::vector<IronGang::WorldBox>& boxes = world.GetBoxes();
+
+        // The apartments block spans x in [9, 27], z in [12, 26]. Stand just outside its west face
+        // facing away from it, which is exactly the situation that put the camera inside a wall.
+        const IronGang::Vector3 target(8.0F, 1.25F, 19.0F);
+        const IronGang::Vector3 desired(15.5F, 4.65F, 19.0F); // 7.5 m "behind", deep inside the block
+
+        const IronGang::CameraObstruction result = IronGang::ResolveCameraObstruction(target, desired, boxes);
+        Require(result.obstructed,
+                "standing against the apartments with your back to them must obstruct the camera");
+        Require(result.position.X < 9.0F,
+                "the camera must end up outside the apartments' west face (x=9), got x=" +
+                    std::to_string(result.position.X));
+
+        // And out in the open street, nothing may move it: the road, sidewalks, lane markings and
+        // the warehouse target decal are all non-collidable, and pulling the camera in on any of
+        // them would break the camera everywhere the player normally walks.
+        const IronGang::Vector3 streetTarget(0.0F, 1.25F, 20.0F);
+        const IronGang::Vector3 streetCamera(0.0F, 4.65F, 27.5F);
+        const IronGang::CameraObstruction street =
+            IronGang::ResolveCameraObstruction(streetTarget, streetCamera, boxes);
+        Require(!street.obstructed,
+                "the spawn-point camera must be unobstructed, or the game starts with the camera "
+                "shoved into the player's back");
+    }
+
     void TestSubtitleWrapping()
     {
         using IronGang::WrapSubtitleText;
@@ -5698,6 +5809,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestCameraObstructionPullsIn();
+        TestCameraObstructionAgainstRealDistrict();
         TestSubtitleWrapping();
         TestSubtitleLayoutStaysOnScreen();
         TestShippedDialogueFitsTheSubtitle();

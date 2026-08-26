@@ -98,6 +98,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Keeping the camera out of the walls (plan_16)
+
+The follow camera sits a fixed 7.5 m behind the player, so standing with a building at your back put
+it inside the building. `ResolveCameraObstruction()` now tests the segment from the look-at target
+to the desired camera position against the district's collidable boxes and pulls the camera in to
+the first hit, minus a 0.35 m skin. `SegmentIntersectsBox()` gained an entry-fraction overload — the
+slab method already computed it and threw it away. Non-collidable boxes are ignored (a lane marking
+must not pull the camera in), and cutscenes are excluded because their keyframes are authored shots.
+
+**A design error the real-district test caught, not review.** The minimum standoff was a *fraction*
+of the boom (0.18). At 7.5 m that is 1.35 m — so standing a metre in front of a wall, the clamp
+pushed the camera back *through* the wall it had just been pulled in from. The test against the
+actual apartments block failed with `got x=9.350000` against a west face at x=9.0. It is now a
+distance (0.6 m), and when the wall is nearer than that the wall wins.
+
+**No screenshot demonstrates this.** Three scripted attempts to get the camera into a wall failed; a
+controlled A/B of the same scripted update with the resolver on and off was byte-identical, meaning
+that moment was never obstructed. The call site was proven live separately (a fixed 50 % pull-in
+changed the frame), so the wiring is real — but the behaviour is evidenced by unit tests, including
+one against real district geometry, not by a picture. The attempted repro script was deleted: a
+repro that does not reproduce is worse than none.
+
+Closed `IG-16-003`. Verified: CTest 15/15, two new tests, two mutation checks. Not done: no easing
+(the camera snaps), no occlusion fade, and a segment is not a swept sphere so a corner can still
+clip the near plane.
+
 ### A subtitle instead of a HUD line (plan_25)
 
 Dialogue was one unwrapped `DrawString` at the top-left corner, and the first screenshots caught it
@@ -521,7 +547,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 289/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 290/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

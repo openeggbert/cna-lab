@@ -5,6 +5,7 @@
 
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/RandomSource.hpp"
+#include "IronGang/Gameplay/CameraCollision.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Visibility.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
@@ -2404,6 +2405,16 @@ namespace IronGang
         {
             target = player_.GetPosition() + Vector3(0.0F, -0.45F, 0.0F);
             camera = target - player_.GetForward() * 7.5F + Vector3(0.0F, 3.4F, 0.0F);
+        }
+
+        // plan_16 IG-16-003: a fixed distance behind the player puts the camera inside whatever
+        // the player has their back to. Pull it in to the first collidable box between the two.
+        // Not applied during a cutscene: those keyframes are authored shots, and silently moving
+        // an authored camera is worse than the wall it would have gone through.
+        if (!cutscene_.IsActive())
+        {
+            camera = ResolveCameraObstruction(target, camera,
+                                              districtManager_.GetWorld().GetBoxes()).position;
         }
 
         const Matrix view = Matrix::CreateLookAt(camera, target, Vector3::Up);

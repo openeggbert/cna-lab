@@ -127,6 +127,7 @@ add_library(iron_gang_core STATIC
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
+    src/Gameplay/CameraCollision.cpp
     src/Gameplay/InputContext.cpp
     src/Input/InputBindings.cpp
     src/Input/InputScript.cpp

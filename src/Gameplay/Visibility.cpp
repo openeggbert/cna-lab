@@ -7,6 +7,14 @@ namespace IronGang
 {
     bool SegmentIntersectsBox(const Vector3& from, const Vector3& to, const WorldBox& box)
     {
+        float ignored = 0.0F;
+        return SegmentIntersectsBox(from, to, box, ignored);
+    }
+
+    bool SegmentIntersectsBox(const Vector3& from, const Vector3& to, const WorldBox& box,
+                              float& entryFraction)
+    {
+        entryFraction = 0.0F;
         const Vector3 direction = to - from;
         const Vector3 half = box.size * 0.5F;
         const Vector3 minimum = box.center - half;
@@ -45,6 +53,7 @@ namespace IronGang
                 return false;
             }
         }
+        entryFraction = std::clamp(entry, 0.0F, 1.0F);
         return true;
     }
 

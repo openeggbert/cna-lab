@@ -22,6 +22,16 @@ namespace IronGang
     // that starts or ends inside the box counts as intersecting it.
     [[nodiscard]] bool SegmentIntersectsBox(const Vector3& from, const Vector3& to, const WorldBox& box);
 
+    // The same test, additionally reporting **where** along the segment the box is first entered,
+    // as a fraction in [0,1] of the way from @p from to @p to. 0 means the segment already starts
+    // inside the box. Only meaningful when the function returns true. Camera collision needs the
+    // distance, not just the fact, so it can pull the camera in to exactly that point
+    // (plan_16 IG-16-003).
+    [[nodiscard]] bool SegmentIntersectsBox(const Vector3& from,
+                                            const Vector3& to,
+                                            const WorldBox& box,
+                                            float& entryFraction);
+
     // True when nothing collidable in @p boxes stands between the two points. Non-collidable
     // boxes -- road markings, trigger markers, the district-exit decal -- are ignored: they are
     // paint on the ground, and treating paint as an occluder would blind every witness standing

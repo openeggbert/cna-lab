@@ -1867,6 +1867,64 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Keeping the camera out of the walls (2026-08-26)
+
+plan_16 `IG-16-003` closed. Gates M12 and M14 untouched.
+
+**The gap.** The follow camera is placed a fixed 7.5 m behind the player (10.5 m behind the
+vehicle). Standing with a building at your back puts that fixed point inside the building, and the
+camera then renders from inside geometry.
+
+**What was added.** `ResolveCameraObstruction()`
+(`include/`/`src/Gameplay/CameraCollision.hpp/.cpp`) treats the line from the look-at target to the
+desired camera position as a segment, tests it against the district's collidable `WorldBox`es, and
+pulls the camera in to the first hit minus a 0.35 m skin -- a camera exactly on a surface still
+clips through it, because the near plane has depth. `SegmentIntersectsBox()` gained an overload that
+reports the entry fraction; the slab method already computed it and threw it away.
+
+Deliberately a segment test against the district's own boxes rather than a swept sphere through the
+physics world: the boxes are already there and already tested, and a sphere cast would make the
+camera a physics body to solve something a segment solves. Non-collidable boxes are ignored, the
+same rule `HasLineOfSight()` uses -- pulling the camera in to a lane marking would break the camera
+everywhere the player walks on a road. Cutscenes are excluded: their keyframes are authored shots,
+and silently moving an authored camera is worse than the wall it would have gone through.
+
+**A design error the real-district test caught, not review.** The minimum standoff was first written
+as a *fraction* of the boom (0.18). At 7.5 m that is 1.35 m, so standing a metre in front of a wall
+the clamp pushed the camera **back through the wall it had just been pulled in from** -- the test
+against the actual apartments block failed with `got x=9.350000` against a west face at x=9.0. It is
+now a distance (0.6 m), and when the obstruction is nearer than that the wall wins and the camera
+sits on its surface: there is no good answer at that range, and a camera inside the player's own
+model is the worse one.
+
+**Verified.** `TestCameraObstructionPullsIn` (a wall detected and the camera stopped exactly one
+skin width in front of it; an unobstructed camera left *exactly* where it was asked, since a
+collision system that nudges a clear camera is worse than none; a non-collidable box ignored; the
+nearest of several obstructions winning; the target itself inside geometry holding the minimum
+standoff rather than collapsing onto the player's head; a zero-length segment; and the
+wall-one-metre-behind case that forced the distance-based minimum).
+`TestCameraObstructionAgainstRealDistrict` runs the same code against `PrototypeWorld`'s actual
+warehouse block: standing against the apartments with your back to them must put the camera outside
+their west face, and the spawn-point camera must be unobstructed -- so a rule that pulled the camera
+in on the road would fail the suite. 15 CTest targets pass.
+
+**Mutation-checked.** Disabling the intersection test fails with `a wall between the target and the
+camera must be detected`; removing the non-collidable skip fails with `a non-collidable box must be
+ignored`.
+
+**Not verified, and this one is worth stating plainly.** *No screenshot demonstrates the fix.* Three
+scripted attempts to walk the player into a position where the camera enters a wall did not produce
+one: a controlled A/B of the same scripted update with the resolver on and off was **byte-identical**
+(`ImageChops.difference` returned no bounding box), which means that moment was never obstructed. The
+call site was proven live separately -- replacing the resolver with a fixed 50 % pull-in changed the
+frame -- so the wiring is real, but the *behaviour* is evidenced by the unit tests, including the one
+against real district geometry, and not by a picture. The attempted repro script was deleted rather
+than committed: a repro that does not reproduce is worse than none.
+
+Also not done: no easing, so the camera snaps to the resolved position rather than gliding; no
+occlusion fade for thin geometry; and a segment is not a swept sphere, so a corner can still clip
+the near plane.
+
 ## A subtitle instead of a HUD line (2026-08-26)
 
 plan_25 `IG-25-003` closed. Gates M12 and M14 untouched.
