@@ -1867,6 +1867,49 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Gate M1's dialogue, mission and save/load, measured (2026-08-26)
+
+plan_39 `IG-39-022` and `IG-39-023` closed. Gates M12 and M14 untouched.
+
+**Both were plausibly true already** -- the owner played the game this morning and the log showed
+the mission transitions. But a log line is not a measurement: it says the mission changed state, not
+that the conversation was read through first, and certainly not that loading put the player back
+where they saved.
+
+**`IG-39-022`, dialogue and mission.** `mission_completion.inputscript.json` plays the prologue end
+to end, and it completed on the first attempt -- unlike the vehicle gate, which took four scripts.
+Asserted from the trace:
+
+- All three lines shown, **in the order the conversation authors them**, not merely all present.
+- The dialogue **finished before** the mission left `introduction`. That is the prologue's own
+  `dialogue_finished` gate, and asserting it is the difference between "the mission advanced" and
+  "the mission advanced for the right reason".
+- The mission ran `introduction -> reach_vehicle -> enter_vehicle -> drive_to_warehouse` in order.
+- The campaign handed over to `countryside_run`. That handover *is* completion: the prologue never
+  appears as `completed` in a trace, because the next mission starts on the same update.
+
+**`IG-39-023`, save and load.** Drive, quick-save, drive on, quick-load:
+
+```
+u=760   z = -11.83   speed 11.2 km/h   warehouse_block   <- saved here
+u=1140  z =  34.97   speed  0.3 km/h   countryside       <- drove on, crossed a district boundary
+u=1150  z = -12.33   speed 10.8 km/h   warehouse_block   <- one update after the load
+```
+
+Loading restores the position, the district, the driving flag **and the vehicle's speed**. The
+middle row is asserted too: without a check that the run actually went somewhere first, a load that
+restored nothing would satisfy every other assertion in the test.
+
+**Verified.** 21 CTest targets, all passing; `./scripts/check-syntax.sh` clean. Mutation-checked:
+skipping `vehicle_.Restore(...)` on load fails 3 assertions, and disabling quick-save entirely fails
+5.
+
+**Not verified.** The trace records what the game *is*, not what the player *sees*, so nothing here
+says the subtitle was legible or the camera framed the handover. Save/load is checked on one
+quick-save; the autosave path, the rolling backup and the v1 migration all have their own unit tests
+but no gate run. And the prologue is the only mission with a gate script -- `countryside_run` is
+entered but never driven to its own completion.
+
 ## Gate M1's vehicle controls, and two defects the measurement found (2026-08-26)
 
 plan_39 `IG-39-021` closed. Gates M12 and M14 untouched.

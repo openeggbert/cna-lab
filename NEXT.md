@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Gate M1's dialogue, mission and save/load, measured (plan_39)
+
+Both gates were plausibly true — you played the game and the log showed the transitions. But a log
+line says the mission changed state, not that the conversation was read through first, nor that
+loading put the player back where they saved.
+
+**`IG-39-022`:** all three lines shown **in authored order**; the dialogue **finished before** the
+mission left `introduction` (the prologue's own `dialogue_finished` gate — the difference between
+"the mission advanced" and "advanced for the right reason"); the states ran in order; and the
+campaign handed over to `countryside_run`, which *is* completion — the prologue never appears as
+`completed` in a trace because the next mission starts on the same update. Completed on the first
+script, unlike the vehicle gate's four.
+
+**`IG-39-023`:**
+
+```
+u=760   z=-11.83  11.2 km/h  warehouse_block  <- saved
+u=1140  z= 34.97   0.3 km/h  countryside      <- drove on, crossed a district
+u=1150  z=-12.33  10.8 km/h  warehouse_block  <- one update after the load
+```
+
+Position, district, driving flag and **speed** all restored. The middle row is asserted too: without
+checking the run went somewhere first, a load that restored nothing would pass everything else.
+
+Closed `IG-39-022`, `IG-39-023`. CTest 21/21, two mutation checks. Not done: the trace records what
+the game *is*, not what the player *sees* — nothing says the subtitle was legible or the camera
+framed the handover; only one quick-save is exercised, not autosave or the rolling backup.
+
 ### Gate M1's vehicle controls, and two defects the measurement found (plan_39)
 
 Measured from a traced run: gets into the car (asserted **first**, or every other assertion would be

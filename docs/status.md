@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**314 of 2148 tasks done** (14%). Open by priority: P0 174 · P1 1007 · P2 596 · P3 57.
+**316 of 2148 tasks done** (14%). Open by priority: P0 172 · P1 1007 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -85,7 +85,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 36 | [Robustness, security, and untrusted content](../plan/plan_36-robustness-security-and-untrusted-content.md) | 3/37 | 8% |
 | 37 | [Platforms, packaging, release, and operations](../plan/plan_37-platforms-packaging-release-and-operations.md) | 8/76 | 10% |
 | 38 | [Documentation, contribution, and governance](../plan/plan_38-documentation-contribution-and-governance.md) | 1/22 | 4% |
-| 39 | [Vertical-slice gates](../plan/plan_39-vertical-slice-gates.md) | 38/76 | 50% |
+| 39 | [Vertical-slice gates](../plan/plan_39-vertical-slice-gates.md) | 40/76 | 52% |
 | 40 | [Post-slice expansion and optional research](../plan/plan_40-post-slice-expansion-and-optional-research.md) | 0/20 | 0% |
 
 Regenerate with `python3 scripts/status_report.py --write docs/status.md`; `--check` fails when it is stale.
