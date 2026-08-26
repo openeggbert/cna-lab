@@ -98,6 +98,42 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Cutscenes can speak, and a renamed line now fails the build (plan_26, plan_34)
+
+The dialogue ids added last iteration existed but nothing used them. Cutscenes now do:
+`CutsceneSequence` has an optional `dialogue` track of `{time, lineId}` cues, and
+`CutscenePlayer::GetActiveCueLineId()` names the line the timeline has reached. The binding is split
+so the player never learns about `DialogueSystem` -- it only names a line, `SelectLine(lineId)` moves
+the conversation, and `IronGangGame::ApplyCutsceneDialogueCue()` joins them once per cue.
+
+**The point of ids, finally enforced.** `LoadCutsceneSequence` takes the conversation's ids and
+**refuses** a cue naming anything else. Rename a line in one file and not the other and the load
+fails with the stale id in the message, instead of the cutscene playing in silence at that spot
+months later. `TestShippedCutsceneCuesResolveAgainstShippedDialogue` applies that to the shipped
+content, so the check runs in the suite, not only in principle. This closed `IG-34-015`, which had
+been untestable: until now no content referenced a dialogue line at all.
+
+Two inconsistencies surfaced and were fixed rather than worked around:
+
+- **Confirm during a cutscene advanced the conversation** underneath the track, which the next cue
+  would then pull back. It now skips the cutscene -- the precedence `InputContext` already declares
+  (Cutscene outranks Dialogue) and the old ordering inverted.
+- **`Initialize()` printed the opening line, and so did the cue at 0.0s.** A smoke run showed
+  "Mara: Iron City is quiet tonight" twice. `Initialize()` now prints only when the sequence has no
+  cue at time 0.
+
+Closed `IG-26-010` and `IG-34-015`; `IG-26-002` is two tracks of six. Verified: CTest 12/12, three
+new tests, and **both new mechanisms mutation-checked** -- stopping at the first cue, and deleting
+the stale-reference check, each fail a specific named assertion. A `--smoke 60` run prints the two
+cued lines exactly once each; `--smoke 900 --profile-scenario mission` still drives the mission arc
+to `completed` (its dialogue advance was gated on `!cutscene_.IsActive()` so the cutscene plays in
+full rather than being skipped at its first tick).
+
+The intro was re-timed 2.5s -> 5.0s to carry two lines. Its new middle keyframe sits exactly on the
+original straight line, so the camera path is unchanged and only its timing differs. Not verified:
+how any of it looks -- no display. Cues have no duration, so a line holds until the next cue or the
+end. Animation, audio, event, and fade tracks remain entirely open.
+
 ### Dialogue gets the stable ids a locked decision already required (plan_25)
 
 **A locked decision that was quietly untrue.** `plan.md`'s decision 10 and plan_25's header both say
@@ -310,7 +346,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 to 268/2148. `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 285/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
@@ -325,6 +361,9 @@ Task count went from 215/2148 to 268/2148. `docs/status.md` (generated) is the c
   performance report schema and its comparator contract.
 - **No rebinding screen and no gamepad input path** anywhere in the game (`IG-28-007`'s other half,
   `IG-28-003`'s).
+- **A cutscene still has only camera and dialogue tracks** (`IG-26-002`): no animation, audio, event,
+  or fade track, and a dialogue cue has no duration, so a line holds until the next cue or the end of
+  the sequence.
 - **Only two player settings**, so the settings menu is thin.
 - **No slope handling, step-up/ledge/falling states, crouch, or camera work** (`IG-16-006` onward).
 - **No wheel or visual damage**; a wreck is a number and a HUD line.

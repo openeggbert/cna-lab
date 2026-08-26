@@ -82,6 +82,9 @@ namespace IronGang
         [[nodiscard]] bool WasPressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
                                       GameAction action) const;
         void HandleInteraction();
+        // plan_26 IG-26-010: applies the cutscene's dialogue track to the conversation, at most
+        // once per cue.
+        void ApplyCutsceneDialogueCue();
         void SavePrototype();
         void LoadPrototype();
         // Writes the autosave file (a slot of its own, so an autosave never overwrites a save the
@@ -237,6 +240,9 @@ namespace IronGang
         std::string missionCheckpointWorldStateId_;
         float titleRefreshTimer_{0.0F};
         std::string transientStatus_;
+        // The cutscene dialogue cue already applied, so re-applying it every frame cannot undo a
+        // player's own Advance() after the cutscene has handed control back.
+        std::string appliedCutsceneCue_;
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
 

@@ -74,4 +74,22 @@ namespace IronGang
     {
         return InterpolateField(sequence_.cameraKeyframes, elapsed_, &CutsceneCameraKeyframe::lookAt);
     }
+
+    const std::string& CutscenePlayer::GetActiveCueLineId() const noexcept
+    {
+        static const std::string none;
+        // Cues are validated into ascending time order at load, so the last one that has come due
+        // is the one showing. A linear scan over a handful of cues costs nothing and needs no
+        // playback cursor that Skip() would then have to keep in sync.
+        const std::string* active = &none;
+        for (const CutsceneDialogueCue& cue : sequence_.dialogueCues)
+        {
+            if (cue.time > elapsed_)
+            {
+                break;
+            }
+            active = &cue.lineId;
+        }
+        return *active;
+    }
 }

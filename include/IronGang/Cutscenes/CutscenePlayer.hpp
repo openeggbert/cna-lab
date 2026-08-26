@@ -33,6 +33,13 @@ namespace IronGang
         [[nodiscard]] Vector3 GetCameraPosition() const;
         [[nodiscard]] Vector3 GetCameraLookAt() const;
 
+        // plan_26 IG-26-010: the dialogue line the track has reached -- the last cue at or before
+        // the current time -- or an empty string before the first cue. The player deliberately
+        // only *names* the line; resolving it to a speaker and text is the caller's job, which is
+        // what keeps CutscenePlayer independent of DialogueSystem. Skip() leaves this at the last
+        // cue, so a skipped cutscene ends on the same line a full play-through would (IG-26-004).
+        [[nodiscard]] const std::string& GetActiveCueLineId() const noexcept;
+
     private:
         CutsceneSequence sequence_;
         float elapsed_{0.0F};

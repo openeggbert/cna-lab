@@ -3955,6 +3955,137 @@ namespace
                 "Skip() must jump straight to the last keyframe's camera look-at");
     }
 
+    // plan_26 IG-26-010: the dialogue track picks the subtitle by stable id as the timeline
+    // passes each cue, and a skip lands on the same cue a full play-through would.
+    void TestCutsceneDialogueTrackSelectsLinesOverTime()
+    {
+        IronGang::CutsceneSequence sequence;
+        sequence.duration = 5.0F;
+        sequence.cameraKeyframes = {
+            {0.0F, IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(1.0F, 0.0F, 0.0F)},
+            {5.0F, IronGang::Vector3(9.0F, 0.0F, 0.0F), IronGang::Vector3(2.0F, 0.0F, 0.0F)},
+        };
+        sequence.dialogueCues = {{1.0F, "line.one"}, {3.0F, "line.two"}};
+
+        IronGang::CutscenePlayer player;
+        player.Start(sequence);
+        Require(player.GetActiveCueLineId().empty(),
+                "before the first cue the track must name no line at all, not the first one");
+
+        player.Update(1.0F); // exactly on the first cue
+        Require(player.GetActiveCueLineId() == "line.one",
+                "a cue must become active the instant its time is reached");
+        player.Update(1.5F); // 2.5s: past the first cue, before the second
+        Require(player.GetActiveCueLineId() == "line.one",
+                "a cue must stay active until the next one comes due");
+        player.Update(1.0F); // 3.5s
+        Require(player.GetActiveCueLineId() == "line.two", "the second cue must take over");
+        player.Update(5.0F); // runs past the end
+        Require(!player.IsActive() && player.GetActiveCueLineId() == "line.two",
+                "a finished sequence must hold its last cue, not clear it");
+
+        // The skip path: IG-26-004 requires the same terminal state a play-through produces, and
+        // that now includes the dialogue track, not just the camera.
+        IronGang::CutscenePlayer skipped;
+        skipped.Start(sequence);
+        skipped.Update(0.1F);
+        Require(skipped.GetActiveCueLineId().empty(), "sanity: the skip starts before any cue");
+        skipped.Skip();
+        Require(skipped.GetActiveCueLineId() == "line.two",
+                "a skipped cutscene must land on the last cue, not on whichever cue it had reached");
+    }
+
+    // plan_34 IG-34-015: the point of stable dialogue ids is that *other content* referencing a
+    // line is checked. A cue naming a line the conversation no longer has must fail the load.
+    void TestCutsceneRejectsStaleDialogueReference()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_cue_cutscene.json";
+        const std::vector<std::string> knownLineIds{"prologue.mara.quiet_tonight",
+                                                    "prologue.elias.take_the_sedan"};
+        std::string error;
+        IronGang::CutsceneSequence sequence;
+
+        const auto writeWithCues = [&path](const std::string& cues) {
+            WriteTempJson(path, R"JSON({
+            "id": "cue_test",
+            "version": 1,
+            "duration": 4.0,
+            "cameraKeyframes": [
+                { "time": 0.0, "position": [0, 1, 2], "lookAt": [3, 4, 5] },
+                { "time": 4.0, "position": [6, 7, 8], "lookAt": [9, 10, 11] }
+            ],
+            "dialogue": )JSON" + cues + "}");
+        };
+
+        writeWithCues(R"JSON([{"time":0.0,"lineId":"prologue.mara.quiet_tonight"},
+                              {"time":2.0,"lineId":"prologue.elias.take_the_sedan"}])JSON");
+        Require(IronGang::LoadCutsceneSequence(path.string(), knownLineIds, sequence, error),
+                "cues naming lines the conversation has must load: " + error);
+        Require(sequence.dialogueCues.size() == 2, "both cues must be parsed");
+        Require(sequence.dialogueCues[1].lineId == "prologue.elias.take_the_sedan" &&
+                    std::abs(sequence.dialogueCues[1].time - 2.0F) < 1e-4F,
+                "cue time and line id must round-trip");
+
+        // The whole point: the same file against a conversation that renamed one of those lines.
+        const std::vector<std::string> renamed{"prologue.mara.quiet_tonight", "prologue.elias.take_the_van"};
+        Require(!IronGang::LoadCutsceneSequence(path.string(), renamed, sequence, error),
+                "a cue naming a line the conversation no longer contains must be rejected");
+        Require(error.find("prologue.elias.take_the_sedan") != std::string::npos,
+                "the error must name the stale line, or it is not actionable: " + error);
+
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
+                "cues against an empty conversation must be rejected, not silently dropped");
+
+        writeWithCues(R"JSON([{"time":2.0,"lineId":"prologue.elias.take_the_sedan"},
+                              {"time":1.0,"lineId":"prologue.mara.quiet_tonight"}])JSON");
+        Require(!IronGang::LoadCutsceneSequence(path.string(), knownLineIds, sequence, error),
+                "cues out of ascending time order must be rejected");
+
+        writeWithCues(R"JSON([{"time":9.0,"lineId":"prologue.mara.quiet_tonight"}])JSON");
+        Require(!IronGang::LoadCutsceneSequence(path.string(), knownLineIds, sequence, error),
+                "a cue past the sequence's own duration must be rejected");
+
+        writeWithCues(R"JSON([{"lineId":"prologue.mara.quiet_tonight"}])JSON");
+        Require(!IronGang::LoadCutsceneSequence(path.string(), knownLineIds, sequence, error),
+                "a cue with no time must be rejected");
+
+        std::filesystem::remove(path);
+    }
+
+    // The shipped intro and the shipped conversation must agree -- this is the check that would
+    // have failed if a line were renamed in one file and not the other.
+    void TestShippedCutsceneCuesResolveAgainstShippedDialogue()
+    {
+        const std::string assetRoot(IRON_GANG_SOURCE_ASSET_DIR);
+        IronGang::DialogueSystem dialogue;
+        std::string error;
+        Require(dialogue.LoadFromFile(assetRoot + "/dialogues/prologue.dialogue.json", error),
+                "the shipped prologue conversation must load: " + error);
+
+        std::vector<std::string> lineIds;
+        for (std::size_t index = 0; index < dialogue.GetLineCount(); ++index)
+        {
+            lineIds.push_back(dialogue.GetLineId(index));
+        }
+
+        IronGang::CutsceneSequence sequence;
+        Require(IronGang::LoadCutsceneSequence(assetRoot + "/cutscenes/prologue_intro.cutscene.json",
+                                               lineIds, sequence, error),
+                "the shipped intro cutscene must validate against the shipped conversation: " + error);
+        Require(!sequence.dialogueCues.empty(), "the shipped intro must actually use its dialogue track");
+
+        // And the binding the game performs: every cue resolves to a line with real text.
+        for (const IronGang::CutsceneDialogueCue& cue : sequence.dialogueCues)
+        {
+            Require(dialogue.SelectLine(cue.lineId), "cue \"" + cue.lineId + "\" must select a line");
+            const IronGang::DialogueLine* line = dialogue.GetCurrentLine();
+            Require(line != nullptr && line->id == cue.lineId && !line->text.empty(),
+                    "selecting a cued line must make exactly that line current, with text");
+        }
+        Require(!dialogue.SelectLine("prologue.nobody.said_this"),
+                "selecting an id the conversation lacks must fail rather than land on line 0");
+    }
+
     void TestCutsceneValidationRejectsMalformedData()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bad_cutscene.json";
@@ -3962,34 +4093,34 @@ namespace
         IronGang::CutsceneSequence sequence;
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[]})JSON");
-        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "an empty cameraKeyframes array must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
             {"time":0.5,"position":[0,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "a first keyframe not at time 0 must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
             {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
             {"time":0.0,"position":[1,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "keyframes that are not strictly ascending in time must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":1.0,"cameraKeyframes":[
             {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
             {"time":2.0,"position":[1,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "a duration shorter than the last keyframe's time must be rejected");
 
         WriteTempJson(path, R"JSON({"cameraKeyframes":[{"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]}]})JSON");
-        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "a missing \"duration\" must be rejected");
 
-        Require(!IronGang::LoadCutsceneSequence((path.string() + ".does-not-exist"), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence((path.string() + ".does-not-exist"), {}, sequence, error),
                 "a missing file must be rejected, not crash");
 
         WriteTempJson(path, R"JSON({
@@ -4001,7 +4132,7 @@ namespace
                 { "time": 1.5, "position": [6, 7, 8], "lookAt": [9, 10, 11] }
             ]
         })JSON");
-        Require(IronGang::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(IronGang::LoadCutsceneSequence(path.string(), {}, sequence, error),
                 "a well-formed minimal cutscene must load successfully: " + error);
         Require(sequence.cameraKeyframes.size() == 2, "both keyframes must be parsed");
         Require(std::abs(sequence.cameraKeyframes[0].position.Y - 1.0F) < 1e-4F,
@@ -4916,6 +5047,9 @@ int main()
         TestMissionVariablesSurviveSaveLoad();
         TestCutscenePlayerAdvancesAndFinishes();
         TestCutscenePlayerSkipAppliesTerminalState();
+        TestCutsceneDialogueTrackSelectsLinesOverTime();
+        TestCutsceneRejectsStaleDialogueReference();
+        TestShippedCutsceneCuesResolveAgainstShippedDialogue();
         TestCutsceneValidationRejectsMalformedData();
         TestDialogueFallback();
         TestDialogueLinesCarryStableIds();

@@ -35,6 +35,11 @@ namespace IronGang
         void LoadFallbackPrologue();
         void Start();
         void Advance();
+        // Moves the conversation to @p lineId and makes it the current line, returning false (and
+        // changing nothing) for an id the conversation does not contain. This is how a cutscene's
+        // dialogue track drives the subtitle (plan_26 IG-26-010): the conversation is left exactly
+        // where the track put it, so the player carries on from that line rather than restarting.
+        [[nodiscard]] bool SelectLine(const std::string& lineId);
 
         [[nodiscard]] bool IsActive() const noexcept { return active_; }
         [[nodiscard]] bool IsFinished() const noexcept { return finished_; }
@@ -44,6 +49,9 @@ namespace IronGang
         // to name a line without depending on its position or its words. Null when there is no
         // such id, which is how a stale reference is caught rather than silently showing line 0.
         [[nodiscard]] const DialogueLine* FindLine(const std::string& lineId) const noexcept;
+        // The id of the line at @p index, or an empty string when there is none. Used to hand the
+        // whole set of ids to content that references them (see LoadCutsceneSequence).
+        [[nodiscard]] const std::string& GetLineId(std::size_t index) const noexcept;
         [[nodiscard]] const std::string& GetConversationId() const noexcept { return conversationId_; }
 
     private:

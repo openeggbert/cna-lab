@@ -1,7 +1,7 @@
 {
   "id": "prologue_intro",
   "version": 1,
-  "duration": 2.5,
+  "duration": 5.0,
   "cameraKeyframes": [
     {
       "time": 0.0,
@@ -9,9 +9,18 @@
       "lookAt": [0.0, 2.0, -34.0]
     },
     {
-      "time": 2.5,
+      "time": 2.4,
+      "position": [12.5, 8.325, -3.25],
+      "lookAt": [0.0, 1.625, -7.0]
+    },
+    {
+      "time": 5.0,
       "position": [0.0, 4.65, 27.5],
       "lookAt": [0.0, 1.25, 20.0]
     }
+  ],
+  "dialogue": [
+    { "time": 0.0, "lineId": "prologue.mara.quiet_tonight" },
+    { "time": 2.4, "lineId": "prologue.elias.take_the_sedan" }
   ]
 }

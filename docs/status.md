@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**283 of 2148 tasks done** (13%). Open by priority: P0 196 · P1 1014 · P2 598 · P3 57.
+**285 of 2148 tasks done** (13%). Open by priority: P0 196 · P1 1012 · P2 598 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 23 | [Combat, damage, and interaction](../plan/plan_23-combat-damage-and-interaction.md) | 0/44 | 0% |
 | 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 28/55 | 50% |
 | 25 | [Dialogue, localization, and narrative state](../plan/plan_25-dialogue-localization-and-narrative-state.md) | 1/50 | 2% |
-| 26 | [Cutscenes and cinematic sequencing](../plan/plan_26-cutscenes-and-cinematic-sequencing.md) | 7/35 | 20% |
+| 26 | [Cutscenes and cinematic sequencing](../plan/plan_26-cutscenes-and-cinematic-sequencing.md) | 8/35 | 22% |
 | 27 | [Audio, music, ambience, and radio](../plan/plan_27-audio-music-ambience-and-radio.md) | 0/57 | 0% |
 | 28 | [UI, HUD, menus, accessibility, and input rebinding](../plan/plan_28-ui-hud-menus-accessibility-and-input-rebinding.md) | 3/58 | 5% |
 | 29 | [Save games, checkpoints, profiles, and migration](../plan/plan_29-save-games-checkpoints-profiles-and-migration.md) | 16/41 | 39% |
@@ -80,7 +80,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 31 | [Environment content production](../plan/plan_31-environment-content-production.md) | 0/58 | 0% |
 | 32 | [Character and vehicle content production](../plan/plan_32-character-and-vehicle-content-production.md) | 0/98 | 0% |
 | 33 | [Story, campaign, and mission content](../plan/plan_33-story-campaign-and-mission-content.md) | 0/143 | 0% |
-| 34 | [Automated tests, CI, and regression control](../plan/plan_34-automated-tests-ci-and-regression-control.md) | 6/38 | 15% |
+| 34 | [Automated tests, CI, and regression control](../plan/plan_34-automated-tests-ci-and-regression-control.md) | 7/38 | 18% |
 | 35 | [Performance, memory, and scalability](../plan/plan_35-performance-memory-and-scalability.md) | 42/52 | 80% |
 | 36 | [Robustness, security, and untrusted content](../plan/plan_36-robustness-security-and-untrusted-content.md) | 3/37 | 8% |
 | 37 | [Platforms, packaging, release, and operations](../plan/plan_37-platforms-packaging-release-and-operations.md) | 8/76 | 10% |

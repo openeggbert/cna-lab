@@ -1,7 +1,10 @@
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
 
+#include "../Core/JsonDataFileInternal.hpp"
+
+#include <algorithm>
+
 #include "System/IO/File.hpp"
-#include "System/Text/Json/JsonDocument.hpp"
 
 namespace IronGang
 {
@@ -37,25 +40,22 @@ namespace IronGang
         }
     }
 
-    bool LoadCutsceneSequence(const std::string& path, CutsceneSequence& out, std::string& errorMessage)
+    bool LoadCutsceneSequence(const std::string& path,
+                              const std::vector<std::string>& knownLineIds,
+                              CutsceneSequence& out,
+                              std::string& errorMessage)
     {
-        if (!System::IO::File::Exists(path))
+        // The same bounded read every data file gets (plan_36 IG-36-002/009).
+        JsonDataFile file;
+        if (!LoadJsonDataFile(path, file, errorMessage))
         {
-            errorMessage = "Cutscene file not found: " + path;
             return false;
         }
 
         CutsceneSequence sequence;
         try
         {
-            const std::string text = System::IO::File::ReadAllText(path);
-            const std::shared_ptr<JsonDocument> document = JsonDocument::Parse(text);
-            const JsonElement root = document->getRootElementProperty();
-            if (root.getValueKindProperty() != JsonValueKind::Object)
-            {
-                errorMessage = "Cutscene file root must be a JSON object: " + path;
-                return false;
-            }
+            const JsonElement& root = file.root;
 
             sequence.id = GetOptionalString(root, "id");
             JsonElement versionElement;
@@ -97,6 +97,36 @@ namespace IronGang
                 }
                 sequence.cameraKeyframes.push_back(keyframe);
             }
+
+            // plan_26 IG-26-002: the dialogue track. Optional -- a camera-only cutscene stays
+            // exactly what it was.
+            JsonElement cuesElement;
+            if (root.TryGetProperty("dialogue", cuesElement))
+            {
+                if (cuesElement.getValueKindProperty() != JsonValueKind::Array)
+                {
+                    errorMessage = "Cutscene \"dialogue\" must be an array: " + path;
+                    return false;
+                }
+                for (const JsonElement& cueElement : cuesElement.EnumerateArray())
+                {
+                    CutsceneDialogueCue cue;
+                    JsonElement timeElement;
+                    JsonElement lineElement;
+                    if (!cueElement.TryGetProperty("time", timeElement) ||
+                        timeElement.getValueKindProperty() != JsonValueKind::Number ||
+                        !cueElement.TryGetProperty("lineId", lineElement) ||
+                        lineElement.getValueKindProperty() != JsonValueKind::String)
+                    {
+                        errorMessage = "Every cutscene dialogue cue needs a numeric \"time\" and a "
+                                       "\"lineId\": " + path;
+                        return false;
+                    }
+                    cue.time = static_cast<float>(timeElement.GetDouble());
+                    cue.lineId = lineElement.GetString();
+                    sequence.dialogueCues.push_back(std::move(cue));
+                }
+            }
         }
         catch (const std::exception& exception)
         {
@@ -128,6 +158,35 @@ namespace IronGang
         {
             errorMessage = "Cutscene file's duration is shorter than its last camera keyframe's time: " + path;
             return false;
+        }
+
+        // The dialogue track's own rules: in order, inside the sequence, and every line must
+        // still exist. The last is the point of the whole id scheme -- a renamed or deleted line
+        // is caught here, at load, rather than as silence at the moment the cutscene plays.
+        float previousCueTime = -1.0F;
+        for (const CutsceneDialogueCue& cue : sequence.dialogueCues)
+        {
+            if (!(cue.time >= 0.0F) || cue.time > sequence.duration)
+            {
+                errorMessage = "Cutscene dialogue cue \"" + cue.lineId + "\" is at " +
+                               std::to_string(cue.time) + "s, outside the sequence's " +
+                               std::to_string(sequence.duration) + "s: " + path;
+                return false;
+            }
+            if (cue.time <= previousCueTime)
+            {
+                errorMessage = "Cutscene dialogue cues must be in ascending time order (\"" +
+                               cue.lineId + "\"): " + path;
+                return false;
+            }
+            previousCueTime = cue.time;
+
+            if (std::find(knownLineIds.begin(), knownLineIds.end(), cue.lineId) == knownLineIds.end())
+            {
+                errorMessage = "Cutscene cues dialogue line \"" + cue.lineId +
+                               "\", which the conversation does not contain: " + path;
+                return false;
+            }
         }
 
         out = std::move(sequence);

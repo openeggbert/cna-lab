@@ -483,10 +483,8 @@ namespace IronGang
             dialogue_.LoadFallbackPrologue();
         }
         dialogue_.Start();
-        if (const DialogueLine* line = dialogue_.GetCurrentLine())
-        {
-            std::cout << line->speaker << ": " << line->text << '\n';
-        }
+        // The opening line is deliberately NOT printed here any more: the intro cutscene's
+        // dialogue track cues it (see below), and printing it in both places showed it twice.
 
         // Gate M8 (plan_26-cutscenes-and-cinematic-sequencing.md IG-26-001/003): a short,
         // skippable camera-only sequence panning from an establishing shot of the warehouse
@@ -496,7 +494,16 @@ namespace IronGang
         // sequence (same convention as dialogue/mission) if the file fails to load.
         CutsceneSequence introSequence;
         std::string cutsceneError;
-        if (!LoadCutsceneSequence(assetRoot_ + "/cutscenes/prologue_intro.cutscene.json", introSequence,
+        // plan_26 IG-26-002: the cutscene may cue dialogue by id, so it is validated against the
+        // conversation that is actually loaded -- a renamed line fails here rather than playing
+        // as silence.
+        std::vector<std::string> dialogueLineIds;
+        for (std::size_t index = 0; index < dialogue_.GetLineCount(); ++index)
+        {
+            dialogueLineIds.push_back(dialogue_.GetLineId(index));
+        }
+        if (!LoadCutsceneSequence(assetRoot_ + "/cutscenes/prologue_intro.cutscene.json",
+                                  dialogueLineIds, introSequence,
                                   cutsceneError))
         {
             Log::Warning(LogCategory::Cutscene, cutsceneError + " -- using built-in fallback cutscene.");
@@ -507,9 +514,21 @@ namespace IronGang
                 {
                     {0.0F, Vector3(25.0F, 12.0F, -34.0F), Vector3(0.0F, 2.0F, -34.0F)},
                     {2.5F, Vector3(0.0F, 4.65F, 27.5F), Vector3(0.0F, 1.25F, 20.0F)},
-                }};
+                },
+                {{0.0F, dialogue_.GetLineId(0)}}};
         }
         cutscene_.Start(std::move(introSequence));
+        // Applies the cue at time 0 immediately, so the conversation opens on the line the track
+        // names rather than a frame later. A sequence whose track starts later leaves the
+        // conversation on its own first line, which is what Start() already selected.
+        ApplyCutsceneDialogueCue();
+        if (cutscene_.GetActiveCueLineId().empty())
+        {
+            if (const DialogueLine* line = dialogue_.GetCurrentLine())
+            {
+                std::cout << line->speaker << ": " << line->text << '\n';
+            }
+        }
 
         // Load the warehouse and sedan as generated CNJ models (MC3 -> glTF -> CNJ) if they have
         // been built via scripts/build-assets.sh; otherwise fall back to procedural geometry, so
@@ -741,6 +760,29 @@ namespace IronGang
     bool IronGangGame::WasPressed(const KeyboardState& current, Keys key) const
     {
         return current.IsKeyDown(key) && previousKeyboard_.IsKeyUp(key);
+    }
+
+    void IronGangGame::ApplyCutsceneDialogueCue()
+    {
+        const std::string& cueLineId = cutscene_.GetActiveCueLineId();
+        if (cueLineId.empty() || cueLineId == appliedCutsceneCue_)
+        {
+            return;
+        }
+        appliedCutsceneCue_ = cueLineId;
+        if (!dialogue_.SelectLine(cueLineId))
+        {
+            // LoadCutsceneSequence already refuses a cue naming an unknown line, so this can only
+            // be reached by the built-in fallback cutscene meeting a different conversation.
+            Log::Warning(LogCategory::Cutscene,
+                         "cutscene cued dialogue line \"" + cueLineId + "\", which the loaded "
+                         "conversation does not contain -- subtitle skipped.");
+            return;
+        }
+        if (const DialogueLine* line = dialogue_.GetCurrentLine())
+        {
+            std::cout << line->speaker << ": " << line->text << '\n';
+        }
     }
 
     void IronGangGame::HandleInteraction()
@@ -1457,6 +1499,7 @@ namespace IronGang
         const bool missionAdvancesDialogue =
             performanceScenario_ == PerformanceScenario::Mission &&
             dialogue_.IsActive() &&
+            !cutscene_.IsActive() &&
             performanceScenarioUpdate_ > 0 &&
             performanceScenarioUpdate_ % 60 == 0;
 
@@ -1469,7 +1512,15 @@ namespace IronGang
             cutscene_.Update(simulationSeconds);
         }
 
-        if (missionAdvancesDialogue || WasPressed(keyboard, GameAction::Confirm))
+        if (cutscene_.IsActive() && WasPressed(keyboard, GameAction::Confirm))
+        {
+            // plan_26 IG-26-010: while a cutscene plays, its own dialogue track owns the subtitle,
+            // so Confirm ends the cutscene instead of advancing the conversation underneath the
+            // track and being pulled back by the next cue. This is the precedence InputContext
+            // already declares (Cutscene outranks Dialogue); the previous ordering inverted it.
+            cutscene_.Skip();
+        }
+        else if (missionAdvancesDialogue || WasPressed(keyboard, GameAction::Confirm))
         {
             if (dialogue_.IsActive())
             {
@@ -1479,11 +1530,12 @@ namespace IronGang
                     std::cout << line->speaker << ": " << line->text << '\n';
                 }
             }
-            else if (cutscene_.IsActive())
-            {
-                cutscene_.Skip();
-            }
         }
+
+        // Runs after the skip above so a skipped cutscene still applies its final cue -- the
+        // conversation is left on the line a full play-through would have reached, which is the
+        // terminal state IG-26-004 requires a skip to produce.
+        ApplyCutsceneDialogueCue();
 
         const bool missionEntersVehicle =
             performanceScenario_ == PerformanceScenario::Mission &&

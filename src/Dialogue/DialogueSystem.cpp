@@ -126,6 +126,27 @@ namespace IronGang
         return true;
     }
 
+    bool DialogueSystem::SelectLine(const std::string& lineId)
+    {
+        for (std::size_t index = 0; index < lines_.size(); ++index)
+        {
+            if (lines_[index].id == lineId)
+            {
+                index_ = index;
+                active_ = true;
+                finished_ = false;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const std::string& DialogueSystem::GetLineId(std::size_t index) const noexcept
+    {
+        static const std::string empty;
+        return index < lines_.size() ? lines_[index].id : empty;
+    }
+
     const DialogueLine* DialogueSystem::FindLine(const std::string& lineId) const noexcept
     {
         for (const DialogueLine& line : lines_)

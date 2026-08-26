@@ -1867,6 +1867,77 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Cutscene dialogue track and cross-content stale-reference checking (2026-08-26)
+
+plan_26 `IG-26-010` and plan_34 `IG-34-015` closed; plan_26 `IG-26-002` advanced (two of its six
+tracks now exist). Gates M12 and M14 untouched.
+
+**What was added.** A cutscene can now say something. `CutsceneSequence` gained an optional
+`dialogue` track -- an array of `{time, lineId}` cues -- and `CutscenePlayer::GetActiveCueLineId()`
+returns the last cue at or before the current time (empty before the first cue). Cues name lines by
+the **stable dialogue id** plan_25 introduced, never by text, so editing a line's wording cannot
+silently change what the cutscene says.
+
+The binding is deliberately split three ways rather than making the player know about dialogue:
+`CutscenePlayer` only names a line, `DialogueSystem::SelectLine(lineId)` moves the conversation to
+a line by id (returning false, and changing nothing, for an id it does not have), and
+`IronGangGame::ApplyCutsceneDialogueCue()` joins them, applying each cue at most once so a player's
+own `Advance()` after the cutscene hands back control is never undone.
+
+Two behaviours fell out of this and were fixed rather than left inconsistent:
+
+- **Confirm during a cutscene now skips the cutscene** instead of advancing the conversation
+  underneath the track and being pulled back by the next cue. This is the precedence `InputContext`
+  already declares (Cutscene outranks Dialogue); the previous ordering quietly inverted it.
+- **`Skip()` is terminal for the dialogue track too.** `GetActiveCueLineId()` is computed from
+  elapsed time, so a skip lands on the last cue -- the line a full play-through would have reached.
+  `IG-26-004`'s "skip applies the required terminal state" now covers dialogue, not just camera.
+
+**The stale-reference half.** `LoadCutsceneSequence` takes the conversation's line ids and **fails
+the load** for a cue naming anything else, with the offending id in the error. That is the point of
+stable ids: the alternative is a cutscene that plays in silence at the spot where a line used to be,
+months after someone renamed it. This is what finally made `IG-34-015` testable -- until a cutscene
+referenced dialogue, no content referenced a line at all, so there was no stale reference to catch.
+
+**Content.** `assets/cutscenes/prologue_intro.cutscene.json` was re-timed from 2.5s to 5.0s and
+carries two cues (`prologue.mara.quiet_tonight` at 0.0s, `prologue.elias.take_the_sedan` at 2.4s);
+the player advances into the third line themselves. A third camera keyframe at 2.4s was inserted at
+exactly the midpoint of the original two -- `(12.5, 8.325, -3.25)` looking at `(0, 1.625, -7)` -- so
+the camera path through space is unchanged and only its timing differs, with a beat where the second
+line starts. The registry hash for the file was refreshed.
+
+`IronGangGame::Initialize()` no longer prints the opening dialogue line itself. It did, and the cue
+at 0.0s printed it again: a smoke run showed "Mara: Iron City is quiet tonight" twice in a row. The
+print now happens only if the started sequence has no cue at time 0 (i.e. the built-in fallback
+cutscene meeting a conversation whose ids it cannot name).
+
+**Verified.** Three new tests in `tests/CoreTests.cpp`, all passing:
+`TestCutsceneDialogueTrackSelectsLinesOverTime` (no cue before the first, a cue active exactly on
+its time, holding until the next comes due, a finished sequence keeping its last cue, and a skip
+from before any cue landing on the last one), `TestCutsceneRejectsStaleDialogueReference` (the same
+cue file loaded against a conversation that has the lines and against one that renamed a line --
+second must fail with the stale id in the message -- plus empty-conversation, out-of-order,
+past-duration, and missing-time cases), and
+`TestShippedCutsceneCuesResolveAgainstShippedDialogue` (the shipped intro against the shipped
+conversation, then every cue actually resolving through `SelectLine` to a line with text).
+
+Both new mechanisms were **mutation-checked**, not just asserted: making `GetActiveCueLineId()`
+stop at the first cue fails with "the second cue must take over", and deleting the stale-reference
+check fails with "a cue naming a line the conversation no longer contains must be rejected". Full
+`compile-software` build clean, all 12 `ctest` targets pass, `./scripts/check-syntax.sh` clean. A
+headless `--smoke 60` run prints the two cued lines exactly once each, in order, with no fallback
+warning. A headless `--smoke 900 --profile-scenario mission` run still drives the whole mission arc
+`introduction -> reach_vehicle -> enter_vehicle -> drive_to_warehouse -> completed` and exits 0 --
+the scenario's one-line-per-second dialogue advance was gated on `!cutscene_.IsActive()` so the
+cutscene still plays in full rather than being skipped at its first tick.
+
+**Not verified.** How the re-timed 5s pan and the subtitle timing actually look: this environment
+has no display, so the cue times are authored numbers, not something anyone has watched. The
+Confirm-skips-the-cutscene path is covered only by the unit tests' `Skip()` calls -- smoke mode
+presses no keys. Only the dialogue track was added; animation, audio, event, and fade tracks
+(`IG-26-002`) remain entirely open, and cues carry no duration, so a line stays on screen until the
+next cue or the end of the sequence.
+
 ## M14 Linux release-archive slice (2026-08-25)
 
 A prior session implemented and did a first verification pass of a Linux EasyGL release
