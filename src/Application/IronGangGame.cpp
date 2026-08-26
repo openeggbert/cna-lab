@@ -1281,10 +1281,9 @@ namespace IronGang
                 // does not have, and five steps are enough to be useful.
                 const int step = static_cast<int>(std::lround(settings_.masterVolume * 4.0F));
                 settings_.masterVolume = static_cast<float>((step + 1) % 5) * 0.25F;
-                if (engineSoundInstance_)
-                {
-                    engineSoundInstance_->setVolumeProperty(EffectiveVolume(AudioBus::Vehicle, 0.4F));
-                }
+                // The engine loop is not re-levelled here any more: Update() re-applies bus, duck
+                // and spatialisation to it every frame from the Master bus this slider feeds, so
+                // doing it here as well was a second, less-informed answer to the same question.
                 PersistSettings();
                 break;
             }
@@ -1468,6 +1467,50 @@ namespace IronGang
         return audioBuses_.GetEffectiveVolume(bus, requestedVolume);
     }
 
+    float IronGangGame::SpatialVolume(AudioBus bus,
+                                      float requestedVolume,
+                                      const Vector3& emitter,
+                                      SpatialPreset preset,
+                                      float& pan) const
+    {
+        const SpatialGain gain = ComputeSpatialGain(audioListener_, emitter, preset);
+        pan = gain.pan;
+        return audioBuses_.GetEffectiveVolume(bus, requestedVolume * gain.attenuation);
+    }
+
+    IronGangGame::CameraPose IronGangGame::ComputeCameraPose() const
+    {
+        CameraPose pose;
+        if (cutscene_.IsActive())
+        {
+            // Gate M8: the intro cutscene's own camera keyframes override the normal
+            // player/vehicle follow camera entirely while it plays. Its final keyframe is
+            // authored to exactly match the on-foot branch below at the player's spawn position,
+            // so the cut back to gameplay has no visible pop.
+            pose.camera = cutscene_.GetCameraPosition();
+            pose.target = cutscene_.GetCameraLookAt();
+            return pose;
+        }
+        if (playerDriving_)
+        {
+            pose.target = vehicle_.GetPosition() + Vector3(0.0F, 1.0F, 0.0F);
+            pose.camera = pose.target - vehicle_.GetForward() * 10.5F + Vector3(0.0F, 4.8F, 0.0F);
+        }
+        else
+        {
+            pose.target = player_.GetPosition() + Vector3(0.0F, -0.45F, 0.0F);
+            pose.camera = pose.target - player_.GetForward() * 7.5F + Vector3(0.0F, 3.4F, 0.0F);
+        }
+
+        // plan_16 IG-16-003: a fixed distance behind the player puts the camera inside whatever
+        // the player has their back to. Pull it in to the first collidable box between the two.
+        // Not applied during a cutscene: those keyframes are authored shots, and silently moving
+        // an authored camera is worse than the wall it would have gone through.
+        pose.camera = ResolveCameraObstruction(pose.target, pose.camera,
+                                               districtManager_.GetWorld().GetBoxes()).position;
+        return pose;
+    }
+
     void IronGangGame::Update(GameTime& gameTime)
     {
         ScopedPerformanceSample updateSample(performanceProfiler_, PerformanceMetric::UpdateCpu);
@@ -1517,12 +1560,32 @@ namespace IronGang
         audioBuses_.SetVolume(AudioBus::Master, settings_.masterVolume);
         audioBuses_.SetDialogueActive(dialogue_.GetCurrentLine() != nullptr);
         audioBuses_.Update(deltaSeconds);
+        // plan_27 IG-27-003: the listener is the active camera, so it follows whatever the player
+        // is actually watching -- on foot, driving, or a cutscene -- without any of those branches
+        // having to know audio exists.
+        {
+            const CameraPose listenerPose = ComputeCameraPose();
+            Vector3 facing = listenerPose.target - listenerPose.camera;
+            const float facingLength = facing.Length();
+            audioListener_.position = listenerPose.camera;
+            if (facingLength > 1e-4F)
+            {
+                audioListener_.forward = facing / facingLength;
+            }
+        }
         if (engineSoundInstance_)
         {
             // Outside the "world is advancing" gate on purpose: the engine loop's level is only
             // recomputed while driving, so without this the duck would never reach it during the
-            // one situation it exists for -- someone talking.
-            engineSoundInstance_->setVolumeProperty(EffectiveVolume(AudioBus::Vehicle, engineRequestedVolume_));
+            // one situation it exists for -- someone talking. Spatialised from the vehicle like
+            // any other point source: while driving that is all but on top of the listener, but it
+            // stops being so the moment a running car is left behind.
+            float enginePan = 0.0F;
+            const float engineVolume = SpatialVolume(AudioBus::Vehicle, engineRequestedVolume_,
+                                                     vehicle_.GetPosition(), SpatialPreset::Vehicle,
+                                                     enginePan);
+            engineSoundInstance_->setVolumeProperty(engineVolume);
+            engineSoundInstance_->setPanProperty(enginePan);
         }
         // Everything below this line that moves the world uses simulationSeconds; the HUD, the
         // window title, and input keep running on the real frame delta, which is why a paused game
@@ -1674,7 +1737,11 @@ namespace IronGang
             measureAudio([&]()
             {
                 ++audioWorkload.oneShotPlayRequests;
-                if (hornSound_->Play(EffectiveVolume(AudioBus::Vehicle, 1.0F), 0.0F, 0.0F))
+                float hornPan = 0.0F;
+                const float hornVolume =
+                    SpatialVolume(AudioBus::Vehicle, 1.0F, vehicle_.GetPosition(),
+                                  SpatialPreset::Vehicle, hornPan);
+                if (hornSound_->Play(hornVolume, 0.0F, hornPan))
                 {
                     ++audioWorkload.oneShotPlaySuccesses;
                 }
@@ -1767,7 +1834,11 @@ namespace IronGang
                             {
                                 footstepTimer_ -= kFootstepIntervalSeconds;
                                 ++audioWorkload.oneShotPlayRequests;
-                                if (footstepSound_->Play(EffectiveVolume(AudioBus::Effects, 1.0F), 0.0F, 0.0F))
+                                float stepPan = 0.0F;
+                                const float stepVolume =
+                                    SpatialVolume(AudioBus::Effects, 1.0F, player_.GetPosition(),
+                                                  SpatialPreset::Effect, stepPan);
+                                if (footstepSound_->Play(stepVolume, 0.0F, stepPan))
                                 {
                                     ++audioWorkload.oneShotPlaySuccesses;
                                 }
@@ -1802,9 +1873,10 @@ namespace IronGang
                             engineSoundInstance_->Play();
                         }
                         const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
+                        // Only the *requested* level is set here; the bus, the duck and the
+                        // spatialisation are applied once per update above, so there is exactly
+                        // one place that decides what the engine actually plays at.
                         engineRequestedVolume_ = 0.4F + 0.4F * speedFactor;
-                        engineSoundInstance_->setVolumeProperty(
-                            EffectiveVolume(AudioBus::Vehicle, engineRequestedVolume_));
                         engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
                         audioWorkload.loopParameterUpdates += 2U;
                     }
@@ -2469,37 +2541,9 @@ namespace IronGang
               static_cast<float>(viewport.getHeightProperty())
             : 1.0F;
 
-        Vector3 target;
-        Vector3 camera;
-        if (cutscene_.IsActive())
-        {
-            // Gate M8: the intro cutscene's own camera keyframes override the normal
-            // player/vehicle follow camera entirely while it plays. Its final keyframe is
-            // authored to exactly match the "else" branch below at the player's spawn position,
-            // so the cut back to gameplay has no visible pop.
-            camera = cutscene_.GetCameraPosition();
-            target = cutscene_.GetCameraLookAt();
-        }
-        else if (playerDriving_)
-        {
-            target = vehicle_.GetPosition() + Vector3(0.0F, 1.0F, 0.0F);
-            camera = target - vehicle_.GetForward() * 10.5F + Vector3(0.0F, 4.8F, 0.0F);
-        }
-        else
-        {
-            target = player_.GetPosition() + Vector3(0.0F, -0.45F, 0.0F);
-            camera = target - player_.GetForward() * 7.5F + Vector3(0.0F, 3.4F, 0.0F);
-        }
-
-        // plan_16 IG-16-003: a fixed distance behind the player puts the camera inside whatever
-        // the player has their back to. Pull it in to the first collidable box between the two.
-        // Not applied during a cutscene: those keyframes are authored shots, and silently moving
-        // an authored camera is worse than the wall it would have gone through.
-        if (!cutscene_.IsActive())
-        {
-            camera = ResolveCameraObstruction(target, camera,
-                                              districtManager_.GetWorld().GetBoxes()).position;
-        }
+        const CameraPose pose = ComputeCameraPose();
+        const Vector3& target = pose.target;
+        const Vector3& camera = pose.camera;
 
         const Matrix view = Matrix::CreateLookAt(camera, target, Vector3::Up);
         const Matrix projection = Matrix::CreatePerspectiveFieldOfView(

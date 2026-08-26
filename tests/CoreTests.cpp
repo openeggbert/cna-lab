@@ -1,6 +1,7 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
 #include "IronGang/Audio/AudioBuses.hpp"
+#include "IronGang/Audio/AudioListener.hpp"
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/JsonDataFile.hpp"
 #include "IronGang/Core/Log.hpp"
@@ -4523,6 +4524,103 @@ namespace
     // plan_16 IG-16-004: which affordance is offered, and the hysteresis that stops two nearby
     // ones trading the prompt every frame.
     // plan_27 IG-27-001/026/027: the bus graph every sound plays through.
+    // plan_27 IG-27-003/007: distance and direction, from a listener that is the active camera.
+    void TestSpatialAudioAttenuationAndPan()
+    {
+        // Facing -Z, which is the game's own yaw-0 convention; right is therefore +X.
+        IronGang::AudioListener listener;
+        listener.position = IronGang::Vector3(0.0F, 0.0F, 0.0F);
+        listener.forward = IronGang::Vector3(0.0F, 0.0F, -1.0F);
+
+        const IronGang::SpatialFalloff falloff{10.0F, 50.0F};
+
+        // Inside the reference distance nothing is attenuated: a source is not quieter for being
+        // two metres away instead of one.
+        IronGang::SpatialGain gain =
+            IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, -2.0F), falloff);
+        Require(std::abs(gain.attenuation - 1.0F) < 1e-5F, "inside the reference distance is full volume");
+        Require(std::abs(gain.pan) < 1e-5F, "a source straight ahead must be centred");
+
+        // At and beyond the maximum it is silent.
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, -50.0F), falloff);
+        Require(gain.attenuation == 0.0F, "at the maximum distance a source must be silent");
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, -500.0F), falloff);
+        Require(gain.attenuation == 0.0F, "beyond the maximum distance a source must stay silent");
+
+        // Halfway between reference and maximum is half volume, and it decreases monotonically.
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, -30.0F), falloff);
+        Require(std::abs(gain.attenuation - 0.5F) < 1e-5F,
+                "the rolloff must be linear between reference and maximum, got " +
+                    std::to_string(gain.attenuation));
+        float previous = 1.0F;
+        for (int metres = 10; metres <= 50; metres += 5)
+        {
+            const float value = IronGang::ComputeSpatialGain(
+                                    listener, IronGang::Vector3(0.0F, 0.0F, -static_cast<float>(metres)),
+                                    falloff)
+                                    .attenuation;
+            Require(value <= previous + 1e-5F, "attenuation must never rise with distance");
+            previous = value;
+        }
+
+        // Pan: right of the listener is positive, left negative, behind is centred.
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(20.0F, 0.0F, 0.0F), falloff);
+        Require(gain.pan > 0.9F, "a source to the listener's right must pan right, got " +
+                                     std::to_string(gain.pan));
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(-20.0F, 0.0F, 0.0F), falloff);
+        Require(gain.pan < -0.9F, "a source to the listener's left must pan left, got " +
+                                      std::to_string(gain.pan));
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, 20.0F), falloff);
+        Require(std::abs(gain.pan) < 1e-5F, "a source directly behind has no left or right");
+
+        // Turning the listener turns the stereo field with it.
+        listener.forward = IronGang::Vector3(1.0F, 0.0F, 0.0F); // now facing +X
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, 20.0F), falloff);
+        Require(gain.pan > 0.9F,
+                "the same world position must pan right once the listener faces +X, got " +
+                    std::to_string(gain.pan));
+
+        // Height must not leak into pan: a source directly overhead has no left or right, and
+        // treating the vertical component as lateral makes sounds swing as the camera pitches.
+        listener.forward = IronGang::Vector3(0.0F, 0.0F, -1.0F);
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 20.0F, 0.0F), falloff);
+        Require(std::abs(gain.pan) < 1e-5F, "a source overhead must be centred");
+        Require(gain.attenuation < 1.0F,
+                "height must still count toward distance even though it does not pan");
+
+        // Degenerate: emitter exactly on the listener.
+        gain = IronGang::ComputeSpatialGain(listener, listener.position, falloff);
+        Require(std::abs(gain.attenuation - 1.0F) < 1e-5F && std::abs(gain.pan) < 1e-5F,
+                "a source on top of the listener is full volume and centred, not a division by zero");
+
+        // Presets: each is a real, ordered choice rather than the same numbers four times.
+        const IronGang::SpatialFalloff voice = IronGang::SpatialFalloffFor(IronGang::SpatialPreset::Voice);
+        const IronGang::SpatialFalloff car = IronGang::SpatialFalloffFor(IronGang::SpatialPreset::Vehicle);
+        const IronGang::SpatialFalloff ambience =
+            IronGang::SpatialFalloffFor(IronGang::SpatialPreset::Ambience);
+        Require(voice.maximumMetres < car.maximumMetres,
+                "a voice must not carry as far as a car");
+        Require(car.maximumMetres < ambience.maximumMetres,
+                "ambience is a place, not a point, and must outreach a car");
+        Require(car.referenceMetres >= 10.0F,
+                "the vehicle preset's reference distance must cover the camera boom, or the "
+                "player's own engine attenuates behind them");
+        for (const IronGang::SpatialPreset preset :
+             {IronGang::SpatialPreset::Voice, IronGang::SpatialPreset::Vehicle,
+              IronGang::SpatialPreset::Effect, IronGang::SpatialPreset::Ambience})
+        {
+            const IronGang::SpatialFalloff value = IronGang::SpatialFalloffFor(preset);
+            Require(value.referenceMetres > 0.0F && value.maximumMetres > value.referenceMetres,
+                    "every preset must have a positive reference inside its maximum");
+        }
+
+        // An inverted falloff must not produce a negative or growing gain.
+        gain = IronGang::ComputeSpatialGain(listener, IronGang::Vector3(0.0F, 0.0F, -20.0F),
+                                            IronGang::SpatialFalloff{40.0F, 10.0F});
+        Require(gain.attenuation >= 0.0F && gain.attenuation <= 1.0F,
+                "a maximum below the reference must still yield a gain in [0,1]");
+    }
+
     void TestAudioBusGraphMixing()
     {
         IronGang::AudioBusGraph buses;
@@ -6028,6 +6126,7 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestSpatialAudioAttenuationAndPan();
         TestAudioBusGraphMixing();
         TestDialogueDucking();
         TestInteractionPromptSelection();

@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Sounds that know where they are (plan_27)
+
+Every sound played at full volume, dead centre, wherever its source was — the horn was as loud from
+across the district as from inside the car.
+
+`ComputeSpatialGain()` returns the attenuation and pan CNA's `Play(volume, pitch, pan)` actually
+takes. Full volume inside a reference distance, linear rolloff to silence at a maximum (not
+inverse-square — at game mixing volumes that is either deafening up close or inaudible three metres
+away). Distance is 3D; **pan is XZ only**, because a source overhead has no left or right and
+treating height as lateral swings sounds across the stereo field as the camera pitches. Four presets
+(`Voice`, `Vehicle`, `Effect`, `Ambience`) so one kind of sound shares one distance.
+
+**The listener is the active camera.** To get that, `ComputeCameraPose()` was extracted from
+`Draw()`, so the view matrix and the listener come from one function and cannot disagree. On foot,
+driving and cutscene are covered by construction rather than three branches that each have to
+remember audio exists.
+
+**Two duplicated decisions removed.** The engine loop's level was set in three places — the driving
+branch, the volume menu, and the per-update duck re-apply. The driving branch now only records the
+*requested* level; one per-update path applies bus, duck and spatialisation; the menu just feeds the
+Master bus.
+
+Closed `IG-27-003`, `IG-27-007`; `IG-27-002` narrowed to "no ambience asset exists to place", which
+is sourcing and licensing work, not engine work. Verified: CTest 15/15, one new test with fifteen
+cases, two mutation checks, and a byte-identical frame confirming the camera extraction moved
+nothing. **Not verified: nothing was listened to.** No occlusion yet — a wall between listener and
+source changes nothing, though `HasLineOfSight()` already exists and would answer it.
+
 ### An audio mix with categories in it (plan_27)
 
 There was one number — `masterVolume` — multiplied into every `Play()` call. That cannot express
@@ -600,7 +628,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 295/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 297/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

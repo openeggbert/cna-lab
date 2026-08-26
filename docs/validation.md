@@ -1867,6 +1867,65 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Sounds that know where they are (2026-08-26)
+
+plan_27 `IG-27-003` and `IG-27-007` closed; `IG-27-002` narrowed. Gates M12 and M14 untouched.
+
+**The gap.** Every sound played at full volume, dead centre, regardless of where its source was.
+The horn was as loud from across the district as from inside the car, and nothing had a side.
+
+**What was added.** `AudioListener` and `ComputeSpatialGain()`
+(`include/`/`src/Audio/AudioListener.hpp/.cpp`) return the two things CNA's
+`SoundEffect::Play(volume, pitch, pan)` actually takes -- not an HRTF, not doppler.
+
+- **Attenuation**: full volume inside a reference distance, linear rolloff to silence at a maximum.
+  Deliberately not inverse-square: at the volumes a game mixes at, a physically correct curve is
+  either deafening up close or inaudible three metres away.
+- **Pan is computed in XZ only**, while distance is 3D. A source directly overhead has no left or
+  right, and treating the vertical component as lateral makes sounds swing across the stereo field
+  whenever the camera pitches.
+- **Four presets** (`Voice` 6/35 m, `Vehicle` 12/90 m, `Effect` 8/45 m, `Ambience` 20/140 m), so
+  sounds of one kind share one distance instead of every call site inventing its own. The vehicle
+  preset's reference distance has to cover the camera boom, or the player's own engine attenuates
+  behind them -- there is a test for exactly that.
+
+**The listener is the active camera** (`IG-27-003`), which is what XNA's AudioListener means and the
+right answer for a third-person game: the player hears what the shot shows. To get that,
+`ComputeCameraPose()` was **extracted from `Draw()`**, so the view matrix and the audio listener now
+come from one function and cannot disagree about where the player is watching and listening from. On
+foot, driving and cutscene modes are covered by construction rather than by three parallel branches
+that would each have to remember audio exists. The camera-obstruction pull-in moves the listener
+with it, deliberately: the listener is attached to the camera, not to a second idea of where the
+camera should be.
+
+**Two duplicated decisions removed while wiring it.** The engine loop's level was being set in three
+places -- the driving branch, the volume menu, and (from the previous iteration) the per-update duck
+re-apply. The driving branch now only records the *requested* level, and the single per-update path
+applies bus, duck and spatialisation. The menu no longer re-levels the engine at all: it feeds the
+Master bus, and the per-update path reads it.
+
+**Verified.** `TestSpatialAudioAttenuationAndPan`: full volume inside the reference distance; silent
+at and beyond the maximum; exactly half at the midpoint; attenuation never rising with distance
+across a sweep; right/left panning with the correct sign; a source directly behind centred; the same
+world position panning right once the listener turns to face +X; a source overhead centred but still
+attenuated by its height; an emitter exactly on the listener returning full volume and centre rather
+than dividing by zero; the preset ordering (a voice not carrying as far as a car, ambience
+outreaching a car, the vehicle reference covering the camera boom, every preset with a positive
+reference inside its maximum); and an inverted falloff still yielding a gain in [0,1]. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Letting height leak into the pan calculation fails with `a source overhead
+must be centred`; removing the rolloff fails with `the rolloff must be linear between reference and
+maximum, got 1.000000`. A scripted run renders a byte-identical frame to the previous iteration's,
+confirming the camera-pose extraction did not move the camera.
+
+**Not verified.** *Nothing was listened to* -- the audio driver here is a dummy, so this is about
+computed gain and pan values, not sound. `IG-27-002` stays partial: the vehicle sound is now
+genuinely spatial, but there is no ambience asset in `assets/audio/` to place as the spatial ambient
+emitter it also asks for, and adding one is sourcing and licensing work rather than engine work. No
+occlusion (`IG-27-008`): a wall between listener and source changes nothing yet, even though
+`HasLineOfSight()` already exists and would answer it.
+
 ## An audio mix with categories in it (2026-08-26)
 
 plan_27 `IG-27-001`, `IG-27-004`, `IG-27-026` and `IG-27-027` closed. Gates M12 and M14 untouched.

@@ -118,6 +118,7 @@ include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
     src/Audio/AudioBuses.cpp
+    src/Audio/AudioListener.cpp
     src/Core/AtomicFile.cpp
     src/Core/GameConfig.cpp
     src/Core/JsonDataFile.cpp

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IronGang/Audio/AudioBuses.hpp"
+#include "IronGang/Audio/AudioListener.hpp"
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
@@ -180,6 +181,23 @@ namespace IronGang
         void PersistSettings();
         // Master volume applied to a sound about to play.
         [[nodiscard]] float EffectiveVolume(AudioBus bus, float requestedVolume) const;
+        // plan_27 IG-27-003/007: the same volume, additionally attenuated and panned for a source
+        // at @p emitter. Returns the pan through @p pan so one call answers both.
+        [[nodiscard]] float SpatialVolume(AudioBus bus,
+                                          float requestedVolume,
+                                          const Vector3& emitter,
+                                          SpatialPreset preset,
+                                          float& pan) const;
+
+        // Where the camera is and what it looks at, for this frame's state. Shared by Draw() (the
+        // view matrix) and Update() (the audio listener) so the two cannot disagree about where
+        // the player is watching and listening from.
+        struct CameraPose
+        {
+            Vector3 camera{};
+            Vector3 target{};
+        };
+        [[nodiscard]] CameraPose ComputeCameraPose() const;
         // Checks the current district's exit trigger against whichever of player/vehicle is
         // active and requests a transition if it was entered (plan_13 IG-13-002/006).
         void CheckDistrictExit();
@@ -288,6 +306,7 @@ namespace IronGang
         // The engine loop's pre-bus level. Its volume is only recomputed while the world is
         // advancing, so the duck has to be re-applied from here every update instead.
         float engineRequestedVolume_{0.4F};
+        AudioListener audioListener_{};
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
 
