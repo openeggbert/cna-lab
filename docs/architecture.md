@@ -32,6 +32,34 @@ The current prototype includes a small but real vertical path:
 - Save/load using sharp-runtime `System::IO`.
 - Core tests that run without creating a window.
 
+## Module boundaries, and what enforces them
+
+The dependency direction above is a rule, not a description. `scripts/check_layering.py` checks it
+on every `ctest` run (`iron_gang_layering_tests`), because a rule nothing checks is a convention
+that holds until someone is in a hurry — and this one has already been broken once, when a public
+header exposed sharp-runtime's `JsonDocument` and broke the test build.
+
+| Rule | Why |
+| --- | --- |
+| A public header (`include/IronGang/**`) must not include `System/…` or `CNA/Internal/…` | Both are **private** dependencies of `iron_gang_core`. A public header naming their types forces every consumer to find them. |
+| A public header must not reach into `src/` with a relative include | Private headers live under `src/` precisely so they are not part of the surface (`JsonDataFileInternal.hpp`, `JsonReadHelpers.hpp`). |
+| Only the executable may include CNA::Runtime (`Game.hpp`, `GraphicsDeviceManager.hpp`) | `iron_gang_core` links `CNA::GraphicsCore` only. The moment a library source includes `Game.hpp`, the split stops being real. |
+
+The executable's own module — `include/IronGang/Application/**` plus the sources CMake lists under
+`add_executable(iron_gang …)` — is the single narrow exception to the third rule. Module membership
+is **read from `CMakeLists.txt`**, so moving a source between targets is checked against the file
+that decides it rather than against a second list that would drift.
+
+The checker also refuses to pass vacuously: no public headers found, or a library with no sources,
+is an error rather than a clean run. That is the failure mode where a moved directory silently
+disables the whole thing.
+
+**Global state.** An audit found exactly one piece of namespace-scope mutable state in the tree:
+`Log`'s mutex-guarded `LogState`, which is the deliberate exception — a logger is the one service a
+game legitimately reaches for from anywhere. It is not machine-enforced, because telling a static
+member function from a global variable by regular expression is unreliable and there is one instance
+to police.
+
 ## Fixed step and variable step
 
 CNA owns the fixed step: `IronGangGame::Initialize` sets a 60 Hz target elapsed time, and CNA's loop

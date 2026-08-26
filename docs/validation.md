@@ -1867,6 +1867,68 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Making the module boundaries a property rather than a habit (2026-08-26)
+
+plan_03 `IG-03-006` closed; `IG-03-005` audited and left open with its finding recorded. Gates M12
+and M14 untouched.
+
+**Why this was worth doing even though nothing was broken.** `docs/architecture.md` has stated the
+dependency direction since the first milestone, and the tree obeys it. But it is a rule nothing
+checked, and it has already been broken once: a public header exposed sharp-runtime's
+`JsonDocument`, which compiled for the library and broke the *test* build, because `Text.Json` is a
+**private** dependency of `iron_gang_core`. That cost an iteration to find. A convention holds until
+someone is in a hurry.
+
+**What was added.** `scripts/check_layering.py`, run by `iron_gang_layering_tests` on every `ctest`,
+enforcing three rules:
+
+| Rule | Why |
+| --- | --- |
+| A public header must not include `System/…` or `CNA/Internal/…` | Both are private dependencies; a public header naming their types forces every consumer to find them. |
+| A public header must not reach into `src/` with a relative include | Private headers live there precisely so they are not part of the surface. |
+| Only the executable may include CNA::Runtime, and no `iron_gang_core` source may | The library links `CNA::GraphicsCore` only; a library source including `Game.hpp` ends the split. |
+
+Two design decisions in the checker are the substance:
+
+- **Module membership is read from `CMakeLists.txt`**, not hard-coded. The rule "only the executable
+  may use CNA::Runtime" is meaningless if the checker keeps its own idea of which sources are the
+  executable's, because the two lists drift and the checker starts policing a fiction. Moving a
+  source between targets is now checked against the file that decides it.
+- **It refuses to pass vacuously.** No public headers found, or a library with no sources, raises
+  rather than reporting success. That is the failure mode where somebody moves a directory and the
+  whole check quietly becomes a no-op that reports "boundaries hold" forever.
+
+**Verified.** `tests/test_layering.py` runs the checker against fixtures that break each rule
+individually -- sharp-runtime in a public header, a CNA internal in a public header, a `../` reach
+into `src/`, `Game.hpp` in a public header, `Game.hpp` in a core source -- and against the two cases
+that must *not* be flagged: the executable's own `include/IronGang/Application` header using
+`Game.hpp`, and a core **source** freely using `System/` and `CNA/Internal/` (which is the entire
+point of the split -- the library uses them, its headers just must not say so). It also asserts the
+real repository passes, and that both vacuous-pass guards raise. 16 CTest targets, all passing, up
+from 15.
+
+**Mutation-checked, both directions.** Adding a real violation -- `#include
+"System/Text/Json/JsonElement.hpp"` at the top of `GameConfig.hpp` -- fails
+`test_the_real_repository_passes`, naming the file and the rule. Typing the rule's own prefix wrong
+(`"Sytem/"`) fails **five** fixture tests, which is the property that matters: the checker cannot
+silently stop checking.
+
+**The global-state audit (`IG-03-005`), and why it is not enforced.** Exactly one piece of
+namespace-scope mutable state exists in the whole tree: `Log`'s mutex-guarded `LogState`. That is
+the deliberate exception -- a logger is the one service a game legitimately reaches for from
+anywhere -- and everything else is constructed and owned by `IronGangGame` and passed by reference.
+The entry stays **open** rather than being marked done on the strength of an audit: telling a static
+member function from a global variable by regular expression is unreliable, and a check with false
+positives on every `static void Foo();` would be worse than none. The finding is recorded in
+`docs/architecture.md` so the next person does not have to redo it.
+
+**Not verified.** The checker reads includes with a regular expression, so it does not understand
+conditional compilation: a `System/` include inside an `#if 0` would be flagged, and one reached
+through a chain of otherwise-clean public headers would not. It checks *direct* includes only.
+`IG-03-002` ("keep game-specific systems out of CNA/sharp-runtime") is not checkable from inside
+this repository at all -- it is a rule about what does **not** get written into the dependency
+trees.
+
 ## Pedestrians with somewhere to be (2026-08-26)
 
 plan_20 `IG-20-002` completed (it had shipped partial); `IG-20-005` advanced to partial with its

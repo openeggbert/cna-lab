@@ -98,6 +98,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Module boundaries become a property, not a habit (plan_03)
+
+`docs/architecture.md` has stated the dependency direction since the first milestone and the tree
+obeys it — but nothing checked, and it has already been broken once: a public header exposed
+sharp-runtime's `JsonDocument`, compiled for the library, and broke the *test* build.
+
+`scripts/check_layering.py` (`iron_gang_layering_tests`) now enforces three rules: a public header
+may not include `System/…` or `CNA/Internal/…`, may not reach into `src/`, and may not include
+CNA::Runtime — nor may any `iron_gang_core` source.
+
+Two decisions carry it:
+
+- **Module membership is read from `CMakeLists.txt`**, not hard-coded. "Only the executable may use
+  CNA::Runtime" is meaningless if the checker keeps its own idea of which sources those are, because
+  the two lists drift and it starts policing a fiction.
+- **It refuses to pass vacuously.** No headers found, or a library with no sources, raises rather
+  than reporting success — the failure mode where a moved directory quietly turns the check into a
+  no-op that says "boundaries hold" forever.
+
+Mutation-checked both directions: a real violation fails naming the file and rule; typing the rule's
+own prefix wrong fails five fixture tests, so the checker cannot silently stop checking.
+
+Closed `IG-03-006`. `IG-03-005` (ban global service locators) is **audited and left open**: the only
+namespace-scope mutable state in the tree is `Log`'s mutex-guarded state, the deliberate exception.
+Not marked done, because a regex that cannot tell `static void Foo();` from a global would be worse
+than no check. Verified: CTest 16/16.
+
 ### Pedestrians with somewhere to be (plan_20)
 
 The previous entry left the router unused: every pedestrian still paced one stretch of pavement, and
@@ -773,7 +800,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 304/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 305/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

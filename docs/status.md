@@ -42,14 +42,14 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**304 of 2148 tasks done** (14%). Open by priority: P0 182 · P1 1009 · P2 596 · P3 57.
+**305 of 2148 tasks done** (14%). Open by priority: P0 181 · P1 1009 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
 | 00 | [Repository foundation and completed scaffold](../plan/plan_00-repository-foundation-and-completed-scaffold.md) | 29/33 | 87% |
 | 01 | [Product identity, scope, and legal separation](../plan/plan_01-product-identity-scope-and-legal-separation.md) | 0/25 | 0% |
 | 02 | [Workspace, dependencies, and CMake](../plan/plan_02-workspace-dependencies-and-cmake.md) | 9/31 | 29% |
-| 03 | [Architecture and module boundaries](../plan/plan_03-architecture-and-module-boundaries.md) | 1/25 | 4% |
+| 03 | [Architecture and module boundaries](../plan/plan_03-architecture-and-module-boundaries.md) | 2/25 | 8% |
 | 04 | [Core runtime services](../plan/plan_04-core-runtime-services.md) | 11/20 | 55% |
 | 05 | [CNA integration and backend policy](../plan/plan_05-cna-integration-and-backend-policy.md) | 2/17 | 11% |
 | 06 | [CNA and cna-extended integration roadmap](../plan/plan_06-cna-ext-collaboration-roadmap.md) | 1/27 | 3% |

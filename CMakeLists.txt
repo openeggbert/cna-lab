@@ -327,6 +327,14 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 
+    # plan_03 IG-03-006: the module boundaries docs/architecture.md states are rules, and a rule
+    # nothing checks is a convention that holds until someone is in a hurry.
+    add_test(NAME iron_gang_layering_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_layering.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_layering.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
     # plan_08 IG-08-014: the shipped base colours are a copy of numbers whose source of truth is
     # assets/source/mc3/; a copy nothing checks is a copy that drifts.
     add_test(NAME iron_gang_model_materials_tests
