@@ -1,0 +1,23 @@
+{
+  "id": "pause_and_quit",
+  "version": 1,
+  "steps": [
+    { "update": 20, "held": ["confirm"] },
+    { "update": 21, "held": [] },
+    { "update": 50, "held": ["confirm"] },
+    { "update": 51, "held": [] },
+    { "update": 80, "held": ["confirm"] },
+    { "update": 81, "held": [] },
+
+    { "update": 150, "held": ["move_forward"] },
+    { "update": 210, "held": [] },
+
+    { "update": 280, "held": ["pause"] },
+    { "update": 281, "held": [] },
+    { "update": 340, "held": ["move_forward"] },
+    { "update": 341, "held": [] },
+    { "update": 400, "held": ["confirm"] },
+    { "update": 401, "held": [] },
+    { "update": 600, "held": [] }
+  ]
+}

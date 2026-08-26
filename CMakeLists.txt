@@ -338,6 +338,16 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_gate_on_foot_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
 
+    # plan_39 IG-39-024: gate M1's reset and quit. Both are one keypress, which is why they are
+    # worth measuring: a reset that leaves the mission mid-flight looks fine from outside.
+    add_test(NAME iron_gang_gate_reset_quit_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_reset_quit.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_reset_quit_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
     # plan_39 IG-39-022/023: gate M1's dialogue, mission completion, and save/load.
     add_test(NAME iron_gang_gate_mission_tests
         COMMAND "${Python3_EXECUTABLE}"

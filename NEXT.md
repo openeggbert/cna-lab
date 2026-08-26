@@ -98,6 +98,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Gate M1's reset and quit — the last of the M1 executable cluster (plan_39)
+
+Both are one keypress, which is why they are worth measuring: a reset that reloads the district but
+leaves the mission mid-flight, and a quit that closes the window without ending the process, both
+look fine from outside.
+
+**Reset**: driving at z=−17.3 in `drive_to_warehouse` → Restart → on foot at the authored spawn
+(0, 20), mission at `introduction`, district back to `warehouse_block`, and still so 100 updates
+later. The test asserts there was **something to reset** first — otherwise a reset that did nothing
+passes on a run that never left the spawn.
+
+**Quit**: Escape → one up-press wraps the selection to Quit (`MenuModel` wraps and skips disabled
+entries, so this needs no count of enabled items) → Confirm. The process ends at update ~420 while
+the script runs to 600. That needs one more assertion to mean anything: a script running out and a
+Quit **both exit 0**, so the test also requires the script-finished log line to be **absent**.
+
+**Two mutations that silently did nothing.** My first attempt patched by string match and neither
+substitution applied, so both reported zero failures — which reads exactly like a test that does not
+work. Locating the real lines and mutating those makes each fail 5 assertions. *A mutation that does
+not apply is indistinguishable from a mutation the tests miss.*
+
+Closed `IG-39-024`. CTest 22/22. **The M1 executable cluster is now closed** — controls, vehicle,
+dialogue/mission, save/load and reset/quit are each measured by a committed script; what remains of
+gate M1 is the summary entry `IG-39-002`. Not done: reset from the *failed*-mission path (which
+retries from a checkpoint) has unit tests but no gate run; quit is exercised from the menu only, not
+a window-close event.
+
 ### Gate M1's dialogue, mission and save/load, measured (plan_39)
 
 Both gates were plausibly true — you played the game and the log showed the transitions. But a log

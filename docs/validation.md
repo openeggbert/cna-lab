@@ -1867,6 +1867,53 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Gate M1's reset and quit, and the last of the M1 executable cluster (2026-08-26)
+
+plan_39 `IG-39-024` closed. Gates M12 and M14 untouched.
+
+**Both are one keypress, which is exactly why they are worth measuring.** A reset that reloads the
+district but leaves the mission mid-flight, and a quit that closes the window without ending the
+process, both look fine from outside.
+
+**Reset.** `reset_prototype.inputscript.json`: the player is driving at z = -17.3 in
+`drive_to_warehouse`, presses Restart, and is back **on foot at the authored spawn (0, 20)** with the
+mission at `introduction` and the district back to `warehouse_block`. The state still holds 100
+updates later -- a reset immediately undone by the still-running input would be worse than none.
+
+The test asserts there was **something to reset** first: driving, more than 20 m from the spawn, and
+past the first mission state. Without that, a reset that did nothing would pass every other assertion
+on a run that had never left the spawn.
+
+**Quit.** `pause_and_quit.inputscript.json`: Escape opens the pause menu, one up-press wraps the
+selection to Quit (`MenuModel` wraps and skips disabled entries, so this needs no knowledge of how
+many entries are enabled), Confirm activates it. The process ends at update ~420 while the script
+runs to 600.
+
+That "stopped early" is the evidence, and it needs one more assertion to be worth anything: a script
+running out and a Quit **both exit 0**, so the test additionally requires the script-finished log
+line (`input script "..." finished; exiting`) to be **absent**. Without it the test could not tell a
+quit from a run that simply played out.
+
+**Verified.** 22 CTest targets, all passing; `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked, after two that silently did nothing.** The first attempt patched
+`mission_.Reset();` and the `MenuAction::Quit` block by string match, and both substitutions failed
+to apply -- so both "mutations" reported zero failures, which reads exactly like a test that does
+not work. Locating the real lines first (`ResetPrototype`'s `mission_.Reset()` at line 1518, and
+`Exit()` in `ApplyMenuAction`) and mutating those makes each fail 5 assertions. A mutation that does
+not apply is indistinguishable from a mutation the tests miss, and the difference matters.
+
+**Not verified.** Reset is only exercised from the un-failed path -- pressing Restart with a failed
+mission retries from the checkpoint instead, and that branch has unit tests but no gate run. Quit is
+exercised from the pause menu only, not from a window-close event, which this environment cannot
+send. And nothing here checks that the process released its resources, only that it returned 0.
+
+**The M1 executable cluster is now closed**: configure and build (`IG-39-017`/`018`) were already
+recorded, a visible window (`019`) was demonstrated on EasyGL this morning, and on-foot controls
+(`020`), vehicle controls (`021`), dialogue and mission (`022`), save and load (`023`) and reset and
+quit (`024`) are each measured by a committed script. What remains of gate M1 itself (`IG-39-002`) is
+the summary entry over them.
+
 ## Gate M1's dialogue, mission and save/load, measured (2026-08-26)
 
 plan_39 `IG-39-022` and `IG-39-023` closed. Gates M12 and M14 untouched.
