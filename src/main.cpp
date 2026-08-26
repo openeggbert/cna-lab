@@ -82,6 +82,8 @@ int main(int argc, char* argv[])
         std::string screenshotPath;
         int screenshotFrame = 1;
         int screenshotUpdate = 0;
+        std::string traceStatePath;
+        int traceStateEvery = 30;
         std::string playInputPath;
         std::string recordInputPath;
         std::string recordInputId = "recorded";
@@ -122,6 +124,20 @@ int main(int argc, char* argv[])
                 {
                     throw std::invalid_argument("--screenshot-update requires a positive update number");
                 }
+            }
+            else if (argument == "--trace-state" && index + 1 < argc)
+            {
+                traceStatePath = argv[++index];
+            }
+            else if (argument == "--trace-state-every" && index + 1 < argc)
+            {
+                const std::string value = argv[++index];
+                if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos ||
+                    std::stoi(value) < 1)
+                {
+                    throw std::invalid_argument("--trace-state-every requires a positive update count");
+                }
+                traceStateEvery = std::stoi(value);
             }
             else if (argument == "--play-input" && index + 1 < argc)
             {
@@ -192,6 +208,8 @@ int main(int argc, char* argv[])
                     << "  --screenshot <path>  Write one frame as a PNG (plus a summary sidecar)\n"
                     << "  --screenshot-frame <n>  Which draw frame to capture (1-based, default 1)\n"
                     << "  --screenshot-update <n>  Capture at a simulation update instead of a draw frame\n"
+                    << "  --trace-state <path>  Append a JSON-Lines record of game state while running\n"
+                    << "  --trace-state-every <n>  Updates between trace records (default 30)\n"
                     << "  --play-input <path>  Replay a recorded input script instead of the keyboard\n"
                     << "  --record-input <path>  Record the keyboard as an input script\n"
                     << "  --record-input-id <id>  Name the recorded script (default \"recorded\")\n"
@@ -210,6 +228,14 @@ int main(int argc, char* argv[])
             else if (argument == "--screenshot-update")
             {
                 throw std::invalid_argument("--screenshot-update requires a positive update number");
+            }
+            else if (argument == "--trace-state")
+            {
+                throw std::invalid_argument("--trace-state requires an output path");
+            }
+            else if (argument == "--trace-state-every")
+            {
+                throw std::invalid_argument("--trace-state-every requires a positive update count");
             }
             else if (argument == "--play-input")
             {
@@ -261,6 +287,10 @@ int main(int argc, char* argv[])
         if (!recordInputPath.empty())
         {
             game.RecordInputScript(recordInputPath, recordInputId);
+        }
+        if (!traceStatePath.empty())
+        {
+            game.TraceStateTo(traceStatePath, traceStateEvery);
         }
         game.SetSmokeFrames(smokeFrames);
         if (!screenshotPath.empty())

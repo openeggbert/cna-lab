@@ -789,6 +789,43 @@ namespace IronGang
         peakPedestrianCount_ = std::max(peakPedestrianCount_, pedestrians_.size());
     }
 
+    void IronGangGame::TraceStateTo(std::string path, int everyUpdates)
+    {
+        stateTracePath_ = std::move(path);
+        stateTraceEveryUpdates_ = std::max(1, everyUpdates);
+    }
+
+    void IronGangGame::AppendStateTrace()
+    {
+        if (stateTracePath_.empty() || stateTraceFailed_ ||
+            simulationUpdateIndex_ % stateTraceEveryUpdates_ != 0)
+        {
+            return;
+        }
+        StateTraceRecord record;
+        record.update = simulationUpdateIndex_;
+        record.position = playerDriving_ ? vehicle_.GetPosition() : player_.GetPosition();
+        record.yaw = playerDriving_ ? vehicle_.GetYaw() : player_.GetYaw();
+        record.driving = playerDriving_;
+        record.speedKph = playerDriving_ ? vehicle_.GetSpeedKph() : 0.0F;
+        record.district = DistrictName(districtManager_.GetWorld().GetId());
+        record.missionId = currentMissionId_;
+        record.missionState = mission_.GetStateId();
+        if (const DialogueLine* line = dialogue_.GetCurrentLine())
+        {
+            record.dialogueLineId = line->id;
+        }
+
+        std::string error;
+        if (!AppendStateTraceRecord(stateTracePath_, record, error))
+        {
+            // A diagnostic must never take the run down, and must never spam either: say it once
+            // and stop trying.
+            Log::Warning(LogCategory::Application, error + " -- state tracing disabled.");
+            stateTraceFailed_ = true;
+        }
+    }
+
     void IronGangGame::RouteNextPedestrianDestination(std::size_t index)
     {
         if (index >= pedestrians_.size() || walkableNodeIds_.empty())
@@ -1606,6 +1643,7 @@ namespace IronGang
         // next scripted update, recording captures this one.
         AdvanceInputScript(keyboard);
         ++simulationUpdateIndex_;
+        AppendStateTrace();
 
         // plan_27 IG-27-001/004: the settings slider is the Master bus, and dialogue ducks
         // everything that is not dialogue or UI. Both are read here, once per update, so the mix

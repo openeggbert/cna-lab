@@ -1867,6 +1867,73 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Verifying a gate by measurement, and walking into a lamp post (2026-08-26)
+
+plan_39 `IG-39-020` closed; plan_14 `IG-14-012`'s missing evidence supplied. Gates M12 and M14
+untouched.
+
+**Why a new mechanism was needed.** The vertical-slice gates ask for controls, missions and
+save/load to be *verified*. Until now a run's only observable outputs were log lines and
+screenshots. A log line says a mission changed state; it does not say the player moved when a key
+was held. A screenshot says what one frame looked like; it does not say the player stopped **at** a
+lamp post rather than beside one. So `--trace-state <path>` records what the game is doing --
+position, yaw, driving, speed, district, mission state, the showing dialogue line -- as JSON Lines,
+every N updates. It adds no game state and nothing reads it back; it is a diagnostic that, failing,
+logs once and disables itself rather than taking the run down.
+
+**`IG-39-020`, measured.** `tests/input-scripts/on_foot_controls.inputscript.json` drives each
+control in turn and `iron_gang_gate_on_foot_tests` checks the trace:
+
+| Control | Measured |
+| --- | --- |
+| forward / back | z 20.00 -> 14.23 / 13.85 -> 19.63 (the spawn faces -Z) |
+| strafe right / left | x 0.00 -> 3.68 / 4.05 -> 2.48, **yaw unchanged** |
+| turn left / right | yaw 0.00 -> -2.84 / -3.00 -> -0.16, **position unchanged** |
+| walk vs sprint | 3.67 m vs 5.54 m over the same 60 updates (1.51x) |
+
+The run is also asserted to stay on foot throughout -- otherwise every other assertion would be
+measuring the sedan.
+
+**Two segments the first attempt got wrong, both found by the trace rather than by review.** The
+original script measured forward travel from the spawn, where the player walks 6.5 m and stops dead
+at z = 13.47: the parked sedan sits at z = 11. The sprint segment then measured 0.04 m of travel,
+because the player was already against the car. The walk/sprint comparison moved to a clear stretch
+of road. A screenshot would not have shown either problem.
+
+**`IG-14-012`'s missing evidence.** The previous entry ended "nobody has walked into a bench" -- the
+proxies were asserted to exist, to be the right boxes, and to reach the collider list, but that Jolt
+then stops the player was *inferred*. `lamp_collision.inputscript.json` walks the player into the
+lamp at (-9, 22), which stands one metre in front of the hotel wall, and the same script runs twice
+against asset trees differing only in whether the collision sidecar is present:
+
+```
+with proxies:    final x = -8.386   (against the lamp post)
+without proxies: final x = -9.630   (through it, against the building)
+```
+
+Both runs end at the same z (22.160), so they are comparable. A 1.24 m difference, from data alone.
+
+**A test bug worth recording, because it produced a plausible answer.** The first version of that
+A/B reported identical values for both runs. `--trace-state` **appends**, both runs shared one trace
+path, and "the final record" was resolved with a `min`-based lookup that returned the *first* run's
+row from the concatenated file. The fix is a distinct file per run plus `max` on the update. Had the
+numbers happened to look different, this would have shipped as evidence of nothing.
+
+**Verified.** Six gate assertions above, plus `TestStateTraceRecordFormat` (one JSON object on one
+line; booleans as JSON booleans; mission state and dialogue line recorded; **positions keeping
+centimetre precision**, since a collision check compares positions a few centimetres apart and a
+record that rounds cannot answer the question it exists for; a quote in a value escaped; and
+appending twice producing two lines). 19 CTest targets, all passing;
+`./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Forcing `input.sprint = false` fails 3 assertions; not pushing the proxies into
+`colliders_` also fails 3 -- including the lamp A/B, which is the one that matters.
+
+**Not verified.** This is one gate of the M1 cluster. Vehicle controls (`IG-39-021`), dialogue and
+mission completion (`IG-39-022`), save and load (`IG-39-023`) and reset and quit (`IG-39-024`) are
+all still open, and all are now measurable the same way. The trace records the player's position but
+nothing about what the player can *see*, so nothing here says the camera followed correctly.
+
 ## Collision proxies: the props stop being walk-through (2026-08-26)
 
 plan_14 `IG-14-011` and `IG-14-012` closed. Gates M12 and M14 untouched.

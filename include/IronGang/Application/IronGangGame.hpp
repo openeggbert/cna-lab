@@ -6,6 +6,7 @@
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Core/SimulationClock.hpp"
+#include "IronGang/Core/StateTrace.hpp"
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -87,6 +88,9 @@ namespace IronGang
         // length is measured in the updates it was written in rather than guessed in draw frames.
         void SetInputScriptExitsOnFinish(bool enabled) noexcept { inputScriptExitsOnFinish_ = enabled; }
         [[nodiscard]] bool WriteInputRecording(std::string& errorMessage);
+        // plan_39 IG-39-020..024: record what the game is doing every @p everyUpdates simulation
+        // updates, so a gate can be verified against measurements rather than screenshots.
+        void TraceStateTo(std::string path, int everyUpdates);
         void SetPerformanceScenario(PerformanceScenario scenario) noexcept { performanceScenario_ = scenario; }
         [[nodiscard]] bool WritePerformanceReport(std::string& error) const;
 
@@ -318,6 +322,10 @@ namespace IronGang
         // advancing, so the duck has to be re-applied from here every update instead.
         float engineRequestedVolume_{0.4F};
         AudioListener audioListener_{};
+        std::string stateTracePath_;
+        int stateTraceEveryUpdates_{30};
+        bool stateTraceFailed_{false};
+        void AppendStateTrace();
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
 

@@ -125,6 +125,7 @@ add_library(iron_gang_core STATIC
     src/Core/Log.cpp
     src/Core/PerformanceProfiler.cpp
     src/Core/RandomSource.cpp
+    src/Core/StateTrace.cpp
     src/Core/SimulationClock.cpp
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp
@@ -326,6 +327,16 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # plan_39 IG-39-020: gate M1's on-foot controls, verified by measurement rather than by
+    # looking at a screenshot, plus the walk-into-a-lamp-post evidence IG-14-012 was missing.
+    add_test(NAME iron_gang_gate_on_foot_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_on_foot.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_on_foot_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
 
     # plan_14 IG-14-011/012: a proxy in the wrong place is worse than no proxy.
     add_test(NAME iron_gang_extract_collision_tests

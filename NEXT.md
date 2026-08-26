@@ -98,6 +98,37 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Verifying a gate by measurement, and walking into a lamp post (plan_39)
+
+The vertical-slice gates ask for controls to be *verified*, and a run's only observable outputs were
+log lines and screenshots — neither of which says the player moved when a key was held, or stopped
+**at** a lamp post rather than beside one. `--trace-state` now records position, yaw, driving, speed,
+district, mission state and the showing dialogue line as JSON Lines.
+
+**`IG-39-020`, measured:** forward/back move along the facing axis; strafe moves sideways **without
+changing yaw**; turning changes yaw **without translating**; sprint covers 5.54 m where walking
+covers 3.67 m over the same 60 updates (1.51×). The run is asserted to stay on foot, or every other
+assertion would be measuring the sedan.
+
+**Two segments my first script got wrong, found by the trace not by review.** Forward travel from
+the spawn stops dead at z=13.47 — the parked sedan sits at z=11 — and the sprint segment then
+measured 0.04 m because the player was already against the car. A screenshot would have shown
+neither.
+
+**`IG-14-012`'s missing evidence supplied.** The same script run twice against asset trees differing
+only in the collision sidecar: **with proxies the player stops at x=-8.386, against the lamp post;
+without them they walk through it to x=-9.630, against the hotel wall.** Both end at the same z, so
+they are comparable.
+
+**A test bug worth recording, because it produced a plausible answer.** That A/B first reported
+identical values: `--trace-state` appends, both runs shared a trace path, and "the final record" was
+a `min`-based lookup returning the *first* run's row from the concatenated file. Had the numbers
+happened to differ, it would have shipped as evidence of nothing.
+
+Closed `IG-39-020`. Verified: CTest 19/19, two mutation checks. Not done: vehicle controls
+(`IG-39-021`), dialogue/mission (`022`), save/load (`023`), reset/quit (`024`) — all now measurable
+the same way.
+
 ### Collision proxies: the props stop being walk-through (plan_14)
 
 The gap the previous entry named. The collision role reached the glTF as `node.extras.collision` and

@@ -8,6 +8,7 @@
 #include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Core/SimulationClock.hpp"
+#include "IronGang/Core/StateTrace.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/InputContext.hpp"
 #include "IronGang/Input/InputBindings.hpp"
@@ -4897,6 +4898,69 @@ namespace
 
 
     // plan_14 IG-14-011/012: collision proxies imported beside the render model.
+    // plan_39 IG-39-020: the trace a gate is verified against must be readable and precise.
+    void TestStateTraceRecordFormat()
+    {
+        IronGang::StateTraceRecord record;
+        record.update = 420;
+        record.position = IronGang::Vector3(-8.386F, 1.7F, 22.16F);
+        record.yaw = -1.25F;
+        record.driving = false;
+        record.speedKph = 0.0F;
+        record.district = "warehouse_block";
+        record.missionId = "prototype_delivery";
+        record.missionState = "reach_vehicle";
+        record.dialogueLineId = "prologue.mara.no_heroics";
+
+        const std::string line = IronGang::FormatStateTraceRecord(record);
+        Require(line.front() == '{' && line.back() == '}', "a record must be one JSON object");
+        Require(line.find('\n') == std::string::npos,
+                "a record must be a single line, or JSON Lines stops being readable in one pass");
+        Require(line.find("\"update\":420") != std::string::npos, "the update must be recorded");
+        Require(line.find("\"driving\":false") != std::string::npos,
+                "driving must be a JSON boolean, not a string");
+        Require(line.find("\"missionState\":\"reach_vehicle\"") != std::string::npos,
+                "the mission state must be recorded");
+        Require(line.find("\"dialogueLine\":\"prologue.mara.no_heroics\"") != std::string::npos,
+                "the showing dialogue line must be recorded");
+
+        // Precision is the point: a collision check compares positions a few centimetres apart, so
+        // a record that rounds to whole metres cannot answer the question it exists for.
+        Require(line.find("-8.386") != std::string::npos,
+                "positions must keep enough precision to compare centimetres: " + line);
+        Require(line.find("22.16") != std::string::npos, "positions must round-trip: " + line);
+
+        record.driving = true;
+        record.speedKph = 42.5F;
+        Require(IronGang::FormatStateTraceRecord(record).find("\"driving\":true") != std::string::npos,
+                "driving must flip");
+
+        // A quote in content must not break the line.
+        record.missionId = "odd\"name";
+        const std::string escaped = IronGang::FormatStateTraceRecord(record);
+        Require(escaped.find("odd\\\"name") != std::string::npos,
+                "a quote in a value must be escaped: " + escaped);
+
+        // Round-trip through the file writer.
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_trace.jsonl";
+        std::filesystem::remove(path);
+        std::string error;
+        Require(IronGang::AppendStateTraceRecord(path.string(), record, error),
+                "a record must be appendable: " + error);
+        Require(IronGang::AppendStateTraceRecord(path.string(), record, error),
+                "a second record must append rather than replace: " + error);
+        std::ifstream stream(path);
+        int lines = 0;
+        std::string text;
+        while (std::getline(stream, text))
+        {
+            ++lines;
+        }
+        stream.close();
+        Require(lines == 2, "appending twice must produce two lines, got " + std::to_string(lines));
+        std::filesystem::remove(path);
+    }
+
     void TestCollisionProxiesLoadAndRegister()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_proxies.json";
@@ -6797,6 +6861,7 @@ int main()
         TestPedestrianDestinationChoice();
         TestPedestrianWandersTheDistrict();
         TestPedestrianCrossingRespectsTheSignal();
+        TestStateTraceRecordFormat();
         TestCollisionProxiesLoadAndRegister();
         TestDistrictRegistersItsCollisionProxies();
         TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();

@@ -1,0 +1,41 @@
+{
+  "id": "on_foot_controls",
+  "version": 1,
+  "steps": [
+    { "update": 20, "held": ["confirm"] },
+    { "update": 21, "held": [] },
+    { "update": 50, "held": ["confirm"] },
+    { "update": 51, "held": [] },
+    { "update": 80, "held": ["confirm"] },
+    { "update": 81, "held": [] },
+
+    { "update": 150, "held": ["move_forward"] },
+    { "update": 240, "held": [] },
+
+    { "update": 300, "held": ["move_back"] },
+    { "update": 390, "held": [] },
+
+    { "update": 450, "held": ["strafe_right"] },
+    { "update": 510, "held": [] },
+
+    { "update": 570, "held": ["strafe_left"] },
+    { "update": 600, "held": [] },
+
+    { "update": 660, "held": ["turn_left"] },
+    { "update": 750, "held": [] },
+
+    { "update": 810, "held": ["turn_right"] },
+    { "update": 900, "held": [] },
+
+    { "update": 960, "held": ["strafe_right"] },
+    { "update": 1010, "held": [] },
+
+    { "update": 1070, "held": ["move_forward"] },
+    { "update": 1130, "held": [] },
+
+    { "update": 1190, "held": ["move_forward", "sprint"] },
+    { "update": 1250, "held": [] },
+
+    { "update": 1320, "held": [] }
+  ]
+}

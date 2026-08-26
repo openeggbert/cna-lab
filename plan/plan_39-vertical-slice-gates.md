@@ -159,7 +159,7 @@ rather than being a one-time final check.
 - [ ] **IG-39-017 P0** — M1 procedural executable: configure recursive dependencies.
 - [ ] **IG-39-018 P0** — M1 procedural executable: build game and tests.
 - [ ] **IG-39-019 P0** — M1 procedural executable: launch a visible window.
-- [ ] **IG-39-020 P0** — M1 procedural executable: verify on-foot controls.
+- [x] **IG-39-020 P0** — M1 procedural executable: verify on-foot controls. *(Verified by **measurement**, not by looking. `--trace-state` records position, yaw, driving, speed, district, mission state and the showing dialogue line as JSON Lines; `tests/input-scripts/on_foot_controls.inputscript.json` drives each control in turn; `iron_gang_gate_on_foot_tests` checks the recorded trace. Forward moves -Z and back +Z (the spawn faces yaw 0); strafe right/left move +X/-X **without changing yaw**; turning changes yaw **without translating**; sprinting covers 5.54 m where walking covers 3.67 m over the same 60 updates (1.51x). The run is also asserted to stay on foot throughout, since every other assertion would otherwise be measuring the sedan. Mutation-checked: forcing `input.sprint = false` fails 3 assertions.)*
 - [ ] **IG-39-021 P0** — M1 procedural executable: verify vehicle controls.
 - [ ] **IG-39-022 P0** — M1 procedural executable: complete dialogue and mission.
 - [ ] **IG-39-023 P0** — M1 procedural executable: save and load.
