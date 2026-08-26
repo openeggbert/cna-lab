@@ -1867,6 +1867,81 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Iron Gang, played (2026-08-26)
+
+**This entry corrects a claim repeated throughout this file.** Almost every milestone above ends
+with some form of "this environment has no display, so nothing was verified visually". That was
+wrong. The session has `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, an X11 socket, and `easy-gl`
+checked out beside `cnanext`. Configuring the `dev-easygl` preset and running the game put a window
+on a real screen:
+
+```
+EasyGLRenderer initialized with OpenGL OpenGL ES 3.2 Mesa 25.0.7-2+deb13u1
+CNA: EasyGL capabilities -- MSAA up to 8x; MRT up to 4 targets; anisotropic filtering up to 16x
+CNA: graphics renderer: OPENGLES3
+```
+
+The owner then **played it**, and the log records the whole campaign chain working under a human's
+hands rather than a script: the prologue's dialogue, walking to the sedan, entering it, driving into
+the warehouse marker, `prototype_delivery` completing, `countryside_run` starting, two vehicle
+impacts (`integrity now 0.794390`, then `0.778740`), a `retry from checkpoint
+"drive_to_countryside"`, the district transition, and the `reach_farmhouse` checkpoint. Every one of
+those systems had until now only ever been exercised by assertions, headless smoke runs and input
+scripts.
+
+It also surfaced two real warnings a human saw and no test would have:
+`countryside.roads.json` and `countryside.sidewalks.json` do not exist, so the countryside falls
+back to its built-in layout. That is the documented fallback working, and it is also the concrete
+form of "there is only one district's worth of data".
+
+Earlier entries' "not verified visually" clauses should be read as *were* not verified at the time,
+not as *cannot be*. Anything claimed unverifiable for want of a display is now verifiable.
+
+## Pedestrians wait at the crossing (2026-08-26)
+
+plan_20 `IG-20-012` closed. Gates M12 and M14 untouched.
+
+**What was added.** `PedestrianMayCross()` and `PedestrianCrossingClearance()`
+(`include/`/`src/Gameplay/PedestrianCrossing.hpp/.cpp`), plus
+`SidewalkGraph::BuildCrossingPaths()`/`GetCrossingKerbs()`. Two pedestrians per crossing shuttle
+kerb to kerb, and are **held at the kerb as an obstacle** while the traffic they would step in front
+of still has green.
+
+That reuse is the design. `Pedestrian::Update()` already slows and stops for
+`clearanceAheadMetres`, which is how the pedestrian queue works (`IG-20-010`) and how traffic
+vehicles treat a red light (plan_21 `IG-21-007`). A pedestrian who may not step off the kerb is a
+pedestrian with an obstacle right in front of them -- one idea used three times, rather than a third
+state machine that would then have to be reconciled with the other two.
+
+Three rules are worth stating because each is a decision rather than an omission:
+
+- **Amber does not permit crossing**, even though `TrafficSignal::RequiresStop()` makes vehicles
+  stop for it. A car already committed to the junction is still coming through.
+- **Someone already out in the road is never held.** Holding applies only within
+  `kKerbHoldRadiusMetres` (1 m) of a kerb, so a signal changing mid-crossing cannot freeze a
+  pedestrian in a live lane.
+- **An unsignalled crossing never holds anyone.** Giving way is the driver's job; waiting there
+  would leave people standing at an empty road forever. A fleeing pedestrian likewise ignores the
+  signal.
+
+**Verified.** `TestPedestrianCrossingRespectsTheSignal`: red permits, green and **amber** do not, an
+unsignalled crossing always permits; a pedestrian on either kerb is stopped, one in the middle of
+the road is not, one just inside the hold radius is; an empty kerb list holds nobody. Then an
+end-to-end run against a real `TrafficSignal` cycle: a held pedestrian must actually get across
+within a minute -- *a signal that never lets them is a wall, not a wait* -- and the test also
+requires that they were held at some point, so it cannot pass by never blocking at all. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Letting amber permit crossing fails with `amber is not a moment to start
+walking`; holding pedestrians who are already in the road fails with `a pedestrian already in the
+road must be allowed to finish crossing`.
+
+**Not verified.** Pedestrians do not *route onto* a crossing from a pavement: the crossing shuttles
+are their own small population, so nobody yet walks up the pavement, crosses, and continues on the
+other side. That needs pathfinding across the sidewalk graph rather than two-point paths, and it is
+the honest remaining half of "pedestrian crossing behaviour". The behaviour has not been watched in
+motion on the real display either -- only captured as a still and asserted in tests.
+
 ## Pavements as their own graph (2026-08-26)
 
 plan_14 `IG-14-007` and `IG-14-008` closed. Gates M12 and M14 untouched.

@@ -51,6 +51,41 @@ namespace IronGang
         return paths;
     }
 
+    std::vector<WaypointPath> SidewalkGraph::BuildCrossingPaths() const
+    {
+        std::vector<WaypointPath> paths;
+        paths.reserve(crossings_.size());
+        for (const SidewalkCrossing& crossing : crossings_)
+        {
+            const SidewalkNode* from = FindNode(crossing.fromNodeId);
+            const SidewalkNode* to = FindNode(crossing.toNodeId);
+            if (from != nullptr && to != nullptr)
+            {
+                paths.push_back(WaypointPath{{from->position, to->position}, true});
+            }
+        }
+        return paths;
+    }
+
+    std::vector<Vector3> SidewalkGraph::GetCrossingKerbs() const
+    {
+        std::vector<Vector3> kerbs;
+        for (const SidewalkCrossing& crossing : crossings_)
+        {
+            const SidewalkNode* from = FindNode(crossing.fromNodeId);
+            const SidewalkNode* to = FindNode(crossing.toNodeId);
+            if (from != nullptr)
+            {
+                kerbs.push_back(from->position);
+            }
+            if (to != nullptr)
+            {
+                kerbs.push_back(to->position);
+            }
+        }
+        return kerbs;
+    }
+
     bool SidewalkGraph::LoadFromFile(const std::string& path,
                                      const std::vector<std::string>& knownBuildingIds,
                                      const std::vector<std::string>& knownRoadSegmentIds,

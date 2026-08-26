@@ -14,6 +14,7 @@
 #include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
+#include "IronGang/Gameplay/PedestrianCrossing.hpp"
 #include "IronGang/Gameplay/PedestrianAnimation.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
@@ -4529,6 +4530,89 @@ namespace
     // reproduce it exactly -- that equivalence is the whole point of the migration.
     // plan_14 IG-14-007/008: pavements as their own graph, and the same equivalence requirement
     // the road graph had -- data must reproduce the hand-authored layout exactly.
+    // plan_20 IG-20-012: crossing at the marked crossing, and waiting for the signal.
+    void TestPedestrianCrossingRespectsTheSignal()
+    {
+        using IronGang::PedestrianMayCross;
+        using IronGang::SignalPhase;
+
+        // Only a stopped-traffic phase lets someone step off the kerb. Amber stops *vehicles*
+        // (TrafficSignal::RequiresStop) but is not a moment to start walking: a car already
+        // committed to the junction is still coming through.
+        Require(PedestrianMayCross(SignalPhase::Red, true), "a red for traffic is a walk signal");
+        Require(!PedestrianMayCross(SignalPhase::Green, true), "green for traffic means wait");
+        Require(!PedestrianMayCross(SignalPhase::Amber, true),
+                "amber is not a moment to start walking, even though vehicles must stop for it");
+        // An unsignalled crossing is a give-way, and giving way is the driver's job -- waiting
+        // there would leave people at an empty road forever.
+        Require(PedestrianMayCross(SignalPhase::Green, false),
+                "an unsignalled crossing must never hold anyone");
+
+        const std::vector<IronGang::Vector3> kerbs{IronGang::Vector3(-7.5F, 0.9F, 0.0F),
+                                                   IronGang::Vector3(7.5F, 0.9F, 0.0F)};
+
+        // Allowed: no obstacle anywhere along the crossing.
+        Require(IronGang::PedestrianCrossingClearance(kerbs[0], kerbs, true) == IronGang::kNoObstacleAhead,
+                "a pedestrian who may cross must not be obstructed");
+
+        // Not allowed, standing on the kerb: a full stop.
+        Require(IronGang::PedestrianCrossingClearance(kerbs[0], kerbs, false) == 0.0F,
+                "a pedestrian at the kerb who may not cross must be stopped");
+        Require(IronGang::PedestrianCrossingClearance(kerbs[1], kerbs, false) == 0.0F,
+                "either kerb must hold, not just the first");
+
+        // Not allowed, but already out in the road: they must be let finish. A signal changing
+        // mid-crossing must not freeze someone in a live lane.
+        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(0.0F, 0.9F, 0.0F), kerbs, false) ==
+                    IronGang::kNoObstacleAhead,
+                "a pedestrian already in the road must be allowed to finish crossing");
+        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(-5.0F, 0.9F, 0.0F), kerbs, false) ==
+                    IronGang::kNoObstacleAhead,
+                "past the kerb hold radius is past holding");
+        // Just inside the radius still holds.
+        Require(IronGang::PedestrianCrossingClearance(
+                    IronGang::Vector3(-7.5F + IronGang::kKerbHoldRadiusMetres * 0.5F, 0.9F, 0.0F), kerbs,
+                    false) == 0.0F,
+                "within the kerb hold radius must still hold");
+
+        Require(IronGang::PedestrianCrossingClearance(kerbs[0], {}, false) == IronGang::kNoObstacleAhead,
+                "with no kerbs there is nothing to hold anyone at");
+
+        // End to end against a real signal cycle: a pedestrian held at the kerb must actually get
+        // to cross within one cycle, or the crossing is a wall rather than a wait.
+        IronGang::TrafficSignal signal;
+        signal.Reset();
+        IronGang::Pedestrian pedestrian;
+        IronGang::WaypointPath crossing;
+        crossing.points = {kerbs[0], kerbs[1]};
+        crossing.loop = true;
+        pedestrian.Reset(crossing, 0, 1.4F);
+
+        constexpr float kStep = 1.0F / 60.0F;
+        int updates = 0;
+        int heldUpdates = 0;
+        const float startX = pedestrian.GetPathPosition().X;
+        while (std::abs(pedestrian.GetPathPosition().X - startX) < 3.0F && updates < 60 * 60)
+        {
+            signal.Update(kStep);
+            const bool mayCross = PedestrianMayCross(signal.GetPhase(), true);
+            const float clearance =
+                IronGang::PedestrianCrossingClearance(pedestrian.GetPosition(), kerbs, mayCross);
+            if (clearance == 0.0F)
+            {
+                ++heldUpdates;
+            }
+            pedestrian.Update(kStep, false, IronGang::Vector3(), clearance);
+            ++updates;
+        }
+        Require(updates < 60 * 60,
+                "a pedestrian must get across within a minute; a signal that never lets them is a "
+                "wall, not a wait");
+        Require(heldUpdates > 0,
+                "the pedestrian must actually have been held at some point, or this test proves "
+                "nothing about the signal");
+    }
+
     void TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly()
     {
         const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
@@ -6392,6 +6476,7 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestPedestrianCrossingRespectsTheSignal();
         TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();
         TestSidewalkGraphRejectsUnusableData();
         TestRoadGraphReplacesTheHandAuthoredLayoutExactly();

@@ -724,6 +724,8 @@ namespace IronGang
         }
 
         pedestrians_.clear();
+        pedestrianIsCrossing_.clear();
+        crossingKerbs_ = world.GetSidewalkGraph().GetCrossingKerbs();
         constexpr int kPedestriansPerSidewalk = 6;
         constexpr float kSlowestWalkSpeed = 1.1F;
         constexpr float kFastestWalkSpeed = 2.0F;
@@ -752,6 +754,28 @@ namespace IronGang
                 // walking through each other (plan_20 IG-20-010).
                 pedestrian.SetLaneOffset(ambientRandom.NextFloatInRange(0.30F, 0.55F));
                 pedestrians_.push_back(pedestrian);
+                pedestrianIsCrossing_.push_back(false);
+            }
+        }
+
+        // plan_20 IG-20-012: a couple of people actually using the crossing, so the signal rule
+        // governs something observable rather than being a rule about nothing.
+        constexpr int kPedestriansPerCrossing = 2;
+        for (const WaypointPath& crossing : world.GetSidewalkGraph().BuildCrossingPaths())
+        {
+            if (crossing.points.size() < 2)
+            {
+                continue;
+            }
+            for (int i = 0; i < kPedestriansPerCrossing; ++i)
+            {
+                Pedestrian pedestrian;
+                // Started at opposite kerbs, so one is waiting while the other walks back.
+                pedestrian.Reset(crossing, static_cast<std::size_t>(i % 2),
+                                 ambientRandom.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed));
+                pedestrian.SetLaneOffset(ambientRandom.NextFloatInRange(-0.4F, 0.4F));
+                pedestrians_.push_back(pedestrian);
+                pedestrianIsCrossing_.push_back(true);
             }
         }
 
@@ -2059,6 +2083,20 @@ namespace IronGang
                                                                       kWalkingLaneHalfWidth));
                     }
 
+                    // plan_20 IG-20-012: a pedestrian on the crossing is held at the kerb while the
+                    // traffic they would step in front of still has green -- as an obstacle, which
+                    // is the same mechanism the queue above uses and the same one traffic vehicles
+                    // use for a red light.
+                    if (i < pedestrianIsCrossing_.size() && pedestrianIsCrossing_[i] &&
+                        !crossingKerbs_.empty())
+                    {
+                        const bool mayCross =
+                            PedestrianMayCross(trafficSignal_.GetPhase(), true) ||
+                            pedestrian.IsFleeing();
+                        clearanceAhead = std::min(clearanceAhead,
+                                                  PedestrianCrossingClearance(pedestrian.GetPosition(),
+                                                                              crossingKerbs_, mayCross));
+                    }
                     pedestrian.Update(simulationSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
                 }
 

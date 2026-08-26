@@ -98,6 +98,45 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Iron Gang was played, on a real screen (correction)
+
+**A claim repeated all through this file and `docs/validation.md` was wrong.** Nearly every
+milestone ends with "this environment has no display". It has one: `DISPLAY=:0`,
+`WAYLAND_DISPLAY=wayland-0`, and `easy-gl` beside `cnanext`. The `dev-easygl` preset builds and runs
+on a real screen — `EasyGLRenderer ... OpenGL ES 3.2 Mesa 25.0.7`, `graphics renderer: OPENGLES3`.
+
+The owner played it. The log shows the full campaign under a human's hands: prologue dialogue, walk
+to the sedan, enter, drive to the warehouse marker, `prototype_delivery` complete, `countryside_run`
+start, two vehicle impacts, a **checkpoint retry**, the district transition, and the
+`reach_farmhouse` checkpoint. All of that had only ever been driven by assertions, smoke runs and
+input scripts.
+
+It also surfaced two warnings no test would have: `countryside.roads.json` and
+`countryside.sidewalks.json` do not exist, so that district falls back to its built-in layout — the
+documented fallback working, and the concrete form of "only one district's worth of data".
+
+Read earlier "not verified visually" clauses as *were* not verified, not *cannot be*.
+
+### Pedestrians wait at the crossing (plan_20)
+
+Two pedestrians per crossing shuttle kerb to kerb, **held at the kerb as an obstacle** while the
+traffic they would step in front of has green. That reuse is the design: `Pedestrian::Update()`
+already stops for `clearanceAheadMetres`, which is how the pedestrian queue works and how traffic
+vehicles treat a red light. One idea used three times, rather than a third state machine to
+reconcile with the other two.
+
+Three deliberate rules: **amber does not permit crossing** (a car already committed to the junction
+is still coming through, even though vehicles must stop for amber); **someone already in the road is
+never held**, so a signal changing mid-crossing cannot freeze them in a live lane; and an
+**unsignalled crossing never holds anyone** — giving way is the driver's job.
+
+The end-to-end test runs a real signal cycle and requires the pedestrian both to be held at some
+point *and* to get across within a minute — a signal that never lets them is a wall, not a wait.
+
+Closed `IG-20-012`. Verified: CTest 15/15, one new test, two mutation checks. Not done: pedestrians
+do not **route onto** a crossing from a pavement — the shuttles are their own population, so nobody
+walks up the pavement, crosses, and continues. That needs pathfinding across the sidewalk graph.
+
 ### Pavements as their own graph (plan_14)
 
 `assets/districts/warehouse_block.sidewalks.json` (v1) + `SidewalkGraph`: `nodes`, **bidirectional**
@@ -681,7 +720,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 301/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 302/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
@@ -2571,7 +2610,20 @@ Both decisions should be revised in `plan.md` with the owner rather than planned
 
 ## Recommended next session starting point
 
-**First priority if a display/interactive input becomes available:** actually play the game
+**A display IS available** (`DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, `easy-gl` beside `cnanext`).
+Build and run it with:
+
+```bash
+cmake --preset dev-easygl -DIRON_GANG_CNA_DIR=/path/to/cnanext \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+cmake --build --preset dev-easygl -j$(nproc)
+./cmake-build-dev-easygl/iron_gang
+```
+
+The list below was written when that was believed impossible; it is kept because the items are still
+worth checking, not because they cannot be.
+
+**Original note --** actually play the game
 (`./scripts/run.sh compile-software` or a real backend preset) and check the items in "Explicitly
 not verified" above. Camera offsets, body-mesh offset, Jolt's default vehicle tuning, the loading
 screen (behind the map at roughly `(0,0.5,-47)`), the skinned test character's look/scale/

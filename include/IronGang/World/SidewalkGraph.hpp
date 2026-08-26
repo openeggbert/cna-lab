@@ -95,6 +95,13 @@ namespace IronGang
         // empty vector for an empty graph.
         [[nodiscard]] std::vector<WaypointPath> BuildWalkingPaths() const;
 
+        // plan_20 IG-20-012: one shuttle path per crossing -- kerb to kerb and back. A pedestrian
+        // on one of these actually uses the crossing, which is what makes the signal rule
+        // observable rather than a rule about nothing.
+        [[nodiscard]] std::vector<WaypointPath> BuildCrossingPaths() const;
+        // The kerbs of every crossing, as the points a waiting pedestrian is held at.
+        [[nodiscard]] std::vector<Vector3> GetCrossingKerbs() const;
+
     private:
         std::string id_;
         std::vector<SidewalkNode> nodes_;
