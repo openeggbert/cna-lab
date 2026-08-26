@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**290 of 2148 tasks done** (13%). Open by priority: P0 193 · P1 1012 · P2 596 · P3 57.
+**291 of 2148 tasks done** (13%). Open by priority: P0 192 · P1 1012 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 13 | [District loading and world structure](../plan/plan_13-world-partitioning-and-streaming.md) | 16/45 | 35% |
 | 14 | [Terrain, roads, sidewalks, buildings, and interiors](../plan/plan_14-terrain-roads-sidewalks-buildings-and-interiors.md) | 0/42 | 0% |
 | 15 | [Physics integration](../plan/plan_15-physics-integration.md) | 11/40 | 27% |
-| 16 | [Player controller and cameras](../plan/plan_16-player-controller-and-cameras.md) | 2/80 | 2% |
+| 16 | [Player controller and cameras](../plan/plan_16-player-controller-and-cameras.md) | 3/80 | 3% |
 | 17 | [Vehicles and driving](../plan/plan_17-vehicles-and-driving.md) | 2/97 | 2% |
 | 18 | [Characters, skeletons, and animation](../plan/plan_18-characters-skeletons-and-animation.md) | 7/98 | 7% |
 | 19 | [Navigation and pathfinding](../plan/plan_19-navigation-and-pathfinding.md) | 1/26 | 3% |

@@ -1867,6 +1867,60 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Telling the player what a spot affords (2026-08-26)
+
+plan_16 `IG-16-004` closed. Gates M12 and M14 untouched.
+
+**The gap.** The only hint that the sedan could be entered was the mission objective line, and the
+only feedback for being too far away was a status message that appeared **after** pressing a key
+that did nothing. An objective says what the mission wants; a prompt says what *this spot* affords,
+and disappears when it stops affording it.
+
+**What was added.** `InteractionPromptSelector`
+(`include/`/`src/UI/InteractionPrompt.hpp/.cpp`, in `iron_gang_core`) picks the nearest available
+target within range and formats `[E] Enter the sedan`. Three details are the substance:
+
+- **The key comes from `InputBindings`**, not from content, so rebinding Interact changes every
+  prompt in the game. An action with no key bound reads `unbound` rather than showing `[]` -- the
+  affordance is still real, it just cannot be taken.
+- **Distance is measured in XZ.** A target on a balcony overhead is not nearer than one at your feet
+  because the straight-line distance says so.
+- **Hysteresis (1.35x radius).** The target already being offered keeps the prompt out to an
+  enlarged radius. Without it, standing on the boundary between two interactables makes the prompt
+  flicker between them every frame -- each frame individually correct, and the result reads as a bug.
+
+`IronGangGame::CurrentInteractionPrompt()` offers `Enter the sedan` on foot within the same 3 m
+`HandleInteraction()` itself uses -- a prompt that lies about its own range is the same failure in
+miniature -- and `Leave the sedan` while driving. Every other input context clears the sticky
+target, so a prompt cannot resume on a stale one after a cutscene. It is drawn centred on a dimmed
+pill, above the subtitle when one is showing so the two never overlap.
+
+**Mission objects are deliberately excluded, and that is the honest scope.** The district exit and
+the warehouse goal are walk-/drive-into triggers, not press-E objects. Offering a key for them would
+be a prompt for an action that does not exist. The entry title says "the car and mission objects";
+the car is done and the mission objects have no press-E interaction to prompt for yet.
+
+**Verified.** `TestInteractionPromptSelection`: nothing in range offering nothing and clearing the
+sticky target; the in-range target offered with the bound key in the text; the text following a
+rebind; `unbound` for an unbound action; height ignored; unavailable targets skipped; the nearer of
+two winning; the hysteresis case; the sticky target released once outside its enlarged radius; a
+sticky target that becomes unavailable dropped at once rather than held; `Clear()`; an empty target
+list; and a zero-radius target never offered. 15 CTest targets pass. Screenshots at scripted updates
+300 and 480 show `[E] Enter the sedan` beside the car and `[E] Leave the sedan` from the driving
+camera.
+
+**A test that let a mutation through, and the fix.** Removing the hysteresis entirely **passed** the
+first version of the test. The case used a position where the sticky target was still inside its
+*plain* radius, so the enlargement never mattered. Moved to a position where the offered target is
+3.5 m away -- outside its 3 m radius, inside the 4.05 m enlarged one -- while a different target is
+0.5 m away. The same mutation now fails with `got sedan`. Removing the availability check fails with
+`an unavailable target must not be offered`.
+
+**Not verified.** No world-space anchoring: the prompt is centred on screen rather than drawn at the
+object, which is fine with one interactable in view and will not be with several. No fade in or out,
+so the prompt pops. Nothing here changes what `HandleInteraction()` does -- only what the player is
+told about it beforehand.
+
 ## Keeping the camera out of the walls (2026-08-26)
 
 plan_16 `IG-16-003` closed. Gates M12 and M14 untouched.

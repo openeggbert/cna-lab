@@ -40,6 +40,7 @@
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
 #include "IronGang/UI/MenuModel.hpp"
+#include "IronGang/UI/InteractionPrompt.hpp"
 #include "IronGang/UI/Subtitle.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
@@ -4518,6 +4519,90 @@ namespace
     // unwrapped HUD line running off the right edge of the screen mid-word.
     // plan_16 IG-16-003: the follow camera sits a fixed distance behind the player, so standing
     // with a building at your back puts it inside the building. It must be pulled in instead.
+    // plan_16 IG-16-004: which affordance is offered, and the hysteresis that stops two nearby
+    // ones trading the prompt every frame.
+    void TestInteractionPromptSelection()
+    {
+        const auto target = [](const char* id, const char* label, float x, float radius, bool available) {
+            return IronGang::InteractionTarget{id, label, IronGang::Vector3(x, 0.0F, 0.0F), radius,
+                                               available};
+        };
+
+        IronGang::InteractionPromptSelector selector;
+        std::vector<IronGang::InteractionTarget> targets{
+            target("sedan", "Enter the sedan", 0.0F, 3.0F, true),
+            target("door", "Open the door", 10.0F, 3.0F, true),
+        };
+
+        // Out of range of everything.
+        IronGang::InteractionPrompt prompt = selector.Select(IronGang::Vector3(5.0F, 0.0F, 0.0F), targets, "E");
+        Require(!prompt.visible, "nothing in range must offer no prompt");
+        Require(selector.GetCurrentTargetId().empty(), "nothing in range must clear the sticky target");
+
+        // In range of the sedan, and the key the player would actually press is in the text.
+        prompt = selector.Select(IronGang::Vector3(1.0F, 0.0F, 0.0F), targets, "E");
+        Require(prompt.visible && prompt.targetId == "sedan", "the in-range target must be offered");
+        Require(prompt.text == "[E] Enter the sedan", "the prompt must name the bound key: " + prompt.text);
+        prompt = selector.Select(IronGang::Vector3(1.0F, 0.0F, 0.0F), targets, "F");
+        Require(prompt.text == "[F] Enter the sedan",
+                "rebinding must change the prompt without touching content: " + prompt.text);
+        prompt = selector.Select(IronGang::Vector3(1.0F, 0.0F, 0.0F), targets, "");
+        Require(prompt.text.find("unbound") != std::string::npos,
+                "an unbound action must say so rather than show empty brackets: " + prompt.text);
+
+        // Height must not decide: a target overhead is not nearer than one at your feet.
+        selector.Clear();
+        prompt = selector.Select(IronGang::Vector3(1.0F, 40.0F, 0.0F), targets, "E");
+        Require(prompt.visible, "distance must be measured in the XZ plane, ignoring height");
+
+        // Unavailable targets are skipped entirely.
+        selector.Clear();
+        targets[0].available = false;
+        prompt = selector.Select(IronGang::Vector3(1.0F, 0.0F, 0.0F), targets, "E");
+        Require(!prompt.visible, "an unavailable target must not be offered");
+        targets[0].available = true;
+
+        // The nearest wins when both are in range.
+        selector.Clear();
+        targets[1].position = IronGang::Vector3(4.0F, 0.0F, 0.0F);
+        prompt = selector.Select(IronGang::Vector3(3.0F, 0.0F, 0.0F), targets, "E");
+        Require(prompt.targetId == "door",
+                "the nearer of two in-range targets must win, got " + prompt.targetId);
+
+        // Hysteresis: having chosen "door", stepping to where "sedan" is strictly nearer must NOT
+        // swap the prompt while "door" is still within its enlarged radius. Without this, standing
+        // on the boundary makes the prompt flicker every frame.
+        // At x=0.5 the door is 3.5 m away -- **outside** its plain 3 m radius but inside the
+        // enlarged 4.05 m one -- while the sedan is only 0.5 m away. Only the enlarged radius can
+        // keep the prompt on the door here, which is what makes this the case that actually tests
+        // it: an earlier version of this test used x=1.9, where the door is still inside its plain
+        // radius, and removing the enlargement passed.
+        prompt = selector.Select(IronGang::Vector3(0.5F, 0.0F, 0.0F), targets, "E");
+        Require(prompt.targetId == "door",
+                "the target already being offered must keep the prompt out to its enlarged radius, "
+                "got " + prompt.targetId);
+        // Far enough out of the enlarged radius (3.0 * 1.35 = 4.05), the sticky target lets go.
+        prompt = selector.Select(IronGang::Vector3(-0.5F, 0.0F, 0.0F), targets, "E");
+        Require(prompt.targetId == "sedan",
+                "once the sticky target is out of its enlarged radius the nearer one must take over, "
+                "got " + prompt.targetId);
+
+        // A sticky target that becomes unavailable must be given up immediately, not held.
+        targets[0].available = false;
+        prompt = selector.Select(IronGang::Vector3(-0.5F, 0.0F, 0.0F), targets, "E");
+        Require(prompt.targetId != "sedan",
+                "an unavailable sticky target must be dropped at once, got " + prompt.targetId);
+
+        // Clear() drops the sticky target, so a prompt cannot resume on a stale one.
+        selector.Clear();
+        Require(selector.GetCurrentTargetId().empty(), "Clear() must drop the sticky target");
+        Require(!selector.Select(IronGang::Vector3(0.0F, 0.0F, 0.0F), {}, "E").visible,
+                "an empty target list must offer no prompt");
+        Require(!selector.Select(IronGang::Vector3(0.0F, 0.0F, 0.0F),
+                                 {target("zero", "Nothing", 0.0F, 0.0F, true)}, "E").visible,
+                "a zero-radius target must never be offered");
+    }
+
     void TestCameraObstructionPullsIn()
     {
         std::vector<IronGang::WorldBox> boxes;
@@ -5809,6 +5894,7 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestInteractionPromptSelection();
         TestCameraObstructionPullsIn();
         TestCameraObstructionAgainstRealDistrict();
         TestSubtitleWrapping();

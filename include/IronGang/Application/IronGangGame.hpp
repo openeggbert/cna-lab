@@ -22,6 +22,7 @@
 #include "IronGang/Persistence/UserSettings.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/UI/MenuModel.hpp"
+#include "IronGang/UI/InteractionPrompt.hpp"
 #include "IronGang/UI/Subtitle.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 
@@ -149,6 +150,14 @@ namespace IronGang
         // Puts the player, the vehicle, and the district back the way a snapshot describes them.
         // Shared by loading a save and retrying from a checkpoint, which restore the same things.
         void ApplyWorldSnapshot(const WorldStateSnapshot& snapshot);
+        // plan_16 IG-16-004: what this spot affords, as opposed to what the mission wants.
+        [[nodiscard]] InteractionPrompt CurrentInteractionPrompt();
+        void DrawInteractionPrompt(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
+                                   Microsoft::Xna::Framework::Graphics::SpriteFont& font,
+                                   const InteractionPrompt& prompt,
+                                   float screenWidth,
+                                   float screenHeight,
+                                   bool subtitleVisible);
         void DrawSubtitle(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
                           Microsoft::Xna::Framework::Graphics::SpriteFont& font,
                           const DialogueLine& line,
@@ -271,6 +280,7 @@ namespace IronGang
         // The cutscene dialogue cue already applied, so re-applying it every frame cannot undo a
         // player's own Advance() after the cutscene has handed control back.
         std::string appliedCutsceneCue_;
+        InteractionPromptSelector interactionPrompts_;
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
 

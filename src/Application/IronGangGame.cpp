@@ -2168,6 +2168,74 @@ namespace IronGang
         getWindowProperty().setTitleProperty(title.str());
     }
 
+    InteractionPrompt IronGangGame::CurrentInteractionPrompt()
+    {
+        // plan_16 IG-16-004. Offered only in the contexts where pressing the key would actually do
+        // something -- the same precedence InputContext already declares. Anything else clears the
+        // sticky target, so the prompt cannot resume on a stale one after a cutscene.
+        const InputContext context = CurrentInputContext();
+        const bool offering = (context == InputContext::OnFoot || context == InputContext::Driving) &&
+                              vehicleTransitionState_ == VehicleTransitionState::None;
+        if (!offering)
+        {
+            interactionPrompts_.Clear();
+            return InteractionPrompt{};
+        }
+
+        // Only what HandleInteraction() actually does. The district exit and the warehouse goal are
+        // walk-/drive-into triggers, not press-E objects, and offering a key for them would be a
+        // prompt that lies -- worse than no prompt at all.
+        std::vector<InteractionTarget> targets;
+        if (context == InputContext::Driving)
+        {
+            // Leaving the car is always available while driving, so the target is the driver
+            // themselves and the radius only has to be non-zero.
+            targets.push_back(InteractionTarget{"sedan_exit", "Leave the sedan", vehicle_.GetPosition(),
+                                                1.0F, true});
+            return interactionPrompts_.Select(vehicle_.GetPosition(), targets,
+                                              KeyName(settings_.bindings.Get(GameAction::Interact).primary));
+        }
+
+        // The same 3 m HandleInteraction() itself uses, so the prompt appears exactly when the key
+        // would work -- a prompt that lies about its own range is the same failure in miniature.
+        targets.push_back(InteractionTarget{"sedan", "Enter the sedan", vehicle_.GetPosition(), 3.0F, true});
+        return interactionPrompts_.Select(player_.GetPosition(), targets,
+                                          KeyName(settings_.bindings.Get(GameAction::Interact).primary));
+    }
+
+    void IronGangGame::DrawInteractionPrompt(Graphics::SpriteBatch& spriteBatch,
+                                             Graphics::SpriteFont& font,
+                                             const InteractionPrompt& prompt,
+                                             float screenWidth,
+                                             float screenHeight,
+                                             bool subtitleVisible)
+    {
+        if (!prompt.visible)
+        {
+            return;
+        }
+        const float advance = font.MeasureString(std::string("MM")).X - font.MeasureString(std::string("M")).X;
+        const float height = font.MeasureString(std::string("M")).Y;
+        const float scale = std::max(1.0F, std::floor(screenHeight / 360.0F));
+        const float width = static_cast<float>(prompt.text.size()) * advance * scale;
+        const float x = std::floor((screenWidth - width) * 0.5F);
+        // Above the subtitle when one is showing, so the two never overlap; otherwise where the
+        // subtitle would have been.
+        const float y = std::floor(screenHeight * (subtitleVisible ? 0.74F : 0.86F));
+
+        if (mapPixel_)
+        {
+            const float padding = advance * scale;
+            spriteBatch.Draw(*mapPixel_,
+                             Rectangle(static_cast<int>(x - padding), static_cast<int>(y - padding * 0.4F),
+                                       static_cast<int>(width + padding * 2.0F),
+                                       static_cast<int>(height * scale + padding * 0.8F)),
+                             Color(10, 12, 16, 190));
+        }
+        spriteBatch.DrawString(font, prompt.text, Vector2(x, y), Color(235, 230, 210, 255), 0.0F,
+                               Vector2(0.0F, 0.0F), scale, Graphics::SpriteEffects::None, 0.0F);
+    }
+
     void IronGangGame::DrawSubtitle(Graphics::SpriteBatch& spriteBatch,
                                     Graphics::SpriteFont& font,
                                     const DialogueLine& line,
@@ -2589,12 +2657,17 @@ namespace IronGang
                 DrawDistrictMap(*spriteBatch_, *hudFont_, *mapPixel_,
                                 viewport.getWidthProperty(), viewport.getHeightProperty());
             }
-            if (const DialogueLine* line = dialogue_.GetCurrentLine())
+            const DialogueLine* subtitleLine = dialogue_.GetCurrentLine();
+            if (subtitleLine != nullptr)
             {
-                DrawSubtitle(*spriteBatch_, *hudFont_, *line,
+                DrawSubtitle(*spriteBatch_, *hudFont_, *subtitleLine,
                              static_cast<float>(viewport.getWidthProperty()),
                              static_cast<float>(viewport.getHeightProperty()));
             }
+            DrawInteractionPrompt(*spriteBatch_, *hudFont_, CurrentInteractionPrompt(),
+                                  static_cast<float>(viewport.getWidthProperty()),
+                                  static_cast<float>(viewport.getHeightProperty()),
+                                  subtitleLine != nullptr);
             spriteBatch_->End();
         }
 

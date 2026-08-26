@@ -98,6 +98,31 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Telling the player what a spot affords (plan_16)
+
+The only hint that the sedan could be entered was the mission objective, and the only feedback for
+being too far away was a message that appeared **after** pressing a key that did nothing.
+
+`InteractionPromptSelector` picks the nearest available target in XZ range and formats
+`[E] Enter the sedan`. The key comes from `InputBindings`, so a rebind changes every prompt without
+touching content (`unbound` rather than `[]` when there is no key). Hysteresis (1.35x radius) keeps
+the prompt on the target already offered, so standing between two does not make them trade it every
+frame. On foot it uses the same 3 m `HandleInteraction()` itself uses — a prompt that lies about its
+own range is worse than none — and while driving it offers `Leave the sedan`.
+
+**Mission objects are deliberately excluded.** The district exit and the warehouse goal are
+walk-/drive-into triggers, not press-E objects; offering a key for them would prompt an action that
+does not exist.
+
+**A mutation got through the first test.** Removing the hysteresis entirely passed, because the case
+used a position where the sticky target was still inside its *plain* radius. Moved to one where the
+offered target is 3.5 m away (outside 3 m, inside the 4.05 m enlarged radius) while another is 0.5 m
+away; the mutation now fails.
+
+Closed `IG-16-004`. Verified: CTest 15/15, one new test with thirteen cases, two mutation checks,
+screenshots on foot and driving. Not done: no world-space anchoring (centred on screen, which will
+not hold with several interactables in view) and no fade.
+
 ### Keeping the camera out of the walls (plan_16)
 
 The follow camera sits a fixed 7.5 m behind the player, so standing with a building at your back put
@@ -547,7 +572,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 290/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 291/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
