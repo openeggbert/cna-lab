@@ -190,8 +190,8 @@ namespace IronGang
         Texture2D texture(device, kFont8x8AtlasWidth, kFont8x8AtlasHeight);
         texture.SetData(pixels.data(), static_cast<int>(pixels.size()));
 
-        constexpr int kLineSpacing = kFont8x8GlyphSize + 1;
-        constexpr float kSpacing = 1.0F;
+        constexpr int kLineSpacing = kFont8x8Advance;
+        constexpr float kSpacing = static_cast<float>(kFont8x8Spacing);
         return SpriteFont(std::move(texture),
                           std::move(glyphBounds),
                           std::move(cropping),

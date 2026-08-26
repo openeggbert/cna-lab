@@ -39,6 +39,7 @@
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
 #include "IronGang/UI/MenuModel.hpp"
+#include "IronGang/UI/Subtitle.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 #include "IronGang/World/WaypointPath.hpp"
@@ -4512,6 +4513,162 @@ namespace
     // plan_20 IG-20-003: which clip each locomotion state asks for, and what it falls back to.
     // plan_08 IG-08-014: the base colours the .cnj pipeline drops. A model with no entry stays
     // white, which is exactly how everything rendered before this data existed.
+    // plan_25 IG-25-003: the wrapping a subtitle needs. The failure this replaces was a single
+    // unwrapped HUD line running off the right edge of the screen mid-word.
+    void TestSubtitleWrapping()
+    {
+        using IronGang::WrapSubtitleText;
+
+        std::vector<std::string> lines = WrapSubtitleText("No heroics.", 40);
+        Require(lines.size() == 1 && lines[0] == "No heroics.",
+                "a line that already fits must be returned unchanged");
+
+        lines = WrapSubtitleText("Iron City is quiet tonight. That usually means trouble is already moving.", 30);
+        Require(lines.size() >= 3, "a long line must wrap onto several lines");
+        for (const std::string& line : lines)
+        {
+            Require(line.size() <= 30,
+                    "no wrapped line may exceed the limit: \"" + line + "\" is " +
+                        std::to_string(line.size()));
+            Require(!line.empty(), "wrapping must never produce an empty line");
+            Require(line.front() != ' ' && line.back() != ' ',
+                    "wrapped lines must not start or end with a space: \"" + line + "\"");
+        }
+        // Nothing may be lost: rejoining the lines must reproduce the words in order.
+        std::string rejoined;
+        for (const std::string& line : lines)
+        {
+            if (!rejoined.empty())
+            {
+                rejoined += ' ';
+            }
+            rejoined += line;
+        }
+        Require(rejoined == "Iron City is quiet tonight. That usually means trouble is already moving.",
+                "wrapping must not drop or reorder any word, got \"" + rejoined + "\"");
+
+        // Exact fit, and one character over.
+        lines = WrapSubtitleText("abcde fghij", 11);
+        Require(lines.size() == 1, "a line of exactly the limit must not wrap");
+        lines = WrapSubtitleText("abcde fghijk", 11);
+        Require(lines.size() == 2 && lines[0] == "abcde" && lines[1] == "fghijk",
+                "one character over the limit must wrap at the space");
+
+        // A word longer than a whole line has to be hard-split, or it runs off the edge -- which is
+        // the exact failure a subtitle exists to prevent.
+        lines = WrapSubtitleText("short supercalifragilistic", 10);
+        for (const std::string& line : lines)
+        {
+            Require(line.size() <= 10, "an over-long word must be split, not allowed to overflow");
+        }
+        std::string joined;
+        for (const std::string& line : lines)
+        {
+            joined += line;
+        }
+        Require(joined == "shortsupercalifragilistic",
+                "hard-splitting must not lose characters, got \"" + joined + "\"");
+
+        Require(WrapSubtitleText("", 20).empty(), "empty text must produce no lines");
+        Require(WrapSubtitleText("   ", 20).empty(), "whitespace-only text must produce no lines");
+        Require(WrapSubtitleText("a  b", 20).size() == 1 && WrapSubtitleText("a  b", 20)[0] == "a b",
+                "runs of spaces must collapse");
+        Require(WrapSubtitleText("anything", 0).empty(), "a zero-width line must produce nothing, not loop");
+    }
+
+    void TestSubtitleLayoutStaysOnScreen()
+    {
+        // The real font's advance: its cell plus its own spacing. Taken from the font's own
+        // constants rather than written as 9, so the two cannot drift apart silently.
+        constexpr float kGlyph = static_cast<float>(IronGang::kFont8x8Advance);
+        static_assert(IronGang::kFont8x8Advance == IronGang::kFont8x8GlyphSize + IronGang::kFont8x8Spacing,
+                      "the advance a subtitle wraps on is the cell plus the spacing");
+        const std::string longLine =
+            "Iron City is quiet tonight. That usually means trouble is already moving.";
+
+        for (const auto& size : {std::pair<float, float>(1280.0F, 720.0F),
+                                 std::pair<float, float>(640.0F, 360.0F),
+                                 std::pair<float, float>(1920.0F, 1080.0F),
+                                 std::pair<float, float>(320.0F, 240.0F)})
+        {
+            const IronGang::SubtitleLayout layout =
+                IronGang::ComputeSubtitleLayout("Mara", longLine, size.first, size.second, kGlyph, kGlyph);
+            Require(!layout.IsEmpty(), "a subtitle must be produced at any reasonable screen size");
+            Require(layout.scale >= 1.0F, "the scale must never shrink the font below its own pixels");
+
+            // The panel must be fully on screen...
+            Require(layout.panelX >= 0.0F && layout.panelX + layout.panelWidth <= size.first + 0.5F,
+                    "the panel must fit horizontally at " + std::to_string(size.first) + "x" +
+                        std::to_string(size.second));
+            Require(layout.panelY >= 0.0F && layout.panelY + layout.panelHeight <= size.second,
+                    "the panel must fit vertically");
+            // ...and the text must be inside the panel, which is the bug this replaces.
+            const float cell = kGlyph * layout.scale;
+            for (const std::string& line : layout.lines)
+            {
+                const float right = layout.textX + static_cast<float>(line.size()) * cell;
+                Require(right <= layout.panelX + layout.panelWidth + 0.5F,
+                        "\"" + line + "\" runs past the panel it was wrapped for");
+                Require(right <= size.first, "no line may run off the screen");
+                // The panel is sized from the longest line, so "the text fits the panel" alone
+                // cannot catch a wrap that is simply too wide -- both grow together. This is the
+                // rule that actually bounds it, and a mutation widening the wrap by two characters
+                // passed every other assertion here until it was added.
+                Require(static_cast<float>(line.size()) * cell <=
+                            size.first * IronGang::kSubtitleWidthFraction + 0.5F,
+                        "\"" + line + "\" is wider than a subtitle is allowed to be at " +
+                            std::to_string(size.first) + " wide");
+            }
+            const float bottom = layout.textY + static_cast<float>(layout.lines.size()) * layout.lineHeight;
+            Require(bottom <= layout.panelY + layout.panelHeight + 0.5F,
+                    "the last line must sit inside the panel");
+        }
+
+        // Degenerate inputs must produce nothing rather than a panel of nonsense.
+        Require(IronGang::ComputeSubtitleLayout("Mara", "", 1280.0F, 720.0F, kGlyph, kGlyph).IsEmpty(),
+                "an empty line must produce no subtitle");
+        Require(IronGang::ComputeSubtitleLayout("Mara", "hello", 0.0F, 720.0F, kGlyph, kGlyph).IsEmpty(),
+                "a zero-width screen must produce no subtitle");
+        Require(IronGang::ComputeSubtitleLayout("Mara", "hello", 1280.0F, 720.0F, 0.0F, kGlyph).IsEmpty(),
+                "a zero-width glyph must produce no subtitle, not divide by zero");
+
+        // A short line must not sit in the middle of a full-width bar.
+        const IronGang::SubtitleLayout shortLayout =
+            IronGang::ComputeSubtitleLayout("Mara", "No.", 1280.0F, 720.0F, kGlyph, kGlyph);
+        const IronGang::SubtitleLayout longLayout =
+            IronGang::ComputeSubtitleLayout("Mara", longLine, 1280.0F, 720.0F, kGlyph, kGlyph);
+        Require(shortLayout.panelWidth < longLayout.panelWidth,
+                "the panel must be sized to its content, not to the screen");
+    }
+
+    // Every shipped dialogue line must lay out cleanly at the resolution the game runs at.
+    void TestShippedDialogueFitsTheSubtitle()
+    {
+        IronGang::DialogueSystem dialogue;
+        std::string error;
+        Require(dialogue.LoadFromFile(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                          "/dialogues/prologue.dialogue.json",
+                                      error),
+                "the shipped conversation must load: " + error);
+        for (std::size_t index = 0; index < dialogue.GetLineCount(); ++index)
+        {
+            const IronGang::DialogueLine* line = dialogue.FindLine(dialogue.GetLineId(index));
+            Require(line != nullptr, "every shipped line must resolve");
+            const IronGang::SubtitleLayout layout =
+                IronGang::ComputeSubtitleLayout(line->speaker, line->text, 1280.0F, 720.0F,
+                                              static_cast<float>(IronGang::kFont8x8Advance),
+                                              static_cast<float>(IronGang::kFont8x8Advance));
+            Require(!layout.IsEmpty(), "shipped line \"" + line->id + "\" must produce a subtitle");
+            Require(layout.lines.size() <= 3,
+                    "shipped line \"" + line->id + "\" wraps onto " +
+                        std::to_string(layout.lines.size()) +
+                        " lines; a subtitle nobody can read in one glance needs rewriting, not a "
+                        "taller panel");
+            Require(layout.panelX + layout.panelWidth <= 1280.0F,
+                    "shipped line \"" + line->id + "\" overflows the screen");
+        }
+    }
+
     void TestModelMaterialsLoadAndDefault()
     {
         IronGang::ModelMaterialTable table;
@@ -5541,6 +5698,9 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestSubtitleWrapping();
+        TestSubtitleLayoutStaysOnScreen();
+        TestShippedDialogueFitsTheSubtitle();
         TestModelMaterialsLoadAndDefault();
         TestModelMaterialsRejectUnusableData();
         TestPedestrianAnimationSelection();

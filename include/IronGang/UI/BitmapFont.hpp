@@ -25,6 +25,12 @@ namespace IronGang
     inline constexpr int kFont8x8GlyphSize = 8;
     inline constexpr int kFont8x8AtlasColumns = 16;
     inline constexpr int kFont8x8AtlasRows = 6;
+    // Horizontal gap between glyph cells, and therefore the advance one character costs. A
+    // subtitle wraps on character counts, so the difference between the 8px cell and the 9px
+    // advance is the difference between a line that fits its panel and one that runs past it --
+    // which is exactly what the first version of the subtitle layout got wrong.
+    inline constexpr int kFont8x8Spacing = 1;
+    inline constexpr int kFont8x8Advance = kFont8x8GlyphSize + kFont8x8Spacing;
     inline constexpr int kFont8x8AtlasWidth = kFont8x8AtlasColumns * kFont8x8GlyphSize;
     inline constexpr int kFont8x8AtlasHeight = kFont8x8AtlasRows * kFont8x8GlyphSize;
 

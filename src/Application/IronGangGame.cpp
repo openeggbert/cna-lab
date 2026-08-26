@@ -2167,6 +2167,61 @@ namespace IronGang
         getWindowProperty().setTitleProperty(title.str());
     }
 
+    void IronGangGame::DrawSubtitle(Graphics::SpriteBatch& spriteBatch,
+                                    Graphics::SpriteFont& font,
+                                    const DialogueLine& line,
+                                    float screenWidth,
+                                    float screenHeight)
+    {
+        // plan_25 IG-25-003. The first screenshots caught the old single-line HUD draw running off
+        // the right edge mid-word, with the rest of the sentence simply gone.
+        // Measured, not assumed: the font's advance is its 8px cell plus its own spacing, and the
+        // first version of this used the cell size alone -- which drew a line a character-and-a-bit
+        // wider than the panel it was wrapped for. Two characters minus one gives the true advance
+        // whatever the spacing is.
+        const float singleWidth = font.MeasureString(std::string("MM")).X -
+                                  font.MeasureString(std::string("M")).X;
+        const float lineHeight = font.MeasureString(std::string("M")).Y;
+        const SubtitleLayout layout = ComputeSubtitleLayout(line.speaker, line.text, screenWidth,
+                                                            screenHeight, singleWidth, lineHeight);
+        if (layout.IsEmpty())
+        {
+            return;
+        }
+
+        if (mapPixel_)
+        {
+            // A dimmed panel, because a subtitle has to stay readable over whatever the camera
+            // happens to be pointing at -- a white warehouse wall included.
+            const Rectangle panel(static_cast<int>(layout.panelX), static_cast<int>(layout.panelY),
+                                  static_cast<int>(layout.panelWidth), static_cast<int>(layout.panelHeight));
+            spriteBatch.Draw(*mapPixel_, panel, Color(10, 12, 16, 200));
+        }
+
+        const Vector2 origin(0.0F, 0.0F);
+        if (!layout.speaker.empty())
+        {
+            spriteBatch.DrawString(font, layout.speaker,
+                                   Vector2(layout.textX, layout.textY - layout.lineHeight * 1.35F),
+                                   Color(235, 200, 120, 255), 0.0F, origin, layout.scale,
+                                   Graphics::SpriteEffects::None, 0.0F);
+        }
+        float y = layout.textY;
+        for (const std::string& text : layout.lines)
+        {
+            spriteBatch.DrawString(font, text, Vector2(layout.textX, y), Color(245, 245, 245, 255),
+                                   0.0F, origin, layout.scale, Graphics::SpriteEffects::None, 0.0F);
+            y += layout.lineHeight;
+        }
+
+        // The prompt sits under the panel, dimmer than the line itself: it is an affordance, not
+        // part of what the character said.
+        spriteBatch.DrawString(font, "Enter: continue",
+                               Vector2(layout.panelX, layout.panelY + layout.panelHeight + 2.0F),
+                               Color(170, 175, 185, 255), 0.0F, origin, std::max(1.0F, layout.scale - 1.0F),
+                               Graphics::SpriteEffects::None, 0.0F);
+    }
+
     void IronGangGame::DrawDistrictMap(Graphics::SpriteBatch& spriteBatch,
                                        Graphics::SpriteFont& font,
                                        Graphics::Texture2D& pixel,
@@ -2423,17 +2478,20 @@ namespace IronGang
         // hidden menu is how someone gets stuck in a paused game with no visible way out.
         if (spriteBatch_ && hudFont_ && (settings_.showHud || paused_))
         {
-            spriteBatch_->Begin();
+            // plan_25 IG-25-003: point sampling, not the default LinearClamp. The HUD font is an
+            // 8x8 bitmap atlas; filtering it bleeds neighbouring glyph cells into each other,
+            // which at the subtitle's 2x scale drew a visible bar in every space character.
+            Graphics::SamplerState pointClamp = Graphics::SamplerState::PointClamp;
+            spriteBatch_->Begin(Graphics::SpriteSortMode::Deferred, Graphics::BlendState::AlphaBlend,
+                                &pointClamp, nullptr, nullptr);
             float lineY = 10.0F;
             constexpr float kLineHeight = 12.0F;
 
             if (const DialogueLine* line = dialogue_.GetCurrentLine())
             {
-                spriteBatch_->DrawString(*hudFont_, line->speaker + ": " + line->text, Vector2(10.0F, lineY),
-                                        Color(255, 255, 255, 255));
-                lineY += kLineHeight;
-                spriteBatch_->DrawString(*hudFont_, "Enter: continue", Vector2(10.0F, lineY),
-                                        Color(200, 200, 200, 255));
+                // plan_25 IG-25-003: a subtitle, not a HUD line. Drawn last (below) so it sits
+                // over the rest of the HUD rather than under it.
+                (void)line;
             }
             else if (cutscene_.IsActive())
             {
@@ -2519,6 +2577,12 @@ namespace IronGang
             {
                 DrawDistrictMap(*spriteBatch_, *hudFont_, *mapPixel_,
                                 viewport.getWidthProperty(), viewport.getHeightProperty());
+            }
+            if (const DialogueLine* line = dialogue_.GetCurrentLine())
+            {
+                DrawSubtitle(*spriteBatch_, *hudFont_, *line,
+                             static_cast<float>(viewport.getWidthProperty()),
+                             static_cast<float>(viewport.getHeightProperty()));
             }
             spriteBatch_->End();
         }

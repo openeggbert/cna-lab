@@ -22,6 +22,7 @@
 #include "IronGang/Persistence/UserSettings.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/UI/MenuModel.hpp"
+#include "IronGang/UI/Subtitle.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -148,6 +149,11 @@ namespace IronGang
         // Puts the player, the vehicle, and the district back the way a snapshot describes them.
         // Shared by loading a save and retrying from a checkpoint, which restore the same things.
         void ApplyWorldSnapshot(const WorldStateSnapshot& snapshot);
+        void DrawSubtitle(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
+                          Microsoft::Xna::Framework::Graphics::SpriteFont& font,
+                          const DialogueLine& line,
+                          float screenWidth,
+                          float screenHeight);
         void DrawDistrictMap(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
                              Microsoft::Xna::Framework::Graphics::SpriteFont& font,
                              Microsoft::Xna::Framework::Graphics::Texture2D& pixel,

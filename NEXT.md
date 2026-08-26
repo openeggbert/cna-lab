@@ -98,6 +98,33 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A subtitle instead of a HUD line (plan_25)
+
+Dialogue was one unwrapped `DrawString` at the top-left corner, and the first screenshots caught it
+running off the right edge mid-word. `WrapSubtitleText()` / `ComputeSubtitleLayout()` now compute a
+bottom-centred, word-wrapped subtitle on a dimmed panel sized to its own content, speaker above in
+amber, prompt beneath — all as arithmetic over a fixed-width font, so it unit-tests with no device.
+An over-long word is hard-split rather than allowed to overflow.
+
+**Two rendering faults surfaced only by looking at the frame:**
+
+- **Every space drew as a visible bar.** The HUD batch used the default `LinearClamp`; filtering an
+  8x8 bitmap atlas bleeds neighbouring glyph cells — invisible at 1:1, obvious at 2x. Now
+  `SamplerState::PointClamp`.
+- **The line ran past its own panel.** The layout was given the glyph *cell* (8px) as the advance,
+  but the advance is the cell plus spacing (9px). `DrawSubtitle()` now measures it from the font,
+  and `kFont8x8Advance` is shared with `BitmapFont.cpp` so the two cannot drift.
+
+**A mutation got away first.** Widening the wrap by two characters passed every assertion: the panel
+is sized from the longest line, so "the text fits the panel" cannot see a wrap that is simply too
+wide — both grow together. The rule that actually bounds it (a line may not exceed
+`kSubtitleWidthFraction` of the screen) was added, and the mutation now fails.
+
+Closed `IG-25-003`. Verified: CTest 15/15, three new tests, two mutation checks, screenshots at
+scripted updates 20 and 75. Not done: no per-line timing, fades, portraits, or accessibility size
+options (plan_28 scope); wrapping counts characters, which is right for this fixed-width font and
+wrong for a proportional one.
+
 ### Every imported model was white, and why (plan_08)
 
 The warehouse rendered as a flat white slab even though `warehouse.mc3.xml` declares
@@ -494,7 +521,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 288/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 289/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

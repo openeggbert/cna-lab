@@ -1867,6 +1867,70 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## A subtitle instead of a HUD line (2026-08-26)
+
+plan_25 `IG-25-003` closed. Gates M12 and M14 untouched.
+
+**The gap.** Dialogue was drawn as one unwrapped `DrawString` at the top-left corner. The first
+screenshots caught it running off the right edge mid-word -- "...before the river shift change" with
+the rest of the sentence simply gone. A line of dialogue nobody can finish reading is a line that
+was not delivered.
+
+**What was added.** `WrapSubtitleText()` and `ComputeSubtitleLayout()`
+(`include/`/`src/UI/Subtitle.hpp/.cpp`, in `iron_gang_core`) compute the whole thing as arithmetic
+over a fixed-width font, so it is unit-tested without a graphics device -- the same split
+`ScreenshotSummary` and `PedestrianAnimation` use. `IronGangGame::DrawSubtitle()` draws it: a
+bottom-centred panel sized to its own content (a short line does not sit in the middle of a
+full-width bar), the speaker's name above the text in amber, the body in white, and the continue
+prompt beneath the panel in a dimmer, smaller face. It is drawn after the rest of the HUD so it sits
+over it rather than under it.
+
+An over-long word is **hard-split** rather than allowed to overflow: losing a hyphen is better than
+losing the end of a sentence off the edge of the screen.
+
+**Two rendering faults the work exposed, both caught by looking at the frame:**
+
+- **Every space drew as a visible bar.** The HUD batch used the default `LinearClamp` sampler, and
+  filtering an 8x8 bitmap atlas bleeds neighbouring glyph cells into each other -- invisible at 1:1,
+  obvious at the subtitle's 2x scale. The batch now begins with `SamplerState::PointClamp`, which is
+  the correct sampler for a bitmap font at any scale.
+- **The line ran past the panel it was wrapped for.** The layout was given
+  `kFont8x8GlyphSize` (8) as the advance, but the font's advance is the cell **plus its spacing**
+  (9). `DrawSubtitle()` now measures it -- `MeasureString("MM").X - MeasureString("M").X` -- which
+  is exact whatever the spacing is. `kFont8x8Spacing`/`kFont8x8Advance` were added next to
+  `kFont8x8GlyphSize` and `BitmapFont.cpp` now builds the font from them, so the constant the
+  subtitle wraps on and the constant the font is built with cannot drift apart.
+
+**Verified.** `TestSubtitleWrapping` (a fitting line unchanged; a long line wrapping with every line
+within the limit, non-empty, and not starting or ending with a space; rejoining the lines
+reproducing the original word for word; exact-fit and one-over-the-limit; an over-long word split
+without losing a character; empty, whitespace-only, collapsing space runs, and a zero-width limit
+returning nothing rather than looping). `TestSubtitleLayoutStaysOnScreen` (four resolutions from
+320x240 to 1920x1080: the panel on screen in both axes, every line inside the panel, every line
+inside the screen, every line within the allowed width fraction, the last line inside the panel, and
+scale never below 1; degenerate inputs -- empty text, zero-width screen, zero-width glyph --
+producing no subtitle rather than a panel of nonsense; and a short line producing a narrower panel
+than a long one). `TestShippedDialogueFitsTheSubtitle` checks every shipped line lays out in at most
+three lines at 1280x720, so a line nobody can read in one glance fails the suite rather than getting
+a taller panel. 15 CTest targets pass.
+
+**Mutation-checked, including one that got away first.** Removing the hard-split fails with
+`an over-long word must be split, not allowed to overflow`. Widening the wrap limit by two
+characters **passed everything at first**: the panel is sized from the longest line, so "the text
+fits the panel" cannot see a wrap that is simply too wide -- both grow together. The rule that
+actually bounds it (a line may not exceed `kSubtitleWidthFraction` of the screen) was added, and the
+same mutation now fails with `"Iron City is quiet tonight. That usually means trouble" is wider than
+a subtitle is allowed to be at 1280`.
+
+Screenshots at scripted updates 20 and 75 show the two-line wrap of the longest shipped line and the
+single-line case, both inside the panel with even padding, both legible.
+
+**Not verified.** No per-line timing, fade in/out, speaker portraits, or accessibility size and
+background options -- all `plan_28` scope. The subtitle is drawn for whatever line the conversation
+is on; nothing here changes when a line advances. Only the built-in fixed-width font is handled:
+`WrapSubtitleText` counts characters, which is exactly wrong for a proportional font, and the
+header says so.
+
 ## Why every imported model was white (2026-08-26)
 
 plan_08 `IG-08-014` advanced from open to partial. Gates M12 and M14 untouched.

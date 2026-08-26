@@ -158,6 +158,7 @@ add_library(iron_gang_core STATIC
     src/Physics/PhysicsWorld.cpp
     src/UI/BitmapFont.cpp
     src/UI/MenuModel.cpp
+    src/UI/Subtitle.cpp
     src/UI/DistrictMap.cpp
     src/World/DistrictManager.cpp
     src/World/PrototypeWorld.cpp
