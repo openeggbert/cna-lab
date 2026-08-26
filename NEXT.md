@@ -98,6 +98,28 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A property test that could not fail, and an audit of plan_34 (plan_34)
+
+`TestSaveRoundTripsRandomSnapshots` puts 250 random snapshots through write/read, with values from
+the deterministic `RandomSource` (so a failure is reproducible from the seed) and strings chosen to
+poke at the line format (`=`, `:`, quotes, spaces, non-ASCII, emoji).
+
+**It passed first time -- which for a property test means nothing until you prove it can fail.** I
+mutated float output to two decimals and re-ran: **still green**. The comparison was
+`ToText() == ToText()`, self-referential and happy while both sides lost precision. Comparing typed
+values instead, the same mutation now fails: `wrote -31109.312500, read -31109.310547`. Same shape of
+hollow assertion I caught in my own work two iterations back -- worth checking for deliberately.
+
+**The audit:** plan_34 stood at 0/38 while much of what it asks for had been built and never
+recorded. Six entries are now marked done with the tests that cover them; two are partial with the
+gaps named -- `IG-34-011`'s cancellation is untested **because `DistrictManager` cannot cancel a
+transition**, and `IG-34-006` is missing `DialogueSystem`'s parser, the physics-backed controllers,
+and the renderer's animation state (needs a device).
+
+Untouched: plan_34's whole CI half (`IG-34-003`/`004`/`005`, sanitizers). **There is no CI
+configuration in the repository**, and writing one that cannot run here would be a claim, not a
+result.
+
 ### Witnesses stop seeing through walls (plan_22)
 
 Closes the **P0** that had carried "simplified to a fixed-radius proximity check" since gate M9, and

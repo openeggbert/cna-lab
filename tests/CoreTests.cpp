@@ -3076,6 +3076,165 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_34 IG-34-007: property tests for the save round trip. Hand-written cases check the
+    // situations someone thought of; this checks a few hundred nobody did -- odd characters in
+    // variable names and values, floats that print badly, empty collections, long lists.
+    void TestSaveRoundTripsRandomSnapshots()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_property.save";
+        IronGang::RandomSource random(20260826);
+        std::string error;
+
+        // Characters chosen to poke at the line format: its separators, its quoting, and bytes
+        // outside ASCII. A newline is deliberately absent -- the format documents one value per
+        // line, and no value the game can produce contains one.
+        const std::vector<std::string> textFragments = {
+            "plain", "with space", "equals=sign", "colon:sign", "semi;colon", "quote\"mark",
+            "dot.separated", "dash-separated", "under_score", "UPPER", "kri\xC5\xBE""ovatka",
+            "emoji\xF0\x9F\x9A\x97", "trailing ", " leading", "0", "-1", "1e9",
+        };
+        const auto pickText = [&]() { return textFragments[random.NextIndex(
+            static_cast<std::uint32_t>(textFragments.size()))]; };
+
+        for (int iteration = 0; iteration < 250; ++iteration)
+        {
+            IronGang::SaveSnapshot written;
+            written.missionId = random.NextBool() ? pickText() : std::string();
+            written.missionStateId = pickText();
+            written.playerPosition = {random.NextFloatInRange(-500.0F, 500.0F),
+                                      random.NextFloatInRange(-10.0F, 10.0F),
+                                      random.NextFloatInRange(-500.0F, 500.0F)};
+            written.playerYaw = random.NextFloatInRange(-3.15F, 3.15F);
+            written.vehiclePosition = {random.NextFloatInRange(-500.0F, 500.0F),
+                                       random.NextFloatInRange(-10.0F, 10.0F),
+                                       random.NextFloatInRange(-500.0F, 500.0F)};
+            written.vehicleYaw = random.NextFloatInRange(-3.15F, 3.15F);
+            written.vehicleSpeed = random.NextFloatInRange(-30.0F, 30.0F);
+            written.vehicleIntegrity = random.NextUnitFloat();
+            written.playerDriving = random.NextBool();
+            written.districtId = random.NextBool() ? IronGang::DistrictId::WarehouseBlock
+                                                   : IronGang::DistrictId::Countryside;
+
+            const std::uint32_t variableCount = random.NextIndex(6);
+            for (std::uint32_t index = 0; index < variableCount; ++index)
+            {
+                IronGang::MissionValue value;
+                switch (random.NextIndex(4))
+                {
+                    case 0: value = IronGang::MissionValue::Bool(random.NextBool()); break;
+                    case 1: value = IronGang::MissionValue::Int(
+                                static_cast<int>(random.NextIndex(2000)) - 1000); break;
+                    case 2: value = IronGang::MissionValue::Float(
+                                random.NextFloatInRange(-1e6F, 1e6F)); break;
+                    default: value = IronGang::MissionValue::String(pickText()); break;
+                }
+                written.missionVariables.push_back(
+                    IronGang::MissionVariableSnapshot{"var_" + std::to_string(index), value});
+            }
+
+            const std::uint32_t completedCount = random.NextIndex(4);
+            for (std::uint32_t index = 0; index < completedCount; ++index)
+            {
+                written.completedMissions.push_back("mission_" + std::to_string(index));
+            }
+
+            if (random.NextBool())
+            {
+                written.missionCheckpoint.stateId = pickText();
+                written.missionCheckpoint.variables = written.missionVariables;
+            }
+            if (random.NextBool())
+            {
+                IronGang::WorldStateSnapshot checkpointWorld;
+                checkpointWorld.playerPosition = {random.NextFloatInRange(-100.0F, 100.0F), 1.7F,
+                                                  random.NextFloatInRange(-100.0F, 100.0F)};
+                checkpointWorld.playerYaw = random.NextFloatInRange(-3.15F, 3.15F);
+                checkpointWorld.vehiclePosition = {random.NextFloatInRange(-100.0F, 100.0F), 0.65F,
+                                                  random.NextFloatInRange(-100.0F, 100.0F)};
+                checkpointWorld.vehicleYaw = random.NextFloatInRange(-3.15F, 3.15F);
+                checkpointWorld.vehicleSpeed = random.NextFloatInRange(-20.0F, 20.0F);
+                checkpointWorld.playerDriving = random.NextBool();
+                written.missionCheckpointWorld = checkpointWorld;
+            }
+
+            Require(IronGang::SaveGame::Write(path.string(), written, error),
+                    "writing iteration " + std::to_string(iteration) + " must succeed: " + error);
+            const std::optional<IronGang::SaveSnapshot> read =
+                IronGang::SaveGame::Read(path.string(), error);
+            Require(read.has_value(),
+                    "reading iteration " + std::to_string(iteration) + " must succeed: " + error);
+
+            const std::string where = " (iteration " + std::to_string(iteration) + ")";
+            Require(read->missionId == written.missionId, "mission id must round-trip" + where);
+            Require(read->missionStateId == written.missionStateId,
+                    "mission state id must round-trip" + where);
+            Require(read->playerDriving == written.playerDriving, "driving must round-trip" + where);
+            Require(read->districtId == written.districtId, "district must round-trip" + where);
+            Require(read->completedMissions == written.completedMissions,
+                    "campaign progress must round-trip" + where);
+            Require(read->missionCheckpoint.stateId == written.missionCheckpoint.stateId,
+                    "checkpoint state must round-trip" + where);
+            Require(read->missionCheckpointWorld.has_value() ==
+                        written.missionCheckpointWorld.has_value(),
+                    "the checkpoint world's presence must round-trip" + where);
+
+            // Positions and angles survive to the precision the format promises.
+            Require((read->playerPosition - written.playerPosition).Length() < 1e-2F,
+                    "player position must round-trip" + where);
+            Require((read->vehiclePosition - written.vehiclePosition).Length() < 1e-2F,
+                    "vehicle position must round-trip" + where);
+            Require(std::fabs(read->playerYaw - written.playerYaw) < 1e-4F,
+                    "player yaw must round-trip" + where);
+            Require(std::fabs(read->vehicleSpeed - written.vehicleSpeed) < 1e-3F,
+                    "vehicle speed must round-trip" + where);
+            Require(std::fabs(read->vehicleIntegrity - written.vehicleIntegrity) < 1e-4F,
+                    "vehicle integrity must round-trip" + where);
+
+            // Mission variables must survive **exactly**: they are typed data, not display values,
+            // and a float that comes back nearly right is a mission condition that fires nearly
+            // when it should.
+            Require(read->missionVariables.size() == written.missionVariables.size(),
+                    "every mission variable must survive" + where);
+            for (std::size_t index = 0; index < written.missionVariables.size(); ++index)
+            {
+                const IronGang::MissionVariableSnapshot& expected = written.missionVariables[index];
+                const IronGang::MissionVariableSnapshot& actual = read->missionVariables[index];
+                Require(actual.name == expected.name, "variable names must keep their order" + where);
+                Require(actual.value.GetType() == expected.value.GetType(),
+                        "variable types must round-trip" + where);
+                // Compared as **values**, not as their own text: comparing ToText() to ToText()
+                // is self-referential, and passes happily even if the formatting loses precision
+                // on both sides equally. (It did: a deliberate mutation to two-decimal float
+                // output slipped through the text comparison and is caught by this one.)
+                switch (expected.value.GetType())
+                {
+                    case IronGang::MissionValueType::Bool:
+                        Require(actual.value.AsBool() == expected.value.AsBool(),
+                                "bool \"" + expected.name + "\" must round-trip" + where);
+                        break;
+                    case IronGang::MissionValueType::Int:
+                        Require(actual.value.AsInt() == expected.value.AsInt(),
+                                "int \"" + expected.name + "\" must round-trip" + where);
+                        break;
+                    case IronGang::MissionValueType::Float:
+                        Require(actual.value.AsFloat() == expected.value.AsFloat(),
+                                "float \"" + expected.name + "\" must round-trip bit for bit" + where +
+                                    ": wrote " + std::to_string(expected.value.AsFloat()) + ", read " +
+                                    std::to_string(actual.value.AsFloat()));
+                        break;
+                    case IronGang::MissionValueType::String:
+                        Require(actual.value.AsString() == expected.value.AsString(),
+                                "string \"" + expected.name + "\" must round-trip exactly" + where +
+                                    ": wrote [" + expected.value.AsString() + "], read [" +
+                                    actual.value.AsString() + "]");
+                        break;
+                }
+            }
+        }
+
+        std::filesystem::remove(path);
+    }
+
     // plan_29 IG-29-001/002/003/004/023: the save format's integrity guarantees -- an atomic
     // write that cannot leave a half-written file, one rolling backup, a checksum that refuses a
     // damaged file, and a version check that refuses a file from a newer build.
@@ -4646,6 +4805,7 @@ int main()
         TestMissionCheckpointSurvivesSaveLoad();
         TestSaveMigratesLegacyMissionState();
         TestSaveFormatRobustness();
+        TestSaveRoundTripsRandomSnapshots();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
         TestCampaignGraphUnlocksAndRejectsCycles();

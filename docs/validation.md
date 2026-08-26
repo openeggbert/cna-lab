@@ -577,6 +577,44 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## A property test that could not fail, and the audit of a plan nobody had updated (2026-08-26)
+
+plan_34 `IG-34-001`/`007`/`008`/`010`/`012`/`016` closed; `IG-34-006`/`011` given honest partial
+notes.
+
+**The property test.** `TestSaveRoundTripsRandomSnapshots` puts 250 randomly generated snapshots
+through write/read and compares every field. Values come from the deterministic `RandomSource`, so a
+failure is reproducible from its seed rather than a story about a run nobody can repeat, and string
+values are drawn from fragments chosen to poke at the line format: `=`, `:`, `;`, quotes, leading and
+trailing spaces, non-ASCII bytes, emoji.
+
+**It passed on the first run, which for a property test means nothing until you check it can fail.**
+So I mutated `MissionValue::ToText` to print floats with two decimals and re-ran: **the test stayed
+green**. The comparison was `actual.ToText() == expected.ToText()` — self-referential, and happy to
+agree while both sides lost precision equally. That is the same shape of hollow assertion I caught in
+my own work two iterations ago.
+
+Comparing typed values instead, the same mutation now fails it:
+`float "var_4" must round-trip bit for bit (iteration 1): wrote -31109.312500, read -31109.310547`.
+The original formatting is restored, and the reason the comparison is not text is written into the
+test.
+
+**The audit.** plan_34 stood at 0 of 38 while much of what it asks for had been built over the last
+twenty-odd iterations and never recorded — which is exactly the drift `IG-38-003` exists to prevent,
+in the file least likely to be read. Six entries were verifiably done and are now marked with the
+tests that cover them; two more are partial with their gaps named rather than left implied:
+`IG-34-011`'s cancellation is untested **because `DistrictManager` cannot cancel a transition**, and
+`IG-34-006`'s remaining gaps are `DialogueSystem`'s parser, the two physics-backed controllers, and
+the renderer's animation state, which needs a graphics device.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12** before the mutation, red
+during it, green after restoring — the check that the test earns its place. Task count moved from
+269 to 277.
+
+**Boundaries.** Nothing in plan_34's CI half (`IG-34-003`/`004`/`005`, sanitizer jobs) is done: there
+is no CI configuration in the repository at all, and writing one that cannot be executed here would
+be a claim rather than a result.
+
 ## Witnesses stop seeing through walls (2026-08-26)
 
 plan_22 `IG-22-002` closed — a **P0** that had been carrying "simplified to a fixed-radius proximity

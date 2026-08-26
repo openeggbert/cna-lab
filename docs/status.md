@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**276 of 2148 tasks done** (12%). Open by priority: P0 198 · P1 1019 · P2 598 · P3 57.
+**282 of 2148 tasks done** (13%). Open by priority: P0 197 · P1 1014 · P2 598 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -80,7 +80,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 31 | [Environment content production](../plan/plan_31-environment-content-production.md) | 0/58 | 0% |
 | 32 | [Character and vehicle content production](../plan/plan_32-character-and-vehicle-content-production.md) | 0/98 | 0% |
 | 33 | [Story, campaign, and mission content](../plan/plan_33-story-campaign-and-mission-content.md) | 0/143 | 0% |
-| 34 | [Automated tests, CI, and regression control](../plan/plan_34-automated-tests-ci-and-regression-control.md) | 0/38 | 0% |
+| 34 | [Automated tests, CI, and regression control](../plan/plan_34-automated-tests-ci-and-regression-control.md) | 6/38 | 15% |
 | 35 | [Performance, memory, and scalability](../plan/plan_35-performance-memory-and-scalability.md) | 42/52 | 80% |
 | 36 | [Robustness, security, and untrusted content](../plan/plan_36-robustness-security-and-untrusted-content.md) | 3/37 | 8% |
 | 37 | [Platforms, packaging, release, and operations](../plan/plan_37-platforms-packaging-release-and-operations.md) | 8/76 | 10% |
