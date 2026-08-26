@@ -1,7 +1,6 @@
 #pragma once
 
 #include "IronGang/Graphics/LightmapMesh.hpp"
-#include "IronGang/Graphics/ModelMaterials.hpp"
 #include "IronGang/Graphics/PrimitiveMesh.hpp"
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 
@@ -170,10 +169,6 @@ namespace IronGang
 
         // Enabled only for --profile runs. HUD SpriteBatch batching is backend-internal and is
         // intentionally outside these exact 3D counters.
-        // Supplies the base colours for imported models (plan_08 IG-08-014). Called before
-        // Initialize(); without it every imported model keeps rendering white, as it did before.
-        void SetModelMaterials(ModelMaterialTable materials);
-
         void BeginFrameWorkloadTracking() noexcept;
         [[nodiscard]] const RenderWorkload& GetFrameWorkload() const noexcept { return frameWorkload_; }
 
@@ -237,12 +232,14 @@ namespace IronGang
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
 
         // plan_08 IG-08-014: the base colours the CNJ pipeline drops (see ModelMaterials.hpp).
-        // The model's own base colour scaled by the shared sun brightness; white times the
-        // brightness for a model with no entry, which is what everything got before.
-        [[nodiscard]] Microsoft::Xna::Framework::Vector3 ShadedBaseColor(const std::string& modelId,
-                                                                        float sunBrightness) const;
-
-        ModelMaterialTable modelMaterials_;
+        // plan_08 IG-08-014: each imported model's own diffuse colour, as the loader set it from
+        // the asset, captured once at load. The per-frame sun tint multiplies these rather than
+        // overwriting them -- multiplying in place would compound and fade the model to black.
+        std::vector<Microsoft::Xna::Framework::Vector3> warehouseBaseColors_;
+        std::vector<Microsoft::Xna::Framework::Vector3> vehicleBodyBaseColors_;
+        std::vector<Microsoft::Xna::Framework::Vector3> vehicleCabinBaseColors_;
+        std::vector<Microsoft::Xna::Framework::Vector3> vehicleWindshieldBaseColors_;
+        std::vector<Microsoft::Xna::Framework::Vector3> vehicleWheelBaseColors_;
         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel_;
         Microsoft::Xna::Framework::Vector3 warehousePosition_{};
 

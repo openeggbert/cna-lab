@@ -40,7 +40,7 @@ REGISTRY_COLUMNS = (
     "notes",
 )
 ALLOWED_LICENSES = frozenset(("MIT", "CC0", "Public Domain"))
-PRODUCTION_DIRECTORIES = ("audio", "config", "cutscenes", "dialogues", "districts", "missions", "models", "vehicles")
+PRODUCTION_DIRECTORIES = ("audio", "config", "cutscenes", "dialogues", "districts", "missions", "vehicles")
 EMBEDDED_ASSET_PATHS = frozenset(("src/UI/BitmapFont.cpp",))
 ASSET_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_]*")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")

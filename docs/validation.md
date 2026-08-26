@@ -1867,6 +1867,58 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Deleting the workaround the stale diagnosis produced (2026-08-26)
+
+plan_08 `IG-08-014` stays partial, but for a smaller reason than before. Gates M12 and M14
+untouched.
+
+**What this removes.** `assets/models/model-materials.json`, `ModelMaterialTable`
+(`include/`/`src/Graphics/ModelMaterials.*`), `PrototypeRenderer::ShadedBaseColor()`, its loader in
+`IronGangGame::Initialize()`, the `iron_gang_model_materials_tests` CTest target, two C++ tests, the
+registry row, the `models` production directory, and its entries in the install list and the release
+archive's required files.
+
+All of it existed to work around "the CNJ pipeline drops material data" — a conclusion drawn from a
+`.cnj` that was months out of date. Keeping a second copy of numbers the asset already carries, with
+a test enforcing that the copy matches its source, is precisely the drift the pipeline exists to
+avoid.
+
+**What replaces it.** `PrototypeRenderer` captures each imported model's diffuse colour **once at
+load** (`CaptureModelDiffuseColors`) and multiplies it by the shared sun brightness each frame
+(`ApplyModelDiffuseColors`). Capturing once is the whole design: reading the colour back and
+multiplying in place would compound — 0.42 × 0.8, then × 0.8 again — and fade every model to black
+over a few seconds.
+
+**A diagnostic instead of a silent regression.** Removing the override means a workspace whose
+`assets/generated` predates CNA's material work would render white again, which is exactly the
+symptom that started this. `ModelPredatesMaterials()` detects a model whose meshes all use a
+pre-PBR effect and logs the fix by name:
+
+```
+[IronGang][assets][warning] warehouse.cnj carries no material (a pre-PBR asset) and will render
+white -- regenerate it with scripts/build-assets.sh
+```
+
+**Verified.** A scripted run at the same update as the previous iteration's capture renders a
+**byte-identical frame** — `ImageChops.difference` returns no bounding box — which is the strongest
+available evidence that the asset's own material produces exactly what the hand-maintained table
+did, and therefore that the table was redundant rather than load-bearing. The warning path was
+exercised directly: a copy of the asset tree with `warehouse.cnj` rewritten back to `cnjVersion 1`
+/ `BasicEffect` and its material fields stripped produces the warning above. 16 CTest targets pass
+(down from 17 — one target was deleted with the thing it tested), `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Replacing `ApplyModelDiffuseColors(...)` with the old
+`SetModelDiffuseColor(model, sunTint)` — overwrite instead of shade — changes the rendered frame in
+the region where the warehouse is (bounding box `(769, 0, 1280, 21)`). The distinction between
+shading a material and replacing it is therefore visible, not notional.
+
+**Not verified.** The compounding failure the capture-once design prevents is argued, not
+demonstrated: no test drives many frames and asserts the colour is stable, because that needs a
+graphics device. `metallicFactor`, `roughnessFactor` and `emissiveFactor` now reach the effect from
+the asset but the software backend does nothing with them — they are correct in the pipeline and
+inert in the renderer. Per-face baked lighting for imported geometry (`IG-08-014`'s remaining half)
+still has nowhere to bake into.
+
 ## The MC3 pipeline actually runs here, and a diagnosis I got wrong (2026-08-26)
 
 plan_09 `IG-09-002` and `IG-09-003` closed. Gates M12 and M14 untouched. This entry also **corrects

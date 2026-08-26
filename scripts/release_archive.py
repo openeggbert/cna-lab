@@ -38,7 +38,6 @@ REQUIRED_ASSETS = (
     "districts/warehouse_block.roads.json",
     "districts/warehouse_block.sidewalks.json",
     "missions/prologue.mission.json",
-    "models/model-materials.json",
     "vehicles/sedan.vehicle.json",
     "generated/models/cnj/warehouse.cnj",
     "generated/models/cnj/vehicle_body.cnj",

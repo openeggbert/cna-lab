@@ -148,7 +148,6 @@ add_library(iron_gang_core STATIC
     src/Gameplay/VehicleDamage.cpp
     src/Gameplay/VehicleController.cpp
     src/Graphics/LightmapMesh.cpp
-    src/Graphics/ModelMaterials.cpp
     src/Graphics/ScreenshotSummary.cpp
     src/Graphics/VideoMemoryAccounting.cpp
     src/Missions/CampaignDefinition.cpp
@@ -342,13 +341,6 @@ if(IRON_GANG_BUILD_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_layering.py"
             "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    # plan_08 IG-08-014: the shipped base colours are a copy of numbers whose source of truth is
-    # assets/source/mc3/; a copy nothing checks is a copy that drifts.
-    add_test(NAME iron_gang_model_materials_tests
-        COMMAND "${Python3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_model_materials.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}")
-
     # plan_30 IG-30-012: the first test in this repository that presses a key. Runs the committed
     # QA repro script through the real binary.
     add_test(NAME iron_gang_input_script_tests
@@ -412,7 +404,7 @@ install(TARGETS iron_gang RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Ship only runtime content. Authoring sources, registry inputs, and build policy remain available
 # in the source repository; the generated notices below preserve package provenance.
-foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues districts missions models vehicles)
+foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues districts missions vehicles)
     install(DIRECTORY "assets/${runtime_asset_directory}"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets")
 endforeach()

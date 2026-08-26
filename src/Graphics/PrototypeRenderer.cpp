@@ -1,5 +1,7 @@
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 
+#include "IronGang/Core/Log.hpp"
+
 #include "IronGang/Gameplay/PedestrianAnimation.hpp"
 
 #include "IronGang/Graphics/SunLight.hpp"
@@ -99,6 +101,98 @@ namespace IronGang
         // Gate M10: applies the same CPU-computed sun-brightness tint (SunLight.hpp) to every
         // BasicEffect/PbrEffect/SkinnedEffect/SkinnedPbrEffect a CNJ Model's meshes use -- the
         // real-content equivalent of DrawMesh()'s `tint` parameter for the procedural boxes.
+        // plan_08 IG-08-014: the diffuse colour the **asset** carries, captured once so the
+        // per-frame sun tint multiplies it instead of overwriting it. Reading it back every frame
+        // and multiplying in place would compound: 0.42 x 0.8, then x 0.8 again, and the model
+        // fades to black over a few seconds.
+        [[nodiscard]] std::vector<Vector3> CaptureModelDiffuseColors(const Model& model)
+        {
+            std::vector<Vector3> colors;
+            for (const ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (const Effect* effect : mesh->getEffectsProperty())
+                {
+                    if (const auto* basicEffect = dynamic_cast<const BasicEffect*>(effect))
+                    {
+                        colors.push_back(basicEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* pbrEffect = dynamic_cast<const PbrEffect*>(effect))
+                    {
+                        colors.push_back(pbrEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* skinnedEffect = dynamic_cast<const SkinnedEffect*>(effect))
+                    {
+                        colors.push_back(skinnedEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* skinnedPbr = dynamic_cast<const SkinnedPbrEffect*>(effect))
+                    {
+                        colors.push_back(skinnedPbr->getDiffuseColorProperty());
+                    }
+                    else
+                    {
+                        colors.push_back(Vector3(1.0F, 1.0F, 1.0F));
+                    }
+                }
+            }
+            return colors;
+        }
+
+        // Whether every mesh of a model uses a pre-PBR effect, which is what a `.cnj` generated
+        // before CNA's material work looks like. Such an asset carries no material at all, so its
+        // captured colour is white and the model renders as a flat slab -- worth saying out loud
+        // rather than leaving someone to wonder why their warehouse is white.
+        [[nodiscard]] bool ModelPredatesMaterials(const Model& model)
+        {
+            bool sawEffect = false;
+            for (const ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (const Effect* effect : mesh->getEffectsProperty())
+                {
+                    sawEffect = true;
+                    if (dynamic_cast<const PbrEffect*>(effect) != nullptr ||
+                        dynamic_cast<const SkinnedPbrEffect*>(effect) != nullptr)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return sawEffect;
+        }
+
+        // Applies `captured x tint` to every effect, in the order CaptureModelDiffuseColors()
+        // visited them.
+        void ApplyModelDiffuseColors(Model& model, const std::vector<Vector3>& captured,
+                                     const Vector3& tint)
+        {
+            std::size_t index = 0;
+            for (ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (Effect* effect : mesh->getEffectsPropertyMutable())
+                {
+                    const Vector3 base = index < captured.size() ? captured[index]
+                                                                 : Vector3(1.0F, 1.0F, 1.0F);
+                    ++index;
+                    const Vector3 shaded(base.X * tint.X, base.Y * tint.Y, base.Z * tint.Z);
+                    if (auto* basicEffect = dynamic_cast<BasicEffect*>(effect))
+                    {
+                        basicEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* pbrEffect = dynamic_cast<PbrEffect*>(effect))
+                    {
+                        pbrEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                    {
+                        skinnedEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                    {
+                        skinnedPbrEffect->setDiffuseColorProperty(shaded);
+                    }
+                }
+            }
+        }
+
         void SetModelDiffuseColor(Model& model, const Vector3& tint)
         {
             for (ModelMesh* mesh : model.getMeshesProperty())
@@ -138,6 +232,33 @@ namespace IronGang
         warehouseModel_ = std::move(warehouseModel);
         vehicleModels_ = std::move(vehicleModels);
         characterModel_ = std::move(characterModel);
+
+        // plan_08 IG-08-014: capture what the assets say their colours are, once. Since CNA's
+        // glTF->CNJ work landed, a generated .cnj carries diffuseColor/metallic/roughness and the
+        // loader applies them -- so the game's job is to shade that colour, not to replace it.
+        if (warehouseModel_)
+        {
+            warehouseBaseColors_ = CaptureModelDiffuseColors(*warehouseModel_);
+            if (ModelPredatesMaterials(*warehouseModel_))
+            {
+                Log::Warning(LogCategory::Assets,
+                             "warehouse.cnj carries no material (a pre-PBR asset) and will render "
+                             "white -- regenerate it with scripts/build-assets.sh");
+            }
+        }
+        if (vehicleModels_)
+        {
+            vehicleBodyBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->body);
+            vehicleCabinBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->cabin);
+            vehicleWindshieldBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->windshield);
+            vehicleWheelBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->wheel);
+            if (ModelPredatesMaterials(vehicleModels_->body))
+            {
+                Log::Warning(LogCategory::Assets,
+                             "the sedan's .cnj files carry no material (pre-PBR assets) and will "
+                             "render white -- regenerate them with scripts/build-assets.sh");
+            }
+        }
 
         // Gate M10 baked lighting: built before RebuildStaticGeometry() below, which assigns the
         // first district's baked lightmap atlas to lightmapEffect_'s second texture slot.
@@ -294,17 +415,6 @@ namespace IronGang
         atlasTexture->SetData(atlasPixels.data(), static_cast<int>(atlasPixels.size()));
         lightmapEffect_->SetOwnedTexture2(std::move(atlasTexture));
         lightmapTextureBytes_ = sizeof(Color) + atlasPixels.size() * sizeof(Color);
-    }
-
-    Vector3 PrototypeRenderer::ShadedBaseColor(const std::string& modelId, float sunBrightness) const
-    {
-        const Vector3 base = modelMaterials_.GetBaseColor(modelId);
-        return Vector3(base.X * sunBrightness, base.Y * sunBrightness, base.Z * sunBrightness);
-    }
-
-    void PrototypeRenderer::SetModelMaterials(ModelMaterialTable materials)
-    {
-        modelMaterials_ = std::move(materials);
     }
 
     RendererVideoMemoryBreakdown PrototypeRenderer::GetTrackedVideoMemory() const
@@ -531,14 +641,13 @@ namespace IronGang
                 {-1.05F, -0.20F, 1.35F},  {1.05F, -0.20F, 1.35F},
             };
 
-            // plan_08 IG-08-014: base colour times sun brightness. The .cnj pipeline carries no
-            // material at all, so without the first factor the sedan -- authored dark red in
-            // vehicle_body.mc3.xml -- drew as pale grey.
-            SetModelDiffuseColor(vehicleModels_->body, ShadedBaseColor("vehicle_body", sunBrightness));
-            SetModelDiffuseColor(vehicleModels_->cabin, ShadedBaseColor("vehicle_cabin", sunBrightness));
-            SetModelDiffuseColor(vehicleModels_->windshield,
-                                 ShadedBaseColor("vehicle_windshield", sunBrightness));
-            SetModelDiffuseColor(vehicleModels_->wheel, ShadedBaseColor("vehicle_wheel", sunBrightness));
+            // plan_08 IG-08-014: the asset's own colour times the sun, not a colour the game keeps
+            // a second copy of. The sedan is authored dark red in vehicle_body.mc3.xml, and that
+            // is what the .cnj now carries.
+            ApplyModelDiffuseColors(vehicleModels_->body, vehicleBodyBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->cabin, vehicleCabinBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->windshield, vehicleWindshieldBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->wheel, vehicleWheelBaseColors_, sunTint);
 
             DrawModel(vehicleModels_->body, vehicleWorld, view, projection);
             DrawModel(vehicleModels_->cabin, Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
@@ -561,7 +670,7 @@ namespace IronGang
 
         if (warehouseModel_.has_value())
         {
-            SetModelDiffuseColor(*warehouseModel_, ShadedBaseColor("warehouse", sunBrightness));
+            ApplyModelDiffuseColors(*warehouseModel_, warehouseBaseColors_, sunTint);
             DrawModel(*warehouseModel_, Matrix::CreateTranslation(warehousePosition_), view, projection);
             if (workloadTrackingEnabled_)
             {

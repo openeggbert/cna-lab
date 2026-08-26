@@ -98,6 +98,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Deleting the workaround the stale diagnosis produced (plan_08)
+
+Removed: `assets/models/model-materials.json`, `ModelMaterialTable`, `ShadedBaseColor()`, its
+loader, one CTest target, two C++ tests, the registry row, the `models` production directory and its
+install/release entries. All of it existed to work around "the CNJ pipeline drops material data" —
+a conclusion drawn from a `.cnj` months out of date. Keeping a second copy of numbers the asset
+already carries, with a test enforcing the copy matches its source, is the drift the pipeline exists
+to avoid.
+
+`PrototypeRenderer` now captures each imported model's diffuse colour **once at load** and
+multiplies it by the sun each frame. Capturing once is the design: reading back and multiplying in
+place compounds — 0.42 × 0.8, then × 0.8 again — and fades every model to black.
+
+**A diagnostic instead of a silent regression.** A workspace whose `assets/generated` predates CNA's
+material work would render white again — the original symptom. `ModelPredatesMaterials()` detects an
+all-pre-PBR-effect model and logs the fix by name (`regenerate it with scripts/build-assets.sh`).
+Exercised directly by rewriting a copy of `warehouse.cnj` back to `cnjVersion 1`.
+
+Verified: a scripted run renders a **byte-identical frame** to the previous iteration — the
+strongest available evidence the table was redundant rather than load-bearing. CTest 16/16 (one
+target deleted with the thing it tested). Mutation-checked: overwrite-instead-of-shade visibly
+changes the frame where the warehouse is.
+
+Not done: `metallicFactor`/`roughnessFactor`/`emissiveFactor` now reach the effect from the asset but
+the software backend does nothing with them — correct in the pipeline, inert in the renderer.
+
 ### The MC3 pipeline runs here now — and a diagnosis I got wrong (plan_09)
 
 **Correction first.** "Every imported model was white" concluded the MC3 → glTF → CNJ pipeline drops
