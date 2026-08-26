@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**275 of 2148 tasks done** (12%). Open by priority: P0 199 · P1 1019 · P2 598 · P3 57.
+**276 of 2148 tasks done** (12%). Open by priority: P0 198 · P1 1019 · P2 598 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -68,7 +68,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 19 | [Navigation and pathfinding](../plan/plan_19-navigation-and-pathfinding.md) | 1/26 | 3% |
 | 20 | [Pedestrians and ambient AI](../plan/plan_20-pedestrians-and-ambient-ai.md) | 4/60 | 6% |
 | 21 | [Traffic simulation](../plan/plan_21-traffic-simulation.md) | 5/60 | 8% |
-| 22 | [Police, witnesses, crime, and wanted response](../plan/plan_22-police-witnesses-crime-and-wanted-response.md) | 4/60 | 6% |
+| 22 | [Police, witnesses, crime, and wanted response](../plan/plan_22-police-witnesses-crime-and-wanted-response.md) | 5/60 | 8% |
 | 23 | [Combat, damage, and interaction](../plan/plan_23-combat-damage-and-interaction.md) | 0/44 | 0% |
 | 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 28/55 | 50% |
 | 25 | [Dialogue, localization, and narrative state](../plan/plan_25-dialogue-localization-and-narrative-state.md) | 0/50 | 0% |

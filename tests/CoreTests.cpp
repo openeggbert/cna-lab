@@ -15,6 +15,7 @@
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficSignal.hpp"
+#include "IronGang/Gameplay/Visibility.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleConfig.hpp"
 #include "IronGang/Gameplay/VehicleDamage.hpp"
@@ -2084,6 +2085,78 @@ namespace
         }
 
         std::filesystem::remove(path);
+    }
+
+    // plan_22 IG-22-002: a witness has to be able to see. Until now anyone within a radius
+    // reported everything, wall or no wall.
+    void TestWitnessesCannotSeeThroughWalls()
+    {
+        using IronGang::Vector3;
+        IronGang::WorldBox wall;
+        wall.name = "warehouse";
+        wall.center = {0.0F, 3.0F, 0.0F};
+        wall.size = {10.0F, 6.0F, 10.0F};
+        wall.collidable = true;
+
+        // Straight through the middle, and every way of missing it.
+        Require(IronGang::SegmentIntersectsBox({-20.0F, 3.0F, 0.0F}, {20.0F, 3.0F, 0.0F}, wall),
+                "a segment through the box must intersect it");
+        Require(!IronGang::SegmentIntersectsBox({-20.0F, 3.0F, 20.0F}, {20.0F, 3.0F, 20.0F}, wall),
+                "a segment passing well to one side must not");
+        Require(!IronGang::SegmentIntersectsBox({-20.0F, 30.0F, 0.0F}, {20.0F, 30.0F, 0.0F}, wall),
+                "a segment passing over the top must not");
+        Require(!IronGang::SegmentIntersectsBox({-20.0F, 3.0F, 0.0F}, {-12.0F, 3.0F, 0.0F}, wall),
+                "a segment that stops short must not -- the box is beyond its end, not on it");
+        Require(IronGang::SegmentIntersectsBox({0.0F, 3.0F, 0.0F}, {20.0F, 3.0F, 0.0F}, wall),
+                "a segment starting inside the box must intersect it");
+        Require(IronGang::SegmentIntersectsBox({0.0F, 3.0F, 0.0F}, {0.0F, 3.0F, 0.0F}, wall),
+                "a degenerate segment inside the box must intersect it");
+        Require(!IronGang::SegmentIntersectsBox({20.0F, 3.0F, 0.0F}, {20.0F, 3.0F, 0.0F}, wall),
+                "a degenerate segment outside the box must not");
+        // Parallel to a slab, which is the case the algorithm has to special-case.
+        Require(!IronGang::SegmentIntersectsBox({-20.0F, 100.0F, 0.0F}, {20.0F, 100.0F, 0.0F}, wall),
+                "a segment parallel to a slab and outside it must not intersect");
+
+        // Line of sight across a world.
+        std::vector<IronGang::WorldBox> boxes{wall};
+        Require(!IronGang::HasLineOfSight({-20.0F, 1.5F, 0.0F}, {20.0F, 1.5F, 0.0F}, boxes),
+                "a building between two points must block the view");
+        Require(IronGang::HasLineOfSight({-20.0F, 1.5F, 20.0F}, {20.0F, 1.5F, 20.0F}, boxes),
+                "open ground must not block the view");
+        Require(IronGang::HasLineOfSight({-20.0F, 1.5F, 0.0F}, {20.0F, 1.5F, 0.0F}, {}),
+                "an empty world blocks nothing");
+
+        // Paint on the ground is not a wall: road markings and trigger decals are boxes too, and
+        // treating them as occluders would blind every witness standing near a crossing.
+        IronGang::WorldBox marking;
+        marking.name = "stop_line";
+        marking.center = {0.0F, 0.05F, 0.0F};
+        marking.size = {5.0F, 0.08F, 0.5F};
+        marking.collidable = false;
+        Require(IronGang::HasLineOfSight({-20.0F, 0.05F, 0.0F}, {20.0F, 0.05F, 0.0F}, {marking}),
+                "a non-collidable box must never block sight");
+
+        // Against the real district: the warehouse stands between the sidewalk and the yard behind
+        // it, while two points on the open road can see each other.
+        IronGang::PrototypeWorld world;
+        const std::vector<IronGang::WorldBox>& worldBoxes = world.GetBoxes();
+        const IronGang::WorldBox* warehouse = nullptr;
+        for (const IronGang::WorldBox& box : worldBoxes)
+        {
+            if (box.name == "warehouse")
+            {
+                warehouse = &box;
+                break;
+            }
+        }
+        Require(warehouse != nullptr, "the warehouse block must still contain a warehouse");
+        const Vector3 nearSide = warehouse->center - Vector3(0.0F, 0.0F, warehouse->size.Z);
+        const Vector3 farSide = warehouse->center + Vector3(0.0F, 0.0F, warehouse->size.Z);
+        Require(!IronGang::HasLineOfSight({nearSide.X, 1.5F, nearSide.Z}, {farSide.X, 1.5F, farSide.Z},
+                                          worldBoxes),
+                "the warehouse must block sight straight through it");
+        Require(IronGang::HasLineOfSight({0.0F, 1.5F, 20.0F}, {0.0F, 1.5F, 30.0F}, worldBoxes),
+                "two points on the open road must see each other");
     }
 
     // plan_22 IG-22-001/011: running a red is an offence now that lights exist, and the player is
@@ -4586,6 +4659,7 @@ int main()
         TestVehicleDamageDistinguishesCrashesFromBraking();
         TestJsonDataFileIsBoundedBeforeParsing();
         TestVehicleConfigLoadsValidatesAndFallsBack();
+        TestWitnessesCannotSeeThroughWalls();
         TestRunningARedLightIsAWitnessedOffence();
         TestTrafficSignalCyclesAndOpposesItself();
         TestLaneClearanceSeesOnlyWhatIsAhead();

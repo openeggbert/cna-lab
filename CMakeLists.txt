@@ -135,6 +135,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/PlayerController.cpp
     src/Gameplay/PoliceSystem.cpp
     src/Gameplay/TrafficSignal.cpp
+    src/Gameplay/Visibility.cpp
     src/Gameplay/TrafficVehicle.cpp
     src/Gameplay/VehicleConfig.cpp
     src/Gameplay/VehicleDamage.cpp

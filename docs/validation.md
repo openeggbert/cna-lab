@@ -577,6 +577,44 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Witnesses stop seeing through walls (2026-08-26)
+
+plan_22 `IG-22-002` closed — a **P0** that had been carrying "simplified to a fixed-radius proximity
+check" since gate M9 — and `IG-22-011`'s false-positive half largely with it.
+
+**What changed.** A witness must now be both close **and** able to see. `HasLineOfSight`
+(`include/IronGang/Gameplay/Visibility.hpp`) traces the segment from the witness's eye height to the
+player's vehicle against the district's collidable boxes with the slab method. The **game** filters
+the witness list before `PoliceSystem` ever sees it: the police system has no business knowing about
+geometry, and keeping it that way is why its tests need no world.
+
+Two details that decide whether this helps or hurts:
+
+* **Distance first, then the ray.** `PoliceSystem::kWitnessRadius` became public so the caller can
+  reject candidates the police system would reject anyway, rather than tracing rays to pedestrians
+  on the other side of the district.
+* **Paint is not a wall.** Road markings, stop lines, and trigger decals are `WorldBox`es too, but
+  non-collidable ones are skipped — treating paint as an occluder would blind every witness standing
+  near a crossing, which is worse than the problem being fixed.
+
+**Measured, not assumed.** In a real `mixed --smoke 400` run, witness checks per update fell from
+**16 to 9**: nearly half the "witnesses" had been reporting through something. `ai_cpu` p95 moved
+0.068 → 0.074 ms, which is the ray tracing paying for itself by shrinking the work downstream of it.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestWitnessesCannotSeeThroughWalls` covers a segment through the box, past each side, over the top,
+stopping short, starting inside, two degenerate segments (inside and outside), and the
+parallel-to-a-slab case the algorithm has to special-case; then line of sight blocked by a building,
+clear across open ground, an empty world, a non-collidable marking never blocking, and — against the
+**real district** — the warehouse blocking sight straight through it while two points on the open
+road see each other.
+
+**Boundaries.** Still a radius plus a ray, **not a vision cone**: a witness facing away sees the act
+just as well as one watching it. A cone needs a facing direction and a peripheral-vision rule per
+witness, and neither changes the outcome nearly as much as noticing a building is in the way. Sight
+is traced to the vehicle's centre only, so a car half-hidden behind a corner is either fully seen or
+fully missed.
+
 ## Running a red is an offence, and the player is told why (2026-08-26)
 
 plan_22 `IG-22-001` completed (its note had said "no running a light -- no signals exist yet");

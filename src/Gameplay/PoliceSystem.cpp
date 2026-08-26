@@ -8,7 +8,6 @@ namespace IronGang
 {
     namespace
     {
-        constexpr float kWitnessRadius = 15.0F;
         constexpr float kCrimeContactDistance = 2.5F;
         constexpr float kOffenseSpeedThresholdKph = 70.0F;
         constexpr float kDispatchDelaySeconds = 2.0F;
@@ -70,7 +69,7 @@ namespace IronGang
             {
                 ++workload.witnessChecks;
                 const float distanceSquared = DistanceSquaredXZ(witness, playerVehiclePosition);
-                if (distanceSquared <= kWitnessRadius * kWitnessRadius)
+                if (distanceSquared <= PoliceSystem::kWitnessRadius * PoliceSystem::kWitnessRadius)
                 {
                     if (observation.vehicleSpeedKph > kOffenseSpeedThresholdKph)
                     {

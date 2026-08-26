@@ -98,6 +98,26 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Witnesses stop seeing through walls (plan_22)
+
+Closes the **P0** that had carried "simplified to a fixed-radius proximity check" since gate M9, and
+most of `IG-22-011`'s false-positive half with it.
+
+- `HasLineOfSight` (`Gameplay/Visibility.hpp`) traces witness-eye to vehicle against the district's
+  collidable boxes (slab method). The **game** filters the list before `PoliceSystem` sees it -- the
+  police system has no business knowing about geometry, which is why its tests need no world.
+- **Distance first, then the ray** (`PoliceSystem::kWitnessRadius` is public for that), so rays are
+  traced only for candidates the radius keeps.
+- **Paint is not a wall**: non-collidable boxes are skipped, or every witness near a crossing would
+  be blinded by the stop line -- worse than the problem being fixed.
+
+**Measured:** in a real `mixed` run witness checks per update fell **16 -> 9** -- nearly half the
+"witnesses" had been reporting through something -- while `ai_cpu` p95 moved 0.068 -> 0.074 ms.
+
+Still open: **not a vision cone** -- a witness facing away sees just as well as one watching; and
+sight is traced to the vehicle's centre, so a car half-hidden at a corner is fully seen or fully
+missed.
+
 ### Running a red is an offence, and the player is told why (plan_22)
 
 Closes the gap the entry below left: the player's car ignored the lights and `PoliceSystem` never

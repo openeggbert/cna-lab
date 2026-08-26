@@ -56,6 +56,11 @@ namespace IronGang
     class PoliceSystem final
     {
     public:
+        // How close a witness must be to see anything. Public so a caller filtering witnesses by
+        // line of sight (plan_22 IG-22-002) can skip the ones this system would reject anyway,
+        // rather than tracing rays to pedestrians on the other side of the district.
+        static constexpr float kWitnessRadius = 15.0F;
+
         void Reset();
 
         // witnessPositions is every traffic vehicle's and pedestrian's current position this

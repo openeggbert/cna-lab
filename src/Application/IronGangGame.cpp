@@ -4,6 +4,7 @@
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
+#include "IronGang/Gameplay/Visibility.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -1766,15 +1767,37 @@ namespace IronGang
                     trafficVehicles_[i].Update(simulationSeconds, obstacleDistance);
                 }
 
+                // plan_22 IG-22-002: a witness has to be close **and** able to see. Filtered here
+                // rather than inside PoliceSystem, which has no business knowing about geometry --
+                // and filtered by distance first, so a ray is traced only for the handful of
+                // candidates the radius keeps.
                 std::vector<Vector3> witnessPositions;
                 witnessPositions.reserve(trafficVehicles_.size() + pedestrians_.size());
+                const Vector3 observed = vehicle_.GetPosition();
+                const std::vector<WorldBox>& occluders = districtManager_.GetWorld().GetBoxes();
+                const auto addIfWitness = [&](const Vector3& position)
+                {
+                    if (DistanceSquaredXZ(position, observed) >
+                        PoliceSystem::kWitnessRadius * PoliceSystem::kWitnessRadius)
+                    {
+                        return;
+                    }
+                    // Eye height on both ends: a line traced along the ground would be blocked by
+                    // the road surface itself.
+                    if (!HasLineOfSight(position + Vector3(0.0F, 1.2F, 0.0F),
+                                        observed + Vector3(0.0F, 0.8F, 0.0F), occluders))
+                    {
+                        return;
+                    }
+                    witnessPositions.push_back(position);
+                };
                 for (const TrafficVehicle& trafficVehicle : trafficVehicles_)
                 {
-                    witnessPositions.push_back(trafficVehicle.GetPosition());
+                    addIfWitness(trafficVehicle.GetPosition());
                 }
                 for (const Pedestrian& pedestrian : pedestrians_)
                 {
-                    witnessPositions.push_back(pedestrian.GetPosition());
+                    addIfWitness(pedestrian.GetPosition());
                 }
 
                 for (std::size_t i = 0; i < pedestrians_.size(); ++i)
