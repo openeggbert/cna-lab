@@ -92,6 +92,30 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Player settings become their own file (plan_29, plan_28)
+
+**Three files, three lifetimes, three owners** -- the point of `IG-29-005`: `runtime/settings.json`
+is what the **player** changes and must survive deleting every save; the save file is campaign
+progress; `assets/config/game.json` is read-only developer tuning shipped with the game.
+
+`UserSettings` holds a master volume and a HUD toggle, both **on the pause menu itself** (with two
+settings, a submenu is a screen to learn for no benefit). Volume cycles in five wrapping steps -- a
+slider needs pointer input the game does not have. Turning the HUD off **never hides the pause
+menu**: a hidden menu strands the player in a paused game. Master volume multiplies every sound
+(engine, horn, footsteps), so it is one setting rather than a scatter.
+
+**Shared atomic write:** `SaveGame` had the only copy of write-temp/rotate-backup/rename. The second
+caller is where a pattern becomes shared or becomes two subtly different implementations, so it
+moved to `WriteTextFileAtomically` (`Core/AtomicFile.hpp`).
+
+Closed `IG-29-005`. Verified: build clean, CTest 11/11, a settings test including a read-only
+directory proving a failed write leaves the previous file intact.
+
+**Blocked and worth knowing:** key rebinding (`IG-28-007`) needs CNA's `Keys` enum, and
+`iron_gang_core` **cannot see CNA's Input module** (not on the library's include path -- verified by
+a compile). So it needs either integer key codes in the settings file or a game-layer home that
+tests cannot reach. Decide that before starting it.
+
 ### The pause screen becomes a menu (plan_28)
 
 The pause screen from the entry below was text listing keys; it is now Resume / Save / Load /

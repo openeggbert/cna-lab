@@ -1,6 +1,7 @@
 #include "IronGang/Persistence/SaveGame.hpp"
 
-#include "System/IO/Directory.hpp"
+#include "IronGang/Core/AtomicFile.hpp"
+
 #include "System/IO/File.hpp"
 
 #include <algorithm>
@@ -86,13 +87,6 @@ namespace IronGang
     {
         try
         {
-            const std::filesystem::path filesystemPath(path);
-            const std::filesystem::path parent = filesystemPath.parent_path();
-            if (!parent.empty() && !System::IO::Directory::Exists(parent.string()))
-            {
-                System::IO::Directory::CreateDirectory(parent.string());
-            }
-
             std::ostringstream text;
             text << "mission_state_id=" << snapshot.missionStateId << "\n";
             text << "player_position=" << VectorToText(snapshot.playerPosition) << "\n";
@@ -140,33 +134,9 @@ namespace IronGang
             document << "checksum=" << ChecksumText(body) << "\n";
             document << body;
 
-            // Atomic replace (IG-29-002): the new save lands in a temporary file first, so a crash
-            // or a full disk during the write cannot leave a half-written file where the save
-            // belongs. Only once that file is complete is the previous save rotated to the backup
-            // (IG-29-003) and the temporary renamed into place -- both operations that are atomic
-            // within one directory.
-            const std::filesystem::path temporaryPath(TemporaryPath(path));
-            System::IO::File::WriteAllText(temporaryPath.string(), document.str());
-            std::error_code renameError;
-            if (std::filesystem::exists(filesystemPath))
-            {
-                std::filesystem::rename(filesystemPath, std::filesystem::path(BackupPath(path)), renameError);
-                if (renameError)
-                {
-                    std::filesystem::remove(temporaryPath, renameError);
-                    errorMessage = "Could not rotate the previous save to a backup: " + renameError.message();
-                    return false;
-                }
-            }
-            std::filesystem::rename(temporaryPath, filesystemPath, renameError);
-            if (renameError)
-            {
-                // The previous save is in the backup and the new one in the temporary file, so
-                // nothing was lost -- but this path did not end up holding a save.
-                errorMessage = "Could not move the new save into place: " + renameError.message();
-                return false;
-            }
-            return true;
+            // Atomic replace with a rotating backup (IG-29-002/003), shared with settings and any
+            // other small file that must never be found half-written.
+            return WriteTextFileAtomically(path, document.str(), true, errorMessage);
         }
         catch (const std::exception& exception)
         {
@@ -179,12 +149,12 @@ namespace IronGang
 
     std::string SaveGame::BackupPath(const std::string& path)
     {
-        return path + ".bak";
+        return BackupFilePath(path);
     }
 
     std::string SaveGame::TemporaryPath(const std::string& path)
     {
-        return path + ".tmp";
+        return TemporaryFilePath(path);
     }
 
     std::string SaveGame::ChooseMostRecent(const std::vector<std::string>& candidates)

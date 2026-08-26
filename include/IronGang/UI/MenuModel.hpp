@@ -16,6 +16,10 @@ namespace IronGang
         Save,
         Load,
         RestartMission,
+        // Settings live on the pause menu itself rather than behind a submenu: with two of them,
+        // a submenu would be a screen the player has to learn for no benefit.
+        CycleVolume,
+        ToggleHud,
         Quit,
     };
 

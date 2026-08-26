@@ -577,6 +577,45 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Player settings become their own file (2026-08-26)
+
+plan_29 `IG-29-005` closed; plan_28 `IG-28-004` advanced (the settings half); plan_36 `IG-36-005`
+extended.
+
+**Three files, three lifetimes, three owners** — which is the whole point of the task:
+`runtime/settings.json` is what the **player** changes and must survive deleting every save;
+`runtime/iron_gang_prototype.save` is campaign progress; `assets/config/game.json` is read-only
+developer tuning shipped with the game.
+
+`UserSettings` holds a master volume and a HUD toggle. Both are on the **pause menu itself** rather
+than behind a submenu: with two settings, a submenu is a screen the player has to learn for no
+benefit. Volume cycles in five steps and wraps (a slider needs pointer input the game does not
+have); the HUD toggle hides the HUD but **never the pause menu**, because a hidden menu is how
+someone gets stuck in a paused game with no visible way out. Master volume multiplies every sound
+the game plays — engine loop, horn, footsteps — so it is one setting rather than a scatter.
+
+**A shared atomic write.** `SaveGame` had the only copy of write-to-temp, rotate-to-backup,
+rename-into-place. Settings need the same guarantee, and the second caller is where a pattern
+either becomes shared or becomes two subtly different implementations, so it moved to
+`WriteTextFileAtomically` (`include/IronGang/Core/AtomicFile.hpp`) and `SaveGame` now calls it.
+
+Settings are written the moment one changes. A missing file is normal and **silent** — saying so
+every launch would be noise, not information. Bad or unknown values warn and keep defaults; an
+unsupported version fails and leaves the caller's settings untouched; the file inherits the bounded
+JSON read from plan_36.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestUserSettingsRoundTripAndFallBack` covers the missing file being silent, a round trip, the
+backup appearing on the second write, three bad/unknown values each warning while keeping defaults,
+an unsupported version leaving the caller's settings alone, the inherited depth bound, and — via a
+read-only directory — a failed write leaving the previous file byte-for-byte intact with no
+temporary behind. A full `--profile-scenario mission --smoke 1200` run still completes.
+
+**Boundaries.** Two settings only. No key rebinding (`IG-28-007`) — that model would need CNA's
+`Keys` enum, which `iron_gang_core` cannot see (its Input module is not on the library's include
+path), so it needs either integer key codes in the settings file or a game-layer home; no
+resolution, difficulty, or accessibility options; no settings UI beyond the two menu entries.
+
 ## The pause screen becomes a menu (2026-08-26)
 
 plan_28 `IG-28-003` advanced to partial (keyboard navigation done; no gamepad path exists anywhere

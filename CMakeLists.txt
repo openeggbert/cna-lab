@@ -117,6 +117,7 @@ add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
 include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
+    src/Core/AtomicFile.cpp
     src/Core/GameConfig.cpp
     src/Core/JsonDataFile.cpp
     src/Core/Log.cpp
@@ -145,6 +146,7 @@ add_library(iron_gang_core STATIC
     src/Missions/PrototypeMission.cpp
     src/Persistence/AutosavePolicy.cpp
     src/Persistence/SaveGame.cpp
+    src/Persistence/UserSettings.cpp
     src/Physics/PhysicsWorld.cpp
     src/UI/BitmapFont.cpp
     src/UI/MenuModel.cpp

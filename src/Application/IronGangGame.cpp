@@ -420,6 +420,19 @@ namespace IronGang
             Log::Warning(LogCategory::Config, warning);
         }
         autosave_.Configure(config_.autosaveIntervalSeconds, config_.autosaveMinimumSpacingSeconds);
+
+        // plan_29 IG-29-005: player preferences, from their own file. A missing one is normal --
+        // it means nobody has changed a setting yet.
+        std::vector<std::string> settingsWarnings;
+        std::string settingsError;
+        if (!LoadUserSettings(SettingsPath(), settings_, settingsError, &settingsWarnings))
+        {
+            Log::Warning(LogCategory::Config, settingsError + " -- using default settings.");
+        }
+        for (const std::string& warning : settingsWarnings)
+        {
+            Log::Warning(LogCategory::Config, "settings: " + warning);
+        }
         // An explicit --log-level wins: the run is being debugged right now, and the file is not.
         Log::SetMinimumSeverity(logSeverityOverride_.value_or(config_.logSeverity));
 
@@ -1066,6 +1079,12 @@ namespace IronGang
         const bool hasSave = !SaveGame::ChooseMostRecent({SavePath(), AutosavePath()}).empty();
         items.push_back(MenuItem{MenuAction::Load, "Load", hasSave, hasSave ? "" : "no save yet"});
 
+        std::ostringstream volumeLabel;
+        volumeLabel << "Volume: " << static_cast<int>(std::lround(settings_.masterVolume * 100.0F)) << "%";
+        items.push_back(MenuItem{MenuAction::CycleVolume, volumeLabel.str(), true, {}});
+        items.push_back(
+            MenuItem{MenuAction::ToggleHud, settings_.showHud ? "HUD: on" : "HUD: off", true, {}});
+
         const bool canRestart = mission_.HasCheckpoint();
         items.push_back(MenuItem{MenuAction::RestartMission, "Restart from checkpoint", canRestart,
                                  canRestart ? "" : "no checkpoint reached"});
@@ -1090,6 +1109,23 @@ namespace IronGang
             case MenuAction::RestartMission:
                 RetryMission();
                 paused_ = false;
+                break;
+            case MenuAction::CycleVolume:
+            {
+                // Steps of 25% wrapping back to silence: a slider needs pointer input the game
+                // does not have, and five steps are enough to be useful.
+                const int step = static_cast<int>(std::lround(settings_.masterVolume * 4.0F));
+                settings_.masterVolume = static_cast<float>((step + 1) % 5) * 0.25F;
+                if (engineSoundInstance_)
+                {
+                    engineSoundInstance_->setVolumeProperty(EffectiveVolume(0.4F));
+                }
+                PersistSettings();
+                break;
+            }
+            case MenuAction::ToggleHud:
+                settings_.showHud = !settings_.showHud;
+                PersistSettings();
                 break;
             case MenuAction::Quit:
                 Exit();
@@ -1176,6 +1212,25 @@ namespace IronGang
     std::string IronGangGame::AutosavePath() const
     {
         return "runtime/iron_gang_prototype.autosave";
+    }
+
+    std::string IronGangGame::SettingsPath() const
+    {
+        return "runtime/settings.json";
+    }
+
+    void IronGangGame::PersistSettings()
+    {
+        std::string error;
+        if (!SaveUserSettings(SettingsPath(), settings_, error))
+        {
+            Log::Error(LogCategory::Config, "could not save settings: " + error);
+        }
+    }
+
+    float IronGangGame::EffectiveVolume(float requestedVolume) const
+    {
+        return std::clamp(requestedVolume * settings_.masterVolume, 0.0F, 1.0F);
     }
 
     void IronGangGame::Update(GameTime& gameTime)
@@ -1353,7 +1408,7 @@ namespace IronGang
             measureAudio([&]()
             {
                 ++audioWorkload.oneShotPlayRequests;
-                if (hornSound_->Play())
+                if (hornSound_->Play(EffectiveVolume(1.0F), 0.0F, 0.0F))
                 {
                     ++audioWorkload.oneShotPlaySuccesses;
                 }
@@ -1438,7 +1493,7 @@ namespace IronGang
                             {
                                 footstepTimer_ -= kFootstepIntervalSeconds;
                                 ++audioWorkload.oneShotPlayRequests;
-                                if (footstepSound_->Play())
+                                if (footstepSound_->Play(EffectiveVolume(1.0F), 0.0F, 0.0F))
                                 {
                                     ++audioWorkload.oneShotPlaySuccesses;
                                 }
@@ -1473,7 +1528,7 @@ namespace IronGang
                             engineSoundInstance_->Play();
                         }
                         const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
-                        engineSoundInstance_->setVolumeProperty(0.4F + 0.4F * speedFactor);
+                        engineSoundInstance_->setVolumeProperty(EffectiveVolume(0.4F + 0.4F * speedFactor));
                         engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
                         audioWorkload.loopParameterUpdates += 2U;
                     }
@@ -1979,7 +2034,9 @@ namespace IronGang
 
         // Gate M10: a real on-screen HUD, replacing the window-title-only display (which stays,
         // for window-manager/taskbar visibility, but is no longer the only place this shows).
-        if (spriteBatch_ && hudFont_)
+        // plan_29 IG-29-005: the player can turn the HUD off, but **not** the pause menu -- a
+        // hidden menu is how someone gets stuck in a paused game with no visible way out.
+        if (spriteBatch_ && hudFont_ && (settings_.showHud || paused_))
         {
             spriteBatch_->Begin();
             float lineY = 10.0F;

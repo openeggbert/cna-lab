@@ -21,7 +21,9 @@
 #include "IronGang/Missions/MissionExpression.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
 #include "IronGang/Persistence/AutosavePolicy.hpp"
+#include "IronGang/Core/AtomicFile.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
+#include "IronGang/Persistence/UserSettings.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/SunLight.hpp"
@@ -933,6 +935,112 @@ namespace
             heads += spread.NextBool() ? 1 : 0;
         }
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
+    }
+
+    // plan_29 IG-29-005 / plan_36 IG-36-005: player preferences are their own file with their own
+    // lifetime, written atomically so a crash while saving one cannot cost the rest.
+    void TestUserSettingsRoundTripAndFallBack()
+    {
+        const std::filesystem::path directory = std::filesystem::current_path() / "iron_gang_settings";
+        std::filesystem::remove_all(directory);
+        std::filesystem::create_directories(directory);
+        const std::filesystem::path path = directory / "settings.json";
+        const IronGang::UserSettings defaults;
+        IronGang::UserSettings settings;
+        std::string error;
+        std::vector<std::string> warnings;
+
+        // No file at all is the normal state for a player who has never changed a setting: the
+        // defaults apply, silently.
+        Require(IronGang::LoadUserSettings(path.string(), settings, error, &warnings),
+                "a missing settings file must not be an error");
+        Require(warnings.empty(), "a missing settings file must not even warn -- it is the normal state");
+        Require(std::fabs(settings.masterVolume - defaults.masterVolume) < 1e-6F && settings.showHud,
+                "a missing file must leave the defaults");
+
+        // Round trip.
+        settings.masterVolume = 0.25F;
+        settings.showHud = false;
+        Require(IronGang::SaveUserSettings(path.string(), settings, error), "writing must succeed: " + error);
+        Require(!std::filesystem::exists(IronGang::TemporaryFilePath(path.string())),
+                "a completed write must leave no temporary file");
+        IronGang::UserSettings loaded;
+        Require(IronGang::LoadUserSettings(path.string(), loaded, error, &warnings),
+                "reading must succeed: " + error);
+        Require(std::fabs(loaded.masterVolume - 0.25F) < 1e-4F && !loaded.showHud,
+                "both settings must survive the round trip");
+
+        // A second write keeps the previous file as a backup, like the save does.
+        settings.masterVolume = 1.0F;
+        Require(IronGang::SaveUserSettings(path.string(), settings, error), "rewriting must succeed: " + error);
+        Require(std::filesystem::exists(IronGang::BackupFilePath(path.string())),
+                "the previous settings must be kept as a backup");
+
+        // Out-of-range and wrong-typed values keep their defaults and say so.
+        warnings.clear();
+        WriteTempJson(path, R"JSON({"version":1,"masterVolume":5,"showHud":"yes","brightness":2})JSON");
+        Require(IronGang::LoadUserSettings(path.string(), settings, error, &warnings),
+                "bad values must not fail the load: " + error);
+        Require(warnings.size() == 3, "each bad or unknown setting must be reported: " +
+                                          std::to_string(warnings.size()));
+        Require(std::fabs(settings.masterVolume - defaults.masterVolume) < 1e-6F && settings.showHud,
+                "bad values must leave the defaults in place");
+
+        // An unsupported version is a failure, and leaves the caller's settings untouched.
+        IronGang::UserSettings untouched;
+        untouched.masterVolume = 0.5F;
+        WriteTempJson(path, R"JSON({"version":99})JSON");
+        Require(!IronGang::LoadUserSettings(path.string(), untouched, error, &warnings),
+                "an unsupported version must be refused");
+        Require(std::fabs(untouched.masterVolume - 0.5F) < 1e-6F,
+                "a failed load must leave the caller's settings alone");
+
+        // Settings inherit the bounded read every data file gets.
+        {
+            std::string deep = "{\"version\":";
+            for (int level = 0; level < IronGang::kMaxJsonDataFileDepth + 5; ++level)
+            {
+                deep += "[";
+            }
+            for (int level = 0; level < IronGang::kMaxJsonDataFileDepth + 5; ++level)
+            {
+                deep += "]";
+            }
+            deep += "}";
+            WriteTempJson(path, deep);
+        }
+        Require(!IronGang::LoadUserSettings(path.string(), settings, error, &warnings),
+                "settings must inherit the JSON depth bound");
+
+        // The shared atomic write: a failure leaves the existing file intact and no temporary
+        // behind (the same guarantee the save file relies on).
+        Require(IronGang::SaveUserSettings(path.string(), defaults, error), "restoring a good file: " + error);
+        const std::string good = [&] {
+            std::ifstream input(path, std::ios::binary);
+            return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+        }();
+        std::error_code permissionError;
+        std::filesystem::permissions(directory, std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::remove, permissionError);
+        if (!permissionError)
+        {
+            IronGang::UserSettings changed = defaults;
+            changed.masterVolume = 0.0F;
+            const bool wrote = IronGang::SaveUserSettings(path.string(), changed, error);
+            std::filesystem::permissions(directory, std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add, permissionError);
+            if (!wrote)
+            {
+                std::ifstream input(path, std::ios::binary);
+                const std::string after((std::istreambuf_iterator<char>(input)),
+                                        std::istreambuf_iterator<char>());
+                Require(after == good, "a failed settings write must leave the previous file intact");
+                Require(!std::filesystem::exists(IronGang::TemporaryFilePath(path.string())),
+                        "a failed settings write must not leave a temporary file");
+            }
+        }
+
+        std::filesystem::remove_all(directory);
     }
 
     // plan_28 IG-28-003/004: menu navigation, where the easy-to-get-wrong parts are skipping
@@ -3880,6 +3988,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestUserSettingsRoundTripAndFallBack();
         TestMenuModelSkipsDisabledAndWraps();
         TestInputContextResolvesByPrecedence();
         TestLocomotionAcceleratesAndDecelerates();

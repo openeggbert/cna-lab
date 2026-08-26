@@ -17,6 +17,7 @@
 #include "IronGang/Missions/PrototypeMission.hpp"
 #include "IronGang/Persistence/AutosavePolicy.hpp"
 #include "IronGang/Persistence/SaveGame.hpp"
+#include "IronGang/Persistence/UserSettings.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/UI/MenuModel.hpp"
 #include "IronGang/World/DistrictManager.hpp"
@@ -112,6 +113,14 @@ namespace IronGang
         void UpdateWindowTitle(float deltaSeconds);
         [[nodiscard]] std::string SavePath() const;
         [[nodiscard]] std::string AutosavePath() const;
+        // Player preferences, deliberately a different file from the campaign save (plan_29
+        // IG-29-005): different lifetime, different owner, and it must survive deleting saves.
+        [[nodiscard]] std::string SettingsPath() const;
+        // Writes the settings file and reports a failure once, rather than silently losing a
+        // preference the player just set.
+        void PersistSettings();
+        // Master volume applied to a sound about to play.
+        [[nodiscard]] float EffectiveVolume(float requestedVolume) const;
         // Checks the current district's exit trigger against whichever of player/vehicle is
         // active and requests a transition if it was entered (plan_13 IG-13-002/006).
         void CheckDistrictExit();
@@ -185,6 +194,7 @@ namespace IronGang
         // Rebuilt each time the game is paused, because what is available changes: there is
         // nothing to load before the first save, and nothing to restart before a mission starts.
         MenuModel pauseMenu_;
+        UserSettings settings_;
         // World half of the mission's last checkpoint (see CaptureMissionCheckpointWorld). The
         // mission half lives in PrototypeMission; this is the world it was recorded in, and both
         // halves round-trip through the save file (plan_29 IG-29-029).
