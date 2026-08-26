@@ -14,24 +14,45 @@ namespace IronGang
     }
 
     float PedestrianCrossingClearance(const Vector3& position,
-                                      const std::vector<Vector3>& kerbs,
-                                      bool mayCross) noexcept
+                                      const Vector3& targetPoint,
+                                      const std::vector<CrossingPair>& crossings,
+                                      SignalPhase trafficPhase) noexcept
     {
-        if (mayCross)
+        constexpr float kTargetMatchRadius = 0.5F;
+        for (const CrossingPair& crossing : crossings)
         {
-            return kNoObstacleAhead;
-        }
-        for (const Vector3& kerb : kerbs)
-        {
-            if (DistanceSquaredXZ(position, kerb) <= kKerbHoldRadiusMetres * kKerbHoldRadiusMetres)
+            if (PedestrianMayCross(trafficPhase, crossing.signalControlled))
+            {
+                continue;
+            }
+            const Vector3* standingAt = nullptr;
+            const Vector3* headingFor = nullptr;
+            if (DistanceSquaredXZ(position, crossing.kerbA) <=
+                kKerbHoldRadiusMetres * kKerbHoldRadiusMetres)
+            {
+                standingAt = &crossing.kerbA;
+                headingFor = &crossing.kerbB;
+            }
+            else if (DistanceSquaredXZ(position, crossing.kerbB) <=
+                     kKerbHoldRadiusMetres * kKerbHoldRadiusMetres)
+            {
+                standingAt = &crossing.kerbB;
+                headingFor = &crossing.kerbA;
+            }
+            if (standingAt == nullptr)
+            {
+                // Not at a kerb. Either walking the pavement, or already out in the road -- and
+                // someone in the road must be let finish, or a signal changing mid-crossing
+                // freezes them in a live lane.
+                continue;
+            }
+            if (DistanceSquaredXZ(targetPoint, *headingFor) <= kTargetMatchRadius * kTargetMatchRadius)
             {
                 // Zero clearance is a full stop in Pedestrian::Update()'s existing congestion
                 // ramp -- the pedestrian stands still and reads as waiting, not as sliding.
                 return 0.0F;
             }
         }
-        // Already out in the road: let them finish. A signal changing mid-crossing must not freeze
-        // someone in a live lane.
         return kNoObstacleAhead;
     }
 }

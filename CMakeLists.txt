@@ -137,6 +137,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/Locomotion.cpp
     src/Gameplay/Pedestrian.cpp
     src/Gameplay/PedestrianCrossing.cpp
+    src/Gameplay/PedestrianItinerary.cpp
     src/Gameplay/PedestrianAnimation.cpp
     src/Gameplay/PlayerController.cpp
     src/Gameplay/PoliceSystem.cpp

@@ -26,9 +26,24 @@ namespace IronGang
     // freezes them in a live lane.
     inline constexpr float kKerbHoldRadiusMetres = 1.0F;
 
-    // The clearance to pass to Pedestrian::Update() for a pedestrian on a crossing: unobstructed
-    // when they may cross or are already out in the road, and zero when the kerb is holding them.
+    // A crossing, as the pedestrian rule needs it: the two kerbs, and whether a signal governs it.
+    struct CrossingPair
+    {
+        Vector3 kerbA{};
+        Vector3 kerbB{};
+        bool signalControlled{true};
+    };
+
+    // The clearance to pass to Pedestrian::Update(): zero when a kerb is holding this pedestrian,
+    // and unobstructed otherwise.
+    //
+    // Holding requires **both** that they are standing at one kerb and that the waypoint they are
+    // walking toward is the other one. Position alone is not enough once every pedestrian routes
+    // freely: someone walking *along* the pavement passes within a metre of the kerb constantly,
+    // and stopping them dead every time the light is green would jam the pavement rather than the
+    // crossing.
     [[nodiscard]] float PedestrianCrossingClearance(const Vector3& position,
-                                                    const std::vector<Vector3>& kerbs,
-                                                    bool mayCross) noexcept;
+                                                    const Vector3& targetPoint,
+                                                    const std::vector<CrossingPair>& crossings,
+                                                    SignalPhase trafficPhase) noexcept;
 }

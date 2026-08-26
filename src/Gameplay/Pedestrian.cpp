@@ -186,6 +186,30 @@ namespace IronGang
         (void)AdvanceAlongPath(path_, position_, targetIndex_, speed, deltaSeconds, kArrivalRadius, yaw_);
     }
 
+    bool Pedestrian::HasArrived() const noexcept
+    {
+        if (path_.loop || path_.points.size() < 2)
+        {
+            return false;
+        }
+        if (targetIndex_ + 1 != path_.points.size())
+        {
+            return false;
+        }
+        Vector3 remaining = path_.points[targetIndex_] - position_;
+        remaining.Y = 0.0F;
+        return remaining.Length() <= kArrivalRadius;
+    }
+
+    Vector3 Pedestrian::GetTargetPoint() const noexcept
+    {
+        if (path_.points.empty())
+        {
+            return position_;
+        }
+        return path_.points[targetIndex_ % path_.points.size()];
+    }
+
     float Pedestrian::HeadingTowardTarget() const noexcept
     {
         if (path_.points.empty())

@@ -724,58 +724,56 @@ namespace IronGang
         }
 
         pedestrians_.clear();
-        pedestrianIsCrossing_.clear();
-        crossingKerbs_ = world.GetSidewalkGraph().GetCrossingKerbs();
-        constexpr int kPedestriansPerSidewalk = 6;
-        constexpr float kSlowestWalkSpeed = 1.1F;
-        constexpr float kFastestWalkSpeed = 2.0F;
-        for (const WaypointPath& sidewalk : world.GetSidewalkPaths())
+        pedestrianItineraries_.clear();
+        pedestrianCurrentNodes_.clear();
+        pedestrianWalkSpeeds_.clear();
+        crossingPairs_.clear();
+        walkableNodeIds_.clear();
+        // Its own stream, derived from the shared ambient seed, so where people decide to go is
+        // reproducible without being entangled with traffic speeds or spawn jitter.
+        pedestrianRandom_ = ambientRandom.Derive(0x9E3779B97F4A7C15ULL);
+
+        const SidewalkGraph& sidewalks = world.GetSidewalkGraph();
+        for (const SidewalkCrossing& crossing : sidewalks.GetCrossings())
         {
-            if (sidewalk.points.size() < 2)
+            const SidewalkNode* a = sidewalks.FindNode(crossing.fromNodeId);
+            const SidewalkNode* b = sidewalks.FindNode(crossing.toNodeId);
+            if (a != nullptr && b != nullptr)
             {
-                continue;
-            }
-            const float sidewalkLength = (sidewalk.points[1] - sidewalk.points[0]).Length();
-            for (int i = 0; i < kPedestriansPerSidewalk; ++i)
-            {
-                // Spread along the sidewalk, and start half of them from each end so the two
-                // directions of travel are both represented instead of a single-file queue.
-                const float spacing = sidewalkLength / static_cast<float>(kPedestriansPerSidewalk);
-                const float jitter = ambientRandom.NextFloatInRange(-0.35F, 0.35F) * spacing;
-                const float offset = std::clamp(spacing * (static_cast<float>(i) + 0.5F) + jitter,
-                                                0.0F, sidewalkLength);
-                const std::size_t startIndex = ambientRandom.NextBool() ? 0U : 1U;
-                Pedestrian pedestrian;
-                pedestrian.Reset(sidewalk, startIndex,
-                                 ambientRandom.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed),
-                                 startIndex == 0 ? offset : sidewalkLength - offset);
-                // Everyone keeps to the same side of the pavement relative to their own heading,
-                // so the two directions of travel occupy two lanes and pass each other instead of
-                // walking through each other (plan_20 IG-20-010).
-                pedestrian.SetLaneOffset(ambientRandom.NextFloatInRange(0.30F, 0.55F));
-                pedestrians_.push_back(pedestrian);
-                pedestrianIsCrossing_.push_back(false);
+                crossingPairs_.push_back(CrossingPair{a->position, b->position, crossing.signalControlled});
             }
         }
-
-        // plan_20 IG-20-012: a couple of people actually using the crossing, so the signal rule
-        // governs something observable rather than being a rule about nothing.
-        constexpr int kPedestriansPerCrossing = 2;
-        for (const WaypointPath& crossing : world.GetSidewalkGraph().BuildCrossingPaths())
+        for (const SidewalkNode& node : sidewalks.GetNodes())
         {
-            if (crossing.points.size() < 2)
+            walkableNodeIds_.push_back(node.id);
+        }
+
+        constexpr float kSlowestWalkSpeed = 1.1F;
+        constexpr float kFastestWalkSpeed = 2.0F;
+
+        // plan_20 IG-20-002/005: ambient pedestrians pick somewhere to go, walk there across the
+        // whole sidewalk graph, stand about, and pick again. That replaces both of the special-case
+        // populations this used to spawn -- one pacing a fixed stretch of pavement forever and one
+        // shuttling a crossing -- because a pedestrian free to route anywhere already walks
+        // pavements and uses crossings, and does it because it is going somewhere.
+        if (!walkableNodeIds_.empty())
+        {
+            constexpr int kAmbientPedestrianCount = 12; // plan_20's 10-20 band
+            for (int i = 0; i < kAmbientPedestrianCount; ++i)
             {
-                continue;
-            }
-            for (int i = 0; i < kPedestriansPerCrossing; ++i)
-            {
+                const std::string& startNode =
+                    walkableNodeIds_[pedestrianRandom_.NextIndex(walkableNodeIds_.size())];
                 Pedestrian pedestrian;
-                // Started at opposite kerbs, so one is waiting while the other walks back.
-                pedestrian.Reset(crossing, static_cast<std::size_t>(i % 2),
-                                 ambientRandom.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed));
-                pedestrian.SetLaneOffset(ambientRandom.NextFloatInRange(-0.4F, 0.4F));
+                pedestrian.SetLaneOffset(pedestrianRandom_.NextFloatInRange(0.30F, 0.55F));
                 pedestrians_.push_back(pedestrian);
-                pedestrianIsCrossing_.push_back(true);
+                pedestrianItineraries_.emplace_back();
+                pedestrianCurrentNodes_.push_back(startNode);
+                // Staggered initial waits, so twelve people do not all set off on the same frame.
+                pedestrianItineraries_.back().BeginWait(
+                    pedestrianRandom_.NextFloatInRange(0.0F, kPedestrianWaitMaximumSeconds));
+                pedestrianWalkSpeeds_.push_back(
+                    pedestrianRandom_.NextFloatInRange(kSlowestWalkSpeed, kFastestWalkSpeed));
+                RouteNextPedestrianDestination(pedestrians_.size() - 1);
             }
         }
 
@@ -783,6 +781,29 @@ namespace IronGang
         peakPhysicsBodyCount_ = std::max(peakPhysicsBodyCount_, physics_.GetBodyCount());
         peakTrafficVehicleCount_ = std::max(peakTrafficVehicleCount_, trafficVehicles_.size());
         peakPedestrianCount_ = std::max(peakPedestrianCount_, pedestrians_.size());
+    }
+
+    void IronGangGame::RouteNextPedestrianDestination(std::size_t index)
+    {
+        if (index >= pedestrians_.size() || walkableNodeIds_.empty())
+        {
+            return;
+        }
+        const SidewalkGraph& sidewalks = districtManager_.GetWorld().GetSidewalkGraph();
+        const std::string& from = pedestrianCurrentNodes_[index];
+        const std::string destination =
+            ChoosePedestrianDestination(walkableNodeIds_, from, pedestrianRandom_);
+        WaypointPath route;
+        if (destination.empty() || !sidewalks.BuildRoutePath(from, destination, false, route))
+        {
+            // Nowhere to go, or nowhere reachable: stand still rather than teleport. Loading
+            // already refuses a disconnected graph (plan_19 IG-19-004), so this is the
+            // built-in-fallback district, not a content bug.
+            pedestrianItineraries_[index].BeginWait(kPedestrianWaitMaximumSeconds);
+            return;
+        }
+        pedestrians_[index].Reset(route, 0, pedestrianWalkSpeeds_[index]);
+        pedestrianItineraries_[index].BeginWalk(destination);
     }
 
     bool IronGangGame::IsDown(const KeyboardState& keyboard, GameAction action) const
@@ -2083,21 +2104,37 @@ namespace IronGang
                                                                       kWalkingLaneHalfWidth));
                     }
 
-                    // plan_20 IG-20-012: a pedestrian on the crossing is held at the kerb while the
-                    // traffic they would step in front of still has green -- as an obstacle, which
-                    // is the same mechanism the queue above uses and the same one traffic vehicles
-                    // use for a red light.
-                    if (i < pedestrianIsCrossing_.size() && pedestrianIsCrossing_[i] &&
-                        !crossingKerbs_.empty())
+                    // plan_20 IG-20-012: a pedestrian about to step onto a crossing is held at the
+                    // kerb while the traffic still has green -- as an obstacle, which is the same
+                    // mechanism the queue above uses and the same one traffic vehicles use for a
+                    // red light. Someone fleeing ignores the signal.
+                    if (!crossingPairs_.empty() && !pedestrian.IsFleeing())
                     {
-                        const bool mayCross =
-                            PedestrianMayCross(trafficSignal_.GetPhase(), true) ||
-                            pedestrian.IsFleeing();
                         clearanceAhead = std::min(clearanceAhead,
                                                   PedestrianCrossingClearance(pedestrian.GetPosition(),
-                                                                              crossingKerbs_, mayCross));
+                                                                              pedestrian.GetTargetPoint(),
+                                                                              crossingPairs_,
+                                                                              trafficSignal_.GetPhase()));
                     }
                     pedestrian.Update(simulationSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
+
+                    // plan_20 IG-20-002/005: arrived -> stand about -> choose somewhere new.
+                    if (i < pedestrianItineraries_.size())
+                    {
+                        PedestrianItinerary& itinerary = pedestrianItineraries_[i];
+                        if (itinerary.GetActivity() == PedestrianActivity::Walking &&
+                            pedestrian.HasArrived())
+                        {
+                            pedestrianCurrentNodes_[i] = itinerary.GetDestinationNodeId();
+                            itinerary.BeginWait(pedestrianRandom_.NextFloatInRange(
+                                kPedestrianWaitMinimumSeconds, kPedestrianWaitMaximumSeconds));
+                        }
+                        itinerary.Update(simulationSeconds);
+                        if (itinerary.WantsNewDestination())
+                        {
+                            RouteNextPedestrianDestination(i);
+                        }
+                    }
                 }
 
                 // plan_20 IG-20-003: one animation state per pedestrian, advanced here rather than

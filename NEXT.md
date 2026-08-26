@@ -98,6 +98,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Pedestrians with somewhere to be (plan_20)
+
+The previous entry left the router unused: every pedestrian still paced one stretch of pavement, and
+the crossings and doorways had nobody walking through them.
+
+`PedestrianItinerary` + `ChoosePedestrianDestination()`, plus `Pedestrian::HasArrived()` and
+`GetTargetPoint()`. A pedestrian picks a node anywhere on the graph, routes to it, walks there,
+stands about for 2–8 s, and picks again. An "idle point" needed no schema — it is what a pedestrian
+does when it arrives.
+
+**This removed two special-case populations rather than adding a third.** Six-per-pavement patrols
+and two-per-crossing shuttles are both gone: someone free to route anywhere already walks pavements
+and uses crossings, because they are going somewhere. One population, twelve people.
+
+**A rule had to get more precise because the population changed.** Crossing hold was keyed on
+position alone — fine when the only people near a kerb were the shuttles. Once everyone routes
+freely, pedestrians walk *along* the pavement past that kerb constantly, and the old rule would have
+stopped them dead on every green — jamming the pavement instead of the crossing. It now requires
+both that they are at one kerb *and* that their target waypoint is the other one.
+
+Completed `IG-20-002`; `IG-20-005` is partial (idle/walk/wait/flee exist; talk and browse need
+content to talk and browse *at*, and recover means nothing until there is more to recover from).
+Verified: CTest 15/15, three new tests, two mutation checks. Not done: destination choice is uniform
+over every node — nobody prefers a doorway or the way they were already heading, so the population
+wanders rather than commutes.
+
 ### Routing on the pavement graph — and the broken district it found (plan_19)
 
 `SidewalkGraph::FindWalkingRoute()` (Dijkstra, walkways **and** crossings as bidirectional edges),

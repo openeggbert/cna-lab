@@ -1867,6 +1867,63 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Pedestrians with somewhere to be (2026-08-26)
+
+plan_20 `IG-20-002` completed (it had shipped partial); `IG-20-005` advanced to partial with its
+remainder named. Gates M12 and M14 untouched.
+
+**The gap this closes is one the previous entry named.** The sidewalk router landed and nothing
+used it: every ambient pedestrian still paced one fixed stretch of pavement forever, and the
+crossings and doorways the graph carries had nobody walking through them.
+
+**What was added.** `PedestrianItinerary` and `ChoosePedestrianDestination()`
+(`include/`/`src/Gameplay/PedestrianItinerary.hpp/.cpp`), plus `Pedestrian::HasArrived()` and
+`Pedestrian::GetTargetPoint()`. An ambient pedestrian now picks a node anywhere on the district's
+sidewalk graph, routes to it, walks there, stands about for 2-8 seconds, and picks again.
+
+An "idle point" (`IG-20-002`) turned out not to need a schema at all: it is what a pedestrian does
+when it arrives somewhere, not a separate kind of node.
+
+**This removed two special-case populations rather than adding a third.** The game previously
+spawned six pedestrians per pavement route *and* two shuttling each crossing. Both are gone: a
+pedestrian free to route anywhere already walks pavements and already uses crossings, and does so
+because it is going somewhere. One population, twelve people, inside plan_20's 10-20 band.
+
+**A rule that had to become more precise because the population changed.** Crossing hold was keyed
+on position alone -- "within a metre of a kerb". That was fine when only the crossing shuttles
+existed, because the only pedestrians near a kerb were the ones about to cross. Once everyone routes
+freely, people walk *along* the pavement past that kerb constantly, and the old rule would have
+stopped them dead every time the light was green -- jamming the pavement rather than the crossing.
+`PedestrianCrossingClearance()` now requires **both** that the pedestrian is at one kerb **and**
+that the waypoint they are walking toward is the other one. There is a test for exactly that case,
+and the mutation that ignores the target fails it.
+
+**Verified.** `TestPedestrianItineraryWalkAndWait` (a fresh itinerary wanting a destination
+immediately rather than standing forever; a walk not being re-routed every frame; the wait counting
+down, not going negative, and a negative wait clamping).
+`TestPedestrianDestinationChoice` (never choosing where the pedestrian already stands -- otherwise
+it routes to itself, arrives instantly and the population stutters in place; every other node
+reachable as a choice, so people do not only ever visit half the city; determinism from a seed,
+which is what makes an ambient population reproducible between runs; and empty/only-yourself
+candidate sets returning nowhere rather than crashing).
+`TestPedestrianWandersTheDistrict` runs the whole loop against the shipped graph for ten simulated
+minutes and requires at least five distinct places visited **and** that a wanderer starting on the
+west pavement reaches the east side -- which is only possible through the crossing.
+15 CTest targets pass, `./scripts/check-syntax.sh` clean, and a scripted game run exits 0 with no
+warnings.
+
+**Mutation-checked.** Ignoring the target waypoint in the crossing rule fails with `a pedestrian
+standing at the kerb but walking on past must not be held`; letting a pedestrian choose its own
+current node fails with `a pedestrian must never be sent to where it already is`.
+
+**Not verified.** Destination choice is uniform over every node -- nobody prefers a doorway, a shop
+front or the direction they were already walking, so the population wanders rather than commutes.
+No talk, browse or explicit recover behaviour (`IG-20-005`'s remainder): talk and browse need
+content to talk and browse *at*, and recover means nothing until there is a state to recover from
+beyond fleeing. The pavement lane offset is still a per-pedestrian constant rather than being taken
+from the walkway width the schema carries. And none of this has been watched in motion on the real
+display -- only asserted, and captured as a still.
+
 ## Routing on the pavement graph, and the disconnected district it found (2026-08-26)
 
 plan_19 `IG-19-004` and `IG-19-022` closed. Gates M12 and M14 untouched.

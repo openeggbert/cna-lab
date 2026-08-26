@@ -15,6 +15,7 @@
 #include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PedestrianCrossing.hpp"
+#include "IronGang/Gameplay/PedestrianItinerary.hpp"
 #include "IronGang/Gameplay/PedestrianAnimation.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
@@ -4658,6 +4659,144 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_20 IG-20-002/005: going somewhere, standing about when you get there, going somewhere
+    // else. The behaviour that finally makes the sidewalk router do something.
+    void TestPedestrianItineraryWalkAndWait()
+    {
+        IronGang::PedestrianItinerary itinerary;
+        // A fresh pedestrian has nowhere to be, so it asks for a destination immediately rather
+        // than standing still forever waiting to be told.
+        Require(itinerary.WantsNewDestination(), "a fresh itinerary must want a destination");
+
+        itinerary.BeginWalk("hotel_door");
+        Require(itinerary.GetActivity() == IronGang::PedestrianActivity::Walking, "it must be walking");
+        Require(itinerary.GetDestinationNodeId() == "hotel_door", "the destination must be recorded");
+        Require(!itinerary.WantsNewDestination(),
+                "a pedestrian already walking somewhere must not be re-routed every frame");
+        itinerary.Update(10.0F);
+        Require(!itinerary.WantsNewDestination(), "time passing must not interrupt a walk");
+
+        itinerary.BeginWait(3.0F);
+        Require(itinerary.GetActivity() == IronGang::PedestrianActivity::Waiting, "it must be waiting");
+        Require(!itinerary.WantsNewDestination(), "a pedestrian mid-wait must stay put");
+        itinerary.Update(1.0F);
+        Require(std::abs(itinerary.GetWaitSecondsRemaining() - 2.0F) < 1e-5F, "the wait must count down");
+        itinerary.Update(5.0F);
+        Require(itinerary.GetWaitSecondsRemaining() == 0.0F, "the wait must not go negative");
+        Require(itinerary.WantsNewDestination(), "once the wait is over it must want somewhere new");
+
+        itinerary.BeginWait(-1.0F);
+        Require(itinerary.GetWaitSecondsRemaining() == 0.0F, "a negative wait must clamp to none");
+    }
+
+    void TestPedestrianDestinationChoice()
+    {
+        IronGang::RandomSource random(1234U);
+        const std::vector<std::string> nodes{"a", "b", "c", "d"};
+
+        // Never picks where you already are -- otherwise a pedestrian routes to itself, arrives
+        // instantly, and the whole population stutters in place.
+        for (int i = 0; i < 200; ++i)
+        {
+            const std::string chosen = IronGang::ChoosePedestrianDestination(nodes, "b", random);
+            Require(chosen != "b", "a pedestrian must never be sent to where it already is");
+            Require(std::find(nodes.begin(), nodes.end(), chosen) != nodes.end(),
+                    "the destination must be one of the candidates, got \"" + chosen + "\"");
+        }
+
+        // Every other node must be reachable as a choice, or people only ever visit half the city.
+        std::vector<std::string> seen;
+        IronGang::RandomSource sweep(99U);
+        for (int i = 0; i < 400; ++i)
+        {
+            const std::string chosen = IronGang::ChoosePedestrianDestination(nodes, "b", sweep);
+            if (std::find(seen.begin(), seen.end(), chosen) == seen.end())
+            {
+                seen.push_back(chosen);
+            }
+        }
+        Require(seen.size() == 3, "all three other nodes must be reachable as choices, saw " +
+                                      std::to_string(seen.size()));
+
+        // Deterministic: the same seed and the same candidates give the same sequence, which is
+        // what makes an ambient population reproducible between runs at all.
+        IronGang::RandomSource first(7U);
+        IronGang::RandomSource second(7U);
+        for (int i = 0; i < 20; ++i)
+        {
+            Require(IronGang::ChoosePedestrianDestination(nodes, "a", first) ==
+                        IronGang::ChoosePedestrianDestination(nodes, "a", second),
+                    "destination choice must be a pure function of the stream it draws from");
+        }
+
+        Require(IronGang::ChoosePedestrianDestination({}, "a", random).empty(),
+                "no candidates means nowhere to go, not a crash");
+        Require(IronGang::ChoosePedestrianDestination({"a"}, "a", random).empty(),
+                "the only candidate being where you stand means nowhere to go");
+    }
+
+    // The whole loop, against the district's own graph: choose, route, walk, arrive, wait, choose
+    // again -- and actually get somewhere different each time.
+    void TestPedestrianWandersTheDistrict()
+    {
+        const IronGang::PrototypeWorld world(IronGang::DistrictId::WarehouseBlock,
+                                             std::string(IRON_GANG_SOURCE_ASSET_DIR));
+        const IronGang::SidewalkGraph& graph = world.GetSidewalkGraph();
+        Require(!graph.IsEmpty(), "the shipped sidewalk graph must load");
+
+        std::vector<std::string> nodeIds;
+        for (const IronGang::SidewalkNode& node : graph.GetNodes())
+        {
+            nodeIds.push_back(node.id);
+        }
+
+        IronGang::RandomSource random(2026U);
+        IronGang::Pedestrian pedestrian;
+        IronGang::PedestrianItinerary itinerary;
+        std::string current = "hotel_door";
+        std::vector<std::string> visited;
+
+        constexpr float kStep = 1.0F / 60.0F;
+        for (int update = 0; update < 60 * 600; ++update)
+        {
+            if (itinerary.GetActivity() == IronGang::PedestrianActivity::Walking &&
+                pedestrian.HasArrived())
+            {
+                current = itinerary.GetDestinationNodeId();
+                if (std::find(visited.begin(), visited.end(), current) == visited.end())
+                {
+                    visited.push_back(current);
+                }
+                itinerary.BeginWait(2.0F);
+            }
+            itinerary.Update(kStep);
+            if (itinerary.WantsNewDestination())
+            {
+                const std::string destination =
+                    IronGang::ChoosePedestrianDestination(nodeIds, current, random);
+                IronGang::WaypointPath route;
+                Require(graph.BuildRoutePath(current, destination, false, route),
+                        "every node must be routable from every other, \"" + current + "\" -> \"" +
+                            destination + "\"");
+                pedestrian.Reset(route, 0, 1.6F);
+                itinerary.BeginWalk(destination);
+            }
+            pedestrian.Update(kStep, false, IronGang::Vector3());
+        }
+
+        Require(visited.size() >= 5,
+                "over ten simulated minutes a wanderer must reach several different places, got " +
+                    std::to_string(visited.size()));
+        // And it must get to the other side of the road, which is only possible via the crossing.
+        const bool reachedEastSide =
+            std::any_of(visited.begin(), visited.end(), [](const std::string& id) {
+                return id.rfind("east", 0) == 0 || id == "apartments_door";
+            });
+        Require(reachedEastSide,
+                "a wanderer starting on the west pavement must reach the east side, which means "
+                "using the crossing");
+    }
+
     void TestPedestrianCrossingRespectsTheSignal()
     {
         using IronGang::PedestrianMayCross;
@@ -4675,35 +4814,53 @@ namespace
         Require(PedestrianMayCross(SignalPhase::Green, false),
                 "an unsignalled crossing must never hold anyone");
 
-        const std::vector<IronGang::Vector3> kerbs{IronGang::Vector3(-7.5F, 0.9F, 0.0F),
-                                                   IronGang::Vector3(7.5F, 0.9F, 0.0F)};
+        const IronGang::Vector3 west(-7.5F, 0.9F, 0.0F);
+        const IronGang::Vector3 east(7.5F, 0.9F, 0.0F);
+        const std::vector<IronGang::CrossingPair> crossings{{west, east, true}};
 
-        // Allowed: no obstacle anywhere along the crossing.
-        Require(IronGang::PedestrianCrossingClearance(kerbs[0], kerbs, true) == IronGang::kNoObstacleAhead,
+        // Allowed by the signal: nothing holds anyone.
+        Require(IronGang::PedestrianCrossingClearance(west, east, crossings, SignalPhase::Red) ==
+                    IronGang::kNoObstacleAhead,
                 "a pedestrian who may cross must not be obstructed");
 
-        // Not allowed, standing on the kerb: a full stop.
-        Require(IronGang::PedestrianCrossingClearance(kerbs[0], kerbs, false) == 0.0F,
-                "a pedestrian at the kerb who may not cross must be stopped");
-        Require(IronGang::PedestrianCrossingClearance(kerbs[1], kerbs, false) == 0.0F,
+        // At a kerb, heading for the other one, on a green for traffic: a full stop.
+        Require(IronGang::PedestrianCrossingClearance(west, east, crossings, SignalPhase::Green) == 0.0F,
+                "a pedestrian at the kerb heading across must be stopped");
+        Require(IronGang::PedestrianCrossingClearance(east, west, crossings, SignalPhase::Green) == 0.0F,
                 "either kerb must hold, not just the first");
 
-        // Not allowed, but already out in the road: they must be let finish. A signal changing
-        // mid-crossing must not freeze someone in a live lane.
-        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(0.0F, 0.9F, 0.0F), kerbs, false) ==
+        // The rule position alone cannot express: someone walking *along* the pavement passes
+        // within a metre of the kerb constantly. Holding them every time the light is green would
+        // jam the pavement rather than the crossing -- which is what the first version of this
+        // rule, keyed on position only, would have done once every pedestrian routed freely.
+        const IronGang::Vector3 alongPavement(-7.5F, 0.9F, 20.0F);
+        Require(IronGang::PedestrianCrossingClearance(west, alongPavement, crossings,
+                                                      SignalPhase::Green) == IronGang::kNoObstacleAhead,
+                "a pedestrian standing at the kerb but walking on past must not be held");
+
+        // Already out in the road: let them finish. A signal changing mid-crossing must not freeze
+        // someone in a live lane.
+        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(0.0F, 0.9F, 0.0F), east,
+                                                      crossings, SignalPhase::Green) ==
                     IronGang::kNoObstacleAhead,
                 "a pedestrian already in the road must be allowed to finish crossing");
-        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(-5.0F, 0.9F, 0.0F), kerbs, false) ==
+        Require(IronGang::PedestrianCrossingClearance(IronGang::Vector3(-5.0F, 0.9F, 0.0F), east,
+                                                      crossings, SignalPhase::Green) ==
                     IronGang::kNoObstacleAhead,
                 "past the kerb hold radius is past holding");
-        // Just inside the radius still holds.
         Require(IronGang::PedestrianCrossingClearance(
-                    IronGang::Vector3(-7.5F + IronGang::kKerbHoldRadiusMetres * 0.5F, 0.9F, 0.0F), kerbs,
-                    false) == 0.0F,
+                    IronGang::Vector3(-7.5F + IronGang::kKerbHoldRadiusMetres * 0.5F, 0.9F, 0.0F), east,
+                    crossings, SignalPhase::Green) == 0.0F,
                 "within the kerb hold radius must still hold");
 
-        Require(IronGang::PedestrianCrossingClearance(kerbs[0], {}, false) == IronGang::kNoObstacleAhead,
-                "with no kerbs there is nothing to hold anyone at");
+        // An unsignalled crossing never holds anyone, whatever the lights are doing.
+        const std::vector<IronGang::CrossingPair> unsignalled{{west, east, false}};
+        Require(IronGang::PedestrianCrossingClearance(west, east, unsignalled, SignalPhase::Green) ==
+                    IronGang::kNoObstacleAhead,
+                "an unsignalled crossing must never hold anyone");
+        Require(IronGang::PedestrianCrossingClearance(west, east, {}, SignalPhase::Green) ==
+                    IronGang::kNoObstacleAhead,
+                "with no crossings there is nothing to hold anyone at");
 
         // End to end against a real signal cycle: a pedestrian held at the kerb must actually get
         // to cross within one cycle, or the crossing is a wall rather than a wait.
@@ -4711,7 +4868,7 @@ namespace
         signal.Reset();
         IronGang::Pedestrian pedestrian;
         IronGang::WaypointPath crossing;
-        crossing.points = {kerbs[0], kerbs[1]};
+        crossing.points = {west, east};
         crossing.loop = true;
         pedestrian.Reset(crossing, 0, 1.4F);
 
@@ -4722,9 +4879,8 @@ namespace
         while (std::abs(pedestrian.GetPathPosition().X - startX) < 3.0F && updates < 60 * 60)
         {
             signal.Update(kStep);
-            const bool mayCross = PedestrianMayCross(signal.GetPhase(), true);
-            const float clearance =
-                IronGang::PedestrianCrossingClearance(pedestrian.GetPosition(), kerbs, mayCross);
+            const float clearance = IronGang::PedestrianCrossingClearance(
+                pedestrian.GetPosition(), pedestrian.GetTargetPoint(), crossings, signal.GetPhase());
             if (clearance == 0.0F)
             {
                 ++heldUpdates;
@@ -4739,6 +4895,7 @@ namespace
                 "the pedestrian must actually have been held at some point, or this test proves "
                 "nothing about the signal");
     }
+
 
     void TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly()
     {
@@ -6625,6 +6782,9 @@ int main()
         TestTrafficVehicleAcceleratesAndBrakes();
         TestSidewalkRoutingAcrossTheDistrict();
         TestSidewalkGraphRejectsADisconnectedDistrict();
+        TestPedestrianItineraryWalkAndWait();
+        TestPedestrianDestinationChoice();
+        TestPedestrianWandersTheDistrict();
         TestPedestrianCrossingRespectsTheSignal();
         TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();
         TestSidewalkGraphRejectsUnusableData();

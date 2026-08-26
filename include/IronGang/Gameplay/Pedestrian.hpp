@@ -60,6 +60,13 @@ namespace IronGang
         [[nodiscard]] const Vector3& GetPathPosition() const noexcept { return position_; }
         [[nodiscard]] float GetYaw() const noexcept { return yaw_; }
         [[nodiscard]] bool IsFleeing() const noexcept { return fleeTimer_ > 0.0F; }
+        // plan_20 IG-20-002: true once a **non-looping** path has been walked to its end. A
+        // looping patrol never arrives anywhere, which is the point of it; a route to a
+        // destination does, and that is what lets a pedestrian decide where to go next.
+        [[nodiscard]] bool HasArrived() const noexcept;
+        // The waypoint currently being walked toward. Used to tell a pedestrian stepping onto a
+        // crossing from one merely standing near it (plan_20 IG-20-012).
+        [[nodiscard]] Vector3 GetTargetPoint() const noexcept;
         // Whether the last Update() actually moved this pedestrian: false while it is stopped
         // behind someone in its lane (plan_20 IG-20-010), which is what lets an animation pick an
         // idle pose instead of sliding a walk cycle along the pavement.

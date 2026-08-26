@@ -10,6 +10,7 @@
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PedestrianCrossing.hpp"
+#include "IronGang/Gameplay/PedestrianItinerary.hpp"
 #include "IronGang/Gameplay/InputContext.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
@@ -301,9 +302,15 @@ namespace IronGang
         // player's own Advance() after the cutscene has handed control back.
         std::string appliedCutsceneCue_;
         InteractionPromptSelector interactionPrompts_;
-        // plan_20 IG-20-012: which pedestrians are on a crossing, and the kerbs that hold them.
-        std::vector<bool> pedestrianIsCrossing_;
-        std::vector<Vector3> crossingKerbs_;
+        // plan_20 IG-20-002/012: where each ambient pedestrian is heading and what it is doing,
+        // and the crossings that can hold it at a kerb.
+        std::vector<PedestrianItinerary> pedestrianItineraries_;
+        std::vector<std::string> pedestrianCurrentNodes_;
+        std::vector<float> pedestrianWalkSpeeds_;
+        std::vector<CrossingPair> crossingPairs_;
+        std::vector<std::string> walkableNodeIds_;
+        RandomSource pedestrianRandom_{1U};
+        void RouteNextPedestrianDestination(std::size_t index);
         // plan_27 IG-27-001: every sound plays through a bus, so the mix has categories rather
         // than one global multiplier.
         AudioBusGraph audioBuses_;
