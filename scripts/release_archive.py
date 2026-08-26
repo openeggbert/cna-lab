@@ -36,6 +36,7 @@ REQUIRED_ASSETS = (
     "cutscenes/prologue_intro.cutscene.json",
     "dialogues/prologue.dialogue.json",
     "missions/prologue.mission.json",
+    "models/model-materials.json",
     "vehicles/sedan.vehicle.json",
     "generated/models/cnj/warehouse.cnj",
     "generated/models/cnj/vehicle_body.cnj",

@@ -98,6 +98,38 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Every imported model was white, and why (plan_08)
+
+The warehouse rendered as a flat white slab even though `warehouse.mc3.xml` declares
+`base_color 0.42 0.36 0.31`. It was not only the warehouse: the sedan, authored `0.455 0.102 0.118`
+(dark red), rendered pale grey.
+
+**The cause.** A generated `.cnj` carries no material data at all — only vertices, indices, a vertex
+stride and an effect name — and the vertex layout (stride 32 = position/normal/uv) has **no colour
+channel**. The MC3 → glTF → CNJ pipeline drops material entirely, and there is nowhere in the vertex
+data to put it either. Every MC3-sourced model draws white unless the game says otherwise; only the
+character escaped notice because it has a texture rather than a base colour.
+
+That also explains why "leave the warehouse at full brightness, it is not a dynamic actor" looked
+harmless when written and looked wrong the moment anyone could see a frame: with no material, full
+brightness *is* white.
+
+**The fix.** `ModelMaterialTable` + `assets/models/model-materials.json` ship the base colours the
+pipeline drops, and `ShadedBaseColor()` multiplies them by the same `SunLight` brightness the rest
+of the scene uses. Failure is soft: an unknown model returns white and a bad file leaves the table
+empty, so everything renders exactly as it did before rather than turning black.
+
+Before/after at the same scripted update (480) shows the white slab become a brown-grey building and
+the featureless white block become a dark red sedan with a blue-grey windshield and black wheels.
+
+A new CTest guards the copy against its source: the JSON mirrors numbers authored in
+`assets/source/mc3/`, and a copy nothing checks drifts. It compares every single-material imported
+model against its MC3 file and refuses entries with no MC3 source behind them. Mutation-checked.
+
+`IG-08-014` is **partial, not closed** — this is uniform brightness per model, not baked per-face
+lighting, and closing it needs a colour channel to bake into. Textures, roughness, metallic and
+emissive are all declared in the MC3 sources and all still dropped.
+
 ### Diagnosing the screenshot findings, and pedestrian turning (plan_20)
 
 **A correction first.** The screenshot review two entries down reported that "pedestrians render as
@@ -486,11 +518,11 @@ Task count went from 215/2148 at the start of this session to 288/2148 now (the 
 - **Models, textures, audio, and the save file are read with no size bound** (`IG-36-002`'s
   remainder); no Unicode normalization; error messages still contain full local paths
   (`IG-36-013`).
-- **The warehouse renders as a flat pure-white slab** filling the upper right of every gameplay
-  frame -- `PrototypeRenderer::Draw()` deliberately leaves it untinted, which on an untextured white
-  material is brighter than anything else in the scene. Confirmed by a draw-skip probe on
-  2026-08-26. Reversing that decision belongs to plan_08 `IG-08-014` and wants its own before/after
-  evidence. See `docs/screenshots.md`.
+- **The MC3 -> glTF -> CNJ pipeline drops all material data** (base colour, roughness, metallic,
+  emissive) and the CNJ vertex layout has no colour channel. Base colours are now shipped separately
+  and applied at draw time (`IG-08-014` partial), but roughness/metallic/emissive are still lost,
+  and per-face baked lighting for imported geometry has nowhere to bake into. This is a pipeline
+  gap, not a renderer one.
 - **The character model is a flat-red placeholder** (one box for torso+head, two leg boxes), which
   reads poorly at a distance. That is `test_character`'s stated scope, not a bug -- real character
   art is plan_18 work.

@@ -296,6 +296,17 @@ namespace IronGang
         lightmapTextureBytes_ = sizeof(Color) + atlasPixels.size() * sizeof(Color);
     }
 
+    Vector3 PrototypeRenderer::ShadedBaseColor(const std::string& modelId, float sunBrightness) const
+    {
+        const Vector3 base = modelMaterials_.GetBaseColor(modelId);
+        return Vector3(base.X * sunBrightness, base.Y * sunBrightness, base.Z * sunBrightness);
+    }
+
+    void PrototypeRenderer::SetModelMaterials(ModelMaterialTable materials)
+    {
+        modelMaterials_ = std::move(materials);
+    }
+
     RendererVideoMemoryBreakdown PrototypeRenderer::GetTrackedVideoMemory() const
     {
         VideoMemoryAccumulator importedModels;
@@ -489,10 +500,15 @@ namespace IronGang
         effect_->Projection = projection;
 
         // Gate M10: one shared brightness scalar for every dynamic actor this frame (see
-        // SunLight.hpp). warehouseModel_ is deliberately left untinted here -- it has no lightmap
-        // UV channel from the current pipeline and is out of scope for baked lighting this pass,
-        // but it is also not a "dynamic actor", so it is simplest to leave it at full brightness
-        // rather than half-applying either lighting model to it.
+        // SunLight.hpp).
+        //
+        // warehouseModel_ used to be left at full brightness here, on the reasoning that it is
+        // neither a dynamic actor nor lightmapped. Once the renderer could be looked at (see
+        // docs/screenshots.md) that showed up as a pure-white slab dominating the skyline: it has
+        // no material either, so "full brightness" meant white. It is now shaded like everything
+        // else, from its own MC3 base colour (plan_08 IG-08-014). Real per-face baked lighting for
+        // imported geometry is still open -- the .cnj vertex layout has no colour channel to bake
+        // into.
         const float sunBrightness = ComputeSunBrightness();
         const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
 
@@ -515,10 +531,14 @@ namespace IronGang
                 {-1.05F, -0.20F, 1.35F},  {1.05F, -0.20F, 1.35F},
             };
 
-            SetModelDiffuseColor(vehicleModels_->body, sunTint);
-            SetModelDiffuseColor(vehicleModels_->cabin, sunTint);
-            SetModelDiffuseColor(vehicleModels_->windshield, sunTint);
-            SetModelDiffuseColor(vehicleModels_->wheel, sunTint);
+            // plan_08 IG-08-014: base colour times sun brightness. The .cnj pipeline carries no
+            // material at all, so without the first factor the sedan -- authored dark red in
+            // vehicle_body.mc3.xml -- drew as pale grey.
+            SetModelDiffuseColor(vehicleModels_->body, ShadedBaseColor("vehicle_body", sunBrightness));
+            SetModelDiffuseColor(vehicleModels_->cabin, ShadedBaseColor("vehicle_cabin", sunBrightness));
+            SetModelDiffuseColor(vehicleModels_->windshield,
+                                 ShadedBaseColor("vehicle_windshield", sunBrightness));
+            SetModelDiffuseColor(vehicleModels_->wheel, ShadedBaseColor("vehicle_wheel", sunBrightness));
 
             DrawModel(vehicleModels_->body, vehicleWorld, view, projection);
             DrawModel(vehicleModels_->cabin, Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
@@ -541,6 +561,7 @@ namespace IronGang
 
         if (warehouseModel_.has_value())
         {
+            SetModelDiffuseColor(*warehouseModel_, ShadedBaseColor("warehouse", sunBrightness));
             DrawModel(*warehouseModel_, Matrix::CreateTranslation(warehousePosition_), view, projection);
             if (workloadTrackingEnabled_)
             {

@@ -597,6 +597,19 @@ namespace IronGang
                              " assets/generated/models/cnj test_character 1.0 to generate it.");
         }
 
+        // plan_08 IG-08-014: the .cnj pipeline carries no material, so the base colours the MC3
+        // sources declare are shipped alongside and applied at draw time. A file that fails to
+        // load leaves every model white -- exactly how they rendered before this data existed.
+        {
+            ModelMaterialTable modelMaterials;
+            std::string materialsError;
+            if (!modelMaterials.LoadFromFile(assetRoot_ + "/models/model-materials.json", materialsError))
+            {
+                Log::Warning(LogCategory::Assets,
+                             materialsError + " -- imported models will render untinted white.");
+            }
+            renderer_.SetModelMaterials(std::move(modelMaterials));
+        }
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
                              std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
         RespawnTrafficAndPedestrians();

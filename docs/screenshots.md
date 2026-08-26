@@ -101,7 +101,11 @@ One defect that no test could have caught, and nobody could previously see:
   street lamps and trees behind it become visible. `PrototypeRenderer::Draw()` deliberately leaves
   the warehouse untinted ("simplest to leave it at full brightness rather than half-applying either
   lighting model to it") — which, on an untextured white material, means a white slab brighter than
-  anything else in the scene. Open as part of plan_08 `IG-08-014`.
+  anything else in the scene. **Fixed the same day**: the cause was that the MC3 → glTF → CNJ
+  pipeline drops material data entirely (a `.cnj` holds only vertices, indices, a stride and an
+  effect name, and the vertex layout has no colour channel), so *every* imported model drew white —
+  the sedan included, authored dark red. Iron Gang now ships the base colours itself and shades them
+  by the shared sun brightness. See plan_08 `IG-08-014` and `docs/validation.md`.
 
 ### A finding this document got wrong (corrected 2026-08-26)
 

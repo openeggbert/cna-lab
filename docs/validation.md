@@ -1867,6 +1867,72 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Why every imported model was white (2026-08-26)
+
+plan_08 `IG-08-014` advanced from open to partial. Gates M12 and M14 untouched.
+
+**The finding.** The warehouse rendered as a flat pure-white slab. `warehouse.mc3.xml` declares
+`<base_color>0.42 0.36 0.31</base_color>` -- a warm brown-grey -- so the colour was being lost. It
+was not only the warehouse: the sedan, authored `0.455 0.102 0.118` (dark red) in
+`vehicle_body.mc3.xml`, rendered pale grey.
+
+**The cause.** A generated `.cnj` carries no material data at all:
+
+```json
+{ "cnjVersion": 1, "type": "Model",
+  "meshes": [ { "vertices": "...", "indices": "...", "vertexStride": 32, "effect": "BasicEffect" } ] }
+```
+
+Vertex stride 32 is position + normal + uv -- **no colour channel**. So the MC3 -> glTF -> CNJ
+pipeline drops material entirely, and there is nowhere in the vertex data to put it either. Every
+MC3-sourced model draws white unless the game says otherwise. Only the character escaped notice
+because it has a texture rather than a base colour.
+
+That also explains why the earlier "left the warehouse untinted, it is simplest to leave it at full
+brightness" decision looked harmless when it was written and looked wrong the moment anyone could
+see a frame: with no material, full brightness *is* white.
+
+**What was built.** `ModelMaterialTable` (`include/`/`src/Graphics/ModelMaterials.hpp/.cpp`, in
+`iron_gang_core`) loads `assets/models/model-materials.json` -- a versioned table of base colours
+mirroring the MC3 sources -- and `PrototypeRenderer::ShadedBaseColor()` multiplies a model's base
+colour by the shared `SunLight` brightness the rest of the scene already uses. The warehouse is now
+shaded like everything else, and each sedan part draws in its own authored colour.
+
+Failure is deliberately soft: an unknown model returns white, and a file that fails to load leaves
+the table empty and logs a warning, so every model renders exactly as it did before this data
+existed rather than turning black.
+
+**Verified.** Before/after screenshots at the same scripted moment
+(`--play-input tests/input-scripts/prologue_opening.inputscript.json --screenshot-update 480`) show
+the white slab become a brown-grey building, and the featureless white block become a dark red sedan
+with a blue-grey windshield and black wheels. `TestModelMaterialsLoadAndDefault` (an unloaded table
+returns white rather than black -- a failed load must not blank the screen; the shipped file loads
+and covers all five imported models; the warehouse carries exactly the colour its MC3 declares; the
+sedan body is a dark red rather than a neutral grey) and `TestModelMaterialsRejectUnusableData`
+(thirteen rejection cases: unsupported and missing version, missing `models`, duplicate and empty
+model id, two- and four-component colours, components above 1 and below 0, missing `baseColor`,
+unknown top-level and per-model fields, missing file -- and a rejected file leaving the table empty
+rather than half-applied).
+
+New CTest `iron_gang_model_materials_tests` guards the copy against its source of truth: the shipped
+JSON is a *copy* of numbers authored in `assets/source/mc3/`, and a copy nothing checks is a copy
+that drifts. It compares every single-material imported model against its MC3 file, refuses entries
+with no MC3 source behind them, and checks the file's shape. Mutation-checked: changing the shipped
+warehouse colour to `[0.9, 0.9, 0.9]` fails with
+`warehouse channel 0: MC3 says 0.42, shipped table says 0.9`. 15 CTest targets, all passing, up from
+14. The asset registry gained a `models` production directory and the new file; it failed the suite
+until both were added. Two packaging paths also needed it and would not have failed any test:
+`CMakeLists.txt`'s `install(DIRECTORY ...)` list and `release_archive.py`'s `REQUIRED_ASSETS` --
+without both, an installed or archived build ships without the table and every imported model goes
+back to white.
+
+**Not verified, and explicitly still open.** This is *uniform* brightness per model, not baked
+per-face lighting -- `IG-08-014` stays partial for exactly that reason, and closing it needs a
+colour channel to bake into, which means either a pipeline change or a rebuilt vertex buffer. The
+`prototype_city_block` MC3 has five materials and is deliberately absent from the table: it is not
+drawn as an imported model. Nothing here touches textures, roughness, metallic, or emissive, all of
+which the MC3 sources declare and the pipeline also drops.
+
 ## Diagnosing the first screenshot review's own findings (2026-08-26)
 
 plan_20 `IG-20-003` closed. This entry also **corrects a wrong finding** published in "The first

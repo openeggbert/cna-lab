@@ -32,6 +32,7 @@
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/Graphics/ModelMaterials.hpp"
 #include "IronGang/Graphics/ScreenshotSummary.hpp"
 #include "IronGang/Input/InputScript.hpp"
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
@@ -4509,6 +4510,94 @@ namespace
     // for a fixed duration (even after the threat itself is no longer reported present), then
     // resume its normal path once that duration elapses.
     // plan_20 IG-20-003: which clip each locomotion state asks for, and what it falls back to.
+    // plan_08 IG-08-014: the base colours the .cnj pipeline drops. A model with no entry stays
+    // white, which is exactly how everything rendered before this data existed.
+    void TestModelMaterialsLoadAndDefault()
+    {
+        IronGang::ModelMaterialTable table;
+        Require(!table.Contains("warehouse"), "an unloaded table must contain nothing");
+        Require(std::abs(table.GetBaseColor("warehouse").X - 1.0F) < 1e-4F,
+                "an unknown model must default to white, not black -- a failed load must not blank "
+                "the screen");
+
+        std::string error;
+        Require(table.LoadFromFile(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/models/model-materials.json",
+                                   error),
+                "the shipped model materials must load: " + error);
+        Require(table.GetCount() >= 5, "every imported model needs an entry");
+
+        // The four models IronGangGame actually imports, plus the warehouse.
+        for (const char* modelId : {"warehouse", "vehicle_body", "vehicle_cabin", "vehicle_windshield",
+                                    "vehicle_wheel"})
+        {
+            Require(table.Contains(modelId),
+                    std::string("the shipped table must cover the imported model ") + modelId);
+        }
+
+        // The warehouse's own MC3 base colour, which is what stopped it rendering as a white slab.
+        const IronGang::Vector3 warehouse = table.GetBaseColor("warehouse");
+        Require(std::abs(warehouse.X - 0.42F) < 1e-4F && std::abs(warehouse.Y - 0.36F) < 1e-4F &&
+                    std::abs(warehouse.Z - 0.31F) < 1e-4F,
+                "the warehouse must carry the base colour warehouse.mc3.xml declares");
+        // And the sedan's, which is a dark red, not the pale grey it used to draw as.
+        const IronGang::Vector3 body = table.GetBaseColor("vehicle_body");
+        Require(body.X > body.Y && body.X > body.Z && body.X < 0.6F,
+                "the sedan body must be a dark red, not a neutral grey");
+    }
+
+    void TestModelMaterialsRejectUnusableData()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_materials.json";
+        std::string error;
+        IronGang::ModelMaterialTable table;
+
+        WriteTempJson(path, R"JSON({"version":9,"models":[{"modelId":"a","baseColor":[0,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "an unsupported version must be rejected");
+
+        WriteTempJson(path, R"JSON({"models":[{"modelId":"a","baseColor":[0,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a missing version must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a missing \"models\" array must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[
+            {"modelId":"a","baseColor":[0,0,0]},{"modelId":"a","baseColor":[1,1,1]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a duplicate model id must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"","baseColor":[0,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "an empty model id must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a","baseColor":[0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a two-component colour must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a","baseColor":[0,0,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a four-component colour must be rejected");
+
+        // Out of range would either clip silently or make one model brighter than the sun the rest
+        // of the scene is lit by.
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a","baseColor":[1.4,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a component above 1 must be rejected");
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a","baseColor":[-0.1,0,0]}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a negative component must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a"}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "a missing baseColor must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"finish":"matte","models":[]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "an unknown top-level field must be rejected");
+
+        WriteTempJson(path, R"JSON({"version":1,"models":[{"modelId":"a","baseColor":[0,0,0],"gloss":1}]})JSON");
+        Require(!table.LoadFromFile(path.string(), error), "an unknown per-model field must be rejected");
+
+        Require(!table.LoadFromFile(path.string() + ".missing", error),
+                "a missing file must be rejected, not crash");
+
+        // A rejected file must leave the previous contents intact rather than half-applied.
+        Require(table.GetCount() == 0, "a table that never loaded successfully must stay empty");
+
+        std::filesystem::remove(path);
+    }
+
     void TestPedestrianAnimationSelection()
     {
         using IronGang::PedestrianAnimation;
@@ -5452,6 +5541,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestModelMaterialsLoadAndDefault();
+        TestModelMaterialsRejectUnusableData();
         TestPedestrianAnimationSelection();
         TestPedestrianTurnsInPlaceInsteadOfSnapping();
         TestPedestrianFleesAndResumesPath();

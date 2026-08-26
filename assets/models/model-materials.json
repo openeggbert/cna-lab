@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "models": [
+    { "modelId": "warehouse", "baseColor": [0.42, 0.36, 0.31] },
+    { "modelId": "vehicle_body", "baseColor": [0.455, 0.102, 0.118] },
+    { "modelId": "vehicle_cabin", "baseColor": [0.569, 0.165, 0.184] },
+    { "modelId": "vehicle_windshield", "baseColor": [0.373, 0.51, 0.569] },
+    { "modelId": "vehicle_wheel", "baseColor": [0.098, 0.098, 0.106] }
+  ]
+}
