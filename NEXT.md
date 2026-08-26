@@ -6,6 +6,12 @@ until the end of a session to reconstruct it from memory.
 
 ## Where things stand (as of this entry)
 
+**Start with [`docs/status.md`](docs/status.md)** -- one page, with the plan-progress table
+generated from `plan/plan_*.md` and checked by CTest so it cannot go stale (plan_38 `IG-38-014`).
+This document is the *narrative* companion to it: what changed, why, and what a resumed session
+should pick up. Verification evidence lives in `docs/validation.md`.
+
+
 **The checkout moved on or before 2026-08-25.** It is now
 `/rv/data/development/github.com/openeggbert/_other/iron-gang` -- one directory deeper than the
 `cnanext`/`sharp-runtimenext`/`easy-gl` siblings every default path in `CMakePresets.json`,
@@ -92,552 +98,64 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
-### Keys become data, with per-context conflict detection (plan_28)
-
-**The blocker I recorded below was a false one.** Rebinding needed CNA's `Keys`, which
-`iron_gang_core` could not see -- but `cna_add_module` creates a `CNA::Input` alias, so linking it
-into core is one line (probe-compiled to confirm). The model keeps real `Keys` values *and* stays
-where the window-free tests can reach it. Two minutes of checking beat designing around integer key
-codes.
-
-`InputBindings`: sixteen actions in four groups from one table, and **every rebindable key the game
-reads now goes through it** -- keys are a table, not literals scattered through the update loop.
-
-- **Conflicts are per group**, which is what makes detection useful rather than obstructive: Space
-  is the handbrake *while driving* and confirms *in a menu* and those never conflict, because the
-  game is never listening for both at once. Global actions conflict with everything.
-- `Rebind` displaces the loser, **reports who lost the key**, and costs it only that key -- a
-  secondary is promoted rather than discarded.
-- Bindings persist in `runtime/settings.json`, written **in full**: until a rebinding screen exists,
-  the file *is* the interface. An unknown action, unknown key name, or malformed entry keeps that
-  action's default and warns, per action rather than costing the file.
-- Driving and menu navigation **reuse** the movement bindings -- a player who rebinds "forward"
-  expects both to follow.
-
-`IG-28-007` partial. Verified: build clean, CTest 11/11, a conflict/round-trip test, and the mission
-scenario still completing (the check that rewiring input did not break the deterministic runs).
-
-Missing: **a rebinding screen** (the model reports everything a UI needs; nothing draws it) and
-**gamepad** -- no gamepad input path exists anywhere in the game.
-
-### Player settings become their own file (plan_29, plan_28)
-
-**Three files, three lifetimes, three owners** -- the point of `IG-29-005`: `runtime/settings.json`
-is what the **player** changes and must survive deleting every save; the save file is campaign
-progress; `assets/config/game.json` is read-only developer tuning shipped with the game.
-
-`UserSettings` holds a master volume and a HUD toggle, both **on the pause menu itself** (with two
-settings, a submenu is a screen to learn for no benefit). Volume cycles in five wrapping steps -- a
-slider needs pointer input the game does not have. Turning the HUD off **never hides the pause
-menu**: a hidden menu strands the player in a paused game. Master volume multiplies every sound
-(engine, horn, footsteps), so it is one setting rather than a scatter.
-
-**Shared atomic write:** `SaveGame` had the only copy of write-temp/rotate-backup/rename. The second
-caller is where a pattern becomes shared or becomes two subtly different implementations, so it
-moved to `WriteTextFileAtomically` (`Core/AtomicFile.hpp`).
-
-Closed `IG-29-005`. Verified: build clean, CTest 11/11, a settings test including a read-only
-directory proving a failed write leaves the previous file intact.
-
-**Blocked and worth knowing:** key rebinding (`IG-28-007`) needs CNA's `Keys` enum, and
-`iron_gang_core` **cannot see CNA's Input module** (not on the library's include path -- verified by
-a compile). So it needs either integer key codes in the settings file or a game-layer home that
-tests cannot reach. Decide that before starting it.
-
-### The pause screen becomes a menu (plan_28)
-
-The pause screen from the entry below was text listing keys; it is now Resume / Save / Load /
-Restart from checkpoint / Quit, navigated with Up/Down or W/S and activated with Enter.
-
-`MenuModel` (`UI/MenuModel.hpp`) holds items, selection, and activation with **no drawing or input
-in it**, which is what makes the fiddly parts testable:
-
-- Moving **skips disabled entries** and wraps both ways; a multi-step move counts *enabled* entries.
-- A menu with nothing enabled **keeps its selection rather than spinning forever** -- that loop is
-  the obvious way to write this and the obvious way to hang the game.
-- Activating a disabled entry returns `None`, so it cannot act even if something selects it.
-
-Rebuilt on every pause, because availability changes: **Load disabled with "no save yet"**,
-**Restart disabled with "no checkpoint reached"**. Disabled entries stay visible with their reason --
-hiding one moves everything below it under the player's fingers between two frames, which is how a
-menu makes someone quit by accident.
-
-`IG-28-003` partial (keyboard only -- **no gamepad input exists anywhere in the game**), `IG-28-004`
-further along. Verified: build clean, CTest 11/11, a 9-case menu test, mission scenario still
-completes.
-
-Not done: settings (nothing player-adjustable exists to put in one -- `IG-29-005`), a
-restart-from-the-beginning entry, quit confirmation, and the menu is HUD text lines rather than a
-laid-out panel.
-
-### One place decides what the game is listening to, and Escape pauses (plan_28)
-
-"What is the game doing right now?" was answered independently at half a dozen sites, each written
-as `!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning` -- and two iterations ago I
-added a **seventh** answer (`SaveConditions`/`FindSaveBlockReason`) for saving. `InputContext`
-(`Gameplay/InputContext.hpp`) now resolves one context from one signals struct in a documented
-precedence order, and `SaveBlockReasonForContext` **replaces** the pair I had added.
-
-`VehicleTransition` is a context, not a flag: during the enter/exit clip the player is neither on
-foot nor driving, and the controls belong to the animation.
-
-**Escape now pauses** instead of calling `Exit()` (that was a debug affordance). Quitting moved
-behind the pause screen (Q). While paused the world does not advance -- physics is **skipped
-entirely rather than stepped with a zero delta** -- while the HUD, title, and input keep running on
-the real frame delta, so a paused game still redraws and listens. Pausing is a **safe** save moment,
-so F5/F9 work there.
-
-Only Paused stops the world: a cutscene, a conversation, and a district load all keep the simulation
-running, because ambient traffic and the police do not wait for a conversation.
-
-Closed `IG-28-008`; `IG-28-004` partial. Verified: build clean, CTest 11/11, a precedence test, and
-a full mission scenario run.
-
-Not done: the pause screen is key-driven text, not a navigable menu (`IG-28-003`); no settings, no
-restart, no quit confirmation; pause is binary (no time-scale) and is not a mission fact.
-
-### On-foot movement gets momentum (plan_16)
-
-plan_16 stood at 1 of 80 with a note that on-foot movement "already works" -- it did, in the sense
-that a keypress **was** full speed and a release **was** a dead stop. That reads as a cursor, not a
-person, in a game where you walk to the car.
-
-`Locomotion` (`Gameplay/Locomotion.hpp`) eases forward/strafe velocity and turn rate toward the
-input:
-
-- **Stopping is quicker than starting** (26 vs 18 m/s squared) on purpose -- the opposite ordering
-  is what makes momentum feel like ice.
-- Deceleration is per axis, so releasing forward while still strafing does not brake the strafe.
-- Diagonal input clamped; a teleport drops momentum; `MoveToward` snaps rather than overshooting
-  (overshoot at low frame rates is how a character jitters around a standstill).
-
-Pure arithmetic, no physics in it, so the feel is unit-tested rather than eyeballed.
-`GetSpeed()`/`IsMoving()` are exposed for a future animation blend or footstep timer.
-
-Verified: build clean, CTest 11/11, a 14-case locomotion test, and a full `--profile-scenario
-mission` run that still completes. **A test bug worth remembering:** the first version measured
-"frames to stop" from sprint speed and compared it to "frames to walk from rest" -- 15 vs 14, failing
-against correct code. Measure both from the same starting speed.
-
-Not done: **slope handling** (`CharacterVirtual` resolves slopes as geometry, but nothing changes
-speed uphill or downhill and there is no slide threshold), step-up/ledge/falling states
-(`IG-16-006`), crouch, camera work, and the constants are compile-time rather than a tunable file.
-
-### The sedan can be wrecked (plan_17)
-
-Closes the gap this document has carried since gate M11: "no combat/damage system at all, so
-vehicle-loss has no real mechanic behind it".
-
-Impacts come from the vehicle's **own speed history**, not contact reports: a frame losing speed
-faster than any brake could **is** a collision. Needs nothing new from the physics layer, cannot
-miss a contact Jolt resolved internally, and the separation is wide -- braking is ~1 g, the
-threshold ~4 g, a crash is tens.
-
-- Integrity 1 -> 0, accumulates, floors at 0, scales the engine's pull toward `minimumSpeedFactor`.
-  **A wrecked sedan still steers and rolls** -- stranded is a situation, immobile is a trap.
-- `VehicleDamage` is pure arithmetic (no physics/input/rendering), so the whole model is unit-tested.
-- Tunable in `sedan.vehicle.json`'s `damage` block; integrity is saved (older saves load an intact
-  car); published to missions as `vehicle_integrity`/`vehicle_disabled`, so a mission **can** now
-  fail on a wrecked car. HUD shows `DAMAGE n%` then `WRECKED`.
-
-Verified: build clean, CTest 11/11, a 13-case damage test -- and the check that matters most, a full
-`--profile-scenario mission` run recording **zero** impacts and still completing. A model that fired
-on normal driving would have wrecked the car before the warehouse.
-
-Not done: wheel damage (wheels have no per-wheel state), visual damage, any repair beyond a mission
-reset, and **no committed mission uses the new facts yet** -- the prologue still only fails on a long
-police chase. Wiring `vehicle_disabled` into a failure branch is a one-line mission-file change
-whenever that is wanted.
-
-### Data files are bounded before a parser sees them (plan_36)
-
-Three loaders written in the last few iterations -- mission, game config, vehicle tuning -- each read
-a whole file and handed it to a JSON parser with **no size, encoding, or depth limit**. The
-duplication was mine; so was the gap.
-
-`ReadBoundedJsonText` (`Core/JsonDataFile.hpp`) now fronts all three:
-
-- **Size** from the filesystem, so an oversized file is refused *without being read into memory*
-  (1 MiB, ~100x the largest file shipped).
-- **UTF-8**, rejecting stray continuations, truncations, **overlong forms**, surrogates, and
-  anything past U+10FFFF -- overlong forms are how one character gets two spellings, which is how a
-  validated identifier stops equalling the compared one.
-- **Nesting depth** counted over the raw text before the recursive-descent parser runs, so a deep
-  document cannot exhaust the stack. Unbalanced brackets and unterminated strings fall out of it.
-
-**Layering note worth remembering:** the first version exported a struct holding a `JsonDocument`,
-which broke the test build -- sharp-runtime's `Text.Json` is a **private** dependency of
-`iron_gang_core`, and that header dragged it into every consumer. The public header now names no
-JSON types; the document-returning half lives in `src/Core/JsonDataFileInternal.hpp`, outside
-`include/`. The compiler caught a real layering violation.
-
-Closed `IG-36-009`; `IG-36-003`/`IG-36-005` recorded as already done (plan_24/plan_29);
-`IG-36-002`/`IG-36-006` now partial. Verified: build clean, CTest 11/11, and the depth bound
-asserted **through all three loaders**, not just directly.
-
-Still unbounded and worth picking up: CNJ/glTF models, textures, WAV audio, and the save file are
-read with no size check (the save at least has a checksum and a backup; the assets have nothing).
-No Unicode normalization (`IG-36-006`'s other half). Error messages still leak full local paths
-(`IG-36-013`).
-
-### The sedan's numbers move into data (plan_17)
-
-plan_17 showed 0 of 97 done while a Jolt raycast vehicle had been driving the game since gate M4 --
-the file was never updated. Now: `assets/vehicles/sedan.vehicle.json` (schema v1) holds the chassis
-mass and half extents, wheel radius/width/positions, and forward/reverse speed limits that
-`VehicleController.cpp` used to hard-code, behind the same failure contract as the other loaders
-(warnings keep defaults; only malformed JSON, a non-object root, or a bad version fails, and a
-failure leaves the caller's config untouched).
-
-Two deliberate rules: a **zero mass or zero-radius wheel never reaches the physics body**, and **one
-malformed wheel entry defaults all four** rather than producing a wheelbase nobody designed.
-
-**A real bug found while wiring it:** the load was initially placed after `vehicle_.Reset()`, which
-creates the physics body -- so mass and geometry would have been baked in before the file was read
-and the tuning would have silently applied almost nothing. The load now runs before
-`districtManager_.Initialize()`, and `Configure()` warns if called once the body exists.
-
-Closed `IG-17-003`; `IG-17-002` recorded as already done under plan_15; `IG-17-001` (kinematic
-fallback) and `IG-17-004` now carry honest partial notes. Verified: build clean, CTest 11/11, and a
-test asserting the committed file loads with zero warnings **and still carries the previously
-hard-coded values**. Documented in `docs/vehicles.md`.
-
-**Watch out:** `chassis.halfExtents`/`wheels.positions` must keep matching `PrototypeRenderer`'s body
-box and wheel offsets and **nothing validates that** -- a mismatch shows up only as floating or
-sunken wheels. Suspension, steering response, and braking still use Jolt's defaults, so they are
-deliberately not in the schema: a key the game does not read would be worse than no key.
-
-### Pedestrians stop walking through each other (plan_20)
-
-Fixes a defect the entry below **introduced**: six pedestrians per two-point sidewalk, half walking
-each way, passed straight through one another. Invisible at a population of two, obvious at twelve.
-
-- **Lanes:** `Pedestrian::SetLaneOffset` shifts a pedestrian right of its own heading, so the two
-  directions occupy two lanes. The offset moves the position everything outside sees (rendering,
-  witness checks, congestion queries) -- a real position, not a drawing trick.
-- **Yielding:** `Update` takes the clearance to the pedestrian ahead in its own lane and slows from
-  2.0 m to a stop at 0.7 m -- `TrafficVehicle`'s following-distance shape at walking scale. A
-  **fleeing** pedestrian ignores it on purpose, and that is asserted.
-- The lane test moved out of `IronGangGame.cpp` (private helper, traffic width baked in) into a
-  shared `DistanceAheadInLane` (`Gameplay/LaneClearance.hpp`) that both movers call with their own
-  half-width: 2.0 m for cars, 0.55 m for people.
-
-Closed `IG-20-010`. Verified: build clean, CTest 11/11, two new tests -- including a 400-frame
-head-on walk asserting closest approach > 0.5 m, and that a yielding follower **resumes** (a yield
-that deadlocks would be worse than the clipping it replaced).
-
-**Known cost:** the scan is O(n squared), 144 checks per ambient update at 12 pedestrians; `ai_cpu`
-maximum went 0.022 -> 0.094 ms (p95 unchanged). Affordable now, deliberately **not** a profiler
-counter yet -- adding one revises the report schema and comparator contract. A streamed population
-(`IG-20-008`) will need both a counter and a spatial index.
-
-### A deterministic RNG, and a city that finally has people in it (plan_04, plan_20, plan_21)
-
-Two **P0 gameplay** tasks that had sat since gate M9 -- "only 2 pedestrians spawned, not 10-20" and
-"only 2 traffic vehicles, not 3-5" -- are closed, along with the RNG they needed.
-
-- `RandomSource` (`Core/RandomSource.hpp`): splitmix64, hand-written rather than `<random>` because
-  `std::uniform_*_distribution` is **not** specified exactly and so gives different numbers per
-  standard library -- "seed 42" has to mean one thing everywhere. `NextIndex` rejection-samples
-  (modulo bias is what makes one option keep winning). `Derive(label)` gives an independent stream
-  **without consuming from the parent**, so a new caller cannot shift an existing system's sequence.
-- `WarehouseBlock` now has **12 pedestrians** (six per sidewalk, spread by `Pedestrian::Reset`'s new
-  start offset, speeds 1.1-2.0, both directions) and **4 traffic vehicles** (speeds 5-7). Varied
-  traffic speeds are not cosmetic: identical speeds hold their spacing forever, so the
-  following-distance braking that already existed would never fire.
-- The population derives from a seed mixed with the district id, so a district repopulates
-  **identically** every time -- otherwise the profiling scenarios would stop being comparable.
-
-Measured in a real `mixed --smoke 400` run: exactly 12 and 4, `ai_cpu` p95 0.002 ms, max 0.022 ms.
-
-**Read this before trusting any M12 number:** every capture in `docs/performance-baseline.md` was
-taken with 2 pedestrians and 2 vehicles. Anything comparing across this change compares two
-different workloads, the comparator's `NO REGRESSION` included. A dated note now sits at the top of
-that file; a fresh baseline pair is needed.
-
-Still open nearby: pedestrians are colored boxes with no skinned model or walk animation
-(`IG-20-003`), they do not avoid each other, and the population is fixed rather than streamed by
-attention; traffic has no signals, turning, or lane graph.
-
-### A simulation clock between CNA and the world (plan_04)
-
-`Update` fed `GameTime`'s raw delta straight to physics, movement, AI, the mission, and autosave.
-`SimulationClock` (`Core/SimulationClock.hpp`) now sits in between: it **clamps** an extreme delta to
-100 ms (a stall costs smoothness, not correctness -- no teleporting through walls, no skipped
-trigger, no missed briefly-true mission condition) and keeps **monotonic** simulation time, so a
-negative/NaN/infinite delta from a broken timer advances the world by 0 rather than backwards. The
-refused wall time is accounted for in `GetDroppedSeconds()`, and the first clamp is logged once.
-
-**Worth knowing before trusting it:** reading `cnanext`'s `Game.cpp` showed the fixed-step loop hands
-`Update()` a constant 16.67 ms and catches up by calling `Update()` **repeatedly**, so the clamp
-never fires in the current configuration. It is a guard, and it becomes load-bearing if the game
-runs variable-step, where CNA's own cap is `Game::MaxElapsedTime` = 500 ms -- five times more than
-this game's movement and physics can absorb in one step. The plan entry, the header, and
-`docs/validation.md` all say so rather than implying a bug was fixed.
-
-Closed `IG-04-003`/`004`/`005`/`007`. The fixed-step vs variable-step split (`Update` advances the
-world; `Draw` only reads it) is now written down in `docs/architecture.md`.
-
-Not done: no interpolation between fixed steps, no pause or time scale (a cutscene runs the world at
-1x), and the clamp threshold is a constant rather than a `game.json` tunable.
-
-### Structured logging replaces the 24 ad-hoc stderr lines (plan_04)
-
-Every entry below added another hand-written `std::cerr << "[IronGang] …"`; there were 24, with no
-severity, no category, and no way to turn any of them down. `IronGang::Log` (`Core/Log.hpp`) now
-formats `[IronGang][<category>][<severity>] <message>` on stderr, with four ordered severities and
-eight categories (app/assets/audio/config/cutscene/dialogue/mission/save). Migrating the call sites
-is what turned several of them into the **errors** and **warnings** they always were.
-
-- **A disabled category is silent at every severity, errors included** -- a half-off category would
-  be more confusing than either state.
-- **The sink is called outside the state mutex**: it is caller-supplied and must never deadlock the
-  game by logging from inside itself. The mutex is there for the planned loader thread
-  (`IG-04-014`).
-- Level from data: `game.json`'s `logSeverity`, overridden for one run by `--log-level` (an
-  unrecognized name is rejected at startup, not silently ignored).
-- `scripts/release_archive.py` now matches the **message text only** -- it should pin "the packaged
-  build loads these assets", not the log prefix.
-
-Closed `IG-04-002`/`017`; `IG-04-008` advanced. Verified: build clean, CTest 11/11, a filtering test,
-and real runs (`--smoke 60` prints the six asset/audio info lines, `--log-level error` prints none,
-`--log-level nonsense` exits with the valid list). Documented in `docs/logging.md`.
-
-Nearby remaining in plan_04: a monotonic simulation clock and delta clamping (`IG-04-003`/`004`/
-`007`), a seeded deterministic RNG (`IG-04-011`/`012`), the result/error object (`IG-04-009`),
-assertion macros (`IG-04-010`), and localization-safe string formatting (`IG-04-013`). The log has
-no timestamps, no file sink, and no per-category config key yet.
-
-### The configuration file is finally read (plan_04)
-
-`assets/config/game.json` had existed since the scaffold with a `notes` field admitting nothing read
-it; the previous two entries both had to say "that value is a compile-time constant because nothing
-reads the config". Now `GameConfig`/`LoadGameConfig` (`Core/GameConfig.hpp`) read it.
-
-The rule: **a broken or partial config costs the tuning, never the run.** A missing file, an unknown
-key, a wrong-typed value, an out-of-range number, an empty string -- all warnings that keep the
-default. Only malformed JSON or a non-object root fails, and it leaves the caller's config
-untouched. Unknown keys are *named* (`projectNmae` is the mistake worth catching). Negative seconds
-clamp to 0 ("off"). A spacing longer than the interval warns.
-
-Drives: the window title (`projectName` -- replacing a hardcoded "Iron Gang", which also helps
-`docs/renaming.md`), the district map header (`cityName`/`prototypeYear`), and the autosave interval
-and spacing. Autosave defaults come from `AutosaveScheduler`'s constants rather than being repeated.
-
-Closed `IG-04-001`/`006`/`018`. Verified: build clean, CTest 11/11, a test that the **committed**
-config loads with zero warnings, and a `--smoke 120` run that prints none. Documented in
-`docs/configuration.md`.
-
-Remaining nearby: structured logging categories (`IG-04-002` -- everything still goes to `std::cerr`
-with an ad-hoc `[IronGang]` prefix), a monotonic simulation clock and delta clamping
-(`IG-04-003`/`004`/`007`), a seeded deterministic RNG (`IG-04-011`/`012`), and the result/error
-object (`IG-04-009`). User settings the player can change in game remain blocked on plan_28's menus,
-which is the open half of `IG-29-005`.
-
-### Autosave scheduling, and refusing to save at unsafe moments (plan_29)
-
-Closes "a checkpoint is only as durable as the last manual save" from the entry below.
-
-- New `AutosaveScheduler`/`SaveBlockReason` (`Persistence/AutosavePolicy.hpp`). Triggers: a new
-  mission checkpoint, a finished district transition, a 180 s interval as the backstop.
-- **A request at an unsafe moment is held, not dropped** (an autosave asked for during a cutscene
-  fires when it ends), and **triggers that land together produce one save** (20 s minimum spacing,
-  deferring rather than discarding the second).
-- Saving is refused during a cutscene, dialogue, a district transition, or getting in/out of the
-  car -- each is a moment the game holds state the save format does not carry. F5 there says
-  `Can't save: <reason>`.
-- Autosaves have their own slot (`…prototype.autosave`), never overwriting a manual save; F9 loads
-  whichever is newer (`SaveGame::ChooseMostRecent`) and says which.
-- `CaptureWorldState()`/`CaptureSnapshot()` mean the manual save, the autosave, and the checkpoint
-  world all capture through one path instead of three copies.
-
-Closed `IG-29-010`/`011`/`036`/`037`. Verified: build clean, CTest 11/11, two new tests, and an
-end-to-end `--profile-scenario mixed --smoke 1600` run (~26.7 s of simulated time at the fixed 60 Hz
-step) that actually writes `runtime/iron_gang_prototype.autosave`. Worth knowing: the `mission`
-scenario finishes at ~15 s, inside the 20 s spacing, so it deliberately produces no autosave.
-
-Remaining plan_29 targets: settings separated from campaign data (`IG-29-005`), profiles and slots
-(`IG-29-006`/`032`), asynchronous save preparation (`IG-29-012`), a CLI save inspector
-(`IG-29-019`), and per-district persistence of world entities (`IG-29-008`/`034`). The autosave
-interval and spacing are compile-time constants because nothing reads `assets/config/game.json`
-yet -- that loader is plan_04's.
-
-### Checkpoints now record the world they were reached in (plan_29)
-
-Closes the gap the entry below flagged. `SaveSnapshot` **derives from** a new `WorldStateSnapshot`
-(player, vehicle, district), so the live world and a checkpoint's world are one type and every
-existing `snapshot.playerPosition` still compiles. `missionCheckpointWorld` is an optional of that
-type, written as additive `checkpoint_*` keys with **no version bump** -- exactly what the previous
-entry's versioning work made safe. It is all-or-nothing on read: a partial block is dropped, because
-putting the player somewhere and the vehicle nowhere is worse than a restart.
-
-`RetryMission()` therefore works straight after loading a save. `LoadPrototype()` and
-`RetryMission()` now share one `ApplyWorldSnapshot()` instead of two copies of the same restore
-sequence, so the cutscene-skip and traffic-respawn safeguards cannot drift apart between them.
-
-Closed: `IG-29-009`/`029`/`030`/`031`. Verified: build clean, CTest 11/11, new
-`TestCheckpointWorldSurvivesSaveLoad` (round trip with a checkpoint district deliberately different
-from the live one, no-checkpoint save, partial block dropped), `--smoke 200` clean. Checkpoint
-placement conventions for mission authors are now in `docs/mission-scripting.md`.
-
-Still deliberately unsaved: wanted state (plan_22's choice -- a load starts with the police clear)
-and ambient traffic/pedestrians (respawned). A checkpoint is only as durable as the last manual
-save: there is no autosave (`IG-29-010`/`036`), no profiles or slots (`IG-29-006`/`032`), and no
-settings/campaign separation (`IG-29-005`) -- those are the obvious next plan_29 targets.
-
-### Save format integrity: versioning, atomic write, rolling backup, checksum (plan_29)
-
-Deliberately done **before** persisting the checkpoint world half the entry below flagged: adding
-fields to a format with no version, no atomicity, and no integrity check compounds the problem.
-
-- **Version 2** with parsed `format=iron-gang-save-v<N>` and a range check. A newer version is
-  refused by name; version 1 still loads and converts on read; `SaveReadDiagnostics::formatVersion`
-  reports which version the file was.
-- **Atomic write:** `<path>.tmp` → rotate old save to `<path>.bak` → rename into place. A failure
-  never leaves a half-written file at the save's own path; a leftover `.tmp` is ignored and replaced.
-- **One rolling backup with fallback:** a missing/corrupt/unsupported primary falls back to `.bak`,
-  reported through `usedBackup`/`primaryError`; the game logs it and shows "Loaded backup save".
-- **Checksum:** `checksum=<FNV-1a 64 hex>` over the body. Damage detection, not tamper protection
-  (documented). Missing required fields are now named instead of throwing `map::at`.
-
-New `TestSaveFormatRobustness` covers all of it, including a leftover garbage `.tmp` (crash
-mid-write) and a read-only directory (disk full) that must leave the existing save byte-identical.
-Note `TestMissionVariablesSurviveSaveLoad`'s malformed-variable case had to be rewritten as a
-version-1 document -- appending junk to a v2 save is now correctly rejected, and the old test was
-only passing because nothing checked integrity. Schema, guarantees, and the "how to change the
-format" procedure are in `docs/save-format.md`.
-
-**Next:** the checkpoint world half (`IG-29-009`/`029`/`030`/`031`) -- the save carries the mission
-side of a checkpoint but not where the player and vehicle stood, so `RetryMission()` after a load
-still falls back to a full restart. The format can now absorb that as an additive change with no
-version bump.
-
-### Branching missions, wanted-state facts, and a failure/retry loop that actually runs (plan_24)
-
-Closes the integration gap the entry below left open -- nothing in the running game could fail.
-
-- **Branching:** a state declares `"transitions": [{ "when": …, "next": … }, …]`, evaluated in file
-  order, first match wins (max 8). `when`+`next` is the one-entry shorthand; mixing spellings is a
-  load error. `MissionStateDefinition::condition`/`next` are gone, replaced by that list.
-- **Wanted-state facts:** `police_alerted`, `police_chasing`, `police_chase_seconds` (backed by a
-  new `PoliceSystem::GetChaseSeconds()`), pushed in by the game through the new
-  `PrototypeMission::SetFact()` -- the extension point for any subsystem that owns its own facts.
-- **The committed prologue can fail:** `drive_to_warehouse` is a checkpoint and branches to a
-  `busted` failure state at `police_chase_seconds > 25`. HUD shows `Mission failed: … | R: retry`.
-- **In-game retry:** `R` retries a failed mission (still a full reset otherwise).
-  `IronGangGame::RetryMission()` restores the world half from a snapshot taken when the checkpoint
-  was recorded and resets the police response -- without that the same chase re-fails the mission
-  within a frame.
-
-Verified: build clean, CTest 11/11, `TestPrologueFailsAndRetriesUnderPoliceChase` drives the
-committed mission file against the real `PoliceSystem` frame by frame, `--profile-scenario mission`
-still completes normally. Details in `docs/validation.md`.
-
-Known gap worth picking up: **the save stores the mission half of a checkpoint but not the world
-half**, so a retry straight after a load falls back to a full restart. That belongs with plan_29's
-checkpoint work (`IG-29-*`), not the mission runtime. The other open half of `IG-24-024` is
-player-chosen branches -- every branch today is decided by world state.
-
-### Mission failure reasons, checkpoints, and retry policies (plan_24)
-
-The outcome states from the entry below could mark a mission failed but gave it nowhere to go. Now:
-
-- A failing state carries `"reason"`, returned by `GetFailureReason()` and shown by the HUD and
-  window title as `Mission failed: <reason>` instead of the objective line.
-- `"checkpoint": true` on a state records its id and the mission's variables **after** its entry
-  actions have run, so `Retry()` restores them without re-running those actions (a counter
-  incremented on entry is not incremented twice).
-- `"retry": "checkpoint"` (default) or `"mission_start"`. `Retry()` honours the policy and restarts
-  when no checkpoint has been reached. Retrying does not consume the checkpoint; `Reset()` discards
-  it.
-- The checkpoint is saved and restored fail-safe: a checkpoint into a state the mission no longer
-  defines is dropped whole, a variable that no longer matches is dropped individually, both reported.
-
-Closed: `IG-24-009`/`010`/`041`/`042`/`044`/`045`. Verified: build clean, CTest 11/11, 2 new core
-tests, 7 new rejection cases, `--profile-scenario mission` still completes the mission.
-
-**`IG-24-043` is deliberately left open, and it is the natural next task: nothing in the running
-game can fail yet**, so failure/retry has no integration scenario -- only unit tests. The obvious
-fix is a real fail condition from the existing `PoliceSystem` chase state (which would also close
-part of `IG-24-006`'s wanted-state conditions): add a `police_chasing`-style fact, give the prologue
-a failure state and a checkpoint, and make sure the deterministic `--profile-scenario mission` run
-still completes rather than tripping the new failure.
-
-### Mission states are no longer a fixed set; outcomes and save migration (plan_24)
-
-Immediately after the entry below, which had left `PrototypeMission` still restricting mission files
-to the five state ids its int-based save format encoded:
-
-- `PrototypeMissionState` is **deleted**. The state is a `std::string` id; the API is
-  `GetStateId()` / `IsInState(id)` / `SetStateId(id)`. `SetStateId` refuses an id the loaded mission
-  does not define and leaves the mission untouched, so a save written against a different mission
-  file cannot strand it.
-- A state may declare `"outcome": "completed"` or `"failed"`. `IsCompleted()`/`IsFailed()`/
-  `IsFinished()` read that instead of comparing against a hardcoded state. An outcome state must be
-  terminal; a mission with nothing that can end it is a load error; a file declaring no outcome at
-  all falls back to "a terminal state named `completed` is success", so version-1 files still load.
-- The save writes `mission_state_id=<id>` and migrates the old 0-4 index on read (out-of-range or
-  missing is rejected, not clamped). That is `IG-24-018` closed, both halves.
-
-**A mission with new states can now be authored** -- that was the blocker named at the end of the
-entry below. What is still missing before real failure/retry gameplay: a failure *reason*, a retry
-policy, checkpoints distinct from a plain save (`IG-24-009`/`010`/`041`-`045`), and anything in the
-prologue mission that can actually fail.
-
-Verified: strict build clean, CTest 11/11, 2 new core tests plus 4 new rejection cases,
-`--profile-scenario mission` still completes the mission through the real game loop, check-syntax
-clean, asset registry re-verified. Details in `docs/validation.md`.
-
-### Mission variables and a real condition/action expression evaluator (plan_24)
-
-The mission runtime no longer treats a condition as one fixed engine signal named by a string.
-`assets/missions/*.mission.json` schema version 2 adds typed variables, expression conditions, and
-entry actions; version 1 files still load unchanged. Four new files under `src/Missions/`:
-
-- `MissionValue` -- `bool`/`int`/`float`/`string`, with exact `ToText()`/`Parse()` round trips (the
-  save file depends on this; float uses `std::to_chars`' shortest round-trip form).
-- `MissionContext` -- one symbol table of read-only engine **facts** plus mission-owned
-  **variables**, each declared with an initial value that fixes its type. Wrong-typed assignment,
-  duplicate or fact-shadowing declaration, writing a fact from a mission, and the 64-variable cap
-  are all rejected, never coerced.
-- `MissionExpression` -- tokenizer, recursive-descent parser, **static type check**, and evaluator.
-  `|| && ! == != < <= > >= + - * /`, unary minus, parens, literals (strings single-quoted so they
-  need no escaping inside JSON), identifiers bound to declared symbols. Chained comparison rejected,
-  `&&`/`||` short-circuit, int/float promotes to float, divide-by-zero is an error not an infinity.
-  Limits: 512 chars, 128 tokens, 96 ops, depth 16, 256 eval steps; recursion is impossible (no calls
-  in the grammar). Explicitly not a scripting language: no statements, calls, loops, assignment, or
-  engine API reachable from an expression.
-- Rewritten `MissionDefinition` -- `variables`, `when` (`condition` is the v1 spelling of the same
-  field), `onEnter` actions (`set`, `log`), schema-version validation, and load-time type checking
-  of every expression against the caller-supplied fact schema.
-
-`PrototypeMission` declares seven facts (`dialogue_finished`, `player_driving`,
-`player_vehicle_distance`, `player_near_vehicle`, `player_in_warehouse_goal`,
-`vehicle_in_warehouse_goal`, `player_driving_in_warehouse_goal`), refreshes them every `Update()`,
-runs entry actions exactly once per entry, and logs every transition with the condition that fired
-it (`[IronGang][mission] prototype_delivery: reach_vehicle -> enter_vehicle (...)`). `Reset()` is a
-retry (restores declared values, re-runs the initial state's actions); `SetState()` is a save
-restore and deliberately does not. `SaveGame` gained additive `mission_var.<name>=<type>:<value>`
-lines; an unknown name, a changed type, or a malformed line is skipped and reported rather than
-failing the load.
-
-The committed prologue mission moved to version 2: `player_vehicle_distance <= handover_radius`
-replaced a hardcoded `9.0F` squared-distance literal in the engine, and
-`player_driving && vehicle_in_warehouse_goal && cargo_secured` replaced the fused
-`player_driving_in_warehouse_goal` signal. Its `assets/licenses/asset-registry.csv` hash was
-updated with it.
-
-Verified with no display: strict-warning build clean, **CTest 11/11**, 5 new core tests (plus
-`TestMissionValidationRejectsMalformedData` grown from 6 to 17 rejection cases),
-`scripts/check-syntax.sh` clean, the asset-registry notice check clean, and a
-`--profile-scenario mission` run completing the whole mission through the real game loop on the new
-evaluator. Author documentation is `docs/mission-scripting.md` (schema, fact table, grammar, limits,
-failure-mode table); the full verification record is in `docs/validation.md`.
-
-Still open in plan_24: per-campaign variable scope, failure/retry states, checkpoints distinct from
-a plain save, the remaining `IG-24-006`/`IG-24-007` conditions and actions, and the fact that
-`PrototypeMission` still restricts a mission file to the five state ids its int-based save format
-encodes -- so a mission with a *new* state cannot be authored until that is lifted.
+### Autonomous session, 2026-08-25/26: twenty iterations
+
+Each line links the plan entries it closed; **every one has a full verification record in
+`docs/validation.md`** under the same title, with the evidence, the boundaries, and what was
+deliberately not claimed. That file is the place to read before trusting any of it.
+
+| What | Plan |
+| --- | --- |
+| Mission conditions became a typed expression language over engine facts and mission variables | `IG-24-013`/`014`/`016`/`029`/`030`/`031`/`032`/`033`/`035` |
+| Mission state became a free-form id with outcomes and save migration, lifting the fixed five-state limit | `IG-24-018` |
+| Failure reasons, checkpoints, and retry policies | `IG-24-009`/`010`/`041`/`042`/`044`/`045` |
+| Branching missions, wanted-state facts, and a prologue that can fail on a police chase | `IG-24-043`, `IG-22-007` |
+| Save format: version, atomic write, rolling backup, checksum | `IG-29-001`/`002`/`003`/`004`/`022`/`023`/`025` |
+| Checkpoints record the world they were reached in, not just the mission state | `IG-29-009`/`029`/`030`/`031` |
+| Autosave scheduling that holds requests through unsafe moments; saving refused with a reason | `IG-29-010`/`011`/`036`/`037` |
+| `assets/config/game.json` is finally read, with a fail-soft validation contract | `IG-04-001`/`006`/`018` |
+| Structured logging replaced 24 ad-hoc stderr lines | `IG-04-002`/`017` |
+| A simulation clock that clamps stalls and stays monotonic | `IG-04-003`/`004`/`005`/`007` |
+| A deterministic RNG, and a block with twelve pedestrians and four cars in it | `IG-04-011`/`012`, `IG-20-001`, `IG-21-001` |
+| Pedestrians walk in lanes and queue instead of clipping through each other | `IG-20-010` |
+| The sedan's mass, geometry, and limits moved into a versioned tuning file | `IG-17-003` (`IG-17-002` recorded as already done) |
+| Data files are size-, UTF-8-, and depth-bounded before a parser sees them | `IG-36-009` (`003`/`005` recorded as done) |
+| The sedan can be wrecked, and missions can read that | `IG-17-015` |
+| On-foot movement got acceleration, deceleration, and turning inertia | `IG-16-005` |
+| One input context decides what the game is listening to; Escape pauses | `IG-28-008`, `IG-28-004` |
+| The pause screen became a navigable menu | `IG-28-003` |
+| Player settings became their own file, with a shared atomic write | `IG-29-005` |
+| Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
+
+Task count went from 215/2148 to 268/2148. `docs/status.md` (generated) is the current dashboard.
+
+**Open threads this work left behind**, roughly by how much they block something else:
+
+- **Nothing in the committed prologue uses `vehicle_disabled`** -- the fact and the failure
+  machinery exist, and wiring them together is a one-line mission-file change.
+- **No mission other than the prologue exists**, so checkpoint placement, branching, and campaign
+  variables have nothing to exercise them (`IG-24-005`'s campaign scope, `IG-24-020`/`021`).
+- **Pedestrians are coloured boxes** (`IG-20-003`), do not step around each other laterally, and are
+  a fixed population rather than streamed (`IG-20-008`); traffic has no signals, turning, or lane
+  graph.
+- **The congestion scan is O(n squared) with no profiler counter** -- adding one means revising the
+  performance report schema and its comparator contract.
+- **No rebinding screen and no gamepad input path** anywhere in the game (`IG-28-007`'s other half,
+  `IG-28-003`'s).
+- **Only two player settings**, so the settings menu is thin.
+- **No slope handling, step-up/ledge/falling states, crouch, or camera work** (`IG-16-006` onward).
+- **No wheel or visual damage**; a wreck is a number and a HUD line.
+- **Models, textures, audio, and the save file are read with no size bound** (`IG-36-002`'s
+  remainder); no Unicode normalization; error messages still contain full local paths
+  (`IG-36-013`).
+- **Every M12 capture on record predates the population change** (2 pedestrians/2 cars vs 12/4), so
+  those numbers are not comparable to a fresh run -- see the dated note atop
+  `docs/performance-baseline.md`.
+
+> **Everything below this line is history from earlier sessions**, kept because it records how the
+> gates were reached and what was deliberately not claimed. For the current state read
+> `docs/status.md`; for evidence, `docs/validation.md`. Nothing below has been edited or
+> re-verified by the 2026-08-25/26 session.
 
 ### M14 Linux release-archive slice: implemented, documented, verified, and committed
 

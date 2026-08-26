@@ -1105,9 +1105,10 @@ namespace
         // exists -- is the only way a player can rebind at all.
         using Keys = Microsoft::Xna::Framework::Input::Keys;
         IronGang::UserSettings rebound;
-        Require(rebound.bindings.Rebind(IronGang::GameAction::Interact, Keys::F).has_value() ||
-                    true,
-                "rebinding for the round trip must apply");
+        Require(!rebound.bindings.Rebind(IronGang::GameAction::Interact, Keys::F).has_value(),
+                "F is unused, so rebinding onto it must report no conflict");
+        Require(rebound.bindings.Get(IronGang::GameAction::Interact).primary == Keys::F,
+                "the rebind must have applied before it is written out");
         rebound.bindings.Set(IronGang::GameAction::Sprint,
                              IronGang::ActionBinding{Keys::LeftControl, Keys::None});
         Require(IronGang::SaveUserSettings(path.string(), rebound, error),

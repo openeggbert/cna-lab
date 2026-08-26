@@ -577,6 +577,48 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## A status dashboard that cannot go stale, and a continuity document that fits (2026-08-26)
+
+plan_38 `IG-38-014` closed. Also fixes a defect in my own test code from the previous iteration.
+
+**A tautology I wrote, found and fixed.** `TestUserSettingsRoundTripAndFallBack` contained
+`Require(bindings.Rebind(Interact, F).has_value() || true, ...)` — an assertion that passes whatever
+happens. I had written it when the call returned no conflict (F is unused) and, instead of fixing
+the expectation, neutered the assertion. It now asserts what is actually true: rebinding onto a free
+key reports **no** conflict, and the binding applied. A suite full of assertions like the first one
+looks thorough and tests nothing.
+
+**The dashboard.** `docs/status.md` is in two halves on purpose. The prose — what you can play right
+now, what is still prototype fidelity, which gates are blocked and on what — is hand-written,
+because no script knows what "playable" means. The plan-progress table is **generated** by
+`scripts/status_report.py` and verified by a new CTest, because the counts are exactly the part that
+goes wrong silently: nobody notices that "36/76" stopped being true, and a dashboard nobody trusts
+is worse than no dashboard. `--check` fails when the committed file no longer matches the plan
+files; the generator only ever rewrites between two markers, so the prose either side survives.
+
+Current reading: **269 of 2148 tasks** (12%), up from 215 when this session started -- and closing `IG-38-014` itself made the freshly committed dashboard stale, which the new test caught immediately. That is the mechanism working on its first day.
+
+**The continuity document.** `NEXT.md` had grown to 192 KB, of which 37 KB was twenty session
+entries I had appended over two days. Its own header says it is what a resumed session reads
+*first* — at that size it defeats its own purpose. The twenty entries are now one table, one line
+each, linking the plan entries they closed, plus a consolidated list of the open threads they left
+behind. **No information was lost**: every entry's full detail is in this file under the same title,
+which is where verification evidence belongs anyway. Older history from previous sessions was left
+untouched — its detail is theirs, not mine to compress — but now sits under an explicit marker
+saying so.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12** (the new
+`iron_gang_status_report_tests` is the twelfth); `tests/test_status_report.py` covers a write/check
+round trip, prose either side of the markers surviving regeneration, **staleness detection** (flip a
+task, `--check` fails, `--write` fixes it), a document with no markers, a missing document, an empty
+plan directory, a plan file with no heading, a plan file with no tasks, and the committed
+`docs/status.md` being current. That last case is the one that keeps the dashboard honest in CI.
+
+**Boundaries.** The prose half still has to be updated by hand, and nothing checks that it is true —
+only the counts are enforced. The dashboard reports task counts, not gate status; gates are prose in
+`plan.md` with no machine-readable form. `NEXT.md` is still 160 KB, nearly all of it pre-existing
+history.
+
 ## Keys become data, with per-context conflict detection (2026-08-26)
 
 plan_28 `IG-28-007` advanced to partial (keyboard rebinding model, persistence, and full game

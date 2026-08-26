@@ -288,6 +288,11 @@ if(IRON_GANG_BUILD_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/content_budget.py"
             "${CMAKE_CURRENT_SOURCE_DIR}")
+    # plan_38 IG-38-014: fails when docs/status.md's generated counts no longer match the plan
+    # files, which is the only way a status dashboard stays worth reading.
+    add_test(NAME iron_gang_status_report_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_status_report.py")
 
     add_executable(iron_gang_core_tests tests/CoreTests.cpp)
     target_include_directories(iron_gang_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
