@@ -98,6 +98,32 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Gate M1's vehicle controls, and two defects the measurement found (plan_39)
+
+Measured from a traced run: gets into the car (asserted **first**, or every other assertion would be
+measuring a pedestrian and most would still pass); throttle 0.8 → 20.8 km/h; handbrake −8.3 km/h in
+60 updates against −1.4 coasting; steering yaw 0 → −0.296 → +0.176; reverse −9.4 km/h.
+
+**Defect one: releasing the throttle does not brake.** The car keeps accelerating for about a second
+after release — 17.8 → 27.8 km/h — on Jolt's default tuning, which NEXT.md has listed as unverified
+since the physics landed. The test **pins it as it is** and says in its own message that a failure
+means the tuning was fixed and the note must be updated. A defect asserted only as a TODO is one
+that silently changes.
+
+**Defect two: nothing stops the player driving off the world.** An earlier script drove off the
+100×100 ground plane and the car fell to **y = −814**, still dropping. No world bound, no kill plane,
+no respawn. The test now asserts y never drops below −1.
+
+**Four scripts it took to measure honestly**, none of which a screenshot would have caught: (1) drove
+180 m off the map; (2) got stuck on a kerb, so steering-right and handbrake measured a stationary
+car; (3) crossed the district exit, so later segments were measured in the countryside — the trace's
+`district` field revealed it; (4) the reverse window was too short, so the car was still braking at
++7.9 km/h and reverse had never been shown.
+
+Closed `IG-39-021`. CTest 20/20, two mutation checks. Not done: no separate brake input to compare
+against; steering is measured as yaw change, not turning radius — nothing says the car turns
+*correctly*, only that it turns. Both defects are recorded, not fixed.
+
 ### Verifying a gate by measurement, and walking into a lamp post (plan_39)
 
 The vertical-slice gates ask for controls to be *verified*, and a run's only observable outputs were

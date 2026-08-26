@@ -338,6 +338,15 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_gate_on_foot_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
 
+    # plan_39 IG-39-021: gate M1's vehicle controls, measured from a state trace.
+    add_test(NAME iron_gang_gate_vehicle_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_vehicle.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_vehicle_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
     # plan_14 IG-14-011/012: a proxy in the wrong place is worse than no proxy.
     add_test(NAME iron_gang_extract_collision_tests
         COMMAND "${Python3_EXECUTABLE}"

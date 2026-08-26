@@ -1867,6 +1867,60 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Gate M1's vehicle controls, and two defects the measurement found (2026-08-26)
+
+plan_39 `IG-39-021` closed. Gates M12 and M14 untouched.
+
+**Measured, not looked at.** `tests/input-scripts/vehicle_controls.inputscript.json` drives each
+control and `iron_gang_gate_vehicle_tests` checks the trace:
+
+| Control | Measured |
+| --- | --- |
+| gets into the car | driving by update 340 |
+| throttle | 0.8 -> 20.8 km/h |
+| handbrake | -8.3 km/h in 60 updates, against -1.4 km/h coasting over the same window |
+| steering | yaw 0 -> -0.296 (left) -> +0.176 (right) |
+| reverse | reaches -9.4 km/h |
+
+The first assertion is that the player actually gets into the car, because every other assertion
+would otherwise be measuring a pedestrian -- and most of them would still pass.
+
+**Defect one: releasing the throttle does not brake.** The car keeps accelerating for about a
+second after the input is released -- 17.8 km/h at release, 27.8 km/h a second later -- on Jolt's
+default vehicle tuning, which `NEXT.md` has listed as unverified since the physics landed. Coasting
+then decelerates at roughly 1.4 km/h per second, so the car effectively has no engine braking.
+
+The test **pins this as it is** rather than hiding it: `test_releasing_the_throttle_does_not_brake`
+asserts the car is faster a second after release, and says in its own message that if this ever
+fails the tuning was fixed and this note must be updated. A defect nobody has written down is a
+defect that gets rediscovered; a defect asserted only as "TODO" is one that silently changes.
+
+**Defect two: nothing stops the player driving off the world.** An earlier version of this script
+drove straight off the district's 100x100 ground plane and the car simply fell -- y reached **-814**
+and was still dropping when the run ended. There is no world bound, no kill plane and no respawn.
+The script now stays on the road, and `test_the_car_never_leaves_the_ground` asserts the car never
+drops below y = -1, so a future script that wanders off is reported rather than quietly measuring a
+falling car.
+
+**Four scripts it took to get an honest measurement**, each failure worth recording because none
+would have been visible in a screenshot:
+
+1. The first run drove 180 m off the map (defect two).
+2. The second got stuck on the kerb at x = -7.79; the steering-right and handbrake segments were
+   measuring a stationary car and still "passed" a naive eyeball check.
+3. The third crossed the district exit at z = -47, so the later segments were measured in the
+   countryside -- the trace's `district` field is what revealed it.
+4. The fourth's reverse window was too short: the car was still braking at +7.9 km/h when the
+   segment ended, so "reverse" had never been demonstrated.
+
+**Mutation-checked.** Forcing `handBrake = 0` fails 3 assertions; forcing `steer = 0` fails 3.
+20 CTest targets, all passing; `./scripts/check-syntax.sh` clean.
+
+**Not verified.** The handbrake is compared against coasting, not against a brake pedal -- there is
+no separate brake input to test. Steering is measured as yaw change, not as a turning radius, so
+nothing here says the car turns *correctly*, only that it turns. And the two defects above are
+recorded, not fixed.
+
 ## Verifying a gate by measurement, and walking into a lamp post (2026-08-26)
 
 plan_39 `IG-39-020` closed; plan_14 `IG-14-012`'s missing evidence supplied. Gates M12 and M14

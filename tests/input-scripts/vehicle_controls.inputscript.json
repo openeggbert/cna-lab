@@ -1,0 +1,108 @@
+{
+  "id": "vehicle_controls",
+  "version": 1,
+  "steps": [
+    {
+      "update": 20,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 21,
+      "held": []
+    },
+    {
+      "update": 50,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 51,
+      "held": []
+    },
+    {
+      "update": 80,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 81,
+      "held": []
+    },
+    {
+      "update": 150,
+      "held": [
+        "move_forward"
+      ]
+    },
+    {
+      "update": 260,
+      "held": []
+    },
+    {
+      "update": 300,
+      "held": [
+        "interact"
+      ]
+    },
+    {
+      "update": 301,
+      "held": []
+    },
+    {
+      "update": 420,
+      "held": [
+        "move_forward"
+      ]
+    },
+    {
+      "update": 560,
+      "held": []
+    },
+    {
+      "update": 660,
+      "held": [
+        "handbrake"
+      ]
+    },
+    {
+      "update": 720,
+      "held": []
+    },
+    {
+      "update": 780,
+      "held": [
+        "move_forward",
+        "turn_left"
+      ]
+    },
+    {
+      "update": 830,
+      "held": [
+        "move_forward",
+        "turn_right"
+      ]
+    },
+    {
+      "update": 900,
+      "held": []
+    },
+    {
+      "update": 930,
+      "held": [
+        "move_back"
+      ]
+    },
+    {
+      "update": 1140,
+      "held": []
+    },
+    {
+      "update": 1220,
+      "held": []
+    }
+  ]
+}
