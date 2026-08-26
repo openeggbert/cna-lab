@@ -45,7 +45,9 @@ mission_checkpoint_var.cargo_secured=bool:true
 | --- | --- |
 | `format` | `iron-gang-save-v<N>`. Must be the first line. |
 | `checksum` | FNV-1a 64-bit hex over every byte after this line. Must be the second line (version 2+). |
+| `mission_id` | Which campaign mission is being played. Absent in a save from before campaigns existed. |
 | `mission_state_id` | The mission's current state id. |
+| `campaign_completed.<id>` | One line per finished campaign mission, in completion order. |
 | `player_position`, `player_yaw` | Where the player stands and faces. |
 | `vehicle_position`, `vehicle_yaw`, `vehicle_speed` | The player's sedan. |
 | `player_driving` | `1` while driving it. |
@@ -66,6 +68,14 @@ block existed.
 
 One line per mission variable is deliberate: the reader splits at the **first** `=`, and a variable
 name is an identifier, so a string value may contain anything except a newline.
+
+## Restoring a mission, in order
+
+Loading applies things in a fixed order, and the order is the point: **campaign progress → the right
+mission file → that mission's state id, variables, and checkpoint.** Restoring the state before
+loading the mission would apply it to whichever mission happened to be loaded, and loading the
+mission afterwards would reset everything just restored. A save naming a mission the campaign cannot
+load keeps the current one and says so.
 
 ## Guarantees
 

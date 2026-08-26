@@ -32,6 +32,12 @@ namespace IronGang
 
     struct SaveSnapshot : WorldStateSnapshot
     {
+        // Which mission is being played (plan_24 IG-24-049). Empty in a save written before
+        // campaigns existed, which then keeps whatever mission the campaign starts with.
+        std::string missionId;
+        // Campaign missions already finished, in the order they were completed. Ids the campaign
+        // no longer contains are dropped on restore rather than trusted.
+        std::vector<std::string> completedMissions;
         // The mission's current state id (plan_24 IG-24-018). Older saves stored a fixed
         // 0-4 int in a "mission_state" field instead; SaveGame::Read migrates those, so a save
         // written before mission states became free-form still loads.

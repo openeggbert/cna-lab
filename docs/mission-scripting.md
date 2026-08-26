@@ -343,8 +343,9 @@ file, a mission requiring itself, **a dependency cycle** — reported as the pat
 "cycle detected" tells an author nothing — and a campaign where every mission has a prerequisite,
 which can never start.
 
-Campaign **progress is not saved yet**, so loading a save restarts the campaign at its first
-mission (`IG-24-049`).
+Campaign progress is saved: which mission is being played and which are finished. Progress naming a
+mission the campaign no longer contains is dropped on restore rather than trusted — an edited
+campaign must not be able to inject a mission that does not exist.
 
 ## Tests
 

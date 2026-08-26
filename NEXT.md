@@ -98,6 +98,26 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Campaign progress survives a save (plan_24)
+
+The gap the entry below named: completing the prologue and reloading lost the unlock. The save now
+carries `mission_id` and one `campaign_completed.<id>` line per finished mission, additively -- an
+older save claims no progress rather than inventing some.
+
+**The restore order is the whole difficulty**, and it is a comment at the call site rather than
+something to rediscover: campaign progress -> the right mission file -> that mission's state,
+variables, and checkpoint. Restoring state first applies it to whichever mission happened to be
+loaded; loading the mission last resets everything just restored (`StartMission` resets). Both
+orderings compile and neither fails loudly.
+
+Progress naming a mission the campaign no longer has is dropped **on restore** while the file still
+round-trips what it was given -- the filtering belongs to the campaign, not the format. A save naming
+an unloadable mission keeps the current one with a warning.
+
+Closed `IG-24-049`. Verified: CTest 12/12, plus a real `mixed` run whose autosave contains
+`mission_id=countryside_run` and `campaign_completed.prototype_delivery=1` after the campaign
+advanced mid-run.
+
 ### A campaign, and a second mission to put in it (plan_24)
 
 Closes the two threads at the top of the open list below: nothing used `vehicle_disabled`, and no

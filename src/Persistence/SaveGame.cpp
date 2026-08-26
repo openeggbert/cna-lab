@@ -52,6 +52,7 @@ namespace IronGang
         }
 
         constexpr const char* kMissionVariablePrefix = "mission_var.";
+        constexpr const char* kCompletedMissionPrefix = "campaign_completed.";
         constexpr const char* kMissionCheckpointVariablePrefix = "mission_checkpoint_var.";
 
         // "mission_var.<name>" / "<type>:<text>". A malformed entry is skipped rather than
@@ -88,7 +89,14 @@ namespace IronGang
         try
         {
             std::ostringstream text;
+            text << "mission_id=" << snapshot.missionId << "\n";
             text << "mission_state_id=" << snapshot.missionStateId << "\n";
+            for (const std::string& missionId : snapshot.completedMissions)
+            {
+                // One line each, like the mission variables: order is preserved and no separator
+                // can collide with an id.
+                text << kCompletedMissionPrefix << missionId << "=1\n";
+            }
             text << "player_position=" << VectorToText(snapshot.playerPosition) << "\n";
             text << "player_yaw=" << snapshot.playerYaw << "\n";
             text << "vehicle_position=" << VectorToText(snapshot.vehiclePosition) << "\n";
@@ -295,6 +303,7 @@ namespace IronGang
                 std::unordered_map<std::string, std::string> values;
                 std::vector<MissionVariableSnapshot> missionVariables;
                 std::vector<MissionVariableSnapshot> checkpointVariables;
+            std::vector<std::string> completedMissions;
                 std::size_t lineStart = 0;
                 while (lineStart < body.size())
                 {
@@ -309,7 +318,16 @@ namespace IronGang
                     }
                     const std::string key = line.substr(0, separator);
                     const std::string value = line.substr(separator + 1);
-                    if (key.compare(0, std::strlen(kMissionVariablePrefix), kMissionVariablePrefix) == 0)
+                    if (key.compare(0, std::strlen(kCompletedMissionPrefix), kCompletedMissionPrefix) == 0)
+                {
+                    const std::string missionId = key.substr(std::strlen(kCompletedMissionPrefix));
+                    if (!missionId.empty())
+                    {
+                        completedMissions.push_back(missionId);
+                    }
+                    continue;
+                }
+                if (key.compare(0, std::strlen(kMissionVariablePrefix), kMissionVariablePrefix) == 0)
                     {
                         MissionVariableSnapshot variable;
                         if (ParseMissionVariable(key, kMissionVariablePrefix, value, variable))
@@ -397,6 +415,12 @@ namespace IronGang
                                           ? static_cast<DistrictId>(std::stoi(districtIt->second))
                                           : DistrictId::WarehouseBlock;
                 snapshot.missionVariables = std::move(missionVariables);
+            snapshot.completedMissions = std::move(completedMissions);
+            const auto missionIdIt = values.find("mission_id");
+            if (missionIdIt != values.end())
+            {
+                snapshot.missionId = missionIdIt->second;
+            }
                 const auto checkpointStateIt = values.find("mission_checkpoint_state_id");
                 if (checkpointStateIt != values.end() && !checkpointStateIt->second.empty())
                 {

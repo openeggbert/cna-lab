@@ -1048,6 +1048,75 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // plan_24 IG-24-049: campaign progress survives a save. Without this, finishing the prologue
+    // and reloading silently loses the unlock -- the save would restore a mission state against
+    // whichever mission the campaign happened to start with.
+    void TestCampaignProgressSurvivesSaveLoad()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_campaign.save";
+        std::string error;
+        IronGang::CampaignDefinition campaign;
+        Require(IronGang::LoadCampaignDefinition(std::string(IRON_GANG_SOURCE_ASSET_DIR) +
+                                                     "/missions/campaign.json",
+                                                 campaign, error),
+                "the committed campaign must load: " + error);
+
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionId = "countryside_run";
+        snapshot.missionStateId = "reach_farmhouse";
+        snapshot.completedMissions = {"prototype_delivery"};
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "writing must succeed: " + error);
+
+        const std::optional<IronGang::SaveSnapshot> loaded = IronGang::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "reading must succeed: " + error);
+        Require(loaded->missionId == "countryside_run", "the mission being played must survive");
+        Require(loaded->completedMissions.size() == 1 &&
+                    loaded->completedMissions.front() == "prototype_delivery",
+                "campaign progress must survive");
+
+        // Restored progress drives the graph: the finished mission stays finished, and the one it
+        // unlocked is the one on offer.
+        IronGang::CampaignState state;
+        state.SetCompleted(campaign, loaded->completedMissions);
+        Require(state.IsCompleted("prototype_delivery"), "the completed mission must stay completed");
+        Require(state.NextAvailable(campaign) == "countryside_run",
+                "the unlocked mission must still be the one available");
+
+        // Progress naming a mission this campaign no longer has is dropped rather than trusted --
+        // a save from an edited campaign must not inject a mission that does not exist.
+        IronGang::SaveSnapshot stale = snapshot;
+        stale.completedMissions = {"prototype_delivery", "a_mission_we_cut", "prototype_delivery"};
+        Require(IronGang::SaveGame::Write(path.string(), stale, error), "writing must succeed: " + error);
+        const std::optional<IronGang::SaveSnapshot> staleLoaded =
+            IronGang::SaveGame::Read(path.string(), error);
+        Require(staleLoaded.has_value(), "reading must succeed: " + error);
+        Require(staleLoaded->completedMissions.size() == 3,
+                "the save file must round-trip exactly what it was given");
+        IronGang::CampaignState filtered;
+        filtered.SetCompleted(campaign, staleLoaded->completedMissions);
+        Require(filtered.GetCompleted().size() == 1,
+                "restoring must drop the unknown mission and the duplicate, not the file");
+
+        // A save from before campaigns existed carries neither field and must not claim progress.
+        WriteTempJson(path,
+                      "format=iron-gang-save-v1\n"
+                      "mission_state_id=drive_to_warehouse\n"
+                      "player_position=1,1.7,2\n"
+                      "player_yaw=0\n"
+                      "vehicle_position=3,0.65,4\n"
+                      "vehicle_yaw=0\n"
+                      "vehicle_speed=0\n"
+                      "player_driving=0\n");
+        const std::optional<IronGang::SaveSnapshot> older = IronGang::SaveGame::Read(path.string(), error);
+        Require(older.has_value(), "an older save must still load: " + error);
+        Require(older->missionId.empty() && older->completedMissions.empty(),
+                "an older save must claim no campaign progress rather than inventing some");
+        Require(older->missionStateId == "drive_to_warehouse",
+                "the rest of an older save must still restore");
+
+        std::filesystem::remove(path);
+    }
+
     // plan_24 IG-24-021: the second committed mission runs, is gated behind the prologue, and
     // fails on a wrecked sedan -- the failure fact that had nothing using it until now.
     void TestCountrysideMissionRunsAndFailsOnAWreck()
@@ -4300,6 +4369,7 @@ int main()
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
         TestCampaignGraphUnlocksAndRejectsCycles();
+        TestCampaignProgressSurvivesSaveLoad();
         TestCountrysideMissionRunsAndFailsOnAWreck();
         TestInputBindingsDetectConflictsWithinContexts();
         TestUserSettingsRoundTripAndFallBack();

@@ -577,6 +577,39 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Campaign progress survives a save (2026-08-26)
+
+plan_24 `IG-24-049` closed; plan_29 `IG-29-007` extended. The previous entry ended by naming this as
+the next obvious task: completing the prologue and reloading lost the unlock.
+
+**What changed.** The save carries `mission_id` and one `campaign_completed.<id>=1` line per
+finished mission — additive, so a save written before campaigns existed claims *no* progress rather
+than inventing some.
+
+**The restore order is the whole difficulty**, and it is written at the call site rather than left
+to be rediscovered: campaign progress → the right mission file → that mission's state id, variables,
+and checkpoint. Restoring the state before loading the mission would apply it to whichever mission
+happened to be loaded; loading the mission afterwards would reset everything just restored, because
+`StartMission` resets. Both orderings compile and neither fails loudly, which is exactly why the
+order is a comment and not a hope.
+
+Two refusals: progress naming a mission the campaign no longer contains is dropped on restore (an
+edited campaign must not be able to inject a mission that does not exist), and a save naming a
+mission that cannot be loaded keeps the current one with a warning rather than failing the load.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestCampaignProgressSurvivesSaveLoad` covers the round trip, restored progress driving the graph so
+the unlocked mission is the one on offer, an unknown mission and a duplicate being dropped **on
+restore while the file still round-trips exactly what it was given** (the filtering belongs to the
+campaign, not the file format), and an older save claiming no progress while the rest of it still
+restores. End to end: a real `--profile-scenario mixed` run's autosave contains
+`mission_id=countryside_run` and `campaign_completed.prototype_delivery=1` after the campaign
+advanced mid-run — the fields reach the file during actual play, not only in tests.
+
+**Boundaries.** Save slots still hold one campaign each; there are no profiles. Nothing records
+*when* a mission was completed, so a campaign that branches on completion order has nothing to read.
+Two missions is still not fifteen.
+
 ## A campaign, and a second mission to put in it (2026-08-26)
 
 plan_24 `IG-24-020`/`046`/`047` closed; `IG-24-021`/`048` advanced. This closes the two open threads

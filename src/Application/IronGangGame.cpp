@@ -895,6 +895,8 @@ namespace IronGang
         snapshot.missionVariables = mission_.CaptureVariables();
         snapshot.missionCheckpoint = mission_.GetCheckpoint();
         snapshot.missionCheckpointWorld = missionCheckpointWorld_;
+        snapshot.missionId = currentMissionId_;
+        snapshot.completedMissions = campaignState_.GetCompleted();
         return snapshot;
     }
 
@@ -1011,6 +1013,22 @@ namespace IronGang
                                      rendererUploadMilliseconds,
                                      residentBytesBefore,
                                      videoMemoryBytesBefore);
+        }
+
+        // plan_24 IG-24-049. Order matters and is the whole difficulty here: the campaign's
+        // progress first, then the right mission file (StartMission resets the mission), and only
+        // then the state, variables, and checkpoint that belong to it. Restoring the state before
+        // loading the mission would apply it to whichever mission happened to be loaded, and
+        // loading the mission afterwards would reset everything just restored.
+        campaignState_.SetCompleted(campaign_, snapshot->completedMissions);
+        if (!snapshot->missionId.empty() && snapshot->missionId != currentMissionId_)
+        {
+            if (!StartMission(snapshot->missionId))
+            {
+                Log::Warning(LogCategory::Save, "save names mission \"" + snapshot->missionId +
+                                                    "\", which this campaign cannot load; keeping \"" +
+                                                    currentMissionId_ + "\".");
+            }
         }
 
         if (!mission_.SetStateId(snapshot->missionStateId))
