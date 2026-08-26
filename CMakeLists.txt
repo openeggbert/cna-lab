@@ -166,6 +166,7 @@ add_library(iron_gang_core STATIC
     src/UI/DistrictMap.cpp
     src/World/DistrictManager.cpp
     src/World/RoadGraph.cpp
+    src/World/SidewalkGraph.cpp
     src/World/PrototypeWorld.cpp
     src/World/WaypointPath.cpp)
 

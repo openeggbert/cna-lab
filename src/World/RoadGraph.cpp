@@ -1,6 +1,7 @@
 #include "IronGang/World/RoadGraph.hpp"
 
 #include "../Core/JsonDataFileInternal.hpp"
+#include "../Core/JsonReadHelpers.hpp"
 
 #include "System/Text/Json/JsonProperty.hpp"
 
@@ -11,78 +12,6 @@ namespace IronGang
 {
     using System::Text::Json::JsonElement;
     using System::Text::Json::JsonValueKind;
-
-    namespace
-    {
-        [[nodiscard]] bool ReadVector3(const JsonElement& element, Vector3& out)
-        {
-            if (element.getValueKindProperty() != JsonValueKind::Array)
-            {
-                return false;
-            }
-            float values[3] = {0.0F, 0.0F, 0.0F};
-            std::size_t count = 0;
-            for (const JsonElement& entry : element.EnumerateArray())
-            {
-                if (count >= 3 || entry.getValueKindProperty() != JsonValueKind::Number)
-                {
-                    return false;
-                }
-                values[count] = static_cast<float>(entry.GetDouble());
-                ++count;
-            }
-            if (count != 3)
-            {
-                return false;
-            }
-            out = Vector3(values[0], values[1], values[2]);
-            return true;
-        }
-
-        [[nodiscard]] bool OnlyFields(const JsonElement& element,
-                                      std::initializer_list<const char*> allowed,
-                                      const char* what,
-                                      const std::string& path,
-                                      std::string& error)
-        {
-            for (const auto& property : element.EnumerateObject())
-            {
-                const std::string name = property.getNameProperty();
-                if (std::find_if(allowed.begin(), allowed.end(), [&name](const char* candidate) {
-                        return name == candidate;
-                    }) == allowed.end())
-                {
-                    error = std::string("unknown field \"") + name + "\" in " + what + ": " + path;
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        [[nodiscard]] bool ReadString(const JsonElement& owner, const char* field, std::string& out)
-        {
-            JsonElement element;
-            if (!owner.TryGetProperty(field, element) ||
-                element.getValueKindProperty() != JsonValueKind::String)
-            {
-                return false;
-            }
-            out = element.GetString();
-            return !out.empty();
-        }
-
-        [[nodiscard]] bool ReadNumber(const JsonElement& owner, const char* field, double& out)
-        {
-            JsonElement element;
-            if (!owner.TryGetProperty(field, element) ||
-                element.getValueKindProperty() != JsonValueKind::Number)
-            {
-                return false;
-            }
-            out = element.GetDouble();
-            return true;
-        }
-    }
 
     const RoadNode* RoadGraph::FindNode(const std::string& id) const noexcept
     {
@@ -210,21 +139,21 @@ namespace IronGang
 
         try
         {
-            if (!OnlyFields(root, {"id", "version", "nodes", "segments", "turns", "stopLines"},
+            if (!JsonRead::OnlyFields(root, {"id", "version", "nodes", "segments", "turns", "stopLines"},
                             "road graph", path, errorMessage))
             {
                 return false;
             }
 
             double version = 0.0;
-            if (!ReadNumber(root, "version", version) ||
+            if (!JsonRead::NumberField(root, "version", version) ||
                 static_cast<int>(version) != kRoadGraphFileVersion)
             {
                 errorMessage = "road graph version must be " + std::to_string(kRoadGraphFileVersion) +
                                ": " + path;
                 return false;
             }
-            if (!ReadString(root, "id", id))
+            if (!JsonRead::StringField(root, "id", id))
             {
                 errorMessage = "road graph has no non-empty \"id\": " + path;
                 return false;
@@ -239,15 +168,15 @@ namespace IronGang
             }
             for (const JsonElement& entry : nodesElement.EnumerateArray())
             {
-                if (!OnlyFields(entry, {"id", "position"}, "a road node", path, errorMessage))
+                if (!JsonRead::OnlyFields(entry, {"id", "position"}, "a road node", path, errorMessage))
                 {
                     return false;
                 }
                 RoadNode node;
                 JsonElement positionElement;
-                if (!ReadString(entry, "id", node.id) ||
+                if (!JsonRead::StringField(entry, "id", node.id) ||
                     !entry.TryGetProperty("position", positionElement) ||
-                    !ReadVector3(positionElement, node.position))
+                    !JsonRead::Vector3Field(positionElement, node.position))
                 {
                     errorMessage = "every road node needs an \"id\" and a three-number \"position\": " + path;
                     return false;
@@ -270,7 +199,7 @@ namespace IronGang
             }
             for (const JsonElement& entry : segmentsElement.EnumerateArray())
             {
-                if (!OnlyFields(entry, {"id", "from", "to", "laneCount", "laneWidth", "speedLimitKph"},
+                if (!JsonRead::OnlyFields(entry, {"id", "from", "to", "laneCount", "laneWidth", "speedLimitKph"},
                                 "a road segment", path, errorMessage))
                 {
                     return false;
@@ -279,12 +208,12 @@ namespace IronGang
                 double laneCount = 0.0;
                 double laneWidth = 0.0;
                 double speedLimit = 0.0;
-                if (!ReadString(entry, "id", segment.id) ||
-                    !ReadString(entry, "from", segment.fromNodeId) ||
-                    !ReadString(entry, "to", segment.toNodeId) ||
-                    !ReadNumber(entry, "laneCount", laneCount) ||
-                    !ReadNumber(entry, "laneWidth", laneWidth) ||
-                    !ReadNumber(entry, "speedLimitKph", speedLimit))
+                if (!JsonRead::StringField(entry, "id", segment.id) ||
+                    !JsonRead::StringField(entry, "from", segment.fromNodeId) ||
+                    !JsonRead::StringField(entry, "to", segment.toNodeId) ||
+                    !JsonRead::NumberField(entry, "laneCount", laneCount) ||
+                    !JsonRead::NumberField(entry, "laneWidth", laneWidth) ||
+                    !JsonRead::NumberField(entry, "speedLimitKph", speedLimit))
                 {
                     errorMessage = "every road segment needs id, from, to, laneCount, laneWidth and "
                                    "speedLimitKph: " + path;
@@ -354,13 +283,13 @@ namespace IronGang
                 }
                 for (const JsonElement& entry : turnsElement.EnumerateArray())
                 {
-                    if (!OnlyFields(entry, {"from", "to"}, "a road turn", path, errorMessage))
+                    if (!JsonRead::OnlyFields(entry, {"from", "to"}, "a road turn", path, errorMessage))
                     {
                         return false;
                     }
                     RoadTurn turn;
-                    if (!ReadString(entry, "from", turn.fromSegmentId) ||
-                        !ReadString(entry, "to", turn.toSegmentId))
+                    if (!JsonRead::StringField(entry, "from", turn.fromSegmentId) ||
+                        !JsonRead::StringField(entry, "to", turn.toSegmentId))
                     {
                         errorMessage = "every road turn needs \"from\" and \"to\" segment ids: " + path;
                         return false;
@@ -384,7 +313,7 @@ namespace IronGang
                 }
                 for (const JsonElement& entry : stopLinesElement.EnumerateArray())
                 {
-                    if (!OnlyFields(entry, {"segment", "distance", "signalPosition", "opposingPhase"},
+                    if (!JsonRead::OnlyFields(entry, {"segment", "distance", "signalPosition", "opposingPhase"},
                                     "a road stop line", path, errorMessage))
                     {
                         return false;
@@ -392,10 +321,10 @@ namespace IronGang
                     RoadStopLine line;
                     double distance = 0.0;
                     JsonElement signalElement;
-                    if (!ReadString(entry, "segment", line.segmentId) ||
-                        !ReadNumber(entry, "distance", distance) ||
+                    if (!JsonRead::StringField(entry, "segment", line.segmentId) ||
+                        !JsonRead::NumberField(entry, "distance", distance) ||
                         !entry.TryGetProperty("signalPosition", signalElement) ||
-                        !ReadVector3(signalElement, line.signalPosition))
+                        !JsonRead::Vector3Field(signalElement, line.signalPosition))
                     {
                         errorMessage = "every stop line needs a segment, a distance and a "
                                        "three-number signalPosition: " + path;

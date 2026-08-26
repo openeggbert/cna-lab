@@ -1,0 +1,1 @@
+{"id":"t","version":1,"nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]}],"walkways":[{"id":"w","from":"a","to":"b","width":3}],"entrances":[{"id":"e","node":"a","building":"casino"}]}

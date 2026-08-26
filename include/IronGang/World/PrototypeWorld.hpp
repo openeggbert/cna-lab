@@ -4,6 +4,7 @@
 #include "IronGang/Gameplay/TrafficSignal.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
 #include "IronGang/World/RoadGraph.hpp"
+#include "IronGang/World/SidewalkGraph.hpp"
 #include "IronGang/World/WaypointPath.hpp"
 
 #include <string>
@@ -31,6 +32,8 @@ namespace IronGang
 
         // The loaded road graph, or an empty one when this district has no road data.
         [[nodiscard]] const RoadGraph& GetRoadGraph() const noexcept { return roadGraph_; }
+        // The loaded sidewalk graph, or an empty one when this district has no pavement data.
+        [[nodiscard]] const SidewalkGraph& GetSidewalkGraph() const noexcept { return sidewalkGraph_; }
 
         [[nodiscard]] DistrictId GetId() const noexcept { return id_; }
         [[nodiscard]] const std::vector<WorldBox>& GetBoxes() const noexcept { return boxes_; }
@@ -78,6 +81,7 @@ namespace IronGang
         void BuildWarehouseBlock();
         // Replaces the hand-authored traffic loop and stop lines when a road graph loaded.
         void ApplyRoadGraph();
+        void ApplySidewalkGraph();
         void BuildCountryside();
 
         DistrictId id_;
@@ -96,6 +100,7 @@ namespace IronGang
         DistrictExit districtExit_{};
         WaypointPath trafficLoop_{};
         RoadGraph roadGraph_{};
+        SidewalkGraph sidewalkGraph_{};
         std::vector<WaypointPath> sidewalkPaths_{};
     };
 }

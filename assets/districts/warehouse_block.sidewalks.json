@@ -1,0 +1,26 @@
+{
+  "id": "warehouse_block",
+  "version": 1,
+  "nodes": [
+    { "id": "west_south", "position": [-7.5, 0.9, 38.0] },
+    { "id": "west_north", "position": [-7.5, 0.9, -38.0] },
+    { "id": "east_south", "position": [7.5, 0.9, 38.0] },
+    { "id": "east_north", "position": [7.5, 0.9, -38.0] },
+    { "id": "west_crossing", "position": [-7.5, 0.9, 0.0] },
+    { "id": "east_crossing", "position": [7.5, 0.9, 0.0] },
+    { "id": "hotel_door", "position": [-9.0, 0.9, 18.0] },
+    { "id": "apartments_door", "position": [9.0, 0.9, 19.0] }
+  ],
+  "walkways": [
+    { "id": "west_pavement", "from": "west_north", "to": "west_south", "width": 3.0 },
+    { "id": "east_pavement", "from": "east_north", "to": "east_south", "width": 3.0 }
+  ],
+  "crossings": [
+    { "id": "main_crossing", "from": "west_crossing", "to": "east_crossing",
+      "roadSegment": "main_northbound", "signalControlled": true }
+  ],
+  "entrances": [
+    { "id": "hotel_entrance", "node": "hotel_door", "building": "hotel" },
+    { "id": "apartments_entrance", "node": "apartments_door", "building": "apartments" }
+  ]
+}

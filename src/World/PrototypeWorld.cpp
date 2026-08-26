@@ -48,7 +48,51 @@ namespace IronGang
                 Log::Warning(LogCategory::Assets, error + " -- using the built-in road layout.");
                 roadGraph_ = RoadGraph{};
             }
+
+            // plan_14 IG-14-008: pavements are their own graph, loaded after the roads so a
+            // crossing can be checked against the road segment it claims to cross.
+            std::vector<std::string> buildingIds;
+            for (const WorldBox& box : boxes_)
+            {
+                if (box.collidable)
+                {
+                    buildingIds.push_back(box.name);
+                }
+            }
+            std::vector<std::string> roadSegmentIds;
+            for (const RoadSegment& segment : roadGraph_.GetSegments())
+            {
+                roadSegmentIds.push_back(segment.id);
+            }
+
+            std::string sidewalkError;
+            if (sidewalkGraph_.LoadFromFile(assetRoot + "/districts/" + DistrictAssetName(id_) +
+                                                ".sidewalks.json",
+                                            buildingIds, roadSegmentIds, sidewalkError))
+            {
+                ApplySidewalkGraph();
+            }
+            else
+            {
+                Log::Warning(LogCategory::Assets,
+                             sidewalkError + " -- using the built-in pavement layout.");
+                sidewalkGraph_ = SidewalkGraph{};
+            }
         }
+    }
+
+    void PrototypeWorld::ApplySidewalkGraph()
+    {
+        std::vector<WaypointPath> paths = sidewalkGraph_.BuildWalkingPaths();
+        if (paths.empty())
+        {
+            Log::Warning(LogCategory::Assets,
+                         "sidewalk graph \"" + sidewalkGraph_.GetId() +
+                             "\" produced no walkable path -- using the built-in pavement layout.");
+            sidewalkGraph_ = SidewalkGraph{};
+            return;
+        }
+        sidewalkPaths_ = std::move(paths);
     }
 
     void PrototypeWorld::ApplyRoadGraph()

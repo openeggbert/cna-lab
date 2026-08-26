@@ -1867,6 +1867,59 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Pavements as their own graph (2026-08-26)
+
+plan_14 `IG-14-007` and `IG-14-008` closed. Gates M12 and M14 untouched.
+
+**What was added.** `assets/districts/warehouse_block.sidewalks.json` (v1) and `SidewalkGraph`
+(`include/`/`src/World/SidewalkGraph.hpp/.cpp`): `nodes`, **bidirectional** `walkways` with a width,
+`crossings` (two nodes, the road segment being crossed, and whether a signal governs it), and
+`entrances` (a pavement node paired with the building it leads into).
+
+**Why it is a separate graph, which the plan entry asks for and is worth stating.** A pavement is
+not a road with different numbers. It is two-way where a road segment is directed; it has no traffic
+lanes; it connects to doors; and it crosses roads at marked places rather than merging with them.
+One type for both would leave every field meaningful for one kind and inert for the other.
+
+Entrances and crossings are validated against the district's **own** building and road-segment ids
+-- the same stale-reference rule dialogue ids and cutscene cues already use. A door into a building
+the district does not contain leads nowhere, and a crossing over a road that is not there is a
+layout that loads and then means nothing. Passing an empty known-set means "do not check", so a
+district with no road graph still loads its pavements.
+
+**A helper extraction, not a copy.** `RoadGraph` had grown four small JSON readers
+(`ReadVector3`/`OnlyFields`/`ReadString`/`ReadNumber`) in an anonymous namespace.
+`src/Core/JsonReadHelpers.hpp` now holds them, shared by both loaders: a second copy is how two
+subtly different implementations of "reject unknown fields" get written, and unknown-field rejection
+is only worth anything if every loader does it the same way.
+
+**The wiring.** Loaded by `PrototypeWorld` from the same optional asset root as the road graph and
+**after** it, so a crossing can be checked against the segment it claims to cross.
+`ApplySidewalkGraph()` replaces the hand-authored `sidewalkPaths_` with one back-and-forth path per
+walkway; pedestrian navigation reads it through the existing `GetSidewalkPaths()`, so nothing
+downstream changed. A missing or invalid file logs a warning and keeps the built-in pavements.
+
+**Verified.** `TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly` builds the district twice --
+built-in literals and shipped data -- and requires every pavement's loop flag, point count and point
+positions to match, while also asserting the graph is non-empty so a silent fallback cannot make the
+comparison compare the built-in layout with itself. It then checks the two things the road graph
+deliberately does not carry: the crossing (signalled, naming `main_northbound`) and both entrances
+resolving to real pavement nodes. `TestSidewalkGraphRejectsUnusableData` covers fourteen rejection
+cases including both directions of the stale-reference rule, a non-boolean `signalControlled`, and
+the empty-known-set case that must still load. 15 CTest targets pass.
+
+**Mutation-checked.** Moving a shipped pavement node one metre fails with `pavement 0 point 1 must
+match the hand-authored one`; removing the building stale-reference check fails with `an entrance
+into a building the district lacks must be rejected`. A scripted run logs **no fallback warning**
+and renders a frame byte-identical to the previous iteration's -- and pedestrians are in that frame,
+so that is independent evidence the data reproduces the old layout.
+
+**Not verified.** Crossings and entrances are carried and validated but **not yet walked**: no
+pedestrian uses a crossing or a door. Crossing behaviour is plan_20 `IG-20-012`, which now has
+somewhere to read a crossing from. Walkway width is stored and unused -- lane offsetting still comes
+from `Pedestrian::SetLaneOffset` at the call site. The countryside district has no pavement file, so
+it exercises the fallback rather than the loader.
+
 ## The road layout stops being C++ (2026-08-26)
 
 plan_14 `IG-14-001` and `IG-14-002` closed. Gates M12 and M14 untouched.

@@ -98,6 +98,31 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Pavements as their own graph (plan_14)
+
+`assets/districts/warehouse_block.sidewalks.json` (v1) + `SidewalkGraph`: `nodes`, **bidirectional**
+`walkways` with a width, `crossings` (two nodes, the road segment crossed, whether a signal governs
+it), and `entrances` (a pavement node paired with the building it leads into).
+
+**Separate from the road graph on purpose.** A pavement is not a road with different numbers: it is
+two-way where a road segment is directed, has no traffic lanes, connects to doors, and crosses roads
+at marked places rather than merging with them. One type for both leaves every field meaningful for
+one kind and inert for the other.
+
+Entrances and crossings are checked against the district's own building and road-segment ids — the
+same stale-reference rule dialogue ids and cutscene cues use. An empty known-set means "do not
+check", so a district with no road graph still loads its pavements.
+
+**A helper extraction, not a copy.** `RoadGraph`'s four small JSON readers moved to
+`src/Core/JsonReadHelpers.hpp` and are now shared. A second copy is how two subtly different
+implementations of "reject unknown fields" get written.
+
+Closed `IG-14-007`, `IG-14-008`. Verified: CTest 15/15, two new tests (fourteen rejection cases),
+two mutation checks, no fallback warning in a scripted run, and a byte-identical frame — with
+pedestrians in it. Not done: crossings and entrances are carried and validated but **not yet
+walked** (that is `IG-20-012`, which now has somewhere to read a crossing from); walkway width is
+stored and unused.
+
 ### The road layout stops being C++ (plan_14)
 
 The warehouse block's traffic loop, lane offsets, speed limit and two signalled stop lines were
@@ -656,7 +681,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 299/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 301/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

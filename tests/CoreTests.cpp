@@ -4527,6 +4527,132 @@ namespace
     // plan_27 IG-27-003/007: distance and direction, from a listener that is the active camera.
     // plan_14 IG-14-001/002: the road layout used to be C++ literals. Loading it from data must
     // reproduce it exactly -- that equivalence is the whole point of the migration.
+    // plan_14 IG-14-007/008: pavements as their own graph, and the same equivalence requirement
+    // the road graph had -- data must reproduce the hand-authored layout exactly.
+    void TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly()
+    {
+        const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
+        Require(builtIn.GetSidewalkGraph().IsEmpty(),
+                "with no asset root a district must keep its built-in pavements");
+
+        const IronGang::PrototypeWorld fromData(IronGang::DistrictId::WarehouseBlock,
+                                                std::string(IRON_GANG_SOURCE_ASSET_DIR));
+        Require(!fromData.GetSidewalkGraph().IsEmpty(),
+                "the shipped sidewalk graph must load; an empty graph here means it silently fell "
+                "back and the rest of this test would compare nothing");
+
+        const std::vector<IronGang::WaypointPath>& expected = builtIn.GetSidewalkPaths();
+        const std::vector<IronGang::WaypointPath>& actual = fromData.GetSidewalkPaths();
+        Require(actual.size() == expected.size(),
+                "the pavement count must match: " + std::to_string(actual.size()) + " vs " +
+                    std::to_string(expected.size()));
+        for (std::size_t path = 0; path < expected.size(); ++path)
+        {
+            Require(actual[path].loop == expected[path].loop, "the loop flag must match");
+            Require(actual[path].points.size() == expected[path].points.size(),
+                    "pavement " + std::to_string(path) + " must have the same number of points");
+            for (std::size_t point = 0; point < expected[path].points.size(); ++point)
+            {
+                Require((actual[path].points[point] - expected[path].points[point]).Length() < 1e-3F,
+                        "pavement " + std::to_string(path) + " point " + std::to_string(point) +
+                            " must match the hand-authored one");
+            }
+        }
+
+        // The two things the road graph deliberately does not carry.
+        const IronGang::SidewalkGraph& graph = fromData.GetSidewalkGraph();
+        Require(graph.GetCrossings().size() == 1, "the shipped district must declare its crossing");
+        Require(graph.GetCrossings()[0].signalControlled,
+                "the main crossing is signalled -- an unsignalled crossing is a give-way, not a wait");
+        Require(graph.GetCrossings()[0].roadSegmentId == "main_northbound",
+                "the crossing must name the road segment it crosses");
+        Require(graph.GetEntrances().size() == 2, "the shipped district must declare its doors");
+        for (const IronGang::SidewalkEntrance& entrance : graph.GetEntrances())
+        {
+            Require(graph.FindNode(entrance.nodeId) != nullptr,
+                    "every entrance must resolve to a pavement node");
+        }
+    }
+
+    void TestSidewalkGraphRejectsUnusableData()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_sidewalks.json";
+        std::string error;
+        IronGang::SidewalkGraph graph;
+        const std::vector<std::string> buildings{"hotel"};
+        const std::vector<std::string> roads{"main_northbound"};
+
+        const std::string nodes =
+            R"JSON("nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]}])JSON";
+        const auto write = [&path, &nodes](const std::string& rest) {
+            WriteTempJson(path, "{\"id\":\"t\",\"version\":1," + nodes + "," + rest + "}");
+        };
+        const std::string oneWalkway = R"JSON("walkways":[{"id":"w","from":"a","to":"b","width":3}])JSON";
+
+        write(oneWalkway);
+        Require(graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a minimal well-formed sidewalk graph must load: " + error);
+
+        WriteTempJson(path, "{\"id\":\"t\",\"version\":7," + nodes + "," + oneWalkway + "}");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "an unsupported version must be rejected");
+
+        write(R"JSON("walkways":[])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a graph with no walkways has nobody walking on it and must be rejected");
+
+        write(R"JSON("walkways":[{"id":"w","from":"a","to":"nowhere","width":3}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a walkway to a missing node must be rejected");
+
+        write(R"JSON("walkways":[{"id":"w","from":"a","to":"a","width":3}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a zero-length walkway must be rejected");
+
+        write(R"JSON("walkways":[{"id":"w","from":"a","to":"b","width":0}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a walkway with no width must be rejected");
+
+        write(R"JSON("walkways":[{"id":"w","from":"a","to":"b","width":3},
+                                 {"id":"w","from":"b","to":"a","width":3}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "duplicate walkway ids must be rejected");
+
+        // The stale-reference rule, both ways round: a door into a building the district does not
+        // contain, and a crossing over a road that is not there.
+        write(oneWalkway + R"JSON(,"entrances":[{"id":"e","node":"a","building":"casino"}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "an entrance into a building the district lacks must be rejected");
+        Require(error.find("casino") != std::string::npos,
+                "the error must name the missing building: " + error);
+
+        write(oneWalkway + R"JSON(,"crossings":[{"id":"c","from":"a","to":"b","roadSegment":"tunnel"}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a crossing over a road segment the district lacks must be rejected");
+
+        // ...but an empty known-set means "do not check", so a district with no road graph still
+        // loads its pavements.
+        Require(graph.LoadFromFile(path.string(), buildings, {}, error),
+                "with no road ids to check against, a crossing must load: " + error);
+
+        write(oneWalkway + R"JSON(,"entrances":[{"id":"e","node":"nowhere","building":"hotel"}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "an entrance on a missing node must be rejected");
+
+        write(oneWalkway + R"JSON(,"crossings":[{"id":"c","from":"a","to":"b","signalControlled":"yes"}])JSON");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "a non-boolean signalControlled must be rejected");
+
+        WriteTempJson(path, "{\"id\":\"t\",\"version\":1,\"lighting\":\"gas\"," + nodes + "," + oneWalkway + "}");
+        Require(!graph.LoadFromFile(path.string(), buildings, roads, error),
+                "an unknown top-level field must be rejected");
+
+        Require(!graph.LoadFromFile(path.string() + ".missing", buildings, roads, error),
+                "a missing file must be rejected, not crash");
+
+        std::filesystem::remove(path);
+    }
+
     void TestRoadGraphReplacesTheHandAuthoredLayoutExactly()
     {
         const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
@@ -6266,6 +6392,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();
+        TestSidewalkGraphRejectsUnusableData();
         TestRoadGraphReplacesTheHandAuthoredLayoutExactly();
         TestRoadGraphRejectsUnusableData();
         TestSpatialAudioAttenuationAndPan();
