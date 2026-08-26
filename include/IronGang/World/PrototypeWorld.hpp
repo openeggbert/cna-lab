@@ -3,6 +3,7 @@
 #include "IronGang/Core/WorldTypes.hpp"
 #include "IronGang/Gameplay/TrafficSignal.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
+#include "IronGang/World/CollisionProxies.hpp"
 #include "IronGang/World/RoadGraph.hpp"
 #include "IronGang/World/SidewalkGraph.hpp"
 #include "IronGang/World/WaypointPath.hpp"
@@ -34,6 +35,12 @@ namespace IronGang
         [[nodiscard]] const RoadGraph& GetRoadGraph() const noexcept { return roadGraph_; }
         // The loaded sidewalk graph, or an empty one when this district has no pavement data.
         [[nodiscard]] const SidewalkGraph& GetSidewalkGraph() const noexcept { return sidewalkGraph_; }
+        // plan_14 IG-14-012: colliders imported from the district's generated models, held
+        // separately from the render geometry that produced them.
+        [[nodiscard]] const CollisionProxySet& GetCollisionProxies() const noexcept
+        {
+            return collisionProxies_;
+        }
 
         [[nodiscard]] DistrictId GetId() const noexcept { return id_; }
         [[nodiscard]] const std::vector<WorldBox>& GetBoxes() const noexcept { return boxes_; }
@@ -82,6 +89,7 @@ namespace IronGang
         // Replaces the hand-authored traffic loop and stop lines when a road graph loaded.
         void ApplyRoadGraph();
         void ApplySidewalkGraph();
+        void ApplyCollisionProxies();
         void BuildCountryside();
 
         DistrictId id_;
@@ -101,6 +109,7 @@ namespace IronGang
         WaypointPath trafficLoop_{};
         RoadGraph roadGraph_{};
         SidewalkGraph sidewalkGraph_{};
+        CollisionProxySet collisionProxies_{};
         std::vector<WaypointPath> sidewalkPaths_{};
     };
 }

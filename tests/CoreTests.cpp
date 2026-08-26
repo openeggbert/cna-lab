@@ -4896,6 +4896,105 @@ namespace
     }
 
 
+    // plan_14 IG-14-011/012: collision proxies imported beside the render model.
+    void TestCollisionProxiesLoadAndRegister()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_proxies.json";
+        std::string error;
+        IronGang::CollisionProxySet proxies;
+
+        WriteTempJson(path, R"JSON({"id":"t","version":1,"proxies":[
+            {"name":"Post","center":[1,2,3],"halfExtents":[0.1,1.5,0.1]},
+            {"name":"Seat","center":[-4,0.5,6],"halfExtents":[0.8,0.1,0.25]}]})JSON");
+        Require(proxies.LoadFromFile(path.string(), error), "a well-formed proxy file must load: " + error);
+        Require(proxies.GetProxies().size() == 2, "both proxies must be parsed");
+        Require(proxies.GetProxies()[0].name == "Post", "the authoring name must survive, so a proxy "
+                                                        "in the wrong place can be traced to its object");
+        Require(std::abs(proxies.GetProxies()[0].bounds.center.Y - 2.0F) < 1e-4F,
+                "the centre must round-trip");
+        Require(std::abs(proxies.GetProxies()[1].bounds.halfExtents.X - 0.8F) < 1e-4F,
+                "the half-extents must round-trip");
+
+        WriteTempJson(path, R"JSON({"id":"t","version":9,"proxies":[]})JSON");
+        Require(!proxies.LoadFromFile(path.string(), error), "an unsupported version must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"t","version":1})JSON");
+        Require(!proxies.LoadFromFile(path.string(), error), "a missing proxies array must be rejected");
+
+        // A zero-thickness collider is one objects tunnel straight through -- worse than none,
+        // because it looks like there is one.
+        WriteTempJson(path, R"JSON({"id":"t","version":1,"proxies":[
+            {"name":"Flat","center":[0,0,0],"halfExtents":[1,0,1]}]})JSON");
+        Require(!proxies.LoadFromFile(path.string(), error), "a zero half-extent must be rejected");
+        Require(error.find("Flat") != std::string::npos, "the error must name the proxy: " + error);
+
+        WriteTempJson(path, R"JSON({"id":"t","version":1,"proxies":[
+            {"name":"Bad","center":[0,0],"halfExtents":[1,1,1]}]})JSON");
+        Require(!proxies.LoadFromFile(path.string(), error), "a two-number centre must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"t","version":1,"weather":"rain","proxies":[]})JSON");
+        Require(!proxies.LoadFromFile(path.string(), error), "an unknown field must be rejected");
+
+        Require(!proxies.LoadFromFile(path.string() + ".missing", error),
+                "a missing file must be rejected, not crash");
+
+        std::filesystem::remove(path);
+    }
+
+    // Against the real district: the proxies must actually reach the collider list, which is what
+    // makes a lamp post something the player walks into rather than through.
+    void TestDistrictRegistersItsCollisionProxies()
+    {
+        const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
+        const IronGang::PrototypeWorld fromData(IronGang::DistrictId::WarehouseBlock,
+                                                std::string(IRON_GANG_SOURCE_ASSET_DIR));
+
+        const std::filesystem::path sidecar =
+            std::filesystem::path(IRON_GANG_SOURCE_ASSET_DIR) /
+            "generated/models/collision/warehouse_block_props.collision.json";
+        if (!std::filesystem::exists(sidecar))
+        {
+            // assets/generated is not committed, so a checkout that has not run
+            // scripts/build-assets.sh has no sidecar. That must degrade, not fail -- but it must
+            // also not silently pass as if the feature were verified.
+            Require(fromData.GetCollisionProxies().IsEmpty(),
+                    "with no sidecar the district must have no imported proxies");
+            Require(fromData.GetSolidColliders().size() == builtIn.GetSolidColliders().size(),
+                    "with no sidecar the collider list must match the built-in one");
+            return;
+        }
+
+        Require(!fromData.GetCollisionProxies().IsEmpty(),
+                "the generated sidecar exists, so the district must have loaded it");
+        const std::size_t imported = fromData.GetCollisionProxies().GetProxies().size();
+        Require(imported >= 40,
+                "the prop set's blocking parts must all import, got " + std::to_string(imported));
+        Require(fromData.GetSolidColliders().size() == builtIn.GetSolidColliders().size() + imported,
+                "every imported proxy must reach the collider list");
+
+        // Only blocking roles: the lamp arms and heads and the bin lids are collision="none", and
+        // must not have become colliders.
+        for (const IronGang::CollisionProxy& proxy : fromData.GetCollisionProxies().GetProxies())
+        {
+            Require(proxy.name != "Arm" && proxy.name != "Head" && proxy.name != "Lid",
+                    "a non-blocking part became a collider: " + proxy.name);
+            Require(proxy.bounds.halfExtents.X > 0.0F && proxy.bounds.halfExtents.Y > 0.0F &&
+                        proxy.bounds.halfExtents.Z > 0.0F,
+                    "every imported proxy must have real thickness");
+        }
+
+        // A lamp post stands where the district authored its lamp box, so a proxy must be there.
+        const bool postAtFirstLamp = std::any_of(
+            fromData.GetCollisionProxies().GetProxies().begin(),
+            fromData.GetCollisionProxies().GetProxies().end(),
+            [](const IronGang::CollisionProxy& proxy) {
+                return proxy.name == "Post" && std::abs(proxy.bounds.center.X + 9.0F) < 0.05F &&
+                       std::abs(proxy.bounds.center.Z + 33.0F) < 0.05F;
+            });
+        Require(postAtFirstLamp,
+                "a lamp post proxy must stand at the district's own lamp position (-9, -33)");
+    }
+
     void TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly()
     {
         const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
@@ -6698,6 +6797,8 @@ int main()
         TestPedestrianDestinationChoice();
         TestPedestrianWandersTheDistrict();
         TestPedestrianCrossingRespectsTheSignal();
+        TestCollisionProxiesLoadAndRegister();
+        TestDistrictRegistersItsCollisionProxies();
         TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly();
         TestSidewalkGraphRejectsUnusableData();
         TestRoadGraphReplacesTheHandAuthoredLayoutExactly();

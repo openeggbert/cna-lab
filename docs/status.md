@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**310 of 2148 tasks done** (14%). Open by priority: P0 178 · P1 1007 · P2 596 · P3 57.
+**312 of 2148 tasks done** (14%). Open by priority: P0 176 · P1 1007 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 11 | [Asset registry, provenance, and build cache](../plan/plan_11-asset-registry-provenance-and-build-cache.md) | 25/67 | 37% |
 | 12 | [Entity, scene, and world-object model](../plan/plan_12-entity-scene-and-world-object-model.md) | 0/58 | 0% |
 | 13 | [District loading and world structure](../plan/plan_13-world-partitioning-and-streaming.md) | 16/45 | 35% |
-| 14 | [Terrain, roads, sidewalks, buildings, and interiors](../plan/plan_14-terrain-roads-sidewalks-buildings-and-interiors.md) | 4/42 | 9% |
+| 14 | [Terrain, roads, sidewalks, buildings, and interiors](../plan/plan_14-terrain-roads-sidewalks-buildings-and-interiors.md) | 6/42 | 14% |
 | 15 | [Physics integration](../plan/plan_15-physics-integration.md) | 11/40 | 27% |
 | 16 | [Player controller and cameras](../plan/plan_16-player-controller-and-cameras.md) | 3/80 | 3% |
 | 17 | [Vehicles and driving](../plan/plan_17-vehicles-and-driving.md) | 2/97 | 2% |

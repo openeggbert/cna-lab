@@ -78,6 +78,36 @@ namespace IronGang
                              sidewalkError + " -- using the built-in pavement layout.");
                 sidewalkGraph_ = SidewalkGraph{};
             }
+
+            // plan_14 IG-14-012: colliders come from the generated model's own sidecar, not from
+            // the render model -- so they register even if the .cnj never loads, and they do not
+            // change when someone re-tessellates the geometry that produced them.
+            std::string collisionError;
+            if (collisionProxies_.LoadFromFile(assetRoot + "/generated/models/collision/" +
+                                                   DistrictAssetName(id_) + "_props.collision.json",
+                                               collisionError))
+            {
+                ApplyCollisionProxies();
+            }
+            else
+            {
+                // Absent is the normal case for a checkout that has not run scripts/build-assets.sh
+                // (assets/generated is not committed), so this is not an error -- only a note that
+                // the street furniture will be walk-through.
+                Log::Info(LogCategory::Assets,
+                          collisionError + " -- street props will have no collision.");
+                collisionProxies_ = CollisionProxySet{};
+            }
+        }
+    }
+
+    void PrototypeWorld::ApplyCollisionProxies()
+    {
+        for (const CollisionProxy& proxy : collisionProxies_.GetProxies())
+        {
+            // Straight into colliders_, deliberately not into boxes_: a proxy is collision, not
+            // something to draw. The model it came from is what the player sees.
+            colliders_.push_back(proxy.bounds);
         }
     }
 

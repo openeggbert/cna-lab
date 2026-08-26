@@ -1867,6 +1867,66 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Collision proxies: the props stop being walk-through (2026-08-26)
+
+plan_14 `IG-14-011` and `IG-14-012` closed. Gates M12 and M14 untouched.
+
+**The gap the previous entry named.** The collision role reached the generated glTF as
+`node.extras.collision` and **nothing read it back**. Benches and bins were walk-through, and lamp
+posts collided with nothing -- `PrototypeWorld`'s placeholder lamp boxes are authored
+`collidable=false`, so those lamps had never had collision at all.
+
+**The convention (`IG-14-011`).** Proxies are whatever carries a blocking role. A detailed render
+mesh is authored `collision="none"` and paired with simple boxes marked `collision="static"` **in
+the same MC3 file**, so the pair cannot drift apart or ship half-updated; for the box props this
+game has today, the render box is already simple enough to be its own proxy. `trigger` is
+deliberately *not* a proxy role: registering a trigger as a static body would wall off the very
+volume it exists to watch, and there is a test asserting it never becomes one.
+
+**The pipeline (`IG-14-012`).** `scripts/extract_collision.py` walks the generated glTF's scene
+graph, accumulates each node's transform, and writes one world-space box per blocking node into
+`generated/models/collision/<name>.collision.json`. `build-assets.sh` runs it after the CNJ step.
+`CollisionProxySet` loads it, and `PrototypeWorld` pushes each box straight into `colliders_` --
+**not** into `boxes_`, because a proxy is collision, not something to draw -- so
+`BuildPhysicsStaticBodies()` registers them like any other static geometry.
+
+Separate from the `.cnj` on purpose, and that is the substance of the entry: the proxies register
+even if the render model never loads, and they do not change when someone re-tessellates the
+geometry that produced them. A physics world reconstructed by walking render meshes is a physics
+world that moves whenever an artist smooths a wall.
+
+Rotation is handled by transforming the local bounding box's eight corners and taking their extent
+-- exact for the quarter-turns props are actually placed at, and conservative (never smaller than
+the geometry) for anything else.
+
+**What actually imported.** 51 boxes from the street prop set: 14 lamp bases, 14 posts, 5 benches x
+4 parts, 3 bin bodies. Exactly the blocking parts -- the lamp arms and heads and the bin lids are
+`collision="none"` and are absent, which the test checks by name.
+
+**Verified.** `TestCollisionProxiesLoadAndRegister` (round trip; unsupported version; missing
+`proxies`; a **zero half-extent rejected with the proxy named**, because a zero-thickness collider is
+one objects tunnel straight through and is worse than none since it looks present; a two-number
+centre; an unknown field; a missing file). `TestDistrictRegistersItsCollisionProxies` checks the real
+district: the sidecar loads, at least 40 proxies import, `colliders_` grows by exactly that many, no
+non-blocking part became a collider, and a lamp-post proxy stands at the district's own authored
+lamp position (-9, -33). Because `assets/generated` is not committed, it takes the honest branch when
+the sidecar is absent -- asserting the district degrades to the built-in collider list rather than
+skipping silently. `tests/test_extract_collision.py` covers role filtering, a trigger never
+blocking, transform accumulation through a hierarchy, a role inherited from a group, a child
+overriding it, a quarter-turn swapping a non-cube's extents exactly, scale, a mesh without accessor
+bounds refused, and a node without a mesh. 18 CTest targets, all passing.
+
+**Mutation-checked, three ways.** Ignoring the role (every mesh becomes a collider) fails 5
+assertions; dropping the parent transform (every proxy at its local origin) fails 3; and not pushing
+the proxies into `colliders_` fails with `every imported proxy must reach the collider list`.
+
+**Not verified.** Nobody has walked into a bench. The proxies are asserted to exist, to be the right
+boxes, and to reach the collider list; that Jolt then stops the player is inferred from
+`BuildPhysicsStaticBodies()` treating them identically to every other collider, not observed. The
+proxies are axis-aligned boxes only -- a rotated bench's proxy is its conservative AABB, which is
+slightly larger than the bench. And nothing imports proxies for the warehouse or the sedan, whose
+collision still comes from `PrototypeWorld`'s own boxes.
+
 ## Closing what the MC3 schema leaves open (2026-08-26)
 
 plan_09 `IG-09-007` closed. Gates M12 and M14 untouched.

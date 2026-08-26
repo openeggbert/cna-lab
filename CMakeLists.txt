@@ -166,6 +166,7 @@ add_library(iron_gang_core STATIC
     src/UI/Subtitle.cpp
     src/UI/DistrictMap.cpp
     src/World/DistrictManager.cpp
+    src/World/CollisionProxies.cpp
     src/World/RoadGraph.cpp
     src/World/SidewalkGraph.cpp
     src/World/PrototypeWorld.cpp
@@ -325,6 +326,12 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # plan_14 IG-14-011/012: a proxy in the wrong place is worse than no proxy.
+    add_test(NAME iron_gang_extract_collision_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_extract_collision.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_collision.py")
 
     # plan_09 IG-09-006/007: Mesh Craft's XSD leaves collision and units open; these are Iron
     # Gang's own closures of them, and a convention nothing checks is not a convention.

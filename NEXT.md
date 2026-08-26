@@ -98,6 +98,31 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Collision proxies: the props stop being walk-through (plan_14)
+
+The gap the previous entry named. The collision role reached the glTF as `node.extras.collision` and
+**nothing read it back** — benches and bins were walk-through, and lamp posts had never had collision
+at all, since `PrototypeWorld`'s placeholder lamp boxes are `collidable=false`.
+
+**The convention:** proxies are whatever carries a blocking role. A detailed render mesh is authored
+`collision="none"` and paired with simple `static` boxes **in the same MC3 file**, so the pair cannot
+drift or ship half-updated. `trigger` is deliberately not a proxy role — registering one as a static
+body would wall off the volume it exists to watch.
+
+**The pipeline:** `extract_collision.py` walks the generated glTF, accumulates transforms, and writes
+one world-space box per blocking node into a sidecar; `build-assets.sh` runs it; `PrototypeWorld`
+pushes each into `colliders_` — *not* `boxes_`, because a proxy is collision, not something to draw.
+Separate from the `.cnj` on purpose: proxies register even if the render model never loads, and do
+not change when someone re-tessellates the geometry that produced them.
+
+51 boxes import — 14 lamp bases, 14 posts, 5 benches × 4 parts, 3 bin bodies. Exactly the blocking
+parts; arms, heads and lids are `none` and absent.
+
+Closed `IG-14-011`, `IG-14-012`. Verified: CTest 18/18, nine extractor fixtures, seven loader
+rejection cases, three mutation checks. Not verified: **nobody has walked into a bench** — that Jolt
+stops the player is inferred from `BuildPhysicsStaticBodies()` treating proxies like any other
+collider, not observed. Proxies are AABBs, so a rotated bench's is slightly larger than the bench.
+
 ### Closing what the MC3 schema leaves open (plan_09)
 
 **The finding.** Mesh Craft's XSD types `collision` as `xs:string` defaulting to `"none"` — so *any*

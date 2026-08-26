@@ -39,4 +39,8 @@ glb="$output_root/glb/$base_name.glb"
 "$mc3togltf" --stats --quantize-mesh-attributes "$input" "$glb"
 "$gltf_to_cnj" "$glb" "$output_root/cnj" "$base_name" 1.0
 
+# plan_14 IG-14-011/012: collision proxies travel beside the render model, not inside it.
+"$project_root/scripts/extract_collision.py" "$glb" \
+  "$output_root/collision/$base_name.collision.json" --id "$base_name"
+
 echo "Generated runtime assets in: $output_root"
