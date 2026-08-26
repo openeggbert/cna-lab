@@ -38,6 +38,7 @@ for source in "${sources[@]}"; do
   "$compiler" -std=c++23 -fsyntax-only \
     -DSOUND_ENABLED -DXNA5 -DCNA_RENDERER_SOFTWARE -DCNA_FFMPEG_AVAILABLE \
     -DIRON_GANG_SOURCE_ASSET_DIR="\"$project_root/assets\"" \
+    -DIRON_GANG_SOURCE_ROOT="\"$project_root\"" \
     "${include_args[@]}" \
     "$source"
 done

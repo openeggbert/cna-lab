@@ -1,0 +1,17 @@
+{
+  "id": "prologue_opening",
+  "version": 1,
+  "steps": [
+    { "update": 60, "held": ["confirm"] },
+    { "update": 61, "held": [] },
+    { "update": 90, "held": ["confirm"] },
+    { "update": 91, "held": [] },
+    { "update": 120, "held": ["confirm"] },
+    { "update": 121, "held": [] },
+    { "update": 150, "held": ["move_forward"] },
+    { "update": 400, "held": [] },
+    { "update": 430, "held": ["interact"] },
+    { "update": 431, "held": [] },
+    { "update": 500, "held": [] }
+  ]
+}

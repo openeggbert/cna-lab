@@ -747,6 +747,12 @@ namespace IronGang
 
     bool IronGangGame::IsDown(const KeyboardState& keyboard, GameAction action) const
     {
+        // plan_30 IG-30-012: a script replaces the keyboard rather than merging with it. A repro
+        // case that a stray keypress could alter is not a repro case.
+        if (inputScript_)
+        {
+            return inputScript_->IsDown(action);
+        }
         const ActionBinding& binding = settings_.bindings.Get(action);
         return (binding.primary != Keys::None && keyboard.IsKeyDown(binding.primary)) ||
                (binding.secondary != Keys::None && keyboard.IsKeyDown(binding.secondary));
@@ -754,9 +760,70 @@ namespace IronGang
 
     bool IronGangGame::WasPressed(const KeyboardState& keyboard, GameAction action) const
     {
+        if (inputScript_)
+        {
+            return inputScript_->WasPressed(action);
+        }
         const ActionBinding& binding = settings_.bindings.Get(action);
         return (binding.primary != Keys::None && WasPressed(keyboard, binding.primary)) ||
                (binding.secondary != Keys::None && WasPressed(keyboard, binding.secondary));
+    }
+
+    bool IronGangGame::PlayInputScript(const std::string& path, std::string& errorMessage)
+    {
+        InputScript script;
+        if (!script.LoadFromFile(path, errorMessage))
+        {
+            return false;
+        }
+        Log::Info(LogCategory::Application,
+                  "playing input script \"" + script.GetId() + "\" (" +
+                      std::to_string(script.GetStepCount()) + " steps, last update " +
+                      std::to_string(script.GetLastUpdate()) + ")");
+        inputScript_ = std::move(script);
+        return true;
+    }
+
+    void IronGangGame::RecordInputScript(std::string path, std::string id)
+    {
+        inputRecordingPath_ = std::move(path);
+        inputRecorder_.emplace(std::move(id));
+    }
+
+    void IronGangGame::AdvanceInputScript(const KeyboardState& keyboard)
+    {
+        if (inputScript_)
+        {
+            inputScript_->Advance();
+            // Exit() asks CNA to stop; the loop still runs the updates already in flight, so
+            // without this guard the request (and its log line) repeated once per update.
+            if (inputScriptExitsOnFinish_ && !inputScriptExitRequested_ && inputScript_->IsFinished())
+            {
+                inputScriptExitRequested_ = true;
+                Log::Info(LogCategory::Application,
+                          "input script \"" + inputScript_->GetId() + "\" finished; exiting");
+                Exit();
+            }
+            return;
+        }
+        if (inputRecorder_)
+        {
+            HeldActions held{};
+            for (std::size_t index = 0; index < kGameActionCount; ++index)
+            {
+                held[index] = IsDown(keyboard, static_cast<GameAction>(index));
+            }
+            inputRecorder_->Record(held);
+        }
+    }
+
+    bool IronGangGame::WriteInputRecording(std::string& errorMessage)
+    {
+        if (!inputRecorder_ || inputRecordingPath_.empty())
+        {
+            return true;
+        }
+        return inputRecorder_->Save(inputRecordingPath_, errorMessage);
     }
 
     bool IronGangGame::WasPressed(const KeyboardState& current, Keys key) const
@@ -1425,6 +1492,10 @@ namespace IronGang
                              " s; the simulation is running behind wall time (reported once)");
         }
         const KeyboardState keyboard = Keyboard::GetState();
+        // Exactly once per simulation update, before anything reads input: playback steps to the
+        // next scripted update, recording captures this one.
+        AdvanceInputScript(keyboard);
+        ++simulationUpdateIndex_;
         // Everything below this line that moves the world uses simulationSeconds; the HUD, the
         // window title, and input keep running on the real frame delta, which is why a paused game
         // still redraws and still listens.
@@ -2455,12 +2526,28 @@ namespace IronGang
     {
         screenshotPath_ = std::move(path);
         screenshotFrame_ = frame;
+        screenshotUpdate_ = 0;
+    }
+
+    void IronGangGame::RequestScreenshotAtUpdate(std::string path, int update)
+    {
+        screenshotPath_ = std::move(path);
+        screenshotFrame_ = 0;
+        screenshotUpdate_ = update;
     }
 
     void IronGangGame::CaptureRequestedScreenshot(Graphics::GraphicsDevice& device)
     {
         ++drawFrameIndex_;
-        if (screenshotPath_.empty() || drawFrameIndex_ != screenshotFrame_)
+        if (screenshotPath_.empty())
+        {
+            return;
+        }
+        // An update-indexed request fires on the first frame drawn at or after that update, since
+        // several updates can run between two draws (and, on a fast renderer, none at all).
+        const bool due = screenshotUpdate_ > 0 ? simulationUpdateIndex_ >= screenshotUpdate_
+                                               : drawFrameIndex_ == screenshotFrame_;
+        if (!due)
         {
             return;
         }

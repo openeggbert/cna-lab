@@ -32,6 +32,7 @@
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/SunLight.hpp"
 #include "IronGang/Graphics/ScreenshotSummary.hpp"
+#include "IronGang/Input/InputScript.hpp"
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -3960,6 +3961,168 @@ namespace
     // passes each cue, and a skip lands on the same cue a full play-through would.
     // plan_30 IG-30-013: the half of screenshot capture that can be tested without a graphics
     // device -- deciding, from pixels alone, whether a frame looks like a rendered scene.
+    // plan_30 IG-30-012: a QA repro case must play back exactly what was recorded, and refuse to
+    // load anything that would silently play back something else.
+    void TestInputScriptRecordsSparselyAndReplaysExactly()
+    {
+        const auto held = [](std::initializer_list<IronGang::GameAction> actions) {
+            IronGang::HeldActions state{};
+            for (IronGang::GameAction action : actions)
+            {
+                state[static_cast<std::size_t>(action)] = true;
+            }
+            return state;
+        };
+
+        IronGang::InputScriptRecorder recorder("round_trip");
+        recorder.Record(IronGang::HeldActions{});                              // update 0
+        recorder.Record(IronGang::HeldActions{});                              // update 1
+        recorder.Record(IronGang::HeldActions{});                              // update 2
+        recorder.Record(held({IronGang::GameAction::Confirm}));                // update 3
+        recorder.Record(held({IronGang::GameAction::Confirm}));                // update 4
+        recorder.Record(held({IronGang::GameAction::Confirm,
+                              IronGang::GameAction::MoveForward}));            // update 5
+        recorder.Record(IronGang::HeldActions{});                              // update 6
+
+        Require(recorder.GetUpdateCount() == 7, "every update must be counted");
+        // Sparse: four changes, not seven updates. Two identical updates in a row cost nothing.
+        Require(recorder.GetSteps().size() == 4,
+                "only changes may be recorded, got " + std::to_string(recorder.GetSteps().size()));
+        Require(recorder.GetSteps()[1].update == 3, "the first Confirm must be recorded at update 3");
+
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_script.json";
+        std::string error;
+        Require(recorder.Save(path.string(), error), "the script must be written: " + error);
+
+        IronGang::InputScript script;
+        Require(script.LoadFromFile(path.string(), error), "the script must load back: " + error);
+        Require(script.GetId() == "round_trip", "the id must round-trip");
+        Require(script.GetStepCount() == 4, "the step count must round-trip");
+        Require(script.GetLastUpdate() == 6, "the last update must round-trip");
+
+        // Replay the whole thing and compare against what was fed in, update by update.
+        const IronGang::HeldActions expected[7] = {
+            {}, {}, {},
+            held({IronGang::GameAction::Confirm}),
+            held({IronGang::GameAction::Confirm}),
+            held({IronGang::GameAction::Confirm, IronGang::GameAction::MoveForward}),
+            {},
+        };
+        script.Rewind();
+        for (int update = 0; update < 7; ++update)
+        {
+            script.Advance();
+            Require(script.GetUpdateIndex() == update, "playback must step one update at a time");
+            for (std::size_t action = 0; action < IronGang::kGameActionCount; ++action)
+            {
+                Require(script.IsDown(static_cast<IronGang::GameAction>(action)) == expected[update][action],
+                        "update " + std::to_string(update) + " must replay exactly what was recorded");
+            }
+        }
+
+        // Edge-triggered, like the game's own WasPressed: held for three updates, pressed once.
+        script.Rewind();
+        int confirmPresses = 0;
+        for (int update = 0; update < 7; ++update)
+        {
+            script.Advance();
+            if (script.WasPressed(IronGang::GameAction::Confirm))
+            {
+                ++confirmPresses;
+                Require(update == 3, "Confirm must read as pressed on the update it goes down");
+            }
+        }
+        Require(confirmPresses == 1,
+                "an action held across updates must press exactly once, got " + std::to_string(confirmPresses));
+
+        Require(!script.IsFinished(), "sanity: update 6 is the last step, not past it");
+        script.Advance();
+        Require(script.IsFinished(), "playback must report finishing once it passes the last step");
+
+        // An empty recorder writes nothing rather than a file that plays back nothing.
+        const IronGang::InputScriptRecorder empty("empty");
+        Require(!empty.Save(path.string(), error), "an empty recording must be refused");
+
+        std::filesystem::remove(path);
+    }
+
+    void TestInputScriptRejectsUnusableRepros()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bad_script.json";
+        std::string error;
+        IronGang::InputScript script;
+
+        WriteTempJson(path, R"JSON({"id":"a","version":99,"steps":[{"update":0,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "an unsupported version must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[]})JSON");
+        Require(!script.LoadFromFile(path.string(), error),
+                "a script with no steps would play back nothing and must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"","version":1,"steps":[{"update":0,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "an empty id must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[
+            {"update":5,"held":[]},{"update":2,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error),
+                "steps out of ascending update order must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[
+            {"update":2,"held":[]},{"update":2,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "duplicate update indices must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[{"update":-1,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "a negative update index must be rejected");
+
+        // The reason a script names actions rather than keys: a renamed action is caught here.
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[{"update":0,"held":["fly"]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "an unknown action id must be rejected");
+        Require(error.find("fly") != std::string::npos,
+                "the error must name the unknown action: " + error);
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[{"update":0}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "a step with no \"held\" must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"steps":[{"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "a step with no \"update\" must be rejected");
+
+        WriteTempJson(path, R"JSON({"id":"a","version":1,"tempo":2,"steps":[{"update":0,"held":[]}]})JSON");
+        Require(!script.LoadFromFile(path.string(), error), "an unknown top-level field must be rejected");
+
+        Require(!script.LoadFromFile(path.string() + ".missing", error),
+                "a missing file must be rejected, not crash");
+
+        std::filesystem::remove(path);
+    }
+
+    // The repro case committed alongside the tests must stay loadable and stay meaningful.
+    void TestCommittedPrologueReproScriptIsUsable()
+    {
+        IronGang::InputScript script;
+        std::string error;
+        Require(script.LoadFromFile(std::string(IRON_GANG_SOURCE_ROOT) +
+                                        "/tests/input-scripts/prologue_opening.inputscript.json",
+                                    error),
+                "the committed prologue repro must load: " + error);
+        Require(script.GetId() == "prologue_opening", "the committed repro must keep its id");
+
+        // It has to actually press Confirm and Interact, or it stops being the repro it claims to
+        // be the moment someone edits it.
+        script.Rewind();
+        int confirms = 0;
+        int interacts = 0;
+        for (int update = 0; update <= script.GetLastUpdate(); ++update)
+        {
+            script.Advance();
+            confirms += script.WasPressed(IronGang::GameAction::Confirm) ? 1 : 0;
+            interacts += script.WasPressed(IronGang::GameAction::Interact) ? 1 : 0;
+        }
+        Require(confirms == 3,
+                "the repro must press Confirm three times (skip the cutscene, then two dialogue "
+                "lines), got " + std::to_string(confirms));
+        Require(interacts == 1, "the repro must press Interact once, to enter the sedan");
+    }
+
     void TestScreenshotSummaryDescribesAFrame()
     {
         constexpr int kWidth = 40;
@@ -5167,6 +5330,9 @@ int main()
         TestMissionVariablesSurviveSaveLoad();
         TestCutscenePlayerAdvancesAndFinishes();
         TestCutscenePlayerSkipAppliesTerminalState();
+        TestInputScriptRecordsSparselyAndReplaysExactly();
+        TestInputScriptRejectsUnusableRepros();
+        TestCommittedPrologueReproScriptIsUsable();
         TestScreenshotSummaryDescribesAFrame();
         TestScreenshotSummaryDigestAndSidecar();
         TestCutsceneDialogueTrackSelectsLinesOverTime();

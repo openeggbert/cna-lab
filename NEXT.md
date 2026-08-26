@@ -98,6 +98,42 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The first automated run that presses a key (plan_30)
+
+No automated run had ever pressed a key. `--smoke` renders frames and ticks the world, but every
+input-driven path -- advancing dialogue, skipping a cutscene, pressing E to get into the sedan --
+was reachable only by unit tests calling the systems directly.
+
+`--play-input` / `--record-input` add deterministic input scripts. Three decisions carry it:
+
+- **Steps name actions, not keys** (`"confirm"`, not `"Enter"`), reusing the settings file's own ids.
+  A rebind would otherwise silently turn every recorded repro into a different one.
+- **Steps are keyed on the simulation update, not the draw frame.** The fixed 60 Hz step is the same
+  everywhere; draw frames are ~6/s under the software renderer and hundreds on a GPU.
+  `--screenshot-update <n>` was added for the same reason, so a capture pins to a scripted moment.
+- **Playback replaces the keyboard**, never merges with it. A repro a stray keypress could alter is
+  not a repro. Injection is at `IsDown`/`WasPressed`, which every input path already went through.
+
+Recording is sparse -- an input-free run records one step, not one per update. With no `--smoke`,
+the run ends when the script does.
+
+**The work exposed a defect in itself.** The first end-to-end run logged "input script finished;
+exiting" **ten times**: `Exit()` only asks CNA to stop, so the updates already in flight re-requested
+it every update. Guarded, and the test now asserts the count is exactly one -- the weaker "the line
+appears" assertion had passed the whole time the bug existed.
+
+`tests/input-scripts/prologue_opening.inputscript.json` is the committed repro: skip the cutscene,
+walk to the sedan, get in. It is **the first end-to-end verification of the Confirm-skips-cutscene
+path**, unverified since the cutscene was written. Screenshots pinned to updates 250 and 480 show
+the on-foot HUD next to the sedan and the driving HUD from the vehicle camera -- the input-context
+switch, the objective text, the enter-vehicle transition and the driving camera, none previously
+seen.
+
+Closed `IG-30-012`. Verified: CTest 14/14 (a new end-to-end target), three new unit tests with
+eleven rejection cases among them, and a mutation check -- making playback ignore scripted presses
+fails with "the repro never reached the line 'No heroics'". Not done: no mouse or gamepad recording,
+because the game has no such input path.
+
 ### The first frames anyone has looked at (plan_30)
 
 Every visual claim in `docs/validation.md` ends with "no display in this environment". That was
@@ -385,7 +421,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 286/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 287/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
@@ -2276,13 +2312,16 @@ not verified" above. Camera offsets, body-mesh offset, Jolt's default vehicle tu
 screen (behind the map at roughly `(0,0.5,-47)`), the skinned test character's look/scale/
 Idle-Walk switching (walk forward and watch the legs alternate), the Dialogue pose, walking up to
 the sedan and pressing E to watch the enter/exit animation and `playerDriving_` handoff, and —
-**especially** — the new intro cutscene's camera pan are all unverified interactively. (Enter no
-longer needs dialogue to have finished: since 2026-08-26 Confirm during a cutscene always skips it.)
+**especially** — the new intro cutscene's camera pan are all unverified in motion. (Enter no longer
+needs dialogue to have finished: since 2026-08-26 Confirm during a cutscene always skips it, and
+`tests/input-scripts/prologue_opening.inputscript.json` exercises that path end to end.)
 
 **This list is shorter than it was.** As of 2026-08-26 the renderer can be looked at without a
-display — see `docs/screenshots.md` and use `--screenshot`. The camera framing, the cutscene
-hand-off, the HUD, the subtitle, and the world geometry have now been checked by actually seeing
-them. What a still frame cannot show — animation blending, the enter/exit clip, the loading screen's
+display — see `docs/screenshots.md` and use `--screenshot` — and the game can be *driven* without a
+keyboard, see `docs/input-scripts.md` and use `--play-input`. Together they reach any state a player
+could and capture it: the camera framing, the cutscene hand-off, the on-foot and driving HUDs, the
+enter-vehicle transition, the subtitle, and the world geometry have now been checked by actually
+seeing them. What a still frame cannot show — animation blending, the enter/exit clip, the loading screen's
 timing, anything in motion, and how a real GPU backend differs from the software renderer — is what
 genuinely still needs a display.
 

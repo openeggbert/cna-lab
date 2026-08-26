@@ -81,6 +81,10 @@ int main(int argc, char* argv[])
         int smokeFrames = -1;
         std::string screenshotPath;
         int screenshotFrame = 1;
+        int screenshotUpdate = 0;
+        std::string playInputPath;
+        std::string recordInputPath;
+        std::string recordInputId = "recorded";
         std::optional<IronGang::LogSeverity> logSeverity;
 
         for (int index = 1; index < argc; ++index)
@@ -105,6 +109,31 @@ int main(int argc, char* argv[])
             else if (argument == "--screenshot" && index + 1 < argc)
             {
                 screenshotPath = argv[++index];
+            }
+            else if (argument == "--screenshot-update" && index + 1 < argc)
+            {
+                const std::string value = argv[++index];
+                if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
+                {
+                    throw std::invalid_argument("--screenshot-update requires a positive update number");
+                }
+                screenshotUpdate = std::stoi(value);
+                if (screenshotUpdate < 1)
+                {
+                    throw std::invalid_argument("--screenshot-update requires a positive update number");
+                }
+            }
+            else if (argument == "--play-input" && index + 1 < argc)
+            {
+                playInputPath = argv[++index];
+            }
+            else if (argument == "--record-input" && index + 1 < argc)
+            {
+                recordInputPath = argv[++index];
+            }
+            else if (argument == "--record-input-id" && index + 1 < argc)
+            {
+                recordInputId = argv[++index];
             }
             else if (argument == "--screenshot-frame" && index + 1 < argc)
             {
@@ -162,6 +191,10 @@ int main(int argc, char* argv[])
                     << "  --profile-scenario <name>  intro, idle, walk, drive, mixed, or mission\n"
                     << "  --screenshot <path>  Write one frame as a PNG (plus a summary sidecar)\n"
                     << "  --screenshot-frame <n>  Which draw frame to capture (1-based, default 1)\n"
+                    << "  --screenshot-update <n>  Capture at a simulation update instead of a draw frame\n"
+                    << "  --play-input <path>  Replay a recorded input script instead of the keyboard\n"
+                    << "  --record-input <path>  Record the keyboard as an input script\n"
+                    << "  --record-input-id <id>  Name the recorded script (default \"recorded\")\n"
                     << "  --vsync on|off  Request synchronized or immediate presentation\n"
                     << "  --log-level <name>  debug, info, warning, or error (overrides game.json)\n";
                 return 0;
@@ -173,6 +206,22 @@ int main(int argc, char* argv[])
             else if (argument == "--screenshot")
             {
                 throw std::invalid_argument("--screenshot requires an output path");
+            }
+            else if (argument == "--screenshot-update")
+            {
+                throw std::invalid_argument("--screenshot-update requires a positive update number");
+            }
+            else if (argument == "--play-input")
+            {
+                throw std::invalid_argument("--play-input requires an input script path");
+            }
+            else if (argument == "--record-input")
+            {
+                throw std::invalid_argument("--record-input requires an output path");
+            }
+            else if (argument == "--record-input-id")
+            {
+                throw std::invalid_argument("--record-input-id requires a name");
             }
             else if (argument == "--screenshot-frame")
             {
@@ -193,14 +242,41 @@ int main(int argc, char* argv[])
         {
             game.SetLogSeverityOverride(*logSeverity);
         }
+        if (!playInputPath.empty() && !recordInputPath.empty())
+        {
+            throw std::invalid_argument("--play-input and --record-input cannot be used together");
+        }
+        if (!playInputPath.empty())
+        {
+            std::string scriptError;
+            if (!game.PlayInputScript(playInputPath, scriptError))
+            {
+                std::cerr << scriptError << '\n';
+                return 1;
+            }
+            // Without --smoke, the script's own length bounds the run. That is what makes a repro
+            // case reproducible: it is written in updates, and it ends when those updates run out.
+            game.SetInputScriptExitsOnFinish(smokeFrames <= 0);
+        }
+        if (!recordInputPath.empty())
+        {
+            game.RecordInputScript(recordInputPath, recordInputId);
+        }
         game.SetSmokeFrames(smokeFrames);
         if (!screenshotPath.empty())
         {
-            game.RequestScreenshot(screenshotPath, screenshotFrame);
+            if (screenshotUpdate > 0)
+            {
+                game.RequestScreenshotAtUpdate(screenshotPath, screenshotUpdate);
+            }
+            else
+            {
+                game.RequestScreenshot(screenshotPath, screenshotFrame);
+            }
         }
-        else if (screenshotFrame != 1)
+        else if (screenshotFrame != 1 || screenshotUpdate > 0)
         {
-            throw std::invalid_argument("--screenshot-frame requires --screenshot");
+            throw std::invalid_argument("--screenshot-frame and --screenshot-update require --screenshot");
         }
         game.SetVerticalSync(verticalSync);
         if (!profilePath.empty())
@@ -216,6 +292,12 @@ int main(int argc, char* argv[])
             game.SetPerformanceScenario(*profileScenario);
         }
         game.Run();
+        std::string recordingError;
+        if (!game.WriteInputRecording(recordingError))
+        {
+            std::cerr << recordingError << '\n';
+            return 1;
+        }
         std::string reportError;
         if (!game.WritePerformanceReport(reportError))
         {

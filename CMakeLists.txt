@@ -129,6 +129,7 @@ add_library(iron_gang_core STATIC
     src/Dialogue/DialogueSystem.cpp
     src/Gameplay/InputContext.cpp
     src/Input/InputBindings.cpp
+    src/Input/InputScript.cpp
     src/Gameplay/LaneClearance.cpp
     src/Gameplay/Locomotion.cpp
     src/Gameplay/Pedestrian.cpp
@@ -305,12 +306,26 @@ if(IRON_GANG_BUILD_TESTS)
     # assets/missions/prologue.mission.json (not just a hand-written test fixture), matching
     # iron_gang's own IRON_GANG_DEFAULT_ASSET_DIR convention.
     target_compile_definitions(iron_gang_core_tests PRIVATE
-        IRON_GANG_SOURCE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
+        IRON_GANG_SOURCE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        # plan_30 IG-30-012: QA repro scripts are test fixtures, not shipped content, so they live
+        # under tests/ rather than assets/ and need the source root rather than the asset root.
+        IRON_GANG_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(iron_gang_core_tests PRIVATE iron_gang_core)
     iron_gang_apply_warnings(iron_gang_core_tests)
     add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # plan_30 IG-30-012: the first test in this repository that presses a key. Runs the committed
+    # QA repro script through the real binary.
+    add_test(NAME iron_gang_input_script_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_input_script.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_input_script_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        TIMEOUT 900)
 
     # plan_30 IG-30-013: the first test in this repository that looks at a rendered frame. The
     # software renderer needs no display, so this runs anywhere the game builds.

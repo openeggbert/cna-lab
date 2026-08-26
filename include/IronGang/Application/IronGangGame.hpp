@@ -12,6 +12,7 @@
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
+#include "IronGang/Input/InputScript.hpp"
 #include "IronGang/Graphics/GpuFrameTimer.hpp"
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 #include "IronGang/Missions/CampaignDefinition.hpp"
@@ -65,6 +66,21 @@ namespace IronGang
         // "<path>.summary.json" sidecar, then carry on. A capture failure is logged, never fatal --
         // a diagnostic must not be able to take the game down with it.
         void RequestScreenshot(std::string path, int frame);
+        // Capture at a **simulation update** instead of a draw frame. Draw frames are the
+        // nondeterministic axis -- how many a run produces depends on how fast it renders -- while
+        // updates are the fixed 60 Hz step an input script is written in. Pairing this with
+        // --play-input is the only way to screenshot a specific, reproducible moment.
+        void RequestScreenshotAtUpdate(std::string path, int update);
+        // plan_30 IG-30-012: play a recorded QA repro case instead of the keyboard. Returns false
+        // with @p errorMessage set if the script will not load -- a repro that silently runs as an
+        // idle session is worse than one that refuses to start.
+        [[nodiscard]] bool PlayInputScript(const std::string& path, std::string& errorMessage);
+        // Record what the keyboard does, and write it on exit. @p id names the repro case.
+        void RecordInputScript(std::string path, std::string id);
+        // With no --smoke bound, playback ends the run when the script does, so a repro case's
+        // length is measured in the updates it was written in rather than guessed in draw frames.
+        void SetInputScriptExitsOnFinish(bool enabled) noexcept { inputScriptExitsOnFinish_ = enabled; }
+        [[nodiscard]] bool WriteInputRecording(std::string& errorMessage);
         void SetPerformanceScenario(PerformanceScenario scenario) noexcept { performanceScenario_ = scenario; }
         [[nodiscard]] bool WritePerformanceReport(std::string& error) const;
 
@@ -87,6 +103,7 @@ namespace IronGang
                                       GameAction action) const;
         void HandleInteraction();
         void CaptureRequestedScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
+        void AdvanceInputScript(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
         // plan_26 IG-26-010: applies the cutscene's dialogue track to the conversation, at most
         // once per cue.
         void ApplyCutsceneDialogueCue();
@@ -259,8 +276,15 @@ namespace IronGang
         std::unique_ptr<GpuFrameTimer> gpuFrameTimer_;
         std::string performanceReportPath_;
         std::string screenshotPath_;
+        std::optional<InputScript> inputScript_;
+        std::optional<InputScriptRecorder> inputRecorder_;
+        std::string inputRecordingPath_;
+        bool inputScriptExitsOnFinish_{false};
+        bool inputScriptExitRequested_{false};
         int screenshotFrame_{0};
+        int screenshotUpdate_{0};
         int drawFrameIndex_{0};
+        int simulationUpdateIndex_{0};
         double pendingDistrictWorldPhysicsMilliseconds_{0.0};
         std::uint64_t pendingDistrictResidentBytesBefore_{0};
         std::uint64_t pendingDistrictVideoMemoryBytesBefore_{0};

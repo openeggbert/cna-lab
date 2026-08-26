@@ -1867,6 +1867,72 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## The first automated run that presses a key (2026-08-26)
+
+plan_30 `IG-30-012` closed. Gates M12 and M14 untouched. `docs/input-scripts.md` is the how-to.
+
+**The gap.** No automated run in this repository had ever pressed a key. `--smoke` renders frames
+and ticks the world, but every input-driven path -- advancing dialogue, skipping a cutscene,
+pressing E to enter the sedan -- was reachable only by unit tests calling the systems directly.
+This file has said so under "Not verified" every time one of those paths shipped.
+
+**What was added.** `InputScript`/`InputScriptRecorder` (`include/IronGang/Input/InputScript.hpp`,
+`src/Input/InputScript.cpp`) plus `--play-input`, `--record-input`, `--record-input-id`, and
+`--screenshot-update`. Three design decisions carry the whole thing:
+
+- **Steps name actions, not keys** (`"confirm"`, not `"Enter"`), using the same ids the settings
+  file already uses. Rebinding a key would otherwise silently turn every recorded repro into a
+  different one; an id that no longer exists now fails the load instead.
+- **Steps are keyed on the simulation update, not the draw frame.** The fixed 60 Hz step is
+  identical everywhere; how many frames a run draws is not -- roughly six a second with the
+  software renderer, hundreds with a GPU. `--screenshot-update <n>` was added for the same reason,
+  so a capture can be pinned to a scripted moment rather than to whatever frame N happened to be.
+- **Playback replaces the keyboard rather than merging with it.** A repro a stray keypress could
+  alter is not a repro. Injection is at `IronGangGame::IsDown`/`WasPressed`, the two functions every
+  input path already went through, so nothing had to be restructured.
+
+Recording is sparse -- one step per change -- so an input-free run records one step, not one per
+update. With no `--smoke` bound, playback ends the run when the script does, which is what makes a
+repro's length reproducible.
+
+**A defect the work exposed in itself.** The first end-to-end run logged
+`input script "prologue_opening" finished; exiting` **ten times**. `Exit()` only asks CNA to stop,
+so the updates already in flight re-requested it every update. Guarded with
+`inputScriptExitRequested_`, and the test now asserts the count is exactly one rather than merely
+that the line appears -- the weaker assertion passed the whole time the bug existed.
+
+**Verified.** `TestInputScriptRecordsSparselyAndReplaysExactly` (seven updates recorded as four
+sparse steps; a full round trip through the file compared update by update against what was fed in;
+an action held across three updates reading as pressed exactly once, on the update it goes down; an
+empty recorder refusing to write), `TestInputScriptRejectsUnusableRepros` (eleven rejection cases --
+unsupported version, no steps, empty id, descending and duplicate update order, negative index,
+unknown action id with the id named in the error, missing `update`, missing `held`, unknown
+top-level field, missing file), and `TestCommittedPrologueReproScriptIsUsable` (the committed repro
+must keep pressing Confirm three times and Interact once, or it stops being the repro it claims to
+be).
+
+New CTest `iron_gang_input_script_tests` runs the real binary four ways: the committed repro, which
+must reach all three dialogue lines and the transitions `introduction -> reach_vehicle ->
+enter_vehicle -> drive_to_warehouse`; a screenshot pinned to update 480, which must land after the
+player is driving; a record-then-play round trip through the binary's own output; and seven
+malformed argument combinations. 14 CTest targets, all passing, up from 13. The suite takes 77 s.
+
+**Mutation-checked.** Making playback ignore scripted presses (`WasPressed` falling through to the
+real keyboard) fails with `'enter_vehicle -> drive_to_warehouse' not found` and
+`the repro never reached the line 'No heroics'`.
+
+**What this finally verified.** The Confirm-skips-the-cutscene path, listed as unverified since the
+cutscene was written, now runs end to end in CI. Two screenshots pinned to scripted updates show the
+on-foot HUD reading `Objective: Press E to enter the sedan` beside the sedan (update 250) and the
+driving HUD reading `Driving | Objective: Drive into the green warehouse marker`, `0 km/h`,
+`Entering sedan` from the vehicle camera (update 480) -- the input context switch, the objective
+text, the enter-vehicle transition, and the driving camera, none of which had ever been seen.
+
+**Not verified.** No mouse or gamepad input is recorded, because the game has no such input path.
+Playback is deterministic in *what happens at update N*, not in how many updates a wall-clock second
+contains -- a run that stalls does fewer updates, not different ones. Nothing here says the sequence
+looks right in motion; the two screenshots are stills.
+
 ## The first frames anyone has looked at (2026-08-26)
 
 plan_30 `IG-30-013` closed. Gates M12 and M14 untouched. The full record of what the captured

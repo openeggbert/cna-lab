@@ -27,6 +27,22 @@ SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy \
 `--smoke` must run at least as many frames as `--screenshot-frame`, or nothing is captured. Roughly:
 one draw frame is one 60 Hz simulation step, so frame 300 is about five seconds into the game.
 
+## Pinning a capture to a reproducible moment
+
+`--screenshot-frame` counts **draw frames**, which is the nondeterministic axis. To capture a
+specific moment, use `--screenshot-update <n>` together with a recorded input script — both are
+keyed on the fixed 60 Hz simulation update:
+
+```bash
+SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy \
+  ./cmake-build-compile-software/iron_gang \
+    --play-input tests/input-scripts/prologue_opening.inputscript.json \
+    --screenshot driving.png --screenshot-update 480
+```
+
+That run skips the cutscene, walks the player to the sedan, enters it, and captures the frame drawn
+at or after update 480 — the same moment on any machine. See `docs/input-scripts.md`.
+
 ## What comes out
 
 Two files. `frame.png`, and `frame.png.summary.json` beside it:
