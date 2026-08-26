@@ -15,13 +15,20 @@ use a ROM, TamaLIB, or another emulator as an implementation dependency or
 test oracle; evidence comes from public manuals, documented historical sources,
 and reproducible observations.
 
+**Policy change (2026-08-26):** tamagotchi-cna is now a free reimplementation,
+not a pixel/timing-verified clone. The confidence-status framework below is
+kept for historical entries and for noting a rule's inspiration, but a
+"Provisional" or "Open" item is no longer blocked from shipping — it may be
+implemented from reasonable judgement, the manual, and community guides.
+TamaTool may still be launched occasionally as an informal spot-check, but a
+captured target-device trace is no longer required to call something done.
+
 Each entry has a confidence status:
 
 - **Verified** — stated in a primary P1 manual or reproduced by a captured
-  target-device trace.
-- **Provisional** — supported by a secondary historical source and awaiting a
-  target-device trace or primary period material.
-- **Open** — do not make a fidelity claim until captured.
+  target-device trace (historical entries; no longer required going forward).
+- **Provisional** — supported by a secondary historical source; may ship as-is.
+- **Open** — not yet implemented or sourced; free to author from judgement.
 
 ## Primary reference
 

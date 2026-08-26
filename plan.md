@@ -2,13 +2,16 @@
 
 ## Fixed target
 
-The game is an unofficial, as-faithful-as-practical reimplementation of the
-**international 1997 Tamagotchi Generation 1 (P1)** programme. It is not a
-P1/P2 hybrid and it does not target a Japanese original or a modern reissue.
-See [analysis.md](analysis.md) for the exact scope, legal boundary, and rule
-capture method. The engine is data-driven: P1 is its first and only active
-programme package, so a future P2 package can reuse the engine instead of
-copying it.
+The game is an unofficial **free reimplementation** of the international 1997
+Tamagotchi Generation 1 (P1) programme — recognisably the same game, not a
+pixel/timing-verified clone. It is not a P1/P2 hybrid and it does not target a
+Japanese original or a modern reissue. See [analysis.md](analysis.md) for the
+scope, legal boundary, and the relaxed (2026-08-26) rule capture method: the
+extended TamaTool capture campaign is retired, and the reference is now the
+manual, community documentation, and occasional informal spot-checks rather
+than mandatory captured device traces. The engine is data-driven: P1 is its
+first and only active programme package, so a future P2 package can reuse the
+engine instead of copying it.
 
 This is a clean behavioural implementation: no original ROM, TamaLIB, or
 similar emulation core is permitted in the application, build, or test suite.
@@ -203,8 +206,9 @@ similar emulation core is permitted in the application, build, or test suite.
 ## Immediate next task
 
 Follow the ordered visual and behaviour backlog in [next.md](next.md). Next,
-capture and transcribe the first teen home form, Tamatchi, without borrowing
-Marutchi geometry. The explicit-frame renderer now covers verified egg,
-Babytchi, and awake/sleeping Marutchi paths, but the remaining provisional
-character redraws and care-action animations still need a frame-by-frame
-comparison before they can be described as exact.
+author the first teen home form, Tamatchi, without borrowing Marutchi
+geometry — a captured device trace is no longer required (see the
+2026-08-26 free-reimplementation policy in [analysis.md](analysis.md)). The
+explicit-frame renderer now covers the egg, Babytchi, and awake/sleeping
+Marutchi paths; the remaining provisional character redraws and care-action
+animations can be authored freely, one at a time.

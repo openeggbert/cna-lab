@@ -29,10 +29,16 @@ needs permission from the relevant rightsholders.
 
 ## Reference specification
 
-The implementation reference is the 1997 international P1 instruction manual,
-supported by period P1 documentation and direct observation of the target
-programme. Every rule implemented as “faithful” must be recorded in a
-source-backed specification ledger and verified by a deterministic test trace.
+**Policy change (2026-08-26):** `tamagotchi-cna` is now a free reimplementation,
+not a pixel/timing-verified clone. The extended TamaTool-based capture
+campaign (screen-by-screen transcription, hours of unattended reference growth
+runs) is retired as a required step. The primary references are the 1997
+international P1 instruction manual and period P1 documentation; TamaTool may
+still be launched occasionally as a quick, informal spot-check (e.g. glancing
+at the clock or Health Meter screen) to keep the result recognisably close to
+the original, but no rule or sprite needs a captured trace before it ships.
+Already-captured facts in `docs/p1-specification.md` remain useful and are not
+invalidated by this change; they simply stop being a precondition for new work.
 
 | Area | International P1 target |
 | --- | --- |
@@ -53,7 +59,9 @@ slightly different play patterns even though their core care loop is shared.
 
 ## Required fidelity
 
-The final programme must reproduce these player-visible properties:
+The final programme should closely resemble these player-visible properties —
+recognisably the same game, not necessarily pixel- or timing-identical to the
+original device:
 
 - the international P1 roster and its one fixed evolution tree: Babytchi →
   Marutchi → Tamatchi or Kuchitamatchi → Mametchi, Ginjirotchi, Maskutchi,
@@ -76,20 +84,16 @@ confirmation to prevent accidental loss, corrupt-save recovery, and backup
 archives. They must not change simulated P1 state or appear as in-device P1
 features.
 
-## Rule-capture method
+## Rule-capture method (relaxed)
 
-Available web guides are useful pointers but not a sufficient authority for
-every timer or evolution condition. Before each rules subsystem is called
-complete, capture it in `docs/p1-specification.md` with:
-
-1. target variant and source or observation;
-2. inputs and elapsed real time;
-3. expected LCD state, sounds, care-mistake count, and persistent state;
-4. an automated domain test that replays the same trace.
-
-This prevents accidental adoption of Japanese P1, P2, or modern-reissue
-behaviour. It also makes disputed details explicit rather than hiding guesses
-inside simulation constants.
+A source-backed ledger entry in `docs/p1-specification.md` is still the right
+place to write down a rule's origin (manual, community guide, or an informal
+TamaTool glance), but it is no longer a gate: a subsystem may ship from web
+guides, the manual, and reasonable judgement alone. Recording the source
+still matters for avoiding accidental Japanese P1 / P2 / modern-reissue
+behaviour and for keeping disputed details visible instead of buried in
+constants — it is just no longer required to be a deterministic replay of a
+captured device trace before the feature can land.
 
 ## Data-driven domain model
 

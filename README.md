@@ -272,7 +272,12 @@ schema migrations remain to be added.
 
 ## Implementation order
 
-1. Capture each P1 rule in the source-backed ledger before calling it faithful.
+tamagotchi-cna is a free reimplementation (policy updated 2026-08-26): rules
+are informed by the manual, community documentation, and occasional informal
+TamaTool spot-checks rather than mandatory captured device traces. See
+[analysis.md](analysis.md) and [plan.md](plan.md) for the current policy.
+
+1. Note each P1 rule's source in the ledger before calling it done.
 2. Replace legacy prototype state and creature lines with the P1 roster and
    four-heart simulation.
 3. Implement the P1 menus, clock, reset outcome, Character game, evolution,

@@ -1,5 +1,19 @@
 # tamagotchi-cna — Next Work
 
+## Policy change (2026-08-26): free reimplementation
+
+The extended TamaTool-based capture campaign is retired. tamagotchi-cna is now
+a **free reimplementation** — recognisably the same game, not a pixel/timing
+-verified clone. Remaining home sprites and action animations may be authored
+from the manual, community documentation, and reasonable judgement without a
+captured device trace. TamaTool may still be launched occasionally as an
+informal spot-check (e.g. glancing at the clock or Health Meter screen) to
+keep the result close to the original, but that is no longer a precondition
+for any item below. Everything already captured (egg, Babytchi, Marutchi,
+waste, Toilet, Light, Medicine, sleep) remains valid and does not need
+redoing; the backlog below should be read with "capture and transcribe"
+downgraded to "author something close, informed by what's already known."
+
 ## Status at the start of this backlog
 
 The active product target is the international English Tamagotchi P1 (1997),
@@ -34,6 +48,47 @@ international P1 package can actually execute.
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.
+
+## Context handoff — 2026-08-26
+
+Today's session was spent almost entirely on an extended attempt to grow a
+reference P1 pet in TamaTool v0.1 up to its first teen form (Tamatchi or
+Kuchitamatchi) for transcription, first under Xvfb and later on the user's
+real desktop (positioned on an otherwise-unused laptop panel, `eDP-1`). It did
+**not** reach a teen — the run kept getting reset by a series of environment
+problems (Xvfb dying unpredictably, the TamaTool window being destroyed and
+recreated with a new X11 id and a different, sometimes non-proportional, scale
+whenever it crossed monitors or the user's own desktop use touched it, and one
+long-lived, genuinely confusing but ultimately harmless recurring visual — a
+Health-Meter-adjacent glyph cluster that repeatedly looked like a "frozen"
+state but was not). None of that produced usable new sprite data, and no
+application code changed today.
+
+**Consequently the project's policy changed (2026-08-26): tamagotchi-cna is
+now a free reimplementation, not a pixel/timing-verified clone.** See the
+policy-change note at the top of this file and in `analysis.md`. Practically:
+stop trying to grow/capture a reference pet through TamaTool for hours at a
+time. A quick, occasional TamaTool glance (a few minutes, actively watched,
+never left to run unattended for a long stretch) is fine as a sanity check,
+but it is not a gate for shipping anything below. Author remaining sprites and
+behaviour from the manual, community documentation (cited in this ledger),
+and judgement.
+
+A separate, unrelated project the user is also running,
+`/rv/data/development/github.com/tamagotchi-disassembled`, is a full P1 ROM
+disassembly (`tama.asm`) with a decompilation effort underway. The user
+decided tamagotchi-cna may use it **only to verify** timing/rules already
+captured by observation — never to derive or port tamagotchi-cna's actual
+implementation from it, since that ROM disassembly is explicitly Bandai's
+copyrighted code (per its own README), and porting/deriving from it would make
+tamagotchi-cna a derivative work rather than a clean-room reimplementation.
+This is a firm boundary, distinct from (and stricter than) the fidelity-policy
+relaxation above.
+
+**Immediate next step:** author Tamatchi's home idle animation (see Priority 1
+item 4 below), then Kuchitamatchi, then the remaining adults and Bill, one at
+a time, each with its own `P1SpriteCatalogTests` coverage — no reference
+capture needed first.
 
 ## Context handoff — 2026-08-24
 
@@ -235,25 +290,28 @@ shell-control path does not mutate P1 state or framebuffer data.
 3. [x] Replace the misclassified sleeping Marutchi body with the complete
    28-phase waste-free awake path, and retain the fixed-origin closed-eye
    silhouettes only in a separate sleeping sequence.
-4. Create a visual-reference ledger for each remaining P1 home form: Tamatchi,
-   Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
-   Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
-5. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
-   count, and the pixel changes between frames. Record uncertainty rather than
-   inventing a source value.
+4. For each remaining P1 home form (Tamatchi, Kuchitamatchi, Mametchi,
+   Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi, Tarakotchi, Bill), author a
+   distinct, recognisable one-bit idle animation informed by the manual and
+   community character references — a captured trace is no longer required.
+5. Give each form a plausible idle-frame count and cell origin/geometry
+   consistent with the already-captured forms (roughly the 16 × 10 cell used
+   by the current provisional forms, or a bespoke bound if the character
+   clearly needs one). Do not invent a claim of exact fidelity.
 6. Replace the provisional redraw of one form at a time with independently
-   written one-bit frame data at its observed bounds. Keep the catalogue free
-   from source-ROM data and make no use of frame translation as animation.
-7. Extend `P1SpriteCatalogTests` for every verified sequence: each phase's rows
-   must share its true observed width, all frames must remain inside the 32 × 16
-   LCD, and the expected geometry and frame differences must be explicit.
-8. Compare the rendered result against the P1 reference at normal LCD scale,
-   not only a magnified bitmap. Verify that the character stays centred within
-   its observed motion range and does not overwrite the physical face-icon bands.
+   written one-bit frame data. Keep the catalogue free from source-ROM data
+   and make no use of frame translation as animation.
+7. Extend `P1SpriteCatalogTests` for every new sequence: each phase's rows
+   must share a consistent width, all frames must remain inside the 32 × 16
+   LCD, and adjacent frames must be genuinely distinct drawings.
+8. Check the rendered result at normal LCD scale (not only a magnified
+   bitmap) for basic sanity: the character stays centred and does not
+   overwrite the physical face-icon bands. An occasional TamaTool glance is a
+   useful sanity check here, not a requirement.
 
-**Acceptance condition:** the entire home roster has reference-compared idle
-frames, with known uncertainty stated in `docs/p1-specification.md`; no form
-uses the previous translated-sprite bobbing behaviour.
+**Acceptance condition:** the entire home roster has a distinct, tested idle
+animation; no form uses the previous translated-sprite bobbing behaviour.
+Exact reference fidelity is not required.
 
 ## Priority 2 — Add P1-specific action and transition visuals
 
@@ -275,11 +333,11 @@ uses the previous translated-sprite bobbing behaviour.
 6. [x] Transcribe Marutchi's complete Medicine recovery as three exact full-LCD
    states in its seven-phase, sixteen-frame order; block input until completion
    and keep all unobserved forms on the fallback path.
-7. Capture separate frame sequences for egg cracking/hatching, eating Bread,
-   eating Candy, Character game play, sleeping for every remaining form,
-   unhappy/refusal, illness,
-   medicine, waste, attention, discipline, evolution, death, and the
-   angel-and-stars ending.
+7. Author distinct frame sequences (not necessarily captured) for egg
+   cracking/hatching, eating Bread, eating Candy, Character game play,
+   sleeping for every remaining form, unhappy/refusal, illness, medicine,
+   waste, attention, discipline, evolution, death, and the angel-and-stars
+   ending.
 8. Add a rendering state key to the programme/UI boundary for the remaining
    actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
@@ -296,20 +354,20 @@ visual sequence instead of text-only feedback or a generic symbol.
 
 ## Priority 3 — Close the remaining P1 behaviour gaps
 
-1. Verify and implement the P1 adult waste cadence, illness triggers,
-   medicine recovery rules, refusal behaviour, neglect/death path, and exact
-   life-span/end transition.
-2. Replace the current wall-clock evolution approximations with verified P1
-stage timing, including sleep and wake boundaries. Preserve deterministic
-offline catch-up without writing a save every minute.
+1. Implement the P1 adult waste cadence, illness triggers, medicine recovery
+   rules, refusal behaviour, neglect/death path, and life-span/end
+   transition, informed by the manual and community documentation.
+2. Replace the current wall-clock evolution approximations with reasonable P1
+   stage timing, including sleep and wake boundaries. Preserve deterministic
+   offline catch-up without writing a save every minute.
 3. Resolve conflicting historical claims about care mistakes and discipline by
-   adding an evidence entry before changing the evolution resolver. Do not
+   noting the source used before changing the evolution resolver. Do not
    silently combine P1 and P2 or modern rerelease rules.
-4. Exercise qualified and rejected traces for all visible P1 adult branches
-   and the Maskutchi → Bill condition.
+4. Exercise traces for all visible P1 adult branches and the Maskutchi → Bill
+   condition, deterministic domain tests, not necessarily device-verified.
 
-**Acceptance condition:** every implemented P1 rule has an evidence label,
-an executable trace, and a stated target revision.
+**Acceptance condition:** every implemented P1 rule states its source and has
+a deterministic domain test; exact device verification is not required.
 
 ## Priority 4 — Validate and document a usable release candidate
 
@@ -317,12 +375,40 @@ an executable trace, and a stated target revision.
    the existing build directory or generate large derived image sets.
 2. Run the domain, persistence, display, sprite-catalogue, controller, and
    smoke tests after each cohesive change.
-3. Update the English user tutorial with screenshots only after the matching
-   visual flow has been reference-compared. Label illustrations honestly until
-   they are exact.
-4. Maintain a concise deviation list in `docs/p1-specification.md` until the
-   reference comparison is complete.
+3. Update the English user tutorial with screenshots once the matching visual
+   flow exists; label illustrations as a free reimplementation, not a claim
+   of exact fidelity.
+4. Maintain a concise deviation list in `docs/p1-specification.md` noting
+   where tamagotchi-cna is known to differ from the original.
 
 **Release condition:** the README, tutorial, P1 specification, and observable
-behaviour all describe the same scope; verified P1 facts are distinguished
-from remaining work; the repository remains ROM-free and emulator-free.
+behaviour all describe the same scope — a free reimplementation, not a
+verified clone; the repository remains ROM-free and emulator-free.
+
+## Priority 5 — Add P1-faithful sound (open)
+
+CNA's `Runtime` component closure already owns an audio module, so square-wave
+tone playback itself is not the hard part. International P1 sound is a
+sequence of short square-wave beeps (piezo speaker), not sampled audio, so a
+`P1SoundCatalog` of `{frequencyHz, durationMs}` sequences per cue (icon
+select, confirm, care actions, calls, evolution, angel ending) is the natural
+data shape, mirroring `P1SpriteCatalog`.
+
+1. No ROM audio, sample, or extracted sound asset may enter the repository —
+   that boundary is unchanged by the free-reimplementation policy. Cue pitch
+   and rhythm may be authored freely (informed by an occasional TamaTool
+   listen if convenient) as explicit frequency/duration data; a captured
+   transcription is not required.
+2. Note each cue's inspiration in `docs/p1-specification.md` briefly; this is
+   for context, not a fidelity gate.
+3. Add a generic sound-cue schema to `ProgramDefinition` (or a sibling
+   sound-package type) so a future P2 package can supply its own cues through
+   the same seam, without hard-coding P1 tones into the shared engine.
+4. Implement deterministic playback tests (cue selection, sequence order,
+   timing) independent of any real audio device, matching the existing
+   display-test pattern.
+5. Respect the existing muted-by-default/sound-toggle behaviour noted under
+   the Clock/A+C control table; do not change that control's meaning.
+
+**Acceptance condition:** every implemented cue has a deterministic playback
+test and uses only independently authored tone data.
