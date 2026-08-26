@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### An audio mix with categories in it (plan_27)
+
+There was one number — `masterVolume` — multiplied into every `Play()` call. That cannot express
+"quieten the engine while someone is talking" or "mute the music but not the sirens", because there
+were no categories.
+
+`AudioBusGraph` adds all seven buses with per-bus volume and mute, and
+`GetEffectiveVolume(bus, requested)` = requested × bus × Master × duck. Deliberately a **one-level**
+graph — every bus routes to Master and the enum *is* the graph; a sub-bus tree is a mixing-desk
+feature and this game has seven categories and one output. Stable ids so a saved mix survives
+renaming the enum.
+
+**Ducking**: while a line is showing, everything except Dialogue, UI and Master drops to 0.35 over a
+ramp — 0.15 s down, 0.40 s back. Asymmetric on purpose: the drop must be in place before the first
+syllable, and returning as fast as it left is what makes short lines pump the mix. UI is exempt
+because a menu click going quiet while someone talks is a bug. "Subtitle synchronization" is met by
+construction — the duck reads exactly the condition the subtitle is drawn from.
+
+**A wiring fault the design forced into the open.** The engine loop's volume is recomputed only
+inside `if (!dialogue_.IsActive() && ...)`, so the duck would never have reached the engine *during
+dialogue* — the one case it exists for. It is now re-applied from a stored pre-bus level every
+update, outside that gate.
+
+Closed `IG-27-001`, `IG-27-004`, `IG-27-026`, `IG-27-027`. Verified: CTest 15/15, two new tests, two
+mutation checks. **Not verified: nothing was listened to** — the audio driver here is a dummy, so
+every claim is about computed gain, not sound. Per-bus levels are runtime-only (`UserSettings` still
+stores just a master volume), and Music/Ambience are defined but have no source to route yet.
+
 ### Telling the player what a spot affords (plan_16)
 
 The only hint that the sedan could be entered was the mission objective, and the only feedback for
@@ -572,7 +600,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 291/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 295/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

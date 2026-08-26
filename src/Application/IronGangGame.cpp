@@ -1283,7 +1283,7 @@ namespace IronGang
                 settings_.masterVolume = static_cast<float>((step + 1) % 5) * 0.25F;
                 if (engineSoundInstance_)
                 {
-                    engineSoundInstance_->setVolumeProperty(EffectiveVolume(0.4F));
+                    engineSoundInstance_->setVolumeProperty(EffectiveVolume(AudioBus::Vehicle, 0.4F));
                 }
                 PersistSettings();
                 break;
@@ -1463,9 +1463,9 @@ namespace IronGang
         }
     }
 
-    float IronGangGame::EffectiveVolume(float requestedVolume) const
+    float IronGangGame::EffectiveVolume(AudioBus bus, float requestedVolume) const
     {
-        return std::clamp(requestedVolume * settings_.masterVolume, 0.0F, 1.0F);
+        return audioBuses_.GetEffectiveVolume(bus, requestedVolume);
     }
 
     void IronGangGame::Update(GameTime& gameTime)
@@ -1510,6 +1510,20 @@ namespace IronGang
         // next scripted update, recording captures this one.
         AdvanceInputScript(keyboard);
         ++simulationUpdateIndex_;
+
+        // plan_27 IG-27-001/004: the settings slider is the Master bus, and dialogue ducks
+        // everything that is not dialogue or UI. Both are read here, once per update, so the mix
+        // is a consequence of game state rather than something each Play() call has to remember.
+        audioBuses_.SetVolume(AudioBus::Master, settings_.masterVolume);
+        audioBuses_.SetDialogueActive(dialogue_.GetCurrentLine() != nullptr);
+        audioBuses_.Update(deltaSeconds);
+        if (engineSoundInstance_)
+        {
+            // Outside the "world is advancing" gate on purpose: the engine loop's level is only
+            // recomputed while driving, so without this the duck would never reach it during the
+            // one situation it exists for -- someone talking.
+            engineSoundInstance_->setVolumeProperty(EffectiveVolume(AudioBus::Vehicle, engineRequestedVolume_));
+        }
         // Everything below this line that moves the world uses simulationSeconds; the HUD, the
         // window title, and input keep running on the real frame delta, which is why a paused game
         // still redraws and still listens.
@@ -1660,7 +1674,7 @@ namespace IronGang
             measureAudio([&]()
             {
                 ++audioWorkload.oneShotPlayRequests;
-                if (hornSound_->Play(EffectiveVolume(1.0F), 0.0F, 0.0F))
+                if (hornSound_->Play(EffectiveVolume(AudioBus::Vehicle, 1.0F), 0.0F, 0.0F))
                 {
                     ++audioWorkload.oneShotPlaySuccesses;
                 }
@@ -1753,7 +1767,7 @@ namespace IronGang
                             {
                                 footstepTimer_ -= kFootstepIntervalSeconds;
                                 ++audioWorkload.oneShotPlayRequests;
-                                if (footstepSound_->Play(EffectiveVolume(1.0F), 0.0F, 0.0F))
+                                if (footstepSound_->Play(EffectiveVolume(AudioBus::Effects, 1.0F), 0.0F, 0.0F))
                                 {
                                     ++audioWorkload.oneShotPlaySuccesses;
                                 }
@@ -1788,7 +1802,9 @@ namespace IronGang
                             engineSoundInstance_->Play();
                         }
                         const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
-                        engineSoundInstance_->setVolumeProperty(EffectiveVolume(0.4F + 0.4F * speedFactor));
+                        engineRequestedVolume_ = 0.4F + 0.4F * speedFactor;
+                        engineSoundInstance_->setVolumeProperty(
+                            EffectiveVolume(AudioBus::Vehicle, engineRequestedVolume_));
                         engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
                         audioWorkload.loopParameterUpdates += 2U;
                     }

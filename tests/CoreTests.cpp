@@ -1,5 +1,6 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
+#include "IronGang/Audio/AudioBuses.hpp"
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/JsonDataFile.hpp"
 #include "IronGang/Core/Log.hpp"
@@ -4521,6 +4522,139 @@ namespace
     // with a building at your back puts it inside the building. It must be pulled in instead.
     // plan_16 IG-16-004: which affordance is offered, and the hysteresis that stops two nearby
     // ones trading the prompt every frame.
+    // plan_27 IG-27-001/026/027: the bus graph every sound plays through.
+    void TestAudioBusGraphMixing()
+    {
+        IronGang::AudioBusGraph buses;
+
+        // Untouched, a bus is transparent: what a sound asks for is what it gets.
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Vehicle, 0.7F) - 0.7F) < 1e-5F,
+                "a fresh graph must not change a requested volume");
+
+        // Master scales everything...
+        buses.SetVolume(IronGang::AudioBus::Master, 0.5F);
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Vehicle, 0.8F) - 0.4F) < 1e-5F,
+                "Master must scale every other bus");
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Master, 0.8F) - 0.4F) < 1e-5F,
+                "Master must scale itself exactly once, not twice");
+
+        // ...and a bus scales only itself, which is the whole point of having categories.
+        buses.SetVolume(IronGang::AudioBus::Vehicle, 0.5F);
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Vehicle, 0.8F) - 0.2F) < 1e-5F,
+                "a bus volume must multiply with Master");
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Effects, 0.8F) - 0.4F) < 1e-5F,
+                "setting one bus must not touch another");
+
+        // Clamping, both ends.
+        buses.SetVolume(IronGang::AudioBus::Master, 5.0F);
+        Require(std::abs(buses.GetVolume(IronGang::AudioBus::Master) - 1.0F) < 1e-5F,
+                "a volume above 1 must clamp");
+        buses.SetVolume(IronGang::AudioBus::Master, -2.0F);
+        Require(std::abs(buses.GetVolume(IronGang::AudioBus::Master)) < 1e-5F,
+                "a negative volume must clamp to silence");
+        buses.SetVolume(IronGang::AudioBus::Master, 1.0F);
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Effects, 3.0F) - 1.0F) < 1e-5F,
+                "a requested volume above 1 must clamp too");
+
+        // Muting a bus silences it and nothing else; muting Master silences everything.
+        buses.SetVolume(IronGang::AudioBus::Vehicle, 1.0F);
+        buses.SetMuted(IronGang::AudioBus::Vehicle, true);
+        Require(buses.GetEffectiveVolume(IronGang::AudioBus::Vehicle, 1.0F) == 0.0F,
+                "a muted bus must be silent");
+        Require(buses.GetEffectiveVolume(IronGang::AudioBus::Effects, 1.0F) > 0.0F,
+                "muting one bus must not silence another");
+        buses.SetMuted(IronGang::AudioBus::Vehicle, false);
+        buses.SetMuted(IronGang::AudioBus::Master, true);
+        Require(buses.GetEffectiveVolume(IronGang::AudioBus::Effects, 1.0F) == 0.0F,
+                "muting Master must silence every bus");
+        buses.SetMuted(IronGang::AudioBus::Master, false);
+
+        // Ids round-trip, so a saved mix survives renaming the enum.
+        for (std::size_t index = 0; index < IronGang::kAudioBusCount; ++index)
+        {
+            const auto bus = static_cast<IronGang::AudioBus>(index);
+            const std::string id = IronGang::AudioBusId(bus);
+            Require(!id.empty(), "every bus must have an id");
+            IronGang::AudioBus parsed{};
+            Require(IronGang::ParseAudioBusId(id, parsed) && parsed == bus,
+                    "the id \"" + id + "\" must parse back to its own bus");
+        }
+        IronGang::AudioBus unused{};
+        Require(!IronGang::ParseAudioBusId("subwoofer", unused), "an unknown id must be rejected");
+    }
+
+    // plan_27 IG-27-004: dialogue ducking, including that it ramps rather than snaps.
+    void TestDialogueDucking()
+    {
+        IronGang::AudioBusGraph buses;
+        constexpr float kStep = 1.0F / 60.0F;
+
+        Require(std::abs(buses.GetDuckGain() - 1.0F) < 1e-5F, "nothing is ducked to begin with");
+
+        buses.SetDialogueActive(true);
+        // It must not snap: one update in, the duck is under way but nowhere near the target.
+        buses.Update(kStep);
+        Require(buses.GetDuckGain() < 1.0F, "the duck must start immediately");
+        Require(buses.GetDuckGain() > IronGang::kDialogueDuckGain + 0.1F,
+                "the duck must ramp, not snap -- one 60 Hz update reached " +
+                    std::to_string(buses.GetDuckGain()));
+
+        int attackUpdates = 1;
+        while (buses.GetDuckGain() > IronGang::kDialogueDuckGain + 1e-4F && attackUpdates < 600)
+        {
+            buses.Update(kStep);
+            ++attackUpdates;
+        }
+        Require(std::abs(buses.GetDuckGain() - IronGang::kDialogueDuckGain) < 1e-4F,
+                "the duck must reach its target and stop there");
+        Require(attackUpdates > 4,
+                "the attack must take several updates, got " + std::to_string(attackUpdates));
+
+        // Ducked buses are quieter; dialogue and UI are not touched.
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Vehicle, 1.0F) -
+                         IronGang::kDialogueDuckGain) < 1e-4F,
+                "the vehicle bus must be ducked while dialogue plays");
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Dialogue, 1.0F) - 1.0F) < 1e-4F,
+                "the dialogue bus must never duck itself");
+        Require(std::abs(buses.GetEffectiveVolume(IronGang::AudioBus::Ui, 1.0F) - 1.0F) < 1e-4F,
+                "a menu click going quiet because someone is talking is a bug, not a mix");
+
+        // Release: slower than the attack, which is what stops short lines pumping the mix.
+        buses.SetDialogueActive(false);
+        int releaseUpdates = 0;
+        while (buses.GetDuckGain() < 1.0F - 1e-4F && releaseUpdates < 600)
+        {
+            buses.Update(kStep);
+            ++releaseUpdates;
+        }
+        Require(std::abs(buses.GetDuckGain() - 1.0F) < 1e-4F, "the duck must return all the way to 1");
+        Require(releaseUpdates > attackUpdates,
+                "the release must be slower than the attack (attack " + std::to_string(attackUpdates) +
+                    ", release " + std::to_string(releaseUpdates) + ")");
+
+        // A zero or negative delta must not move the ramp at all.
+        buses.SetDialogueActive(true);
+        buses.Update(kStep);
+        const float mid = buses.GetDuckGain();
+        buses.Update(0.0F);
+        buses.Update(-1.0F);
+        Require(std::abs(buses.GetDuckGain() - mid) < 1e-6F,
+                "a zero or negative delta must leave the ramp untouched");
+
+        // Deterministic: the same delta sequence from the same start gives the same gain.
+        IronGang::AudioBusGraph first;
+        IronGang::AudioBusGraph second;
+        first.SetDialogueActive(true);
+        second.SetDialogueActive(true);
+        for (int i = 0; i < 7; ++i)
+        {
+            first.Update(kStep);
+            second.Update(kStep);
+        }
+        Require(first.GetDuckGain() == second.GetDuckGain(),
+                "the ramp must be a pure function of the deltas it was given");
+    }
+
     void TestInteractionPromptSelection()
     {
         const auto target = [](const char* id, const char* label, float x, float radius, bool available) {
@@ -5894,6 +6028,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestAudioBusGraphMixing();
+        TestDialogueDucking();
         TestInteractionPromptSelection();
         TestCameraObstructionPullsIn();
         TestCameraObstructionAgainstRealDistrict();

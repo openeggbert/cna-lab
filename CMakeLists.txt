@@ -117,6 +117,7 @@ add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
 include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
+    src/Audio/AudioBuses.cpp
     src/Core/AtomicFile.cpp
     src/Core/GameConfig.cpp
     src/Core/JsonDataFile.cpp

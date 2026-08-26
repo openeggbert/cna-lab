@@ -1867,6 +1867,64 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## An audio mix with categories in it (2026-08-26)
+
+plan_27 `IG-27-001`, `IG-27-004`, `IG-27-026` and `IG-27-027` closed. Gates M12 and M14 untouched.
+
+**The gap.** There was one number -- `masterVolume` -- multiplied into every `Play()` call by
+`EffectiveVolume()`. That cannot express "quieten the engine while someone is talking", or "mute the
+music but not the sirens", or any per-category setting at all, because there were no categories.
+
+**What was added.** `AudioBus` and `AudioBusGraph` (`include/`/`src/Audio/AudioBuses.hpp/.cpp`, in
+`iron_gang_core`): the seven buses the plan names, per-bus volume and mute, and
+`GetEffectiveVolume(bus, requested)` = requested x bus x Master x duck.
+
+The graph is deliberately **one level** -- every bus routes to Master, and the enum is the graph.
+A tree of arbitrary sub-buses is a mixing-desk feature; this game has seven categories and one
+output, and the header records that as an explicit non-goal along with DSP effects and per-voice
+routing. Buses carry stable string ids so a saved mix survives renaming the enum, the same
+convention `GameActionId` uses.
+
+`IronGangGame` now routes the engine loop and horn to `Vehicle` and footsteps to `Effects`, and
+feeds `settings_.masterVolume` into the Master bus once per update rather than into every call site.
+
+**Ducking (`IG-27-004`).** While a dialogue line is showing, every bus except Dialogue, UI and
+Master drops to `kDialogueDuckGain` (0.35) over a ramp: 0.15 s down, 0.40 s back. The asymmetry is
+the point -- the drop has to be in place before the first syllable, and coming back as fast as it
+left is what makes a run of short lines pump the whole mix. The UI bus is exempt because a menu
+click going quiet because someone is talking is a bug, not a mix.
+
+**"Subtitle synchronization" is met by construction**: the duck is driven by exactly the condition
+the subtitle is drawn from -- `dialogue_.GetCurrentLine() != nullptr` -- so the two cannot disagree
+about when dialogue is playing.
+
+**A wiring fault the design forced into the open.** The engine loop's volume is recomputed only
+inside `if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)`, so the duck would
+never have reached the engine **during dialogue** -- the one situation ducking exists for. The
+instance's volume is now re-applied from a stored pre-bus level (`engineRequestedVolume_`) every
+update, outside that gate.
+
+**Verified.** `TestAudioBusGraphMixing` (a fresh graph transparent; Master scaling every other bus
+and scaling itself exactly once rather than twice; a bus scaling only itself; clamping above 1,
+below 0, and on the requested volume; muting a bus silencing it and nothing else; muting Master
+silencing everything; every id round-tripping through `ParseAudioBusId`; an unknown id rejected).
+`TestDialogueDucking` (the duck starting immediately but nowhere near target after one 60 Hz update;
+reaching the target and stopping there; the vehicle bus ducked while Dialogue and UI are not; the
+release taking more updates than the attack; a zero or negative delta leaving the ramp untouched;
+and two graphs given the same delta sequence agreeing exactly, so the ramp is a pure function of its
+input). 15 CTest targets pass.
+
+**Mutation-checked.** Making the duck snap instead of ramp fails with `the duck must ramp, not snap
+-- one 60 Hz update reached 0.350000`. Ducking Dialogue and UI along with everything else fails with
+`the dialogue bus must never duck itself`.
+
+**Not verified.** *Nothing here was listened to* -- this environment has a dummy audio driver, so
+every claim is about the gain values computed, not about what comes out of a speaker. `UserSettings`
+still stores only a master volume, so per-bus levels are runtime-only and do not survive a restart.
+No Music or Ambience source exists yet to route through those buses; they are defined and unused.
+Audio **event** definitions separate from raw file paths (`IG-27-005`), voice limits and stealing
+(`IG-27-006`), and listener updates (`IG-27-003`) all remain open.
+
 ## Telling the player what a spot affords (2026-08-26)
 
 plan_16 `IG-16-004` closed. Gates M12 and M14 untouched.

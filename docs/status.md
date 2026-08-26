@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**291 of 2148 tasks done** (13%). Open by priority: P0 192 · P1 1012 · P2 596 · P3 57.
+**295 of 2148 tasks done** (13%). Open by priority: P0 188 · P1 1012 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 24 | [Mission framework and scripting](../plan/plan_24-mission-framework-and-scripting.md) | 28/55 | 50% |
 | 25 | [Dialogue, localization, and narrative state](../plan/plan_25-dialogue-localization-and-narrative-state.md) | 2/50 | 4% |
 | 26 | [Cutscenes and cinematic sequencing](../plan/plan_26-cutscenes-and-cinematic-sequencing.md) | 8/35 | 22% |
-| 27 | [Audio, music, ambience, and radio](../plan/plan_27-audio-music-ambience-and-radio.md) | 0/57 | 0% |
+| 27 | [Audio, music, ambience, and radio](../plan/plan_27-audio-music-ambience-and-radio.md) | 4/57 | 7% |
 | 28 | [UI, HUD, menus, accessibility, and input rebinding](../plan/plan_28-ui-hud-menus-accessibility-and-input-rebinding.md) | 3/58 | 5% |
 | 29 | [Save games, checkpoints, profiles, and migration](../plan/plan_29-save-games-checkpoints-profiles-and-migration.md) | 16/41 | 39% |
 | 30 | [Developer tools and editors](../plan/plan_30-developer-tools-and-editors.md) | 2/20 | 10% |

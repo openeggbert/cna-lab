@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IronGang/Audio/AudioBuses.hpp"
 #include "IronGang/Core/GameConfig.hpp"
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/PerformanceProfiler.hpp"
@@ -178,7 +179,7 @@ namespace IronGang
         // preference the player just set.
         void PersistSettings();
         // Master volume applied to a sound about to play.
-        [[nodiscard]] float EffectiveVolume(float requestedVolume) const;
+        [[nodiscard]] float EffectiveVolume(AudioBus bus, float requestedVolume) const;
         // Checks the current district's exit trigger against whichever of player/vehicle is
         // active and requests a transition if it was entered (plan_13 IG-13-002/006).
         void CheckDistrictExit();
@@ -281,6 +282,12 @@ namespace IronGang
         // player's own Advance() after the cutscene has handed control back.
         std::string appliedCutsceneCue_;
         InteractionPromptSelector interactionPrompts_;
+        // plan_27 IG-27-001: every sound plays through a bus, so the mix has categories rather
+        // than one global multiplier.
+        AudioBusGraph audioBuses_;
+        // The engine loop's pre-bus level. Its volume is only recomputed while the world is
+        // advancing, so the duck has to be re-applied from here every update instead.
+        float engineRequestedVolume_{0.4F};
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
 
