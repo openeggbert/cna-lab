@@ -98,6 +98,41 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Gate M1 as one session — and what composing the gates found (plan_39)
+
+`IG-39-002` closes M1. Every sub-gate already existed, but each ran in **its own process**, so
+nothing had shown they compose — which is the whole claim M1 makes. `tests/input-scripts/
+gate_m1.inputscript.json` now plays one session end to end (prologue → walk → sedan → delivery →
+countryside → save → drive away → load → restart), checked by `tests/test_gate_m1.py`
+(`iron_gang_gate_m1_tests`). It found two things the isolated gates could not:
+
+- **A refused save left no trace.** The first attempt saved at update 890, mid district-transition.
+  `CurrentSaveBlockReason()` refused it — correctly — but the reason reached only
+  `transientStatus_`, three seconds of on-screen text. Headless, the run had no save file and no
+  explanation; the load then looked broken when nothing had been written. `SavePrototype()` and
+  `LoadPrototype()` now log the refusal, the successful write, and a failed read. **Anything a
+  player is told only on the HUD is invisible to every automated run** — worth checking for
+  elsewhere.
+- **The countryside ships with no authored data** — no roads, no pavements, no prop collision. It
+  falls back to built-in layouts and always has. `test_the_only_missing_district_data_is_the_
+  countryside` now pins those three filenames, so authoring them *or* a new district quietly
+  falling back both fail rather than pass unnoticed. This is the most obvious open content thread.
+
+Mutation-checked 3/3, each caught by the assertion that should catch it. Verified by hand on the
+real display too: `dev-easygl` on **OpenGL ES 3.2 (Mesa 25.0.7)** played through to `campaign
+complete` with no error.
+
+A method note, twice learned the hard way: `--trace-state` **appends**. A stale trace from an
+earlier run reads as a perfectly plausible result — it produced a wrong answer in the lamp A/B
+measurement, and again here by hand. The test writes to a fresh temporary file every run.
+
+**Blocked outside this repo:** the GLES build needed a fix in `cnanext` (uncommitted, in the
+working tree, *not* committed by me): `EasyGLRenderer.hpp` declared `viewportMinDepth_`/
+`viewportMaxDepth_` inside `#if defined(CNA_EASYGL_COMPILED_EFFECTS)` while `SetViewport()` writes
+them unconditionally, so any build without compiled effects — Iron Gang's OpenGL ES 3 build among
+them — failed to compile. The declarations were moved above the guard.
+
+
 ### Gate M1's reset and quit — the last of the M1 executable cluster (plan_39)
 
 Both are one keypress, which is why they are worth measuring: a reset that reloads the district but

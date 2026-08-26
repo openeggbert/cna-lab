@@ -57,8 +57,11 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 14. **M13 — Legal/content gate:** all shipping assets are approved and credited.
 15. **M14 — External build/release gate:** clean machine/workspace can build, install, and complete the demo.
 
-Current integrated status (2026-08-24): M0-M11 and the independently verifiable M13 asset/legal gate
-are complete at prototype/first-pass fidelity. M12 remains open only for the controlled
+Current integrated status (2026-08-26): M0-M11 and the independently verifiable M13 asset/legal gate
+are complete at prototype/first-pass fidelity. M1 is now measured as a **single composed session**
+rather than per-part (plan_39 `IG-39-002`): one traced run builds, launches, completes its mission,
+saves, loads and restarts, which is what the gate actually claims -- the sub-gates each ran in their
+own process before. M12 remains open only for the controlled
 physical-display qualification: two independent Release EasyGL
 AMD offscreen `mixed` captures already pass every direct frame/CPU/district/RAM/complete-DRM budget
 and compare `NO REGRESSION`, but their machine-derived native-window evidence is `Headless/false`.

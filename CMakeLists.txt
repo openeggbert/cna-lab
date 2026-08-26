@@ -338,6 +338,16 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_gate_on_foot_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
 
+    # plan_39 IG-39-002: gate M1 as one session -- the sub-gates each ran in their own process,
+    # and the gate's claim is that they compose.
+    add_test(NAME iron_gang_gate_m1_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_m1.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_m1_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
     # plan_39 IG-39-024: gate M1's reset and quit. Both are one keypress, which is why they are
     # worth measuring: a reset that leaves the mission mid-flight looks fine from outside.
     add_test(NAME iron_gang_gate_reset_quit_tests

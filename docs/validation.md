@@ -3545,3 +3545,40 @@ After dependencies are complete:
 ./scripts/test.sh dev-easygl
 ./scripts/run.sh dev-easygl --smoke 120
 ```
+
+## Gate M1, measured as one session (plan_39 `IG-39-002`)
+
+Every earlier M1 sub-gate ran in its own process. `tests/test_gate_m1.py` runs the whole claim as a
+single session driven by `tests/input-scripts/gate_m1.inputscript.json`, traced with `--trace-state`:
+
+| Update | What the trace shows |
+| --- | --- |
+| 0-330 | the three prologue lines play in order, then `prototype_delivery` leaves `introduction` |
+| 330-700 | `reach_vehicle` -> `enter_vehicle` -> `drive_to_warehouse` -> `completed` |
+| 700-900 | the campaign starts `countryside_run`; the drive crosses into the `countryside` district |
+| 1020 | quick-save, **after** the first mission completed -- a case no isolated save/load gate reaches |
+| 1410 | quick-load returns z=8.26 -> z=34.60, back within 5 m of the save point |
+| 1590 | restart returns the player on foot to the warehouse-block spawn and replays the opening |
+
+Two findings came out of composing the gates, neither visible while they ran separately:
+
+- **A refused save left no trace.** The first attempt saved at update 890, mid district-transition.
+  `CurrentSaveBlockReason()` correctly refused it ("the district is still loading"), but the reason
+  reached only `transientStatus_` -- three seconds of on-screen text. Headless, the run simply had
+  no save file and no explanation. `SavePrototype()` and `LoadPrototype()` now log the refusal, the
+  successful write, and a failed read, so a script, a bug report, or a log can tell them apart.
+- **The countryside ships with no authored data** -- no roads, no pavements, no prop collision; it
+  falls back to built-in layouts. M1 is the warehouse block, so this does not fail the gate, but
+  `test_the_only_missing_district_data_is_the_countryside` pins the three missing files by name.
+
+Mutation-checked 3/3, each by the assertion that should catch it:
+
+| Mutation | Caught by |
+| --- | --- |
+| `LoadPrototype()` returns before restoring | `test_loading_returns_to_the_save_point` (27.1 m off) |
+| `SavePrototype()` returns immediately | `test_saving_writes_a_file_after_the_campaign_has_moved_on`, and the load test -- with no `.save` the load correctly fell back to the autosave |
+| reset reloads the current district instead of the first | `test_resetting_returns_to_the_spawn_in_the_first_district` (z=40, not 20) |
+
+Confirmed by hand outside the harness: the `dev-easygl` build on **OpenGL ES 3.2 (Mesa 25.0.7)** on
+the real display played through to `campaign complete` with no error, the only warnings being the
+countryside gap above.

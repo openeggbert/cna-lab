@@ -1142,6 +1142,11 @@ namespace IronGang
         {
             transientStatus_ = std::string("Can't save: ") + DescribeSaveBlockReason(blocked);
             transientStatusSeconds_ = 3.0F;
+            // Also logged, not only shown: the on-screen reason lasts three seconds and exists
+            // only where someone is watching. A headless run, a bug report, or a gate script that
+            // saved at the wrong moment would otherwise see a save that simply did not happen.
+            Log::Info(LogCategory::Save,
+                      std::string("save refused: ") + DescribeSaveBlockReason(blocked));
             return;
         }
 
@@ -1149,6 +1154,7 @@ namespace IronGang
         if (SaveGame::Write(SavePath(), CaptureSnapshot(), error))
         {
             transientStatus_ = "Saved prototype state";
+            Log::Info(LogCategory::Save, "saved to " + SavePath());
             // A manual save resets the periodic timer: the player just did what it exists to do.
             autosave_.Reset();
         }
@@ -1187,8 +1193,12 @@ namespace IronGang
         {
             transientStatus_ = "Load failed: " + error;
             transientStatusSeconds_ = 3.0F;
+            // Logged for the same reason a refused save is: on screen it lasts three seconds and
+            // only where someone is watching.
+            Log::Warning(LogCategory::Save, "load failed: " + error);
             return;
         }
+        Log::Info(LogCategory::Save, "loaded " + loadPath);
         // plan_29 IG-29-003/004: recovering from a damaged save is not a silent event -- the
         // player has lost whatever happened between the backup and the save that failed.
         if (saveDiagnostics.usedBackup)
