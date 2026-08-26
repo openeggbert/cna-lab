@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The road layout stops being C++ (plan_14)
+
+The warehouse block's traffic loop, lane offsets, speed limit and two signalled stop lines were
+literals inside `BuildWarehouseBlock()`. Fine for one district; not fine at two, and nothing can
+validate a layout that only exists as statements.
+
+`assets/districts/warehouse_block.roads.json` (v1) + `RoadGraph`: `nodes`, directed `segments` with
+lane count/width/speed limit, `turns`, and `stopLines`. Deliberately a **graph**, not polylines — a
+polyline answers "what is the next point on my loop", a graph answers "where does this road go",
+which is what turning and routing need. A lane is an offset from the centreline, which is why one
+centreline at x=0 yields lanes at ±3.
+
+`PrototypeWorld` takes an optional asset root; `DistrictManager` threads it through so a district
+swap loads the target's graph. Stop-line **approach yaw is derived from the segment** rather than
+authored beside it. Traffic reads it all through the existing accessors, so nothing downstream
+changed. Missing or invalid file → warning + built-in layout.
+
+**The test that matters** builds the district twice — built-in literals and shipped data — and
+requires the loop points, stop-line positions, signal positions, derived yaws and phases to match,
+*and* asserts the graph is non-empty so a silent fallback cannot make it compare the built-in layout
+with itself. Three mutations caught (lane width, stop-line distance, hard-coded yaw), and a scripted
+run renders a byte-identical frame — with traffic in it — as independent evidence.
+
+Closed `IG-14-001`, `IG-14-002`. Verified: CTest 15/15, two new tests (fourteen rejection cases).
+Not done: nothing reads `speedLimitKph` or the turn links yet — both carried, validated and unused;
+sidewalk paths are still hand-authored (`IG-14-007`/`008`'s own schema); the countryside has no road
+file, so it exercises the fallback rather than the loader.
+
 ### Sounds that know where they are (plan_27)
 
 Every sound played at full volume, dead centre, wherever its source was — the horn was as loud from
@@ -628,7 +656,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 297/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 299/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 

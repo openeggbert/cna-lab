@@ -1,0 +1,24 @@
+{
+  "id": "warehouse_block",
+  "version": 1,
+  "nodes": [
+    { "id": "south_end", "position": [0.0, 0.4, 38.0] },
+    { "id": "north_end", "position": [0.0, 0.4, -38.0] }
+  ],
+  "segments": [
+    { "id": "main_northbound", "from": "south_end", "to": "north_end",
+      "laneCount": 1, "laneWidth": 6.0, "speedLimitKph": 50.0 },
+    { "id": "main_southbound", "from": "north_end", "to": "south_end",
+      "laneCount": 1, "laneWidth": 6.0, "speedLimitKph": 50.0 }
+  ],
+  "turns": [
+    { "from": "main_northbound", "to": "main_southbound" },
+    { "from": "main_southbound", "to": "main_northbound" }
+  ],
+  "stopLines": [
+    { "segment": "main_northbound", "distance": 30.0,
+      "signalPosition": [5.5, 2.6, 8.0], "opposingPhase": false },
+    { "segment": "main_southbound", "distance": 30.0,
+      "signalPosition": [-5.5, 2.6, -8.0], "opposingPhase": true }
+  ]
+}

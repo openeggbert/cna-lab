@@ -165,6 +165,7 @@ add_library(iron_gang_core STATIC
     src/UI/Subtitle.cpp
     src/UI/DistrictMap.cpp
     src/World/DistrictManager.cpp
+    src/World/RoadGraph.cpp
     src/World/PrototypeWorld.cpp
     src/World/WaypointPath.cpp)
 
@@ -393,7 +394,7 @@ install(TARGETS iron_gang RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Ship only runtime content. Authoring sources, registry inputs, and build policy remain available
 # in the source repository; the generated notices below preserve package provenance.
-foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues missions models vehicles)
+foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues districts missions models vehicles)
     install(DIRECTORY "assets/${runtime_asset_directory}"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets")
 endforeach()

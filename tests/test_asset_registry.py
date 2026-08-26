@@ -80,6 +80,7 @@ class AssetRegistryTests(unittest.TestCase):
             "assets/config",
             "assets/cutscenes",
             "assets/dialogues",
+            "assets/districts",
             "assets/missions",
             "assets/models",
             "assets/vehicles",
@@ -150,7 +151,7 @@ class AssetRegistryTests(unittest.TestCase):
             REAL_PROJECT_ROOT, "--check-notice", "THIRD_PARTY_ASSETS.md"
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("19 approved shipping assets", result.stdout)
+        self.assertIn("20 approved shipping assets", result.stdout)
         self.assertIn("4 external assets", result.stdout)
         self.assertIn("notice verified", result.stdout)
 

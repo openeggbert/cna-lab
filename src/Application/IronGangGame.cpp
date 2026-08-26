@@ -143,7 +143,9 @@ namespace IronGang
 
     IronGangGame::IronGangGame(std::string assetRoot)
         : graphicsDeviceManager_(std::make_unique<GraphicsDeviceManager>(this)),
-          assetRoot_(std::move(assetRoot))
+          assetRoot_(std::move(assetRoot)),
+          // plan_14 IG-14-002: districts load their road graph from here.
+          districtManager_(DistrictId::WarehouseBlock, assetRoot_)
     {
         graphicsDeviceManager_->setPreferredBackBufferWidthProperty(kBackBufferWidth);
         graphicsDeviceManager_->setPreferredBackBufferHeightProperty(kBackBufferHeight);

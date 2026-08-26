@@ -4525,6 +4525,146 @@ namespace
     // ones trading the prompt every frame.
     // plan_27 IG-27-001/026/027: the bus graph every sound plays through.
     // plan_27 IG-27-003/007: distance and direction, from a listener that is the active camera.
+    // plan_14 IG-14-001/002: the road layout used to be C++ literals. Loading it from data must
+    // reproduce it exactly -- that equivalence is the whole point of the migration.
+    void TestRoadGraphReplacesTheHandAuthoredLayoutExactly()
+    {
+        const IronGang::PrototypeWorld builtIn(IronGang::DistrictId::WarehouseBlock);
+        Require(builtIn.GetRoadGraph().IsEmpty(),
+                "with no asset root a district must keep its built-in layout");
+
+        const IronGang::PrototypeWorld fromData(IronGang::DistrictId::WarehouseBlock,
+                                                std::string(IRON_GANG_SOURCE_ASSET_DIR));
+        Require(!fromData.GetRoadGraph().IsEmpty(),
+                "the shipped warehouse-block road graph must load; an empty graph here means it "
+                "silently fell back and the rest of this test would compare nothing");
+        Require(fromData.GetRoadGraph().GetId() == "warehouse_block", "the graph must keep its id");
+
+        const IronGang::WaypointPath& expected = builtIn.GetTrafficLoop();
+        const IronGang::WaypointPath& actual = fromData.GetTrafficLoop();
+        Require(actual.loop == expected.loop, "the loop flag must match");
+        Require(actual.points.size() == expected.points.size(),
+                "the data-driven loop must have the same number of points: " +
+                    std::to_string(actual.points.size()) + " vs " + std::to_string(expected.points.size()));
+        for (std::size_t index = 0; index < expected.points.size(); ++index)
+        {
+            Require((actual.points[index] - expected.points[index]).Length() < 1e-3F,
+                    "traffic loop point " + std::to_string(index) + " must match the hand-authored one");
+        }
+
+        const std::vector<IronGang::TrafficStopLine>& expectedLines = builtIn.GetTrafficStopLines();
+        const std::vector<IronGang::TrafficStopLine>& actualLines = fromData.GetTrafficStopLines();
+        Require(actualLines.size() == expectedLines.size(), "the stop-line count must match");
+        for (std::size_t index = 0; index < expectedLines.size(); ++index)
+        {
+            Require((actualLines[index].position - expectedLines[index].position).Length() < 1e-3F,
+                    "stop line " + std::to_string(index) + " must be in the same place");
+            Require((actualLines[index].signalPosition - expectedLines[index].signalPosition).Length() < 1e-3F,
+                    "stop line " + std::to_string(index) + "'s signal must be in the same place");
+            Require(std::abs(actualLines[index].approachYaw - expectedLines[index].approachYaw) < 1e-3F,
+                    "stop line " + std::to_string(index) + "'s approach yaw must match -- it is derived "
+                    "from the segment rather than authored, so this pins the derivation");
+            Require(actualLines[index].opposingPhase == expectedLines[index].opposingPhase,
+                    "stop line " + std::to_string(index) + "'s phase must match, or the crossing shows "
+                    "green in both directions at once");
+        }
+
+        // Lane geometry: lane 0 is half a width right of the centreline, in the direction of travel.
+        IronGang::Vector3 point;
+        Require(fromData.GetRoadGraph().GetLanePoint("main_northbound", 0, 0.0F, point),
+                "lane 0 of the northbound segment must resolve");
+        Require(std::abs(point.X - 3.0F) < 1e-3F,
+                "the northbound lane must sit right of the centreline at x=+3, got " +
+                    std::to_string(point.X));
+        Require(fromData.GetRoadGraph().GetLanePoint("main_southbound", 0, 0.0F, point),
+                "lane 0 of the southbound segment must resolve");
+        Require(std::abs(point.X + 3.0F) < 1e-3F,
+                "travelling the other way, right is the other side: x=-3, got " + std::to_string(point.X));
+        Require(!fromData.GetRoadGraph().GetLanePoint("main_northbound", 5, 0.0F, point),
+                "a lane the segment does not have must not resolve");
+        Require(!fromData.GetRoadGraph().GetLanePoint("no_such_road", 0, 0.0F, point),
+                "an unknown segment must not resolve");
+
+        // The schema carries the turn links plan_14 IG-14-001 names, even though this district's
+        // straight there-and-back does not use them yet.
+        Require(fromData.GetRoadGraph().GetTurns().size() == 2,
+                "the shipped graph must declare its turn links");
+    }
+
+    void TestRoadGraphRejectsUnusableData()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_roads.json";
+        std::string error;
+        IronGang::RoadGraph graph;
+
+        const std::string nodes =
+            R"JSON("nodes":[{"id":"a","position":[0,0,0]},{"id":"b","position":[0,0,10]}])JSON";
+        const auto write = [&path, &nodes](const std::string& rest) {
+            WriteTempJson(path, "{\"id\":\"t\",\"version\":1," + nodes + "," + rest + "}");
+        };
+
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON");
+        Require(graph.LoadFromFile(path.string(), error), "a minimal well-formed graph must load: " + error);
+
+        WriteTempJson(path, "{\"id\":\"t\",\"version\":2," + nodes +
+                                R"JSON(,"segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON" "}");
+        Require(!graph.LoadFromFile(path.string(), error), "an unsupported version must be rejected");
+
+        write(R"JSON("segments":[])JSON");
+        Require(!graph.LoadFromFile(path.string(), error),
+                "a graph with no segments has nothing to drive on and must be rejected");
+
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"nowhere","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error), "a dangling node reference must be rejected");
+
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"a","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error), "a zero-length segment must be rejected");
+
+        write(R"JSON("segments":[
+            {"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50},
+            {"id":"s","from":"b","to":"a","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error), "duplicate segment ids must be rejected");
+
+        for (const char* bad : {R"("laneCount":0,"laneWidth":3,"speedLimitKph":50)",
+                                R"("laneCount":1,"laneWidth":0,"speedLimitKph":50)",
+                                R"("laneCount":1,"laneWidth":3,"speedLimitKph":0)"})
+        {
+            write(std::string(R"JSON("segments":[{"id":"s","from":"a","to":"b",)JSON") + bad + "}]");
+            Require(!graph.LoadFromFile(path.string(), error),
+                    std::string("a non-positive lane count, width or speed limit must be rejected: ") + bad);
+        }
+
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}],
+              "turns":[{"from":"s","to":"missing"}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error), "a turn to a missing segment must be rejected");
+
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}],
+              "stopLines":[{"segment":"missing","distance":1,"signalPosition":[0,0,0]}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error),
+                "a stop line on a missing segment must be rejected");
+
+        // Beyond the end of its own segment: the line would be placed at the segment's end and
+        // silently stop traffic in the wrong place.
+        write(R"JSON("segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}],
+              "stopLines":[{"segment":"s","distance":99,"signalPosition":[0,0,0]}])JSON");
+        Require(!graph.LoadFromFile(path.string(), error),
+                "a stop line past the end of its segment must be rejected");
+
+        WriteTempJson(path, "{\"id\":\"t\",\"version\":1,\"weather\":\"rain\"," + nodes +
+                                R"JSON(,"segments":[{"id":"s","from":"a","to":"b","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON" "}");
+        Require(!graph.LoadFromFile(path.string(), error), "an unknown top-level field must be rejected");
+
+        WriteTempJson(path, "{\"id\":\"t\",\"version\":1,\"nodes\":[{\"id\":\"a\",\"position\":[0,0,0]},"
+                            "{\"id\":\"a\",\"position\":[0,0,9]}],"
+                            R"JSON("segments":[{"id":"s","from":"a","to":"a","laneCount":1,"laneWidth":3,"speedLimitKph":50}])JSON" "}");
+        Require(!graph.LoadFromFile(path.string(), error), "duplicate node ids must be rejected");
+
+        Require(!graph.LoadFromFile(path.string() + ".missing", error),
+                "a missing file must be rejected, not crash");
+
+        std::filesystem::remove(path);
+    }
+
     void TestSpatialAudioAttenuationAndPan()
     {
         // Facing -Z, which is the game's own yaw-0 convention; right is therefore +X.
@@ -6126,6 +6266,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestRoadGraphReplacesTheHandAuthoredLayoutExactly();
+        TestRoadGraphRejectsUnusableData();
         TestSpatialAudioAttenuationAndPan();
         TestAudioBusGraphMixing();
         TestDialogueDucking();

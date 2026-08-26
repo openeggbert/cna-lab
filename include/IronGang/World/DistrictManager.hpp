@@ -4,6 +4,7 @@
 #include "IronGang/World/PrototypeWorld.hpp"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace IronGang
@@ -23,7 +24,8 @@ namespace IronGang
     class DistrictManager final
     {
     public:
-        explicit DistrictManager(DistrictId initial = DistrictId::WarehouseBlock);
+explicit DistrictManager(DistrictId initial = DistrictId::WarehouseBlock,
+                                 std::string assetRoot = std::string());
 
         // Builds the initial district's physics bodies. Call once after construction.
         void Initialize(Physics::PhysicsWorld& physics);
@@ -58,6 +60,7 @@ namespace IronGang
     private:
         void SwapDistrict(DistrictId target, Physics::PhysicsWorld& physics);
 
+        std::string assetRoot_;
         std::unique_ptr<PrototypeWorld> world_;
         std::vector<Physics::RigidBodyHandle> staticBodies_;
         float transitionTimer_{0.0F};

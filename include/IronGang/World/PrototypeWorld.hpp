@@ -3,8 +3,10 @@
 #include "IronGang/Core/WorldTypes.hpp"
 #include "IronGang/Gameplay/TrafficSignal.hpp"
 #include "IronGang/Physics/PhysicsTypes.hpp"
+#include "IronGang/World/RoadGraph.hpp"
 #include "IronGang/World/WaypointPath.hpp"
 
+#include <string>
 #include <vector>
 
 namespace IronGang
@@ -14,10 +16,21 @@ namespace IronGang
         class PhysicsWorld;
     }
 
+    // The stem a district's data files are named with, e.g. "warehouse_block.roads.json".
+    [[nodiscard]] const char* DistrictAssetName(DistrictId id) noexcept;
+
     class PrototypeWorld final
     {
     public:
-        explicit PrototypeWorld(DistrictId id = DistrictId::WarehouseBlock);
+        // plan_14 IG-14-002: @p assetRoot lets a district load its road graph
+        // (assets/districts/<id>.roads.json). Empty -- the default, and what every test that only
+        // wants geometry passes -- keeps the hand-authored layout, so a checkout with no assets
+        // still has a drivable street.
+        explicit PrototypeWorld(DistrictId id = DistrictId::WarehouseBlock,
+                                const std::string& assetRoot = std::string());
+
+        // The loaded road graph, or an empty one when this district has no road data.
+        [[nodiscard]] const RoadGraph& GetRoadGraph() const noexcept { return roadGraph_; }
 
         [[nodiscard]] DistrictId GetId() const noexcept { return id_; }
         [[nodiscard]] const std::vector<WorldBox>& GetBoxes() const noexcept { return boxes_; }
@@ -63,6 +76,8 @@ namespace IronGang
                     bool collidable = true);
         void SetGround(const Vector3& center, const Vector3& size, const Color& color);
         void BuildWarehouseBlock();
+        // Replaces the hand-authored traffic loop and stop lines when a road graph loaded.
+        void ApplyRoadGraph();
         void BuildCountryside();
 
         DistrictId id_;
@@ -80,6 +95,7 @@ namespace IronGang
         TriggerZone warehouseGoal_{"warehouse_delivery", {{0.0F, 0.0F, -34.0F}, {4.5F, 2.0F, 4.5F}}};
         DistrictExit districtExit_{};
         WaypointPath trafficLoop_{};
+        RoadGraph roadGraph_{};
         std::vector<WaypointPath> sidewalkPaths_{};
     };
 }

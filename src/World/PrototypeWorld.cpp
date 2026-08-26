@@ -1,5 +1,7 @@
 #include "IronGang/World/PrototypeWorld.hpp"
 
+#include "IronGang/Core/Log.hpp"
+
 #include <numbers>
 
 #include "IronGang/Physics/PhysicsWorld.hpp"
@@ -8,7 +10,17 @@
 
 namespace IronGang
 {
-    PrototypeWorld::PrototypeWorld(DistrictId id) : id_(id)
+    const char* DistrictAssetName(DistrictId id) noexcept
+    {
+        switch (id)
+        {
+        case DistrictId::WarehouseBlock: return "warehouse_block";
+        case DistrictId::Countryside: return "countryside";
+        }
+        return "";
+    }
+
+    PrototypeWorld::PrototypeWorld(DistrictId id, const std::string& assetRoot) : id_(id)
     {
         switch (id_)
         {
@@ -19,6 +31,46 @@ namespace IronGang
             BuildCountryside();
             break;
         }
+
+        // plan_14 IG-14-002: a district's road layout comes from data when there is any. The
+        // hand-authored loop above stays as the fallback, the same convention every other asset
+        // here uses -- a checkout that has not been given assets still has a drivable street.
+        if (!assetRoot.empty())
+        {
+            std::string error;
+            if (roadGraph_.LoadFromFile(assetRoot + "/districts/" + DistrictAssetName(id_) + ".roads.json",
+                                        error))
+            {
+                ApplyRoadGraph();
+            }
+            else
+            {
+                Log::Warning(LogCategory::Assets, error + " -- using the built-in road layout.");
+                roadGraph_ = RoadGraph{};
+            }
+        }
+    }
+
+    void PrototypeWorld::ApplyRoadGraph()
+    {
+        std::vector<std::string> loopSegments;
+        loopSegments.reserve(roadGraph_.GetSegments().size());
+        for (const RoadSegment& segment : roadGraph_.GetSegments())
+        {
+            loopSegments.push_back(segment.id);
+        }
+
+        WaypointPath loop;
+        if (!roadGraph_.BuildLaneLoop(loopSegments, 0, loop) || loop.points.size() < 2)
+        {
+            Log::Warning(LogCategory::Assets,
+                         "road graph \"" + roadGraph_.GetId() +
+                             "\" produced no drivable lane -- using the built-in road layout.");
+            roadGraph_ = RoadGraph{};
+            return;
+        }
+        trafficLoop_ = std::move(loop);
+        trafficStopLines_ = roadGraph_.BuildTrafficStopLines();
     }
 
     std::vector<Physics::RigidBodyHandle> PrototypeWorld::BuildPhysicsStaticBodies(Physics::PhysicsWorld& physics) const

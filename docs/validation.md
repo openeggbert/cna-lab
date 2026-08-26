@@ -1867,6 +1867,66 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## The road layout stops being C++ (2026-08-26)
+
+plan_14 `IG-14-001` and `IG-14-002` closed. Gates M12 and M14 untouched.
+
+**The gap.** The warehouse block's traffic loop, its lane offsets, its speed limit and its two
+signalled stop lines were literals inside `PrototypeWorld::BuildWarehouseBlock()`. That is fine for
+exactly one district and stops being fine at two: every new road means recompiling, and nothing can
+validate a layout that only exists as statements.
+
+**The schema.** `assets/districts/warehouse_block.roads.json` (v1), loaded by `RoadGraph`
+(`include/`/`src/World/RoadGraph.hpp/.cpp`): `nodes` (junctions and road ends), directed `segments`
+with `laneCount` / `laneWidth` / `speedLimitKph`, `turns`, and `stopLines` (a segment, a distance
+along it, the signal's position, and which of a crossing's two phases it reads).
+
+Deliberately a **graph**, not a list of polylines. A polyline answers "what is the next point on my
+loop"; a graph answers "where does this road go", which is the question turning, routing and lane
+changes all need. A lane is an offset from the segment's centreline, so lane 0 of each direction
+lands either side of the paint rather than both on top of it -- the reason the two directions of the
+main road come out at x=+3 and x=-3 from one shared centreline at x=0.
+
+Turn links are defined and validated but unused: this district is a straight there-and-back, and
+inventing turns for it would be schema that no content exercises.
+
+**The wiring.** `PrototypeWorld` takes an optional asset root and loads
+`assets/districts/<district>.roads.json` at construction; `DistrictManager` threads it through so a
+district swap loads the target's graph too. `ApplyRoadGraph()` then replaces `trafficLoop_` and
+`trafficStopLines_`, and each stop line's **approach yaw is derived from its own segment** rather
+than authored beside it -- a yaw written by hand next to the road it belongs to is a number that
+drifts the first time the road moves. Traffic reads it all through the existing
+`GetTrafficLoop()`/`GetTrafficStopLines()`, so nothing downstream changed. A missing or invalid file
+logs a warning and keeps the built-in layout, the same fallback convention every other asset uses.
+
+**Verified.** `TestRoadGraphReplacesTheHandAuthoredLayoutExactly` is the test that matters: it
+builds the district twice -- once with no asset root (built-in literals) and once with the shipped
+data -- and requires the traffic loop points, the stop-line positions, their signal positions, their
+derived approach yaws and their phases to match. It also asserts the graph is **non-empty** in the
+data-driven case, because a silent fallback would otherwise make the whole comparison compare the
+built-in layout with itself. Lane geometry is checked directly (northbound lane 0 at x=+3,
+southbound at x=-3 -- travelling the other way, right is the other side), along with an unknown lane
+and an unknown segment failing to resolve. `TestRoadGraphRejectsUnusableData` covers fourteen
+rejection cases: unsupported version, no segments, dangling node reference, zero-length segment,
+duplicate segment and node ids, non-positive lane count / width / speed limit, a turn to a missing
+segment, a stop line on a missing segment, a stop line past the end of its own segment, an unknown
+top-level field, and a missing file. 15 CTest targets pass; `assets/districts` was added to the
+registry, the install list and the release archive's required files.
+
+**Mutation-checked, three ways.** Changing the shipped lane width to 4 fails with `traffic loop
+point 0 must match the hand-authored one`; moving a stop line 5 m fails with `stop line 0 must be in
+the same place`; and hard-coding the derived approach yaw to 0 fails with `stop line 1's approach
+yaw must match`. A scripted run also renders a **byte-identical frame** to the previous iteration's,
+which -- since traffic vehicles are in the frame -- is independent evidence the data reproduces the
+old layout rather than merely something plausible.
+
+**Not verified.** Nothing yet reads `speedLimitKph` or the turn links; both are carried, validated
+and unused, which the plan entry says. Pedestrian sidewalk paths are still hand-authored -- that is
+`IG-14-007`/`IG-14-008`'s own schema, deliberately separate from the road graph. The countryside
+district has no road file, so it exercises the fallback rather than the loader. And there is still
+only one district's worth of data, so "every new road means recompiling" is fixed in principle and
+not yet demonstrated at two.
+
 ## Sounds that know where they are (2026-08-26)
 
 plan_27 `IG-27-003` and `IG-27-007` closed; `IG-27-002` narrowed. Gates M12 and M14 untouched.

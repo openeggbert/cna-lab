@@ -6,7 +6,11 @@
 
 namespace IronGang
 {
-    DistrictManager::DistrictManager(DistrictId initial) : world_(std::make_unique<PrototypeWorld>(initial)) {}
+    DistrictManager::DistrictManager(DistrictId initial, std::string assetRoot)
+        : assetRoot_(std::move(assetRoot)),
+          world_(std::make_unique<PrototypeWorld>(initial, assetRoot_))
+    {
+    }
 
     void DistrictManager::Initialize(Physics::PhysicsWorld& physics)
     {
@@ -21,7 +25,7 @@ namespace IronGang
         }
         staticBodies_.clear();
 
-        world_ = std::make_unique<PrototypeWorld>(target);
+        world_ = std::make_unique<PrototypeWorld>(target, assetRoot_);
         staticBodies_ = world_->BuildPhysicsStaticBodies(physics);
     }
 
