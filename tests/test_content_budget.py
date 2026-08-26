@@ -140,5 +140,56 @@ class ContentBudgetTests(unittest.TestCase):
                               f"{relative} has no entry in assets/content-budgets.json")
 
 
+
+    def test_measured_metrics_match_the_recorded_baseline(self):
+        """A ceiling alone cannot catch a counter that stopped counting.
+
+        Budgets only assert measured <= limit, so a bug that reports zero triangles passes every
+        budget in the file -- which is exactly what happened when the <instance> expansion was
+        stubbed out during review. The baseline is the *committed measurement*, so requiring
+        measurement == baseline turns it into a two-sided check and makes a content edit update the
+        number it claims.
+        """
+        root = pathlib.Path(__file__).resolve().parent.parent
+        sys.path.insert(0, str(root / "scripts"))
+        import content_budget
+
+        policy = json.loads((root / "assets" / "content-budgets.json").read_text())
+        for asset in policy["assets"]:
+            mc3 = [s for s in asset["sources"] if s.endswith(".mc3.xml")]
+            if not mc3:
+                continue
+            with self.subTest(asset=asset["id"]):
+                measured = content_budget.AssetMetrics(0, 0, 0)
+                for source in mc3:
+                    measured = measured + content_budget.inspect_mc3(root / source)
+                self.assertEqual(measured.triangles, asset["baseline"]["triangles"],
+                                 f"{asset['id']}: measured triangles differ from the recorded "
+                                 f"baseline; update assets/content-budgets.json if the change is "
+                                 f"intended")
+                self.assertEqual(measured.materials, asset["baseline"]["materials"],
+                                 f"{asset['id']}: measured materials differ from the baseline")
+
+    def test_a_definition_that_instances_itself_is_refused(self):
+        """Without the cycle guard this recurses until the stack ends."""
+        root = pathlib.Path(__file__).resolve().parent.parent
+        sys.path.insert(0, str(root / "scripts"))
+        import content_budget
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "cycle.mc3.xml"
+            path.write_text(
+                '<?xml version="1.0"?>\n'
+                '<mc3 version="0.3" model="Cycle">'
+                '<definitions>'
+                '<definition id="a"><group name="A"><instance name="I" definition="a"/></group></definition>'
+                '</definitions>'
+                '<objects><instance name="Root" definition="a"/></objects>'
+                '</mc3>')
+            with self.assertRaises(content_budget.BudgetError) as caught:
+                content_budget.inspect_mc3(path)
+            self.assertIn("instances itself", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

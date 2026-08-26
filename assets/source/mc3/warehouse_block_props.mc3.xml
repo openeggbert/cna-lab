@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.3" model="IronGangWarehouseBlockProps" unit="meter" coordinate_system="right_handed_y_up">
+  <lights>
+    <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
+  </lights>
+  <materials>
+    <material id="iron" roughness="0.72" metallic="0.65">
+      <base_color>0.21 0.22 0.23 1</base_color>
+    </material>
+    <material id="lamp_glass" roughness="0.25" metallic="0">
+      <base_color>1 0.86 0.51 1</base_color>
+      <emissive_color>0.85 0.68 0.32</emissive_color>
+    </material>
+    <material id="painted_wood" roughness="0.8" metallic="0">
+      <base_color>0.35 0.27 0.19 1</base_color>
+    </material>
+  </materials>
+  <definitions>
+    <definition id="street_lamp">
+      <group name="StreetLamp">
+        <box name="Base" size="0.5 0.3 0.5" position="0 0.15 0" material="iron" collision="static"/>
+        <box name="Post" size="0.18 3.7 0.18" position="0 2.0 0" material="iron" collision="static"/>
+        <box name="Arm" size="0.9 0.12 0.12" position="0.4 3.85 0" material="iron" collision="none"/>
+        <box name="Head" size="0.55 0.26 0.4" position="0.8 3.72 0" material="lamp_glass" collision="none"/>
+      </group>
+    </definition>
+    <definition id="bench">
+      <group name="Bench">
+        <box name="LegLeft" size="0.12 0.42 0.5" position="-0.7 0.21 0" material="iron" collision="static"/>
+        <box name="LegRight" size="0.12 0.42 0.5" position="0.7 0.21 0" material="iron" collision="static"/>
+        <box name="Seat" size="1.7 0.09 0.46" position="0 0.46 0" material="painted_wood" collision="static"/>
+        <box name="Back" size="1.7 0.42 0.09" position="0 0.72 -0.19" material="painted_wood" collision="static"/>
+      </group>
+    </definition>
+    <definition id="waste_bin">
+      <group name="WasteBin">
+        <box name="Body" size="0.42 0.72 0.42" position="0 0.36 0" material="iron" collision="static"/>
+        <box name="Lid" size="0.5 0.07 0.5" position="0 0.75 0" material="painted_wood" collision="none"/>
+      </group>
+    </definition>
+  </definitions>
+  <objects>
+    <instance name="LampWestN33" definition="street_lamp" position="-9 0 -33"/>
+    <instance name="LampEastN33" definition="street_lamp" position="9 0 -33" rotation="0 180 0"/>
+    <instance name="LampWestN22" definition="street_lamp" position="-9 0 -22"/>
+    <instance name="LampEastN22" definition="street_lamp" position="9 0 -22" rotation="0 180 0"/>
+    <instance name="LampWestN11" definition="street_lamp" position="-9 0 -11"/>
+    <instance name="LampEastN11" definition="street_lamp" position="9 0 -11" rotation="0 180 0"/>
+    <instance name="LampWest0" definition="street_lamp" position="-9 0 0"/>
+    <instance name="LampEast0" definition="street_lamp" position="9 0 0" rotation="0 180 0"/>
+    <instance name="LampWest11" definition="street_lamp" position="-9 0 11"/>
+    <instance name="LampEast11" definition="street_lamp" position="9 0 11" rotation="0 180 0"/>
+    <instance name="LampWest22" definition="street_lamp" position="-9 0 22"/>
+    <instance name="LampEast22" definition="street_lamp" position="9 0 22" rotation="0 180 0"/>
+    <instance name="LampWest33" definition="street_lamp" position="-9 0 33"/>
+    <instance name="LampEast33" definition="street_lamp" position="9 0 33" rotation="0 180 0"/>
+    <instance name="BenchWest0" definition="bench" position="-8.2 0 -27.5" rotation="0 90 0"/>
+    <instance name="BenchWest1" definition="bench" position="-8.2 0 -5.5" rotation="0 90 0"/>
+    <instance name="BenchWest2" definition="bench" position="-8.2 0 16.5" rotation="0 90 0"/>
+    <instance name="BenchEast0" definition="bench" position="8.2 0 -16.5" rotation="0 -90 0"/>
+    <instance name="BenchEast1" definition="bench" position="8.2 0 5.5" rotation="0 -90 0"/>
+    <instance name="Bin0" definition="waste_bin" position="-8.4 0 5.5"/>
+    <instance name="Bin1" definition="waste_bin" position="8.4 0 -5.5"/>
+    <instance name="Bin2" definition="waste_bin" position="8.4 0 27.5"/>
+  </objects>
+</mc3>

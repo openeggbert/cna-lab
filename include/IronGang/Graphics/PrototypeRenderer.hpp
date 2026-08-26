@@ -111,7 +111,7 @@ namespace IronGang
                         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel = std::nullopt,
                         std::optional<VehicleModelSet> vehicleModels = std::nullopt,
                         std::optional<Microsoft::Xna::Framework::Graphics::Model> characterModel = std::nullopt,
-                        std::optional<Microsoft::Xna::Framework::Graphics::Model> streetLampModel = std::nullopt);
+                        std::optional<Microsoft::Xna::Framework::Graphics::Model> streetPropsModel = std::nullopt);
 
         // Advances the skinned character's animation state (gate M6): switches to clipName if it
         // differs from the currently playing clip, crossfades over 0.25 seconds, and ticks it by
@@ -241,12 +241,12 @@ namespace IronGang
         std::vector<Microsoft::Xna::Framework::Vector3> vehicleCabinBaseColors_;
         std::vector<Microsoft::Xna::Framework::Vector3> vehicleWindshieldBaseColors_;
         std::vector<Microsoft::Xna::Framework::Vector3> vehicleWheelBaseColors_;
-        // plan_09 IG-09-005: the MC3 street lamp, drawn wherever the district authored a lamp box.
-        std::optional<Microsoft::Xna::Framework::Graphics::Model> streetLampModel_;
-        std::vector<Microsoft::Xna::Framework::Vector3> streetLampPositions_;
-        // True where the lamp's arm should point in -X instead of +X (the east pavement).
-        std::vector<bool> streetLampMirrored_;
-        std::vector<Microsoft::Xna::Framework::Vector3> streetLampBaseColors_;
+        // plan_09 IG-09-005/008: the district's MC3 street-prop set. Three definitions instanced
+        // eighteen times **inside the MC3 file**, so placement is authored content and the renderer
+        // draws the whole set with one call instead of looping over positions it had to infer.
+        std::optional<Microsoft::Xna::Framework::Graphics::Model> streetPropsModel_;
+        std::vector<Microsoft::Xna::Framework::Vector3> streetPropsBaseColors_;
+        bool streetPropsReplaceLampBoxes_{false};
         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel_;
         Microsoft::Xna::Framework::Vector3 warehousePosition_{};
 

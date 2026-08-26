@@ -195,31 +195,6 @@ namespace IronGang
             }
         }
 
-        void SetModelDiffuseColor(Model& model, const Vector3& tint)
-        {
-            for (ModelMesh* mesh : model.getMeshesProperty())
-            {
-                for (Effect* effect : mesh->getEffectsPropertyMutable())
-                {
-                    if (auto* basicEffect = dynamic_cast<BasicEffect*>(effect))
-                    {
-                        basicEffect->setDiffuseColorProperty(tint);
-                    }
-                    else if (auto* pbrEffect = dynamic_cast<PbrEffect*>(effect))
-                    {
-                        pbrEffect->setDiffuseColorProperty(tint);
-                    }
-                    else if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
-                    {
-                        skinnedEffect->setDiffuseColorProperty(tint);
-                    }
-                    else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
-                    {
-                        skinnedPbrEffect->setDiffuseColorProperty(tint);
-                    }
-                }
-            }
-        }
     }
 
     PrototypeRenderer::PrototypeRenderer() = default;
@@ -230,12 +205,12 @@ namespace IronGang
                                        std::optional<Model> warehouseModel,
                                        std::optional<VehicleModelSet> vehicleModels,
                                        std::optional<Model> characterModel,
-                                       std::optional<Model> streetLampModel)
+                                       std::optional<Model> streetPropsModel)
     {
         warehouseModel_ = std::move(warehouseModel);
         vehicleModels_ = std::move(vehicleModels);
         characterModel_ = std::move(characterModel);
-        streetLampModel_ = std::move(streetLampModel);
+        streetPropsModel_ = std::move(streetPropsModel);
 
         // plan_08 IG-08-014: capture what the assets say their colours are, once. Since CNA's
         // glTF->CNJ work landed, a generated .cnj carries diffuseColor/metallic/roughness and the
@@ -250,9 +225,9 @@ namespace IronGang
                              "white -- regenerate it with scripts/build-assets.sh");
             }
         }
-        if (streetLampModel_)
+        if (streetPropsModel_)
         {
-            streetLampBaseColors_ = CaptureModelDiffuseColors(*streetLampModel_);
+            streetPropsBaseColors_ = CaptureModelDiffuseColors(*streetPropsModel_);
         }
         if (vehicleModels_)
         {
@@ -405,8 +380,9 @@ namespace IronGang
         // channel from the current pipeline and stay out of scope for this pass.
         LightmapMeshBuilder cityBuilder;
         staticPrimitiveObjectCount_ = 0;
-        streetLampPositions_.clear();
-        streetLampMirrored_.clear();
+        // Only the district the props were authored for gives up its placeholder lamps.
+        streetPropsReplaceLampBoxes_ =
+            streetPropsModel_.has_value() && world.GetId() == DistrictId::WarehouseBlock;
         for (const WorldBox& box : world.GetBoxes())
         {
             if (warehouseModel_.has_value() && box.name == "warehouse")
@@ -414,25 +390,13 @@ namespace IronGang
                 warehousePosition_ = box.center;
                 continue;
             }
-            // plan_09 IG-09-005: where the district authored a lamp, draw the MC3 prop instead of
-            // the placeholder box -- the same substitution the warehouse already uses. The box is
-            // still what the district *means* by "a lamp stands here"; the model is only how it
-            // looks, so nothing about placement, collision or the map moves into the renderer.
-            if (streetLampModel_.has_value() &&
-                (box.name == "lamp_west" || box.name == "lamp_east"))
+            // plan_09 IG-09-005/008: the MC3 prop set carries its own lamps, already placed by
+            // <instance> elements in the source file, so the placeholder lamp boxes are dropped.
+            // Their positions were the placeholder; the authored instances are the content.
+            if (streetPropsReplaceLampBoxes_ &&
+                (box.name == "lamp_west" || box.name == "lamp_east" ||
+                 box.name == "lamp_glow_west" || box.name == "lamp_glow_east"))
             {
-                // The box spans the post's full height about its centre; the model's origin is at
-                // its base.
-                streetLampPositions_.push_back(box.center - Vector3(0.0F, box.size.Y * 0.5F, 0.0F));
-                // The arm reaches +X as authored, which points at the road from the west pavement
-                // and away from it from the east.
-                streetLampMirrored_.push_back(box.name == "lamp_east");
-                continue;
-            }
-            if (streetLampModel_.has_value() &&
-                (box.name == "lamp_glow_west" || box.name == "lamp_glow_east"))
-            {
-                // The lamp head is part of the model, with its own emissive material.
                 continue;
             }
             cityBuilder.AddBox(box.center, box.size, box.color);
@@ -704,23 +668,16 @@ namespace IronGang
             ApplyModelDiffuseColors(*warehouseModel_, warehouseBaseColors_, sunTint);
             DrawModel(*warehouseModel_, Matrix::CreateTranslation(warehousePosition_), view, projection);
         }
-        if (streetLampModel_ && !streetLampPositions_.empty())
+        if (streetPropsModel_ && streetPropsReplaceLampBoxes_)
         {
-            ApplyModelDiffuseColors(*streetLampModel_, streetLampBaseColors_, sunTint);
-            for (std::size_t index = 0; index < streetLampPositions_.size(); ++index)
-            {
-                const float yaw = index < streetLampMirrored_.size() && streetLampMirrored_[index]
-                                      ? std::numbers::pi_v<float>
-                                      : 0.0F;
-                DrawModel(*streetLampModel_,
-                          Matrix::CreateRotationY(yaw) *
-                              Matrix::CreateTranslation(streetLampPositions_[index]),
-                          view, projection);
-            }
+            ApplyModelDiffuseColors(*streetPropsModel_, streetPropsBaseColors_, sunTint);
+            // One call: every instance's placement is baked into the model's own node hierarchy by
+            // the MC3 <instance> elements, so the renderer neither knows nor needs to know where
+            // the benches are.
+            DrawModel(*streetPropsModel_, Matrix::CreateTranslation(Vector3()), view, projection);
             if (workloadTrackingEnabled_)
             {
-                frameWorkload_.visibleObjects +=
-                    static_cast<std::uint64_t>(streetLampPositions_.size());
+                ++frameWorkload_.visibleObjects;
             }
             if (workloadTrackingEnabled_)
             {

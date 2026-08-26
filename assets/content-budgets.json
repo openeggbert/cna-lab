@@ -75,20 +75,20 @@
       }
     },
     {
-      "id": "street_lamp",
-      "category": "street_prop",
+      "id": "warehouse_block_props",
+      "category": "street_prop_set",
       "sources": [
-        "assets/source/mc3/street_lamp.mc3.xml"
+        "assets/source/mc3/warehouse_block_props.mc3.xml"
       ],
       "baseline": {
-        "triangles": 48,
-        "materials": 2,
+        "triangles": 984,
+        "materials": 3,
         "textures": 0
       },
       "limits": {
-        "triangles": 192,
-        "materials": 8,
-        "textures": 4
+        "triangles": 3936,
+        "materials": 12,
+        "textures": 6
       }
     }
   ]

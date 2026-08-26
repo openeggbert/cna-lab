@@ -119,6 +119,45 @@ def load_policy(path: Path, project_root: Path) -> list[BudgetAsset]:
     return assets
 
 
+def _count_triangles(container, path: Path, definitions: dict[str, Any], expanding: tuple) -> int:
+    """Triangles under one MC3 container, expanding <instance> through <definitions>.
+
+    plan_09 IG-09-008: a prop authored once and instanced many times must be budgeted for what it
+    actually costs, which is the definition's triangles times the number of instances. Refusing to
+    expand (the previous behaviour) would have made the convention unbudgetable, and silently
+    counting an instance as zero would have made a prop set look free.
+    """
+    triangles = 0
+    for primitive in container:
+        if primitive.tag in ("box", "cube"):
+            triangles += 12
+        elif primitive.tag == "group":
+            triangles += _count_triangles(primitive, path, definitions, expanding)
+        elif primitive.tag == "instance":
+            identifier = primitive.get("definition")
+            if identifier is None:
+                raise BudgetError(f"{path}: <instance> without a definition attribute")
+            if identifier not in definitions:
+                raise BudgetError(
+                    f"{path}: <instance> references definition '{identifier}', which this file "
+                    "does not define"
+                )
+            if identifier in expanding:
+                # A definition that instances itself would otherwise recurse until the stack ends.
+                raise BudgetError(
+                    f"{path}: definition '{identifier}' instances itself, directly or through "
+                    f"{' -> '.join(expanding)}"
+                )
+            triangles += _count_triangles(definitions[identifier], path, definitions,
+                                          expanding + (identifier,))
+        else:
+            raise BudgetError(
+                f"{path}: unsupported MC3 primitive <{primitive.tag}>; "
+                "add an exact triangulation rule before budgeting it"
+            )
+    return triangles
+
+
 def inspect_mc3(path: Path) -> AssetMetrics:
     try:
         root = ET.parse(path).getroot()
@@ -129,15 +168,19 @@ def inspect_mc3(path: Path) -> AssetMetrics:
     objects = root.find("objects")
     if objects is None:
         raise BudgetError(f"{path}: missing objects element")
-    triangles = 0
-    for primitive in objects:
-        if primitive.tag in ("box", "cube"):
-            triangles += 12
-        else:
-            raise BudgetError(
-                f"{path}: unsupported MC3 primitive <{primitive.tag}>; "
-                "add an exact triangulation rule before budgeting it"
-            )
+
+    definitions: dict[str, Any] = {}
+    declared = root.find("definitions")
+    if declared is not None:
+        for definition in declared.findall("definition"):
+            identifier = definition.get("id")
+            if not identifier:
+                raise BudgetError(f"{path}: <definition> without an id")
+            if identifier in definitions:
+                raise BudgetError(f"{path}: duplicate definition id '{identifier}'")
+            definitions[identifier] = definition
+
+    triangles = _count_triangles(objects, path, definitions, ())
     materials = root.find("materials")
     textures = root.find("textures")
     return AssetMetrics(

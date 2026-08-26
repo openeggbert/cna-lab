@@ -98,6 +98,40 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### A prop set authored once and instanced (plan_09)
+
+**The convention is MC3's own.** `<definitions>` + `<instance>` already exist: author a prop once,
+place it many times. A multi-part prop wraps its boxes in a `<group>` because the XSD allows a
+definition exactly one child — which this morning's validator reported as
+`warehouse_block_props.mc3.xml:21: element box: This element is not expected`, file and line.
+
+`assets/source/mc3/warehouse_block_props.mc3.xml`: street lamp, bench and waste bin, instanced 22
+times. 984 triangles, three materials, one emissive.
+
+**Placement became content rather than code.** Last iteration matched box names in the renderer and
+mirrored east lamps in C++. Now one `DrawModel` at the origin draws the whole set, and the mirroring
+is `rotation="0 180 0"` on an instance. Instancing pays in the asset too: 22 instances → 82 mesh
+parts but only ~108 triangles of *unique* geometry.
+
+**A content change I made by accident and undid.** My first placement used round numbers
+(`z = -30…30`) while the district authors lamps at `z = i*11`, silently moving and thinning 14 lamps
+to 10. The whole argument for this substitution is that the district's boxes say where a lamp
+stands, so the instances now match exactly — confirmed pixel for pixel: **1752 px of lamp glass
+before and after**, plus 1964 px of new bench and bin.
+
+`street_lamp.mc3.xml` from an hour earlier was removed — its geometry is a definition inside the set
+now, and two copies is the drift `IG-09-008` exists to prevent.
+
+**Two guard gaps, both found by mutation.** `content_budget.py` refused `<instance>` rather than
+guess, so the convention was unbudgetable until it learned to expand definitions. Then a stubbed-out
+expansion still **passed every budget**, because a budget only checks measured ≤ limit — a counter
+that stops counting reports zero and looks fine. Budgets are now two-sided: measured must equal the
+recorded baseline.
+
+Closed `IG-09-008`; `IG-09-005` re-closed against a real set. CTest 16/16. Not done: props are static
+geometry — `collision="static"` reaches the MC3 and nothing reads it back into physics
+(`IG-09-007`); only the warehouse block has a set.
+
 ### The first prop authored through the working MC3 pipeline (plan_09)
 
 `assets/source/mc3/street_lamp.mc3.xml` — base, post, arm, and a head with an `<emissive_color>`.

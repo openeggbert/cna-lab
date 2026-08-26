@@ -1867,6 +1867,63 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## A prop set authored once and instanced (2026-08-26)
+
+plan_09 `IG-09-008` closed; `IG-09-005` re-closed against a real *set* rather than the single prop
+it first shipped with. Gates M12 and M14 untouched.
+
+**The convention is MC3's own, not an Iron Gang invention.** MC3 already has `<definitions>` and
+`<instance>`: a prop is authored once as `<definition id="street_lamp">` and placed with
+`<instance definition="street_lamp" position="-9 0 -33"/>`. The XSD requires a definition's single
+child to be one element, so a multi-part prop wraps its boxes in a `<group>` -- which the validator
+built this morning reported as `warehouse_block_props.mc3.xml:21: element box: This element is not
+expected`, file and line, exactly as `IG-09-003` promised.
+
+**What was authored.** `assets/source/mc3/warehouse_block_props.mc3.xml`: three definitions -- street
+lamp, bench, waste bin -- instanced 22 times. 984 triangles, three materials, one of them an
+emissive lamp glass. It generates to `cnjVersion 2` with 82 mesh parts, each a `PbrEffect` carrying
+the material its MC3 declares.
+
+**Placement became content rather than code.** The previous iteration drew the lamp per position by
+matching box names in the renderer and mirroring east-side lamps in C++. Now `PrototypeRenderer`
+draws the whole set with **one `DrawModel` at the origin** and neither knows nor needs to know where
+the benches are; the mirroring is a `rotation="0 180 0"` on the instance. The placeholder lamp boxes
+are dropped only for the district the set was authored for.
+
+**Instancing pays in the asset, too.** 22 instances flatten to 82 mesh parts, but `mc3togltf` shares
+one glTF mesh per definition -- roughly 108 triangles of *unique* geometry rather than 984, with
+identical bench legs deduplicating further.
+
+**A content change I made by accident and then undid.** The first version placed lamps at
+`z = -30, -15, 0, 15, 30` -- round numbers I picked -- while the district authors them at
+`z = i * 11` for i in [-3, 3]. That silently moved and thinned fourteen lamps to ten. The whole
+argument for this substitution is that the district's boxes say where a lamp stands, so the
+instances now reproduce those positions exactly. A like-for-like capture at the same scripted update
+confirms it pixel for pixel: **1752 px of lamp glass before and after**, with 1964 px of bench and
+bin that were not there. Re-spacing the street furniture may well be worth doing, but as a decision,
+not as a side effect of picking round numbers.
+
+**The single-prop file was removed.** `street_lamp.mc3.xml`, committed an hour earlier, is
+superseded: its geometry is now a definition inside the set. Two copies of the same lamp is exactly
+the drift `IG-09-008` exists to prevent.
+
+**Two gaps in the guards, both found by mutation.** `content_budget.py` refused `<instance>` outright
+rather than guess a triangle count -- correct, and it meant the convention could not be budgeted
+until the tool learned it. It now expands definitions and refuses a definition that instances itself.
+Then a stubbed-out expansion (`triangles += 0`) still **passed every budget**, because a budget only
+asserts measured <= limit: a counter that stops counting reports zero and looks fine. Budgets are now
+two-sided -- measured triangles and materials must equal the recorded baseline, which also forces a
+content edit to update the number it claims. The same mutation now fails five assertions, and the
+self-instancing guard has its own fixture (two more).
+
+16 CTest targets pass, `./scripts/check-syntax.sh` clean.
+
+**Not verified.** The props are static geometry only: benches cannot be sat on, bins cannot be
+knocked over, and none of them collide -- the MC3 `collision="static"` metadata reaches the file and
+nothing reads it back into the physics world. `IG-09-007`'s allowed-collision-value convention is
+still open, and this set is the content that would exercise it. Only the warehouse block has a prop
+set; the countryside has none. And this has been seen as stills and pixel counts, not in motion.
+
 ## The first prop authored through the working MC3 pipeline (2026-08-26)
 
 plan_09 `IG-09-005` closed. Gates M12 and M14 untouched.
