@@ -327,6 +327,13 @@ if(IRON_GANG_BUILD_TESTS)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 
+    # plan_09 IG-09-002/003: invalid MC3 must fail the asset build, with file and line. The
+    # validator existed and was called; nothing ever checked that it rejects anything.
+    add_test(NAME iron_gang_validate_mc3_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validate_mc3.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
     # plan_03 IG-03-006: the module boundaries docs/architecture.md states are rules, and a rule
     # nothing checks is a convention that holds until someone is in a hurry.
     add_test(NAME iron_gang_layering_tests

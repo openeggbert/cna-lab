@@ -7,8 +7,8 @@ Make MC3 a validated, reproducible, hand-authored source format for construction
 ## Schema and format foundations
 
 - [ ] **IG-09-001 P0** — Keep the supplied MC3 schema version in the source manifest.
-- [ ] **IG-09-002 P0** — Add MC3 schema validation to the asset build script.
-- [ ] **IG-09-003 P0** — Make invalid MC3 fail the build with file and line diagnostics.
+- [x] **IG-09-002 P0** — Add MC3 schema validation to the asset build script. *(`scripts/validate-mc3.sh` XSD-validates against Mesh Craft's own `mc3/mc3.xsd` and is called by `build-assets.sh` before anything is converted. It had existed since the pipeline was written -- what was missing is that it **could not find the schema in this workspace**: the default assumed `../mesh-craft`, and the repository has since been moved a directory deeper, so every asset build here died on "MC3 schema not found". The path is now searched across `MC3_SCHEMA`, `MESH_CRAFT_SOURCE_DIR`, `MESH_CRAFT_BUILD_DIR`, `IRON_GANG_CNA_DIR`'s sibling, and both plausible checkout depths.)*
+- [x] **IG-09-003 P0** — Make invalid MC3 fail the build with file and line diagnostics. *(`xmllint --noout --schema` already produces exactly what the entry asks for -- `broken.mc3.xml:12: element sphere: Schemas validity error : ...` -- and `set -euo pipefail` makes it stop the build. **Nothing checked that**, which is what this closes: `iron_gang_validate_mc3_tests` validates every shipped MC3 file, and rejects a deliberately broken one requiring both the file name and the exact offending line number in the diagnostic. Mutation-checked: swallowing xmllint's exit code fails three assertions.)*
 - [x] **IG-09-004 P0** — Author one production-path building in MC3 and load its converted output.
 - [ ] **IG-09-005 P0** — Author one production-path street prop set in MC3.
 - [ ] **IG-09-006 P1** — Define Iron Gang naming, units, axes, pivots, tags, and layer conventions for MC3.

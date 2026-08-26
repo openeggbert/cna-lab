@@ -1867,6 +1867,77 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## The MC3 pipeline actually runs here, and a diagnosis I got wrong (2026-08-26)
+
+plan_09 `IG-09-002` and `IG-09-003` closed. Gates M12 and M14 untouched. This entry also **corrects
+a finding published earlier the same day**.
+
+**The correction, first.** "Why every imported model was white" concluded that *the MC3 -> glTF ->
+CNJ pipeline drops material data entirely*, on the evidence of a generated `warehouse.cnj` that held
+only vertices, indices, a stride and an effect name. The owner said CNA's glTF/GLB handling had been
+substantially fixed recently and the claim was probably stale. It was.
+
+Building `mc3togltf` and running the pipeline end to end produces:
+
+```json
+{ "cnjVersion": 2, "type": "Model",
+  "bones": [ ... ],
+  "meshes": [ { "name": "Warehouse", "vertexStride": 48, "effect": "PbrEffect",
+                "metallicFactor": 0.05, "roughnessFactor": 0.84, "emissiveFactor": [0, 0, 0],
+                "diffuseColor": [0.42, 0.36, 0.31], "alpha": 1 } ] }
+```
+
+against the `cnjVersion 1` file I inspected, which had `"vertexStride": 32, "effect": "BasicEffect"`
+and no material at all. The tool's own source says the MVP material scope cuts are closed and warns
+that "keeping another loose copy here was exactly how four fields fell out of the .cnj path" -- they
+fixed precisely this. **The assets in `assets/generated` were months old**, that directory is
+git-ignored so nothing regenerated them, and I diagnosed the pipeline from its output without
+checking whether the output was current.
+
+The consequence: `assets/models/model-materials.json` and `PrototypeRenderer::ShadedBaseColor()`,
+added to work around a bug that no longer exists, are now redundant. They are **not** removed in
+this commit -- the shipped colours match the MC3 ones exactly (a test enforces it), so rendering is
+unchanged, and replacing an override with "read the material the loader already set, multiply by sun
+brightness" is its own change with its own before/after. Recorded as the next step rather than
+bundled in here.
+
+**What this unlocked.** `mc3togltf` had never been built in this environment, so `build-assets.sh`
+had never run and the MC3 half of the pipeline was untested here. It is built now (mesh-craft's own
+`build/`, Release, ccache), and all five shipped MC3 sources regenerate cleanly. A scripted game run
+with the regenerated PBR assets exits 0 with no warnings and renders correctly.
+
+**`IG-09-002`/`IG-09-003`, and why they were open.** `scripts/validate-mc3.sh` has existed since the
+pipeline was written and `build-assets.sh` already called it. Two things were wrong:
+
+- **It could not find the schema here.** The default was `$project_root/../mesh-craft/mc3/mc3.xsd`,
+  and this repository sits a directory deeper than that assumes, so every asset build died on "MC3
+  schema not found". A validator that cannot find its schema fails open in the worst way: the build
+  stops and the obvious workaround is to skip validation. The path is now searched across
+  `MC3_SCHEMA`, `MESH_CRAFT_SOURCE_DIR`, `MESH_CRAFT_BUILD_DIR`, `IRON_GANG_CNA_DIR`'s sibling, and
+  both plausible checkout depths.
+- **Nothing checked that it rejects anything.** `xmllint --noout --schema` already emits exactly
+  what `IG-09-003` asks for -- `broken.mc3.xml:12: element sphere: Schemas validity error : ...` --
+  and `set -euo pipefail` stops the build on it. That was true and unverified.
+
+**Verified.** `iron_gang_validate_mc3_tests` validates all five shipped MC3 sources; rejects a
+deliberately broken one requiring **both** the file name and the exact offending line number
+computed from the fixture rather than hard-coded; reports a missing input; falls through a bogus
+`MC3_SCHEMA` to a real one rather than breaking a working workspace; and finds the schema with
+**every** hint variable cleared. 17 CTest targets, all passing, up from 16.
+
+**Mutation-checked -- and the first version of one test was hollow.** Swallowing xmllint's exit code
+fails three assertions. Removing the deeper checkout candidate from the schema search initially
+failed **nothing**: the test cleared `MC3_SCHEMA` and `MESH_CRAFT_SOURCE_DIR` but not
+`IRON_GANG_CNA_DIR`, which happens to point one directory above the Mesh Craft checkout, so the
+"found with no environment set" test passed while proving nothing about the bare-workspace path it
+is named for. With every hint variable cleared, the same mutation now fails 19 assertions.
+
+**Not verified.** Only the five single-object MC3 sources are regenerated;
+`prototype_city_block.mc3.xml` still is not used at runtime -- the city is procedural boxes. The
+schema check is XSD only: it says the XML is well-formed against the grammar, not that the geometry
+is sane, which is what `content_budget.py` and `IG-09-006`'s naming/units/pivot conventions are
+for. And the regenerated assets are not committed, because `assets/generated` is git-ignored.
+
 ## Making the module boundaries a property rather than a habit (2026-08-26)
 
 plan_03 `IG-03-006` closed; `IG-03-005` audited and left open with its finding recorded. Gates M12

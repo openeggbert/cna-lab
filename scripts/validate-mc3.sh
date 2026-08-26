@@ -3,16 +3,36 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 input="${1:-$project_root/assets/source/mc3/prototype_city_block.mc3.xml}"
-mesh_craft_dir="${MESH_CRAFT_SOURCE_DIR:-$project_root/../mesh-craft}"
-schema="${MC3_SCHEMA:-$mesh_craft_dir/mc3/mc3.xsd}"
+# The schema lives in the Mesh Craft checkout. Search rather than assume one layout: this
+# repository has already been moved once (see NEXT.md), and a hard-coded "../mesh-craft" silently
+# skipped validation for everyone whose workspace was one level deeper.
+find_schema() {
+  local candidate
+  for candidate in \
+    "${MC3_SCHEMA:-}" \
+    "${MESH_CRAFT_SOURCE_DIR:+$MESH_CRAFT_SOURCE_DIR/mc3/mc3.xsd}" \
+    "${MESH_CRAFT_BUILD_DIR:+$MESH_CRAFT_BUILD_DIR/../mc3/mc3.xsd}" \
+    "${IRON_GANG_CNA_DIR:+$IRON_GANG_CNA_DIR/../mesh-craft/mc3/mc3.xsd}" \
+    "$project_root/../mesh-craft/mc3/mc3.xsd" \
+    "$project_root/../../mesh-craft/mc3/mc3.xsd"
+  do
+    if [[ -n "$candidate" && -f "$candidate" ]]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+schema="$(find_schema || true)"
 
 if [[ ! -f "$input" ]]; then
   echo "MC3 input not found: $input" >&2
   exit 1
 fi
-if [[ ! -f "$schema" ]]; then
-  echo "MC3 schema not found: $schema" >&2
-  echo "Set MESH_CRAFT_SOURCE_DIR or MC3_SCHEMA." >&2
+if [[ -z "$schema" ]]; then
+  echo "MC3 schema (mc3.xsd) not found in any known Mesh Craft location." >&2
+  echo "Set MC3_SCHEMA to the file, or MESH_CRAFT_SOURCE_DIR to the checkout." >&2
   exit 1
 fi
 

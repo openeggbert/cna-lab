@@ -98,6 +98,40 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The MC3 pipeline runs here now — and a diagnosis I got wrong (plan_09)
+
+**Correction first.** "Every imported model was white" concluded the MC3 → glTF → CNJ pipeline drops
+material data. The owner said CNA's glTF handling had been fixed recently and my claim was probably
+stale. **It was.** Building `mc3togltf` and running the pipeline end to end gives `cnjVersion 2`
+with `"diffuseColor": [0.42, 0.36, 0.31]`, `metallicFactor`, `roughnessFactor`, `emissiveFactor`,
+`alpha` and `"effect": "PbrEffect"` — exactly the MC3 material. The file I inspected was
+`cnjVersion 1`, generated months earlier by an older tool; `assets/generated` is git-ignored so
+nothing had regenerated it. **I diagnosed the pipeline from its output without checking whether the
+output was current.**
+
+Consequence: `assets/models/model-materials.json` and `ShadedBaseColor()` are now redundant. Left in
+place deliberately — the shipped colours match the MC3 ones exactly, so rendering is unchanged, and
+replacing the override with "read the material the loader already set, multiply by sun brightness"
+deserves its own change and its own before/after. **That is the obvious next task.**
+
+**What this unlocked.** `mc3togltf` had never been built here, so `build-assets.sh` had never run and
+the MC3 half of the pipeline was untested in this environment. It is built now, all five shipped MC3
+sources regenerate cleanly, and the game runs on the regenerated PBR assets with no warnings.
+
+**`IG-09-002`/`003` were open for two reasons.** `validate-mc3.sh` existed and was already called by
+`build-assets.sh`, but (a) it could not find the schema here — the default assumed `../mesh-craft`
+and this repo sits a directory deeper, so every asset build died on "MC3 schema not found", and (b)
+nothing checked it rejects anything. `xmllint` already gives `broken.mc3.xml:12: element sphere:
+Schemas validity error`, which is exactly what `IG-09-003` asks for; it was true and unverified.
+
+**One test of mine was hollow at first.** Removing the deeper-checkout candidate from the schema
+search failed *nothing*, because the test cleared `MC3_SCHEMA` and `MESH_CRAFT_SOURCE_DIR` but not
+`IRON_GANG_CNA_DIR` — which points one directory above the Mesh Craft checkout. The "found with no
+environment set" test passed while proving nothing about the path it is named for. With every hint
+cleared, the same mutation now fails 19 assertions.
+
+Closed `IG-09-002`, `IG-09-003`. Verified: CTest 17/17.
+
 ### Module boundaries become a property, not a habit (plan_03)
 
 `docs/architecture.md` has stated the dependency direction since the first milestone and the tree
@@ -800,7 +834,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 305/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 307/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
