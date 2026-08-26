@@ -36,9 +36,11 @@ namespace IronGang
     {
         Microsoft::Xna::Framework::Vector3 position;
         float yaw{0.0F};
-        // Pedestrians only (plan_20 IG-20-003): whether this one is walking or standing, which is
-        // what picks its animation clip. Vehicles ignore it.
+        // Pedestrians only (plan_20 IG-20-003): the locomotion flags that pick this one's
+        // animation clip, resolved through SelectPedestrianAnimation(). Vehicles ignore them.
         bool moving{true};
+        bool turningInPlace{false};
+        bool fleeing{false};
         // Whether to draw this pedestrian as the skinned character rather than a coloured box.
         // The **caller** decides, because the caller knows where the player is looking from and
         // the renderer does not; see IronGangGame's nearest-N policy.

@@ -18,6 +18,22 @@ namespace IronGang
         constexpr float kFleeDurationSeconds = 4.0F;
         constexpr float kFleeSpeedMultiplier = 2.5F;
         constexpr float kArrivalRadius = 0.5F;
+
+        // Shortest signed angle from `from` to `to`, in (-pi, pi].
+        [[nodiscard]] float ShortestAngleTo(float from, float to) noexcept
+        {
+            constexpr float kPi = 3.14159265358979323846F;
+            float delta = to - from;
+            while (delta > kPi)
+            {
+                delta -= 2.0F * kPi;
+            }
+            while (delta <= -kPi)
+            {
+                delta += 2.0F * kPi;
+            }
+            return delta;
+        }
     }
 
     void Pedestrian::Reset(WaypointPath path, std::size_t startIndex, float walkSpeed,
@@ -29,10 +45,30 @@ namespace IronGang
         walkSpeed_ = walkSpeed;
         yaw_ = 0.0F;
         walking_ = false;
+        turningInPlace_ = false;
+        turnRate_ = 0.0F;
         fleeTimer_ = 0.0F;
         fleeFromPosition_ = Vector3{};
 
-        if (path_.points.size() < 2 || startOffsetMetres <= 0.0F)
+        if (path_.points.size() < 2)
+        {
+            return;
+        }
+
+        // plan_20 IG-20-003: face the way you are about to walk. Yaw used to be left at 0 unless a
+        // start offset was given, which was invisible while turning was instantaneous -- now it
+        // would make every pedestrian pivot on the spot the moment it spawned.
+        {
+            const std::size_t firstTarget = (targetIndex_ + 1) % path_.points.size();
+            Vector3 heading = path_.points[firstTarget] - position_;
+            heading.Y = 0.0F;
+            if (heading.Length() > 1e-4F)
+            {
+                yaw_ = std::atan2(heading.X, -heading.Z);
+            }
+        }
+
+        if (startOffsetMetres <= 0.0F)
         {
             return;
         }
@@ -83,6 +119,10 @@ namespace IronGang
         if (fleeTimer_ > 0.0F)
         {
             walking_ = true;
+            // Panic is not a considered pivot: a fleeing pedestrian faces away immediately and
+            // keeps running. The rate limit below deliberately does not apply here.
+            turningInPlace_ = false;
+            turnRate_ = 0.0F;
             Vector3 away = position_ - fleeFromPosition_;
             away.Y = 0.0F;
             const float distance = away.Length();
@@ -116,9 +156,48 @@ namespace IronGang
         {
             // Stopped, but still facing the way it was going: a queue of people all facing
             // forward, not a huddle.
+            turningInPlace_ = false;
+            turnRate_ = 0.0F;
             return;
         }
 
-        yaw_ = AdvanceAlongPath(path_, position_, targetIndex_, speed, deltaSeconds, kArrivalRadius, yaw_);
+        // plan_20 IG-20-003: turn toward the heading the path wants at a bounded rate rather than
+        // snapping to it. AdvanceAlongPath() returns the exact heading of the current segment,
+        // which at the end of a two-point pavement is a 180-degree reversal -- applied directly,
+        // that is a pedestrian who spins in one frame.
+        const float previousYaw = yaw_;
+        const float desiredYaw = HeadingTowardTarget();
+        const float error = ShortestAngleTo(yaw_, desiredYaw);
+        const float maximumStep = kPedestrianTurnRate * deltaSeconds;
+        turningInPlace_ = std::abs(error) > kPedestrianTurnInPlaceThreshold;
+        yaw_ += std::clamp(error, -maximumStep, maximumStep);
+        turnRate_ = deltaSeconds > 0.0F ? ShortestAngleTo(previousYaw, yaw_) / deltaSeconds : 0.0F;
+
+        if (turningInPlace_)
+        {
+            // Pivoting on the spot: a person at the end of a pavement turns round before walking
+            // back, rather than walking backwards while rotating.
+            walking_ = false;
+            return;
+        }
+
+        // AdvanceAlongPath() moves the pedestrian and advances targetIndex_; its returned heading
+        // is discarded in favour of the rate-limited one computed above.
+        (void)AdvanceAlongPath(path_, position_, targetIndex_, speed, deltaSeconds, kArrivalRadius, yaw_);
+    }
+
+    float Pedestrian::HeadingTowardTarget() const noexcept
+    {
+        if (path_.points.empty())
+        {
+            return yaw_;
+        }
+        Vector3 toTarget = path_.points[targetIndex_ % path_.points.size()] - position_;
+        toTarget.Y = 0.0F;
+        if (toTarget.Length() <= 1e-4F)
+        {
+            return yaw_;
+        }
+        return std::atan2(toTarget.X, -toTarget.Z);
     }
 }

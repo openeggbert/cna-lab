@@ -12,6 +12,7 @@
 #include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
+#include "IronGang/Gameplay/PedestrianAnimation.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficSignal.hpp"
@@ -4507,6 +4508,114 @@ namespace
     // Gate M9 / plan_20 (IG-20-001/002/003): a Pedestrian must flee directly away from a threat
     // for a fixed duration (even after the threat itself is no longer reported present), then
     // resume its normal path once that duration elapses.
+    // plan_20 IG-20-003: which clip each locomotion state asks for, and what it falls back to.
+    void TestPedestrianAnimationSelection()
+    {
+        using IronGang::PedestrianAnimation;
+        using IronGang::SelectPedestrianAnimation;
+
+        Require(SelectPedestrianAnimation(false, false, false) == PedestrianAnimation::Idle,
+                "standing still must be Idle");
+        Require(SelectPedestrianAnimation(true, false, false) == PedestrianAnimation::Walk,
+                "walking must be Walk");
+        Require(SelectPedestrianAnimation(false, true, false) == PedestrianAnimation::Turn,
+                "pivoting on the spot must be Turn, not Idle");
+        // Fleeing outranks everything: someone running from a car is not idling, and is not
+        // politely turning on the spot either.
+        Require(SelectPedestrianAnimation(false, true, true) == PedestrianAnimation::Walk,
+                "fleeing must outrank turning");
+        Require(SelectPedestrianAnimation(false, false, true) == PedestrianAnimation::Walk,
+                "fleeing must outrank standing still");
+
+        Require(std::string(IronGang::PedestrianAnimationClipName(PedestrianAnimation::Turn)) == "Turn",
+                "Turn must ask for the Turn clip");
+        Require(std::string(IronGang::PedestrianAnimationClipName(PedestrianAnimation::Idle)) == "Idle",
+                "Idle must ask for the Idle clip");
+        // assets/generated is not committed, so a checkout whose asset build predates the Turn
+        // clip must still animate rather than freeze on whatever pose it last held.
+        Require(std::string(IronGang::PedestrianAnimationFallbackClipName(PedestrianAnimation::Turn)) == "Walk",
+                "a missing Turn clip must fall back to Walk, where the legs at least move");
+        Require(std::string(IronGang::PedestrianAnimationFallbackClipName(PedestrianAnimation::Idle)) == "Idle",
+                "a state that cannot be missing must fall back to itself");
+    }
+
+    // plan_20 IG-20-003: reversing at the end of a pavement used to be a 180-degree snap in a
+    // single frame. It is now a bounded turn the pedestrian stands still for.
+    void TestPedestrianTurnsInPlaceInsteadOfSnapping()
+    {
+        IronGang::WaypointPath path;
+        // A short two-point pavement, so the pedestrian reaches the far end and must reverse.
+        path.points = {IronGang::Vector3(0.0F, 0.9F, 0.0F), IronGang::Vector3(0.0F, 0.9F, 4.0F)};
+        path.loop = true;
+
+        IronGang::Pedestrian pedestrian;
+        pedestrian.Reset(path, 0, 1.6F);
+
+        constexpr float kStep = 1.0F / 60.0F;
+        const IronGang::Vector3 noThreat;
+
+        // Walk until the pedestrian starts turning. It must not be turning while walking down the
+        // straight, and it must reach the turn within a few seconds.
+        int updates = 0;
+        while (!pedestrian.IsTurningInPlace() && updates < 600)
+        {
+            pedestrian.Update(kStep, false, noThreat);
+            ++updates;
+        }
+        Require(pedestrian.IsTurningInPlace(),
+                "the pedestrian must reach the end of the pavement and start turning");
+        Require(!pedestrian.IsWalking(),
+                "a pedestrian pivoting on the spot must not also report walking, or the animation "
+                "slides a walk cycle sideways");
+
+        // The turn must take real time and stay within the rate limit, and the pedestrian must not
+        // travel while doing it.
+        const float startYaw = pedestrian.GetYaw();
+        int turningUpdates = 0;
+        while (pedestrian.IsTurningInPlace() && turningUpdates < 600)
+        {
+            const float before = pedestrian.GetYaw();
+            const IronGang::Vector3 positionBefore = pedestrian.GetPathPosition();
+            pedestrian.Update(kStep, false, noThreat);
+            ++turningUpdates;
+            // The update that *ends* the turn legitimately walks; every update still turning
+            // afterwards must not have moved at all.
+            if (pedestrian.IsTurningInPlace())
+            {
+                Require((pedestrian.GetPathPosition() - positionBefore).Length() < 1e-6F,
+                        "a pedestrian pivoting on the spot must not travel while turning");
+            }
+            float delta = pedestrian.GetYaw() - before;
+            while (delta > std::numbers::pi_v<float>) { delta -= 2.0F * std::numbers::pi_v<float>; }
+            while (delta <= -std::numbers::pi_v<float>) { delta += 2.0F * std::numbers::pi_v<float>; }
+            Require(std::abs(delta) <= IronGang::kPedestrianTurnRate * kStep + 1e-4F,
+                    "the heading must never move faster than kPedestrianTurnRate");
+            Require(std::abs(pedestrian.GetTurnRate()) <= IronGang::kPedestrianTurnRate + 1e-3F,
+                    "the reported turn rate must respect the same limit");
+        }
+        Require(!pedestrian.IsTurningInPlace(), "the turn must finish");
+        // A 180-degree reversal minus the in-place threshold, at the turn rate: about
+        // (pi - 0.6) / 3.5 = 0.726 s, i.e. roughly 44 updates. Anything near 1 is the old snap.
+        Require(turningUpdates > 30,
+                "the reversal must take many updates, not snap in one (took " +
+                    std::to_string(turningUpdates) + ")");
+        float turned = pedestrian.GetYaw() - startYaw;
+        while (turned > std::numbers::pi_v<float>) { turned -= 2.0F * std::numbers::pi_v<float>; }
+        while (turned <= -std::numbers::pi_v<float>) { turned += 2.0F * std::numbers::pi_v<float>; }
+        Require(std::abs(turned) > 1.5F,
+                "the pedestrian must actually have turned most of the way round");
+
+        // And it walks again afterwards, back the way it came.
+        const float zBeforeWalkingBack = pedestrian.GetPathPosition().Z;
+        for (int i = 0; i < 30; ++i)
+        {
+            pedestrian.Update(kStep, false, noThreat);
+        }
+        Require(pedestrian.IsWalking(), "the pedestrian must resume walking once the turn is done");
+        Require(pedestrian.GetPathPosition().Z < zBeforeWalkingBack,
+                "having turned round, it must walk back the way it came");
+    }
+
     void TestPedestrianFleesAndResumesPath()
     {
         IronGang::WaypointPath path;
@@ -5343,6 +5452,8 @@ int main()
         TestDialogueLinesCarryStableIds();
         TestWaypointPathAdvancesAndWraps();
         TestTrafficVehicleAcceleratesAndBrakes();
+        TestPedestrianAnimationSelection();
+        TestPedestrianTurnsInPlaceInsteadOfSnapping();
         TestPedestrianFleesAndResumesPath();
         TestPoliceSystemFullCycle();
         TestBitmapFontGlyphAtlas();

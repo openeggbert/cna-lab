@@ -98,6 +98,48 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Diagnosing the screenshot findings, and pedestrian turning (plan_20)
+
+**A correction first.** The screenshot review two entries down reported that "pedestrians render as
+a pair of red legs with no torso or head" while the player "draws correctly". Both halves were
+wrong, for one reason: **the big white object beside the player is the sedan, not the player.**
+Having misidentified it, the rest followed.
+
+Two probes settled it, and both were negative:
+
+1. Drawing pedestrians with the *player's* bone palette changed nothing.
+2. No animation clip has a channel for the Root bone, to which the torso+head is rigid -- a
+   promising cause. Adding one, regenerating the glTF and CNJ, and swapping it in changed nothing.
+
+A closer crop then showed the figures whole. `test_character` is a placeholder: one red box for
+torso and head, two red leg boxes, rendered identically and correctly for player and pedestrians. It
+reads oddly at a distance because it is one flat red — placeholder art, not a rendering fault.
+
+**The other finding held up and is now localised.** The white quad *is* the warehouse: skip
+`DrawModel(*warehouseModel_, ...)` and it disappears, revealing the lamps and trees behind it. The
+renderer deliberately leaves the warehouse untinted, which on an untextured white material means a
+slab brighter than everything else. Left open under `IG-08-014` — reversing a documented decision
+deserves its own before/after evidence.
+
+**What was built: pedestrian turning (`IG-20-003`).** A pedestrian reaching the end of a two-point
+pavement reversed 180 degrees **in a single frame**. It now rotates at `kPedestrianTurnRate`
+(3.5 rad/s, ~0.73 s for a reversal) and stands still while the heading error is large — a person
+turns round before walking back, not while walking backwards. Clip selection moved out of the
+renderer into `SelectPedestrianAnimation()`, a pure function of walking/turning/fleeing, and a
+`Turn` clip (a shuffle, not a stride) was added to the character generator; the regenerated CNJ has
+six clips and the game loads `test_character_Turn.cnj`. `assets/generated` is not committed, so a
+stale asset build falls back to `Walk` instead of freezing mid-pose. `Reset()` now faces a
+pedestrian along its path — harmless while turning was instant, but it would have made every
+pedestrian pivot at spawn.
+
+**A test that was wrong before the code was.** The first version asserted the pedestrian never
+travels between the start and end of a turn. It failed: the update that *ends* the turn legitimately
+walks. The assertion now applies per update.
+
+Closed `IG-20-003`. Verified: CTest 14/14, two new tests, and a mutation check — restoring the snap
+fails with "the reversal must take many updates, not snap in one (took 1)". Not verified: how the
+pivot looks in motion; a still cannot show an animation.
+
 ### The first automated run that presses a key (plan_30)
 
 No automated run had ever pressed a key. `--smoke` renders frames and ticks the world, but every
@@ -157,15 +199,14 @@ cannot come back.
 **And then the frames were looked at.** The follow camera, the cutscene hand-off framing, the HUD,
 the subtitle, road markings, sidewalks, foliage, buildings, traffic and the parked sedan are all
 confirmed correct for the first time -- including, end to end, the dialogue cue added the previous
-iteration. Two defects surfaced that no assertion could have caught:
+iteration. Two defects were reported. **One of them was wrong** -- see the correction in the next
+entry:
 
-- **Pedestrians render as a pair of red legs, no torso, no head**, floating slightly above the
-  pavement -- every pedestrian, in both gameplay frames, from separate runs. The player character in
-  the same frame draws correctly, so this is specific to how pedestrians are drawn.
+- ~~**Pedestrians render as a pair of red legs, no torso, no head.**~~ **Wrong.** The large white
+  object beside the player is the sedan, not the player; `test_character` is a flat-red placeholder
+  that both the player and pedestrians render identically and correctly.
 - **A large flat pure-white quad fills the upper right** of both gameplay frames, hard-edged and
-  unshaded, in the same place across runs.
-
-Neither is diagnosed. Finding them is what a screenshot is for; both are listed below as open.
+  unshaded, in the same place across runs. Since confirmed to be the warehouse model.
 
 Closed `IG-30-013`. Verified: CTest 13/13 (a new end-to-end target), two new unit tests, and a
 mutation check -- making `Draw()` return straight after `Clear()` fails the end-to-end test with
@@ -421,7 +462,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 287/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 288/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
@@ -445,9 +486,14 @@ Task count went from 215/2148 at the start of this session to 287/2148 now (the 
 - **Models, textures, audio, and the save file are read with no size bound** (`IG-36-002`'s
   remainder); no Unicode normalization; error messages still contain full local paths
   (`IG-36-013`).
-- **Pedestrians render as a pair of red legs with no torso or head** (found by the first screenshot
-  review, 2026-08-26) -- and **a large flat white quad fills the upper right** of every gameplay
-  frame. Both are reproducible with `--screenshot`; neither is diagnosed. See `docs/screenshots.md`.
+- **The warehouse renders as a flat pure-white slab** filling the upper right of every gameplay
+  frame -- `PrototypeRenderer::Draw()` deliberately leaves it untinted, which on an untextured white
+  material is brighter than anything else in the scene. Confirmed by a draw-skip probe on
+  2026-08-26. Reversing that decision belongs to plan_08 `IG-08-014` and wants its own before/after
+  evidence. See `docs/screenshots.md`.
+- **The character model is a flat-red placeholder** (one box for torso+head, two leg boxes), which
+  reads poorly at a distance. That is `test_character`'s stated scope, not a bug -- real character
+  art is plan_18 work.
 - **Every M12 capture on record predates the population change** (2 pedestrians/2 cars vs 12/4), so
   those numbers are not comparable to a fresh run -- see the dated note atop
   `docs/performance-baseline.md`.

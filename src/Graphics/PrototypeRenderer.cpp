@@ -1,5 +1,7 @@
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 
+#include "IronGang/Gameplay/PedestrianAnimation.hpp"
+
 #include "IronGang/Graphics/SunLight.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 
@@ -32,9 +34,16 @@ namespace IronGang
         {
         }
 
-        void Update(float deltaSeconds, const std::string& requestedClip)
+        void Update(float deltaSeconds, const std::string& requestedClip,
+                    const std::string& fallbackClip = std::string())
         {
-            const auto clipIt = skinningData->AnimationClips.find(requestedClip);
+            auto clipIt = skinningData->AnimationClips.find(requestedClip);
+            if (clipIt == skinningData->AnimationClips.end() && !fallbackClip.empty())
+            {
+                // assets/generated is not committed, so a checkout whose asset build predates a
+                // clip must still animate rather than freeze on whatever pose it last held.
+                clipIt = skinningData->AnimationClips.find(fallbackClip);
+            }
             if (clipIt == skinningData->AnimationClips.end())
             {
                 return;
@@ -239,9 +248,15 @@ namespace IronGang
 
         for (std::size_t index = 0; index < pedestrians.size(); ++index)
         {
-            // Standing still is what a yielding pedestrian does (plan_20 IG-20-010), and an idle
-            // pose is how that reads as a person waiting rather than a person sliding.
-            pedestrianAnimations_[index]->Update(deltaSeconds, pedestrians[index].moving ? "Walk" : "Idle");
+            // plan_20 IG-20-003: the three locomotion states -- walking, pivoting on the spot at
+            // the end of a pavement, and standing still while yielding (IG-20-010) -- each pick
+            // their own clip through the shared, unit-tested selector.
+            const PedestrianAnimation animation = SelectPedestrianAnimation(pedestrians[index].moving,
+                                                                            pedestrians[index].turningInPlace,
+                                                                            pedestrians[index].fleeing);
+            pedestrianAnimations_[index]->Update(deltaSeconds,
+                                                 PedestrianAnimationClipName(animation),
+                                                 PedestrianAnimationFallbackClipName(animation));
         }
     }
 

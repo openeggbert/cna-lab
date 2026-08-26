@@ -93,14 +93,30 @@ Rendering correctly, confirmed visually for the first time:
 - Road surface, lane markings, kerbs, sidewalks, foliage, buildings, traffic vehicles, and the
   parked sedan all draw in the right places and are distinguishable from one another.
 
-Two defects that no test could have caught, and nobody could previously see:
+One defect that no test could have caught, and nobody could previously see:
 
-- **Pedestrians render as a pair of red legs with no torso and no head**, floating slightly above
-  the pavement. Consistent across both gameplay frames and every pedestrian in them. The player
-  character in the same frame draws correctly (white torso and arms, red shirt, dark legs), so this
-  is specific to how pedestrians are drawn, not to the character model itself.
 - **A large flat pure-white quad fills the upper right** of both gameplay frames, with a hard
-  straight edge and no shading. Its size and position are consistent between runs.
+  straight edge and no shading, in the same place across runs. **Confirmed on 2026-08-26 to be the
+  warehouse model**: with `DrawModel(*warehouseModel_, ...)` skipped, the quad disappears and the
+  street lamps and trees behind it become visible. `PrototypeRenderer::Draw()` deliberately leaves
+  the warehouse untinted ("simplest to leave it at full brightness rather than half-applying either
+  lighting model to it") — which, on an untextured white material, means a white slab brighter than
+  anything else in the scene. Open as part of plan_08 `IG-08-014`.
 
-Neither is diagnosed here — this document records what the frames show. Both are open items in
-`NEXT.md`.
+### A finding this document got wrong (corrected 2026-08-26)
+
+The first version of this section also claimed pedestrians rendered as "a pair of red legs with no
+torso and no head", and contrasted that with a player character said to be drawing correctly with a
+"white torso and arms". **Both halves were wrong, and they were wrong for the same reason: the
+large white object beside the player is the sedan, not the player.** Two probes settled it — drawing
+pedestrians with the player's own bone palette changed nothing, and neither did adding the Root-bone
+animation channel the clips lack. A closer crop then showed the figures whole.
+
+The character model is `test_character`, a deliberate placeholder: one red box for the torso and
+head together, and two red leg boxes. Player and pedestrians render it identically and correctly.
+It reads oddly at a distance because the whole figure is one flat red, which is a placeholder-art
+limitation rather than a rendering fault.
+
+The lesson is recorded rather than quietly edited out: a first look at a scene is exactly when
+objects are easiest to misidentify, and "the player draws correctly, the pedestrians do not" was a
+conclusion drawn from a single still without checking which object was which.

@@ -1964,8 +1964,11 @@ namespace IronGang
                 pedestrianAnimationPoses.reserve(pedestrians_.size());
                 for (const Pedestrian& pedestrian : pedestrians_)
                 {
-                    pedestrianAnimationPoses.push_back(
-                        {pedestrian.GetPosition(), pedestrian.GetYaw(), pedestrian.IsWalking()});
+                    pedestrianAnimationPoses.push_back({pedestrian.GetPosition(),
+                                                        pedestrian.GetYaw(),
+                                                        pedestrian.IsWalking(),
+                                                        pedestrian.IsTurningInPlace(),
+                                                        pedestrian.IsFleeing()});
                 }
                 renderer_.UpdatePedestrianAnimations(simulationSeconds, pedestrianAnimationPoses);
 
@@ -2367,8 +2370,12 @@ namespace IronGang
         {
             // plan_20 IG-20-003: a pedestrian yielding to the one ahead stands still, and the
             // renderer picks an idle pose for it rather than sliding a walk cycle along.
-            pedestrianPoses.push_back(
-                {pedestrian.GetPosition(), pedestrian.GetYaw(), pedestrian.IsWalking(), false});
+            pedestrianPoses.push_back({pedestrian.GetPosition(),
+                                       pedestrian.GetYaw(),
+                                       pedestrian.IsWalking(),
+                                       pedestrian.IsTurningInPlace(),
+                                       pedestrian.IsFleeing(),
+                                       false});
         }
 
         std::vector<ActorPose> policePoses;

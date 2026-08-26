@@ -13,6 +13,14 @@ namespace IronGang
     // No pedestrian-pedestrian avoidance and no panic-scatter-in-all-directions crowd behavior --
     // each pedestrian reacts to the single nearest threat independently, matching the locked
     // "smallest coherent slice" scope for this first pass.
+    // How fast a pedestrian can change heading, radians per second. About 200 degrees a second,
+    // so the 180-degree reversal at the end of a pavement takes a bit under a second -- long
+    // enough to read as a turn, short enough not to hold up the queue behind them.
+    inline constexpr float kPedestrianTurnRate = 3.5F;
+    // Heading error above which the pedestrian stops and pivots instead of walking. Below it, the
+    // turn happens while walking, which is what a gentle corner looks like.
+    inline constexpr float kPedestrianTurnInPlaceThreshold = 0.6F;
+
     class Pedestrian final
     {
     public:
@@ -56,8 +64,21 @@ namespace IronGang
         // behind someone in its lane (plan_20 IG-20-010), which is what lets an animation pick an
         // idle pose instead of sliding a walk cycle along the pavement.
         [[nodiscard]] bool IsWalking() const noexcept { return walking_; }
+        // plan_20 IG-20-003: true while the pedestrian is pivoting toward a heading it is not
+        // facing yet -- which is what happens at the end of a two-point pavement, where it used to
+        // reverse 180 degrees in a single frame. It stops walking for the duration, so a turn is a
+        // movement rather than a teleport, and so the animation can play a pivot instead of
+        // sliding a walk cycle sideways.
+        [[nodiscard]] bool IsTurningInPlace() const noexcept { return turningInPlace_; }
+        // How fast the heading is changing, radians per second, signed. Bounded by
+        // kPedestrianTurnRate; a caller can use it to pick a left/right pivot once the character
+        // model has one.
+        [[nodiscard]] float GetTurnRate() const noexcept { return turnRate_; }
 
     private:
+        // The heading the current path target asks for, without moving.
+        [[nodiscard]] float HeadingTowardTarget() const noexcept;
+
         WaypointPath path_;
         std::size_t targetIndex_{0};
         Vector3 position_{};
@@ -66,6 +87,8 @@ namespace IronGang
         float fleeTimer_{0.0F};
         float laneOffsetMetres_{0.0F};
         bool walking_{false};
+        bool turningInPlace_{false};
+        float turnRate_{0.0F};
         Vector3 fleeFromPosition_{};
     };
 }

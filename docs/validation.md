@@ -1867,6 +1867,81 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## Diagnosing the first screenshot review's own findings (2026-08-26)
+
+plan_20 `IG-20-003` closed. This entry also **corrects a wrong finding** published in "The first
+frames anyone has looked at" earlier the same day.
+
+**The correction.** That entry claimed pedestrians rendered as "a pair of red legs with no torso or
+head" while "the player character in the same frame draws correctly (white torso and arms, red
+shirt, dark legs)". Both halves are wrong, for one reason: **the large white object beside the
+player is the sedan, not the player.** Having misidentified it, everything else followed.
+
+Two probes settled it, in this order:
+
+1. Drawing pedestrians with the *player's* bone palette instead of their own changed nothing. So
+   the pedestrian animation state was not the cause.
+2. Every animation clip in `gen_test_character_gltf.py` has channels only for nodes 1 and 2 (the
+   legs) and none for node 0 (Root), to which the torso+head box is rigid -- a promising cause.
+   Adding an identity Root channel to `Idle`, regenerating the glTF, converting it with
+   `cna_tool_gltf_to_cnj`, and swapping the CNJ in changed nothing either.
+
+A closer crop then showed the figures whole: `test_character` is a deliberate placeholder -- one red
+box for torso and head together, plus two red leg boxes -- and player and pedestrians render it
+identically and correctly. It reads oddly at a distance because the whole figure is one flat red.
+That is placeholder art, not a rendering fault. Both probes were reverted; the negative results are
+worth as much as the positive one and are recorded rather than discarded.
+
+**The other finding, confirmed and localised.** The white quad **is** the warehouse model. With
+`DrawModel(*warehouseModel_, ...)` skipped, the quad disappears and the street lamps and trees
+behind it become visible. `PrototypeRenderer::Draw()` deliberately leaves the warehouse untinted
+("simplest to leave it at full brightness rather than half-applying either lighting model to it"),
+which on an untextured white material means a slab brighter than anything else in the scene. Left
+open under plan_08 `IG-08-014`: reversing that decision deserves its own before/after evidence.
+
+**What was actually built: pedestrian turning (`IG-20-003`).** A pedestrian reaching the end of a
+two-point pavement reversed 180 degrees in a single frame, because `AdvanceAlongPath()` returns the
+exact heading of the current segment and that heading was applied directly. It now rotates toward
+that heading at `kPedestrianTurnRate` (3.5 rad/s, so a reversal takes about 0.73 s) and **stands
+still** while the heading error exceeds `kPedestrianTurnInPlaceThreshold` (0.6 rad) -- a person at
+the end of a pavement turns round before walking back, rather than walking backwards while pivoting.
+
+Clip selection moved out of the renderer into `SelectPedestrianAnimation()`
+(`include/IronGang/Gameplay/PedestrianAnimation.hpp`), a pure function of walking / turning /
+fleeing that needs no graphics device to test. A `Turn` clip -- short, fast alternating steps, a
+shuffle rather than a stride -- was added to `assets/source/gltf/gen_test_character_gltf.py`, the
+glTF regenerated, and the CNJ rebuilt with `cna_tool_gltf_to_cnj` (6 clips, up from 5); the game
+logs `Loading asset: test_character_Turn.cnj`. Because `assets/generated` is not committed,
+`CharacterAnimationState::Update()` gained a fallback clip, so a checkout whose asset build predates
+`Turn` plays `Walk` rather than freezing on whatever pose it last held.
+
+`Pedestrian::Reset()` now faces a pedestrian along its path even with no start offset. That was
+invisible while turning was instantaneous; with a rate limit it would have made every pedestrian
+pivot on the spot the moment it spawned. Fleeing deliberately still snaps -- panic is not a
+considered pivot -- and the existing flee test pins that.
+
+**Verified.** `TestPedestrianAnimationSelection` (the full truth table, including fleeing
+outranking both turning and standing still, and the Turn-to-Walk fallback) and
+`TestPedestrianTurnsInPlaceInsteadOfSnapping` (the pedestrian reaches the end of a 4 m pavement and
+starts turning; reports not-walking while pivoting; never exceeds the rate limit on any update, by
+either the yaw delta or the reported `GetTurnRate()`; does not travel on any update that is still
+turning afterwards; takes more than 30 updates rather than one; ends up more than 1.5 rad round; and
+walks back the way it came). 14 CTest targets pass. The asset registry hash for
+`test_character.gltf` was refreshed, and failed the suite until it was.
+
+**Mutation-checked.** Restoring the old snap (`yaw_ = desiredYaw`) fails with
+`the reversal must take many updates, not snap in one (took 1)`.
+
+**A test that was wrong before the code was.** The first version asserted the pedestrian does not
+travel *at all* between the start and end of the turn. It failed: the update that *ends* the turn
+legitimately walks. The assertion now applies per update, only to updates still turning afterwards.
+
+**Not verified.** How the pivot looks in motion -- a still frame cannot show an animation, and the
+`Turn` clip has only been confirmed to load and be selected, not watched. No left/right distinction:
+`GetTurnRate()` is exposed signed for when the model has separate clips, but one clip serves both
+directions today. The regenerated CNJ is not committed (`assets/generated` is ignored), so anyone
+without a local asset build gets the documented Walk fallback.
+
 ## The first automated run that presses a key (2026-08-26)
 
 plan_30 `IG-30-012` closed. Gates M12 and M14 untouched. `docs/input-scripts.md` is the how-to.
@@ -1993,11 +2068,10 @@ drew nothing" regression this exists to catch -- fails the end-to-end test with
 HUD, the dialogue subtitle, road markings, sidewalks, foliage, buildings, traffic vehicles and the
 parked sedan are all confirmed visually correct for the first time -- including, end to end, the
 dialogue cue added earlier the same day. Two defects were found that no assertion could have
-caught: **pedestrians render as a pair of red legs with no torso or head**, floating slightly above
-the pavement, consistent across both gameplay frames and every pedestrian in them, while the player
-character in the same frame draws correctly; and **a large flat pure-white quad fills the upper
-right** of both gameplay frames with a hard edge and no shading. Neither is diagnosed -- finding
-them is what a screenshot is for.
+caught: **pedestrians render as a pair of red legs with no torso or head** [**corrected 2026-08-26:
+this finding was wrong -- see "Diagnosing the first screenshot review's own findings" below**]; and
+**a large flat pure-white quad fills the upper right** of both gameplay frames with a hard edge and
+no shading. Neither is diagnosed -- finding them is what a screenshot is for.
 
 **Not verified.** Anything about a real backend: this is CNA's software renderer, and EasyGL or a
 GPU path could differ (`ReadBackbuffer` is implemented per renderer). Colour accuracy, gamma, and

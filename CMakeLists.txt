@@ -133,6 +133,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/LaneClearance.cpp
     src/Gameplay/Locomotion.cpp
     src/Gameplay/Pedestrian.cpp
+    src/Gameplay/PedestrianAnimation.cpp
     src/Gameplay/PlayerController.cpp
     src/Gameplay/PoliceSystem.cpp
     src/Gameplay/TrafficSignal.cpp

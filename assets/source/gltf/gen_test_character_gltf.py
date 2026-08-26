@@ -166,6 +166,17 @@ walk_times_off, walk_times_len = add("3f", 0.0, 0.5, 1.0)
 walk_left_off, walk_left_len = add_vec4_array([quat_x(SWING), quat_x(-SWING), quat_x(SWING)])
 walk_right_off, walk_right_len = add_vec4_array([quat_x(-SWING), quat_x(SWING), quat_x(-SWING)])
 
+# "Turn": a shuffling pivot -- the legs alternate like Walk but with a shorter swing and twice the
+# cadence (a half-second cycle), which is what turning on the spot looks like: quick small steps
+# rather than a stride. Distinct from Walk on purpose, since a pedestrian reversing at the end of a
+# pavement is not translating, and playing Walk there slides the cycle across the ground.
+TURN_SWING = SWING * 0.45
+turn_times_off, turn_times_len = add("3f", 0.0, 0.25, 0.5)
+turn_left_off, turn_left_len = add_vec4_array(
+    [quat_x(TURN_SWING), quat_x(-TURN_SWING), quat_x(TURN_SWING)])
+turn_right_off, turn_right_len = add_vec4_array(
+    [quat_x(-TURN_SWING), quat_x(TURN_SWING), quat_x(-TURN_SWING)])
+
 # "Dialogue": a static "parade rest" stance -- legs angled slightly toward each other about the
 # local Z axis (a different axis than Walk's X-axis swing, so it reads as a distinct pose, not
 # just a frozen mid-walk frame), held for a 1-second clip like Idle.
@@ -266,6 +277,10 @@ walk_times_acc = acc(bv(walk_times_off, walk_times_len), FLOAT, 3, "SCALAR", ([0
 walk_left_acc = acc(bv(walk_left_off, walk_left_len), FLOAT, 3, "VEC4")
 walk_right_acc = acc(bv(walk_right_off, walk_right_len), FLOAT, 3, "VEC4")
 
+turn_times_acc = acc(bv(turn_times_off, turn_times_len), FLOAT, 3, "SCALAR", ([0.0], [0.5]))
+turn_left_acc = acc(bv(turn_left_off, turn_left_len), FLOAT, 3, "VEC4")
+turn_right_acc = acc(bv(turn_right_off, turn_right_len), FLOAT, 3, "VEC4")
+
 dialogue_times_acc = acc(bv(dialogue_times_off, dialogue_times_len), FLOAT, 2, "SCALAR", ([0.0], [1.0]))
 dialogue_left_acc = acc(bv(dialogue_left_off, dialogue_left_len), FLOAT, 2, "VEC4")
 dialogue_right_acc = acc(bv(dialogue_right_off, dialogue_right_len), FLOAT, 2, "VEC4")
@@ -313,6 +328,17 @@ gltf = {
             "samplers": [
                 {"input": walk_times_acc, "output": walk_left_acc, "interpolation": "LINEAR"},
                 {"input": walk_times_acc, "output": walk_right_acc, "interpolation": "LINEAR"},
+            ],
+            "channels": [
+                {"sampler": 0, "target": {"node": 1, "path": "rotation"}},
+                {"sampler": 1, "target": {"node": 2, "path": "rotation"}},
+            ],
+        },
+        {
+            "name": "Turn",
+            "samplers": [
+                {"input": turn_times_acc, "output": turn_left_acc, "interpolation": "LINEAR"},
+                {"input": turn_times_acc, "output": turn_right_acc, "interpolation": "LINEAR"},
             ],
             "channels": [
                 {"sampler": 0, "target": {"node": 1, "path": "rotation"}},

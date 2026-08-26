@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**287 of 2148 tasks done** (13%). Open by priority: P0 196 · P1 1012 · P2 596 · P3 57.
+**288 of 2148 tasks done** (13%). Open by priority: P0 195 · P1 1012 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -66,7 +66,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 17 | [Vehicles and driving](../plan/plan_17-vehicles-and-driving.md) | 2/97 | 2% |
 | 18 | [Characters, skeletons, and animation](../plan/plan_18-characters-skeletons-and-animation.md) | 7/98 | 7% |
 | 19 | [Navigation and pathfinding](../plan/plan_19-navigation-and-pathfinding.md) | 1/26 | 3% |
-| 20 | [Pedestrians and ambient AI](../plan/plan_20-pedestrians-and-ambient-ai.md) | 4/60 | 6% |
+| 20 | [Pedestrians and ambient AI](../plan/plan_20-pedestrians-and-ambient-ai.md) | 5/60 | 8% |
 | 21 | [Traffic simulation](../plan/plan_21-traffic-simulation.md) | 5/60 | 8% |
 | 22 | [Police, witnesses, crime, and wanted response](../plan/plan_22-police-witnesses-crime-and-wanted-response.md) | 5/60 | 8% |
 | 23 | [Combat, damage, and interaction](../plan/plan_23-combat-damage-and-interaction.md) | 0/44 | 0% |
