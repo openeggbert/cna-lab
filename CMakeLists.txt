@@ -141,6 +141,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/VehicleDamage.cpp
     src/Gameplay/VehicleController.cpp
     src/Graphics/LightmapMesh.cpp
+    src/Graphics/ScreenshotSummary.cpp
     src/Graphics/VideoMemoryAccounting.cpp
     src/Missions/CampaignDefinition.cpp
     src/Missions/MissionContext.cpp
@@ -192,6 +193,7 @@ add_executable(iron_gang
     src/Graphics/GpuFrameTimer.cpp
     src/Graphics/PrimitiveMesh.cpp
     src/Graphics/PrototypeRenderer.cpp
+    src/Graphics/ScreenshotCapture.cpp
     src/main.cpp)
 
 add_executable(IronGang::Game ALIAS iron_gang)
@@ -309,6 +311,16 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
     set_tests_properties(iron_gang_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # plan_30 IG-30-013: the first test in this repository that looks at a rendered frame. The
+    # software renderer needs no display, so this runs anywhere the game builds.
+    add_test(NAME iron_gang_screenshot_capture_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_screenshot_capture.py"
+            "$<TARGET_FILE:iron_gang>")
+    set_tests_properties(iron_gang_screenshot_capture_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        TIMEOUT 600)
 
     # IG-39-035: the game must fall back to the procedural warehouse box, not crash, when
     # scripts/build-assets.sh has not produced assets/generated/warehouse/cnj/warehouse.cnj.

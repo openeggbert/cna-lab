@@ -79,6 +79,8 @@ int main(int argc, char* argv[])
         std::optional<IronGang::PerformanceScenario> profileScenario;
         bool verticalSync = true;
         int smokeFrames = -1;
+        std::string screenshotPath;
+        int screenshotFrame = 1;
         std::optional<IronGang::LogSeverity> logSeverity;
 
         for (int index = 1; index < argc; ++index)
@@ -99,6 +101,23 @@ int main(int argc, char* argv[])
             else if (argument == "--profile" && index + 1 < argc)
             {
                 profilePath = argv[++index];
+            }
+            else if (argument == "--screenshot" && index + 1 < argc)
+            {
+                screenshotPath = argv[++index];
+            }
+            else if (argument == "--screenshot-frame" && index + 1 < argc)
+            {
+                const std::string value = argv[++index];
+                if (value.find_first_not_of("0123456789") != std::string::npos || value.empty())
+                {
+                    throw std::invalid_argument("--screenshot-frame requires a positive frame number");
+                }
+                screenshotFrame = std::stoi(value);
+                if (screenshotFrame < 1)
+                {
+                    throw std::invalid_argument("--screenshot-frame requires a positive frame number");
+                }
             }
             else if (argument == "--profile-scenario" && index + 1 < argc)
             {
@@ -141,6 +160,8 @@ int main(int argc, char* argv[])
                     << "  --smoke [frames] Exit after a bounded number of draw frames\n"
                     << "  --profile <path> Write an M12 JSON performance report on exit\n"
                     << "  --profile-scenario <name>  intro, idle, walk, drive, mixed, or mission\n"
+                    << "  --screenshot <path>  Write one frame as a PNG (plus a summary sidecar)\n"
+                    << "  --screenshot-frame <n>  Which draw frame to capture (1-based, default 1)\n"
                     << "  --vsync on|off  Request synchronized or immediate presentation\n"
                     << "  --log-level <name>  debug, info, warning, or error (overrides game.json)\n";
                 return 0;
@@ -148,6 +169,14 @@ int main(int argc, char* argv[])
             else if (argument == "--profile")
             {
                 throw std::invalid_argument("--profile requires an output path");
+            }
+            else if (argument == "--screenshot")
+            {
+                throw std::invalid_argument("--screenshot requires an output path");
+            }
+            else if (argument == "--screenshot-frame")
+            {
+                throw std::invalid_argument("--screenshot-frame requires a positive frame number");
             }
             else if (argument == "--profile-scenario")
             {
@@ -165,6 +194,14 @@ int main(int argc, char* argv[])
             game.SetLogSeverityOverride(*logSeverity);
         }
         game.SetSmokeFrames(smokeFrames);
+        if (!screenshotPath.empty())
+        {
+            game.RequestScreenshot(screenshotPath, screenshotFrame);
+        }
+        else if (screenshotFrame != 1)
+        {
+            throw std::invalid_argument("--screenshot-frame requires --screenshot");
+        }
         game.SetVerticalSync(verticalSync);
         if (!profilePath.empty())
         {

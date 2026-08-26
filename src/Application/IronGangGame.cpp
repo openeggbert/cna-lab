@@ -1,6 +1,8 @@
 // Iron Gang application entry point.
 #include "IronGang/Application/IronGangGame.hpp"
 
+#include "../Graphics/ScreenshotCapture.hpp"
+
 #include "IronGang/Core/Log.hpp"
 #include "IronGang/Core/RandomSource.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
@@ -2209,6 +2211,10 @@ namespace IronGang
         if (districtManager_.IsTransitioning())
         {
             device.Clear(Color(18, 18, 22, 255), 1.0F);
+            // Counted (and capturable) like any other frame: a loading screen is exactly the kind
+            // of frame someone would want a screenshot of, and skipping it here would silently
+            // shift every later frame index.
+            CaptureRequestedScreenshot(device);
             if (smokeFramesRemaining_ > 0)
             {
                 --smokeFramesRemaining_;
@@ -2225,7 +2231,9 @@ namespace IronGang
             return;
         }
 
-        device.Clear(Color(112, 145, 164, 255), 1.0F);
+        device.Clear(Color(static_cast<int>(kSkyClearRed), static_cast<int>(kSkyClearGreen),
+                           static_cast<int>(kSkyClearBlue), 255),
+                     1.0F);
         device.SetDepthTestEnabled(true);
 
         const auto& viewport = device.getViewportProperty();
@@ -2424,6 +2432,10 @@ namespace IronGang
             spriteBatch_->End();
         }
 
+        // Last, after every draw call and before CNA presents: the back buffer still holds this
+        // frame at this point, and reading it after Present() is renderer-dependent.
+        CaptureRequestedScreenshot(device);
+
         if (smokeFramesRemaining_ > 0)
         {
             --smokeFramesRemaining_;
@@ -2437,6 +2449,47 @@ namespace IronGang
             gpuFrameTimer_->End();
         }
         RecordRenderWorkload();
+    }
+
+    void IronGangGame::RequestScreenshot(std::string path, int frame)
+    {
+        screenshotPath_ = std::move(path);
+        screenshotFrame_ = frame;
+    }
+
+    void IronGangGame::CaptureRequestedScreenshot(Graphics::GraphicsDevice& device)
+    {
+        ++drawFrameIndex_;
+        if (screenshotPath_.empty() || drawFrameIndex_ != screenshotFrame_)
+        {
+            return;
+        }
+
+        ScreenshotSummary summary;
+        std::string error;
+        if (!CaptureScreenshot(device, screenshotPath_, summary, error))
+        {
+            Log::Warning(LogCategory::Rendering, error);
+            screenshotPath_.clear();
+            return;
+        }
+
+        std::string reason;
+        if (!ScreenshotLooksRendered(summary, reason))
+        {
+            // Not an error -- a loading screen or a district transition is a legitimately flat
+            // frame. Saying so beats a green run over a screenshot nobody looked at.
+            Log::Warning(LogCategory::Rendering,
+                         "screenshot " + screenshotPath_ + " does not look like a rendered scene: " +
+                             reason);
+        }
+        Log::Info(LogCategory::Rendering,
+                  "screenshot written: " + screenshotPath_ + " (" + std::to_string(summary.width) +
+                      "x" + std::to_string(summary.height) + ", " +
+                      std::to_string(summary.distinctColours) + " colours, " +
+                      std::to_string(static_cast<int>(summary.NonSkyFraction() * 100.0)) +
+                      "% non-sky)");
+        screenshotPath_.clear();
     }
 
     void IronGangGame::EndDraw()

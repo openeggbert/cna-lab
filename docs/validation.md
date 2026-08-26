@@ -1867,6 +1867,78 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## The first frames anyone has looked at (2026-08-26)
+
+plan_30 `IG-30-013` closed. Gates M12 and M14 untouched. The full record of what the captured
+frames show is in `docs/screenshots.md`; this entry is the evidence for the mechanism.
+
+**Why this is worth a whole entry.** Every visual claim in this file has a "Not verified" clause
+saying nobody has seen the game, because the environment it is built in has no display. That was
+never actually true of the *renderer* -- the `compile-software` preset uses CNA's software renderer,
+which needs no GPU, no display server, and no driver, and whose `ReadBackbuffer` returns real
+pixels. The gap was that nothing asked it for them.
+
+**What was added.** `--screenshot <path>` and `--screenshot-frame <n>` capture one draw frame as an
+RGBA PNG, plus a `<path>.summary.json` sidecar. The read-back happens after the frame's last draw
+call and before `Present()` (reading a presented back buffer is renderer-dependent), via
+`GraphicsDevice::GetBackBufferData` and `CNA::Internal::Graphics::ImageLoader::SavePng`.
+
+Split along the same line as `PrototypeRenderer`: the part needing a `GraphicsDevice`
+(`src/Graphics/ScreenshotCapture.*`) is in the executable, and the part worth unit-testing
+(`ScreenshotSummary`, `SummarizeScreenshot`, `ScreenshotLooksRendered`, `WriteScreenshotSummary`) is
+a pure function on a byte buffer in `iron_gang_core`. Two smaller consequences: the sky clear colour
+is now a named constant (`kSkyClearRed/Green/Blue`) used both by `Draw()`'s `Clear()` and by the
+"is this pixel geometry" test, rather than a literal in one place and a guess in the other; and
+`LogCategory` gained `Rendering`, which it had never had.
+
+**No golden image, on purpose.** `--smoke N` is not frame-deterministic -- CNA drives `Update()`
+from the wall clock and catches up by calling it repeatedly -- so which moment frame N lands on
+varies between runs and machines. A pixel hash would fail everywhere for reasons unrelated to
+rendering. What is stable is whether the frame is a rendered scene at all, which is what
+`ScreenshotLooksRendered()` checks: not empty, not nothing-but-sky, not a one-or-two-colour fill.
+
+**A predicate that was wrong on its first real input.** The first version also rejected a frame with
+no sky in it, reasoning that it meant the camera was inside geometry. The very first capture -- the
+intro cutscene's high establishing shot, looking down at the street -- is 99.7 % non-sky and
+completely correct, and the game logged it as suspect. The rule was removed rather than tuned: a
+camera angle is not a rendering fault, and there is a test asserting that exact frame shape passes,
+so it cannot come back.
+
+**Verified.** `TestScreenshotSummaryDescribesAFrame` (sky-only rejected with the reason naming it;
+near-sky pixels within tolerance not counted as geometry while a pixel well away from it is; a
+half-painted frame reading as half non-sky and passing; a no-sky frame passing; a two-colour frame
+rejected as a flat fill; a buffer whose size contradicts the dimensions yielding an empty summary
+rather than reading out of bounds) and `TestScreenshotSummaryDigestAndSidecar` (the digest stable
+for identical pixels and changed by one byte; the sidecar containing width, the fraction, and the
+digest written as a string because it does not fit a JSON double). New CTest
+`iron_gang_screenshot_capture_tests` runs the real binary headless three ways: a capture whose PNG
+signature, IHDR (8-bit, colour type 6 RGBA) and IEND chunk are all checked and whose sidecar must
+agree with the PNG's own dimensions; a `--screenshot-frame` past the end of the run, which must
+produce no file and still exit 0; and four malformed argument combinations, each of which must be
+rejected. 13 CTest targets, all passing, up from 12.
+
+**Mutation-checked.** Making `Draw()` return immediately after `Clear()` -- the exact "the renderer
+drew nothing" regression this exists to catch -- fails the end-to-end test with
+`0.0 not greater than 0.01 : the frame is nothing but the clear colour`. A capture run takes about
+3.7 s.
+
+**What the frames showed.** Three frames were captured and actually looked at (see
+`docs/screenshots.md` for the full write-up). The follow camera, the cutscene hand-off framing, the
+HUD, the dialogue subtitle, road markings, sidewalks, foliage, buildings, traffic vehicles and the
+parked sedan are all confirmed visually correct for the first time -- including, end to end, the
+dialogue cue added earlier the same day. Two defects were found that no assertion could have
+caught: **pedestrians render as a pair of red legs with no torso or head**, floating slightly above
+the pavement, consistent across both gameplay frames and every pedestrian in them, while the player
+character in the same frame draws correctly; and **a large flat pure-white quad fills the upper
+right** of both gameplay frames with a hard edge and no shading. Neither is diagnosed -- finding
+them is what a screenshot is for.
+
+**Not verified.** Anything about a real backend: this is CNA's software renderer, and EasyGL or a
+GPU path could differ (`ReadBackbuffer` is implemented per renderer). Colour accuracy, gamma, and
+any timing-dependent visual (animation blending, the loading screen's minimum display time) are
+outside what a single still frame can show. The capture is a still: nothing here says the game looks
+right in motion.
+
 ## Cutscene dialogue track and cross-content stale-reference checking (2026-08-26)
 
 plan_26 `IG-26-010` and plan_34 `IG-34-015` closed; plan_26 `IG-26-002` advanced (two of its six

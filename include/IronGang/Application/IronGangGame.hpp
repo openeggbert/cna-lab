@@ -61,6 +61,10 @@ namespace IronGang
         void SetSmokeFrames(int frames) noexcept { smokeFramesRemaining_ = frames; }
         void SetVerticalSync(bool enabled);
         void EnablePerformanceProfile(std::string reportPath);
+        // plan_30 IG-30-013: write draw frame @p frame (1-based) to @p path as a PNG plus a
+        // "<path>.summary.json" sidecar, then carry on. A capture failure is logged, never fatal --
+        // a diagnostic must not be able to take the game down with it.
+        void RequestScreenshot(std::string path, int frame);
         void SetPerformanceScenario(PerformanceScenario scenario) noexcept { performanceScenario_ = scenario; }
         [[nodiscard]] bool WritePerformanceReport(std::string& error) const;
 
@@ -82,6 +86,7 @@ namespace IronGang
         [[nodiscard]] bool WasPressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
                                       GameAction action) const;
         void HandleInteraction();
+        void CaptureRequestedScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
         // plan_26 IG-26-010: applies the cutscene's dialogue track to the conversation, at most
         // once per cue.
         void ApplyCutsceneDialogueCue();
@@ -253,6 +258,9 @@ namespace IronGang
         PerformanceProfiler performanceProfiler_;
         std::unique_ptr<GpuFrameTimer> gpuFrameTimer_;
         std::string performanceReportPath_;
+        std::string screenshotPath_;
+        int screenshotFrame_{0};
+        int drawFrameIndex_{0};
         double pendingDistrictWorldPhysicsMilliseconds_{0.0};
         std::uint64_t pendingDistrictResidentBytesBefore_{0};
         std::uint64_t pendingDistrictVideoMemoryBytesBefore_{0};

@@ -32,6 +32,9 @@ namespace IronGang
         Cutscene,
         Dialogue,
         Mission,
+        // plan_30 IG-30-013: the renderer had no category of its own; screenshot capture is the
+        // first thing outside PrototypeRenderer that needs to say something about a frame.
+        Rendering,
         Save,
     };
 

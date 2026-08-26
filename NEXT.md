@@ -98,6 +98,45 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The first frames anyone has looked at (plan_30)
+
+Every visual claim in `docs/validation.md` ends with "no display in this environment". That was
+never true of the **renderer**: the `compile-software` preset uses CNA's software renderer, which
+needs no GPU, no display server, and no driver, and whose `ReadBackbuffer` returns real pixels.
+Nothing had ever asked it for them.
+
+`--screenshot <path>` / `--screenshot-frame <n>` now capture one draw frame as an RGBA PNG plus a
+summary sidecar, read back after the last draw call and before `Present()`. Split like
+`PrototypeRenderer`: the `GraphicsDevice` half is in the executable, and the half worth testing --
+`SummarizeScreenshot` / `ScreenshotLooksRendered` -- is a pure function on bytes in
+`iron_gang_core`. Deliberately not a golden image: `--smoke N` is not frame-deterministic, so a
+pixel hash would fail everywhere for reasons unrelated to rendering.
+
+**The predicate was wrong on its first real input.** It also rejected a frame with no sky, reasoning
+that meant the camera was inside geometry. The very first capture -- the intro cutscene's high
+establishing shot, looking down at the street -- is 99.7 % non-sky and completely correct, and the
+game logged it as suspect. The rule was deleted, with a test asserting that frame shape passes so it
+cannot come back.
+
+**And then the frames were looked at.** The follow camera, the cutscene hand-off framing, the HUD,
+the subtitle, road markings, sidewalks, foliage, buildings, traffic and the parked sedan are all
+confirmed correct for the first time -- including, end to end, the dialogue cue added the previous
+iteration. Two defects surfaced that no assertion could have caught:
+
+- **Pedestrians render as a pair of red legs, no torso, no head**, floating slightly above the
+  pavement -- every pedestrian, in both gameplay frames, from separate runs. The player character in
+  the same frame draws correctly, so this is specific to how pedestrians are drawn.
+- **A large flat pure-white quad fills the upper right** of both gameplay frames, hard-edged and
+  unshaded, in the same place across runs.
+
+Neither is diagnosed. Finding them is what a screenshot is for; both are listed below as open.
+
+Closed `IG-30-013`. Verified: CTest 13/13 (a new end-to-end target), two new unit tests, and a
+mutation check -- making `Draw()` return straight after `Clear()` fails the end-to-end test with
+"the frame is nothing but the clear colour". `docs/screenshots.md` is the how-to and the review
+record. Not verified: any real backend -- `ReadBackbuffer` is per-renderer, so EasyGL could differ --
+and nothing a still frame cannot show (gamma, animation blending, anything in motion).
+
 ### Cutscenes can speak, and a renamed line now fails the build (plan_26, plan_34)
 
 The dialogue ids added last iteration existed but nothing used them. Cutscenes now do:
@@ -346,7 +385,7 @@ deliberately not claimed. That file is the place to read before trusting any of 
 | Player settings became their own file, with a shared atomic write | `IG-29-005` |
 | Every rebindable key comes from one table, with per-context conflict detection | `IG-28-007` |
 
-Task count went from 215/2148 at the start of this session to 285/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
+Task count went from 215/2148 at the start of this session to 286/2148 now (the later iterations are written up under "What changed most recently" rather than in the table above). `docs/status.md` (generated) is the current dashboard.
 
 **Open threads this work left behind**, roughly by how much they block something else:
 
@@ -370,6 +409,9 @@ Task count went from 215/2148 at the start of this session to 285/2148 now (the 
 - **Models, textures, audio, and the save file are read with no size bound** (`IG-36-002`'s
   remainder); no Unicode normalization; error messages still contain full local paths
   (`IG-36-013`).
+- **Pedestrians render as a pair of red legs with no torso or head** (found by the first screenshot
+  review, 2026-08-26) -- and **a large flat white quad fills the upper right** of every gameplay
+  frame. Both are reproducible with `--screenshot`; neither is diagnosed. See `docs/screenshots.md`.
 - **Every M12 capture on record predates the population change** (2 pedestrians/2 cars vs 12/4), so
   those numbers are not comparable to a fresh run -- see the dated note atop
   `docs/performance-baseline.md`.
@@ -2234,10 +2276,15 @@ not verified" above. Camera offsets, body-mesh offset, Jolt's default vehicle tu
 screen (behind the map at roughly `(0,0.5,-47)`), the skinned test character's look/scale/
 Idle-Walk switching (walk forward and watch the legs alternate), the Dialogue pose, walking up to
 the sedan and pressing E to watch the enter/exit animation and `playerDriving_` handoff, and —
-**especially** — the new intro cutscene's camera pan and whether pressing Enter mid-cutscene
-(after dialogue has finished) actually skips it cleanly are all unverified visually — this
-environment has no display, so everything above has only ever been checked via assertions/logs,
-never by actually seeing it happen.
+**especially** — the new intro cutscene's camera pan are all unverified interactively. (Enter no
+longer needs dialogue to have finished: since 2026-08-26 Confirm during a cutscene always skips it.)
+
+**This list is shorter than it was.** As of 2026-08-26 the renderer can be looked at without a
+display — see `docs/screenshots.md` and use `--screenshot`. The camera framing, the cutscene
+hand-off, the HUD, the subtitle, and the world geometry have now been checked by actually seeing
+them. What a still frame cannot show — animation blending, the enter/exit clip, the loading screen's
+timing, anything in motion, and how a real GPU backend differs from the software renderer — is what
+genuinely still needs a display.
 
 **Gates M6 through M11 (`plan/plan_39-vertical-slice-gates.md` `IG-39-007`/`008`/`009`/`010`/`011`/
 `012`) are all now fully done at prototype/first-pass fidelity**, including M9's AND M11's own

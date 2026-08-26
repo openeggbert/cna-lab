@@ -51,6 +51,7 @@ namespace IronGang
             case LogCategory::Cutscene: return "cutscene";
             case LogCategory::Dialogue: return "dialogue";
             case LogCategory::Mission: return "mission";
+            case LogCategory::Rendering: return "rendering";
             case LogCategory::Save: return "save";
         }
         return "app";

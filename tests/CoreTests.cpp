@@ -31,6 +31,7 @@
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/Graphics/ScreenshotSummary.hpp"
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/UI/DistrictMap.hpp"
@@ -3957,6 +3958,125 @@ namespace
 
     // plan_26 IG-26-010: the dialogue track picks the subtitle by stable id as the timeline
     // passes each cue, and a skip lands on the same cue a full play-through would.
+    // plan_30 IG-30-013: the half of screenshot capture that can be tested without a graphics
+    // device -- deciding, from pixels alone, whether a frame looks like a rendered scene.
+    void TestScreenshotSummaryDescribesAFrame()
+    {
+        constexpr int kWidth = 40;
+        constexpr int kHeight = 20;
+        const auto skyFrame = [&]() {
+            std::vector<std::uint8_t> rgba(static_cast<std::size_t>(kWidth) * kHeight * 4);
+            for (std::size_t pixel = 0; pixel < rgba.size() / 4; ++pixel)
+            {
+                rgba[pixel * 4 + 0] = IronGang::kSkyClearRed;
+                rgba[pixel * 4 + 1] = IronGang::kSkyClearGreen;
+                rgba[pixel * 4 + 2] = IronGang::kSkyClearBlue;
+                rgba[pixel * 4 + 3] = 255;
+            }
+            return rgba;
+        };
+
+        // A frame of nothing but sky: the renderer drew nothing. This is the failure the whole
+        // capture exists to catch, and no other test in this suite can see it.
+        std::vector<std::uint8_t> rgba = skyFrame();
+        IronGang::ScreenshotSummary summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(summary.width == kWidth && summary.height == kHeight, "dimensions must round-trip");
+        Require(summary.pixelCount == static_cast<std::size_t>(kWidth) * kHeight, "pixel count must match");
+        Require(summary.nonSkyPixels == 0, "a sky-only frame must have no non-sky pixels");
+        Require(summary.distinctColours == 1, "a sky-only frame has exactly one colour");
+        std::string reason;
+        Require(!IronGang::ScreenshotLooksRendered(summary, reason), "a sky-only frame must be rejected");
+        Require(reason.find("nothing but sky") != std::string::npos,
+                "the reason must say what is wrong: " + reason);
+
+        // Near-sky pixels are still sky: anti-aliasing must not read as geometry.
+        rgba = skyFrame();
+        rgba[0] = static_cast<std::uint8_t>(IronGang::kSkyClearRed + 3);
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(summary.nonSkyPixels == 0, "a pixel within tolerance of the sky must not count as geometry");
+        rgba[0] = static_cast<std::uint8_t>(IronGang::kSkyClearRed + 40);
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(summary.nonSkyPixels == 1, "a pixel well away from the sky colour must count");
+
+        // A frame with sky, geometry, and enough colours to be a scene.
+        rgba = skyFrame();
+        for (std::size_t pixel = 0; pixel < rgba.size() / 4 / 2; ++pixel)
+        {
+            rgba[pixel * 4 + 0] = static_cast<std::uint8_t>(pixel % 200);
+            rgba[pixel * 4 + 1] = static_cast<std::uint8_t>((pixel * 3) % 200);
+            rgba[pixel * 4 + 2] = static_cast<std::uint8_t>((pixel * 7) % 200);
+        }
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(std::abs(summary.NonSkyFraction() - 0.5) < 0.02,
+                "half the frame painted must read as roughly half non-sky");
+        Require(summary.distinctColours > 8, "a painted frame must have many colours");
+        Require(IronGang::ScreenshotLooksRendered(summary, reason),
+                "a frame with sky, geometry, and many colours must pass: " + reason);
+
+        // A frame with no sky at all is NOT a failure -- the intro cutscene's downward
+        // establishing shot is 99.7% non-sky and perfectly correct. This assertion exists because
+        // the first version of this predicate rejected it.
+        for (std::size_t pixel = 0; pixel < rgba.size() / 4; ++pixel)
+        {
+            rgba[pixel * 4 + 0] = static_cast<std::uint8_t>(pixel % 200);
+            rgba[pixel * 4 + 1] = static_cast<std::uint8_t>((pixel * 3) % 200);
+            rgba[pixel * 4 + 2] = static_cast<std::uint8_t>((pixel * 7) % 200);
+        }
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(summary.NonSkyFraction() > 0.99 && IronGang::ScreenshotLooksRendered(summary, reason),
+                "a frame full of geometry and no sky must pass: " + reason);
+
+        // Two flat colours: a shader or format failure filling the screen.
+        for (std::size_t pixel = 0; pixel < rgba.size() / 4; ++pixel)
+        {
+            const std::uint8_t value = static_cast<std::uint8_t>(pixel % 2 == 0 ? 10 : 250);
+            rgba[pixel * 4 + 0] = value;
+            rgba[pixel * 4 + 1] = value;
+            rgba[pixel * 4 + 2] = value;
+        }
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(!IronGang::ScreenshotLooksRendered(summary, reason),
+                "a two-colour frame must be rejected as a flat fill");
+        Require(reason.find("distinct colours") != std::string::npos,
+                "the reason must say what is wrong: " + reason);
+
+        // A buffer whose size does not match the dimensions is a caller error, not a scene.
+        summary = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight + 1);
+        Require(summary.pixelCount == 0 && !IronGang::ScreenshotLooksRendered(summary, reason),
+                "a mismatched buffer must yield an empty summary that fails the predicate");
+        summary = IronGang::SummarizeScreenshot({}, 0, 0);
+        Require(summary.pixelCount == 0, "an empty capture must be empty, not a crash");
+    }
+
+    void TestScreenshotSummaryDigestAndSidecar()
+    {
+        constexpr int kWidth = 8;
+        constexpr int kHeight = 8;
+        std::vector<std::uint8_t> rgba(static_cast<std::size_t>(kWidth) * kHeight * 4, 90);
+        const IronGang::ScreenshotSummary first = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        const IronGang::ScreenshotSummary again = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(first.digest == again.digest, "the digest must be stable for identical pixels");
+        rgba[17] = 91;
+        const IronGang::ScreenshotSummary changed = IronGang::SummarizeScreenshot(rgba, kWidth, kHeight);
+        Require(changed.digest != first.digest,
+                "a single changed byte must change the digest, or it cannot answer \"did this change\"");
+
+        const std::filesystem::path path =
+            std::filesystem::current_path() / "iron_gang_screenshot_summary.json";
+        std::string error;
+        Require(IronGang::WriteScreenshotSummary(path.string(), changed, error),
+                "the summary sidecar must be written: " + error);
+        std::ifstream stream(path);
+        const std::string text((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        stream.close();
+        Require(text.find("\"width\": 8") != std::string::npos, "the sidecar must record the width");
+        Require(text.find("\"digest\": \"" + std::to_string(changed.digest) + "\"") != std::string::npos,
+                "the sidecar must record the digest as a string, since it does not fit a JSON double");
+        Require(text.find("\"nonSkyFraction\"") != std::string::npos,
+                "the sidecar must record the fraction a reviewer actually compares");
+        std::filesystem::remove(path);
+    }
+
     void TestCutsceneDialogueTrackSelectsLinesOverTime()
     {
         IronGang::CutsceneSequence sequence;
@@ -5047,6 +5167,8 @@ int main()
         TestMissionVariablesSurviveSaveLoad();
         TestCutscenePlayerAdvancesAndFinishes();
         TestCutscenePlayerSkipAppliesTerminalState();
+        TestScreenshotSummaryDescribesAFrame();
+        TestScreenshotSummaryDigestAndSidecar();
         TestCutsceneDialogueTrackSelectsLinesOverTime();
         TestCutsceneRejectsStaleDialogueReference();
         TestShippedCutsceneCuesResolveAgainstShippedDialogue();
