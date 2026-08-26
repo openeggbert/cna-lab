@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IronGang/Input/InputBindings.hpp"
+
 #include <string>
 #include <vector>
 
@@ -22,6 +24,10 @@ namespace IronGang
         // The HUD can be turned off for a clean look; the pause menu stays visible regardless,
         // since a hidden menu is how a player gets stuck in a paused game.
         bool showHud{true};
+        // plan_28 IG-28-007. Written out in full rather than as a diff against the defaults, so
+        // the file shows a player every action and the key it is on -- which, until a rebinding
+        // screen exists, is the only way to rebind at all.
+        InputBindings bindings;
     };
 
     // Loads @p path. A missing file is **not** a failure -- the defaults above are what a player

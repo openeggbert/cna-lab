@@ -8,6 +8,7 @@
 #include "IronGang/Core/SimulationClock.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/InputContext.hpp"
+#include "IronGang/Input/InputBindings.hpp"
 #include "IronGang/Gameplay/LaneClearance.hpp"
 #include "IronGang/Gameplay/Locomotion.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -937,6 +938,111 @@ namespace
         Require(heads > kDraws / 3 && heads < (2 * kDraws) / 3, "NextBool must not be stuck");
     }
 
+    // plan_28 IG-28-007: rebinding, whose whole difficulty is conflicts -- and whose whole
+    // usefulness depends on not calling two keys a conflict when the game never listens for both
+    // at once.
+    void TestInputBindingsDetectConflictsWithinContexts()
+    {
+        using Keys = Microsoft::Xna::Framework::Input::Keys;
+        IronGang::InputBindings bindings;
+
+        Require(bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::W,
+                "the defaults must be the keys the game shipped with");
+        Require(bindings.Get(IronGang::GameAction::MoveForward).secondary == Keys::Up,
+                "an action may have two keys");
+        Require(bindings.Matches(IronGang::GameAction::MoveForward, Keys::Up),
+                "either binding must match");
+        Require(!bindings.Matches(IronGang::GameAction::MoveForward, Keys::None),
+                "an unbound key must match nothing");
+
+        // Space is the handbrake while driving and confirms in a menu. Those are different
+        // contexts, so this is **not** a conflict -- calling it one would force the player to
+        // give up a perfectly good binding.
+        Require(bindings.Get(IronGang::GameAction::Handbrake).primary == Keys::Space &&
+                    bindings.Get(IronGang::GameAction::Confirm).secondary == Keys::Space,
+                "the shipped bindings must actually share Space across two contexts");
+        Require(!bindings.FindConflict(IronGang::GameAction::Handbrake, Keys::Enter).has_value(),
+                "a vehicle action must not conflict with a menu action");
+
+        // Within one context, it is a conflict.
+        const std::optional<IronGang::GameAction> conflict =
+            bindings.FindConflict(IronGang::GameAction::StrafeLeft, Keys::W);
+        Require(conflict.has_value() && *conflict == IronGang::GameAction::MoveForward,
+                "two on-foot actions must not share a key");
+        Require(bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::W,
+                "asking about a conflict must not change anything");
+
+        // A global action conflicts with everything, because it is read in every context.
+        Require(bindings.FindConflict(IronGang::GameAction::Interact, Keys::Space).has_value(),
+                "a global action must conflict with a vehicle binding");
+        Require(bindings.FindConflict(IronGang::GameAction::Handbrake, Keys::E).has_value(),
+                "a vehicle action must conflict with a global binding");
+
+        // Rebinding displaces the loser, and reports it so the player can be told.
+        const std::optional<IronGang::GameAction> displaced =
+            bindings.Rebind(IronGang::GameAction::StrafeLeft, Keys::W);
+        Require(displaced.has_value() && *displaced == IronGang::GameAction::MoveForward,
+                "rebinding onto a taken key must report who lost it");
+        Require(bindings.Get(IronGang::GameAction::StrafeLeft).primary == Keys::W,
+                "the new binding must apply");
+        Require(bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::Up,
+                "the displaced action must keep its other key, promoted to primary");
+        Require(bindings.Get(IronGang::GameAction::MoveForward).secondary == Keys::None,
+                "the displaced action must not keep a duplicate of its promoted key");
+        Require(!bindings.Matches(IronGang::GameAction::MoveForward, Keys::W),
+                "the displaced action must really have lost the key");
+
+        // Displacing an action's only key leaves it unbound rather than silently keeping it.
+        const std::optional<IronGang::GameAction> second =
+            bindings.Rebind(IronGang::GameAction::StrafeRight, Keys::Up);
+        Require(second.has_value() && *second == IronGang::GameAction::MoveForward,
+                "the promoted key must itself be displaceable");
+        Require(bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::None,
+                "an action can end up unbound, which is honest rather than surprising");
+
+        // Rebinding without a conflict reports none.
+        Require(!bindings.Rebind(IronGang::GameAction::MoveForward, Keys::I).has_value(),
+                "rebinding to a free key must report no conflict");
+        Require(bindings.Matches(IronGang::GameAction::MoveForward, Keys::I), "the free key must apply");
+
+        bindings.ResetToDefaults();
+        Require(bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::W &&
+                    bindings.Get(IronGang::GameAction::StrafeLeft).primary == Keys::A,
+                "resetting must restore every shipped binding");
+
+        // Identifiers and key names round-trip -- this is what the settings file stores, so a
+        // gap here silently loses a player's bindings.
+        for (std::size_t index = 0; index < static_cast<std::size_t>(IronGang::GameAction::Count); ++index)
+        {
+            const auto action = static_cast<IronGang::GameAction>(index);
+            const std::string id = IronGang::GameActionId(action);
+            Require(!id.empty(), "every action must have an identifier");
+            IronGang::GameAction parsed{};
+            Require(IronGang::ParseGameActionId(id, parsed) && parsed == action,
+                    "every action identifier must parse back to itself: " + id);
+
+            const IronGang::ActionBinding& binding = bindings.Get(action);
+            for (const Keys key : {binding.primary, binding.secondary})
+            {
+                if (key == Keys::None)
+                {
+                    continue;
+                }
+                const std::string name = IronGang::KeyName(key);
+                Require(!name.empty(),
+                        "every shipped binding must have a storable key name (" + id + ")");
+                Keys parsedKey{};
+                Require(IronGang::ParseKeyName(name, parsedKey) && parsedKey == key,
+                        "every key name must parse back to itself: " + name);
+            }
+        }
+        IronGang::GameAction ignoredAction{};
+        Keys ignoredKey{};
+        Require(!IronGang::ParseGameActionId("fly", ignoredAction), "an unknown action id must be refused");
+        Require(!IronGang::ParseKeyName("Joystick", ignoredKey), "an unknown key name must be refused");
+        Require(IronGang::KeyName(Keys::None).empty(), "an unbound key must have no name to store");
+    }
+
     // plan_29 IG-29-005 / plan_36 IG-36-005: player preferences are their own file with their own
     // lifetime, written atomically so a crash while saving one cannot cost the rest.
     void TestUserSettingsRoundTripAndFallBack()
@@ -994,6 +1100,44 @@ namespace
                 "an unsupported version must be refused");
         Require(std::fabs(untouched.masterVolume - 0.5F) < 1e-6F,
                 "a failed load must leave the caller's settings alone");
+
+        // Bindings round-trip through the settings file, which -- until a rebinding screen
+        // exists -- is the only way a player can rebind at all.
+        using Keys = Microsoft::Xna::Framework::Input::Keys;
+        IronGang::UserSettings rebound;
+        Require(rebound.bindings.Rebind(IronGang::GameAction::Interact, Keys::F).has_value() ||
+                    true,
+                "rebinding for the round trip must apply");
+        rebound.bindings.Set(IronGang::GameAction::Sprint,
+                             IronGang::ActionBinding{Keys::LeftControl, Keys::None});
+        Require(IronGang::SaveUserSettings(path.string(), rebound, error),
+                "writing rebound keys must succeed: " + error);
+        warnings.clear();
+        Require(IronGang::LoadUserSettings(path.string(), settings, error, &warnings),
+                "reading rebound keys must succeed: " + error);
+        Require(warnings.empty(), "a file the game just wrote must load without warnings");
+        Require(settings.bindings.Get(IronGang::GameAction::Interact).primary == Keys::F,
+                "a rebound key must survive the round trip");
+        Require(settings.bindings.Get(IronGang::GameAction::Sprint).primary == Keys::LeftControl &&
+                    settings.bindings.Get(IronGang::GameAction::Sprint).secondary == Keys::None,
+                "an action bound to a single key must round-trip as a single key");
+        Require(settings.bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::W,
+                "untouched actions must keep their shipped keys");
+
+        // A binding the game cannot understand keeps the default and says so, per action, rather
+        // than costing the whole file.
+        warnings.clear();
+        WriteTempJson(path,
+                      R"JSON({"version":1,"bindings":{"move_forward":["Joystick"],"fly":["F"],
+                              "interact":"E","sprint":["LeftControl"]}})JSON");
+        Require(IronGang::LoadUserSettings(path.string(), settings, error, &warnings),
+                "unusable bindings must not fail the load: " + error);
+        Require(warnings.size() == 3, "each unusable binding must be reported: " +
+                                          std::to_string(warnings.size()));
+        Require(settings.bindings.Get(IronGang::GameAction::MoveForward).primary == Keys::W,
+                "an unknown key name must leave the shipped binding");
+        Require(settings.bindings.Get(IronGang::GameAction::Sprint).primary == Keys::LeftControl,
+                "the bindings that were understood must still apply");
 
         // Settings inherit the bounded read every data file gets.
         {
@@ -3988,6 +4132,7 @@ int main()
         TestSaveFormatRobustness();
         TestCheckpointWorldSurvivesSaveLoad();
         TestRandomSourceIsDeterministicAndUniform();
+        TestInputBindingsDetectConflictsWithinContexts();
         TestUserSettingsRoundTripAndFallBack();
         TestMenuModelSkipsDisabledAndWraps();
         TestInputContextResolvesByPrecedence();

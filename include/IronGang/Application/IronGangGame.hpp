@@ -74,6 +74,12 @@ namespace IronGang
     private:
         [[nodiscard]] bool WasPressed(const Microsoft::Xna::Framework::Input::KeyboardState& current,
                                       Microsoft::Xna::Framework::Input::Keys key) const;
+        // plan_28 IG-28-007: every rebindable key is read through the player's bindings, so the
+        // keys are one table rather than scattered literals -- and rebinding one actually works.
+        [[nodiscard]] bool IsDown(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
+                                  GameAction action) const;
+        [[nodiscard]] bool WasPressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
+                                      GameAction action) const;
         void HandleInteraction();
         void SavePrototype();
         void LoadPrototype();

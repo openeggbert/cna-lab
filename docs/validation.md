@@ -577,6 +577,51 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Keys become data, with per-context conflict detection (2026-08-26)
+
+plan_28 `IG-28-007` advanced to partial (keyboard rebinding model, persistence, and full game
+usage; no rebinding screen, no gamepad).
+
+**The blocker from the entry below turned out to be a false one.** I had recorded that rebinding
+needed CNA's `Keys` enum, which `iron_gang_core` could not see. Checking how CNA builds its modules
+showed `cna_add_module` creates a `CNA::Input` alias — linking it into `iron_gang_core` takes one
+line, and a probe compile confirmed it. So the model keeps real `Keys` values *and* stays in the
+library the window-free tests can reach. It was worth two minutes of checking rather than designing
+around integer key codes.
+
+**What changed.** `InputBindings` defines sixteen actions in four groups from one table — what
+exists, where it belongs, and its shipped key — and **every rebindable key the game reads now goes
+through it**, so the keys are a table rather than literals scattered across the update loop.
+
+Conflict detection is **per group**, which is what makes it useful rather than obstructive: Space is
+the handbrake *while driving* and confirms *in a menu*, and those never conflict, because the game
+is never listening for both at once (the same contexts as `IG-28-008`). Global actions conflict with
+everything, since they are read everywhere. `Rebind` displaces the loser, **reports which action
+lost the key** so a UI can say so, and costs it only that key — a secondary binding is promoted to
+primary rather than discarded.
+
+Bindings persist in `runtime/settings.json`, written out **in full**: until a rebinding screen
+exists, the file *is* the rebinding interface, and a diff against defaults would be unreadable for
+that. An unknown action id, an unknown key name, or a malformed entry keeps that action's default
+and warns — per action, rather than costing the whole file.
+
+Driving and menu navigation **reuse** the movement bindings rather than owning a second set: a
+player who rebinds "forward" expects both to follow.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestInputBindingsDetectConflictsWithinContexts` covers the shipped defaults, both keys matching,
+the deliberate Space sharing across contexts, within-group conflicts, Global conflicting both ways,
+`FindConflict` changing nothing, displacement promoting a secondary, an action ending up unbound
+(honest rather than surprising), a conflict-free rebind, reset, and identifier/key-name round-trips
+for every shipped binding — a gap there would silently lose a player's keys. The settings test gained
+a binding round trip plus three unusable-binding cases. A full `--profile-scenario mission --smoke
+1200` run still completes, which is the check that the rewired input path did not break the
+deterministic scenarios.
+
+**Boundaries.** No rebinding screen — the model reports everything one needs, but nothing draws it,
+so a player rebinds by editing the settings file. No gamepad: there is no gamepad input path
+anywhere in the game. Debug and profiling keys are deliberately not rebindable.
+
 ## Player settings become their own file (2026-08-26)
 
 plan_29 `IG-29-005` closed; plan_28 `IG-28-004` advanced (the settings half); plan_36 `IG-36-005`

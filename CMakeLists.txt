@@ -128,6 +128,7 @@ add_library(iron_gang_core STATIC
     src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
     src/Gameplay/InputContext.cpp
+    src/Input/InputBindings.cpp
     src/Gameplay/LaneClearance.cpp
     src/Gameplay/Locomotion.cpp
     src/Gameplay/Pedestrian.cpp
@@ -164,6 +165,10 @@ target_include_directories(iron_gang_core
 target_link_libraries(iron_gang_core
     PUBLIC
         CNA::GraphicsCore
+        # plan_28 IG-28-007: the key-binding model names real Keys values, so the library that
+        # owns them has to be visible here -- otherwise bindings would have to live in the
+        # executable, where the window-free tests cannot reach them.
+        CNA::Input
     PRIVATE
         SharpRuntime::IO
         SharpRuntime::Text.Json

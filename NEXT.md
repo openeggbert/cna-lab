@@ -92,6 +92,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Keys become data, with per-context conflict detection (plan_28)
+
+**The blocker I recorded below was a false one.** Rebinding needed CNA's `Keys`, which
+`iron_gang_core` could not see -- but `cna_add_module` creates a `CNA::Input` alias, so linking it
+into core is one line (probe-compiled to confirm). The model keeps real `Keys` values *and* stays
+where the window-free tests can reach it. Two minutes of checking beat designing around integer key
+codes.
+
+`InputBindings`: sixteen actions in four groups from one table, and **every rebindable key the game
+reads now goes through it** -- keys are a table, not literals scattered through the update loop.
+
+- **Conflicts are per group**, which is what makes detection useful rather than obstructive: Space
+  is the handbrake *while driving* and confirms *in a menu* and those never conflict, because the
+  game is never listening for both at once. Global actions conflict with everything.
+- `Rebind` displaces the loser, **reports who lost the key**, and costs it only that key -- a
+  secondary is promoted rather than discarded.
+- Bindings persist in `runtime/settings.json`, written **in full**: until a rebinding screen exists,
+  the file *is* the interface. An unknown action, unknown key name, or malformed entry keeps that
+  action's default and warns, per action rather than costing the file.
+- Driving and menu navigation **reuse** the movement bindings -- a player who rebinds "forward"
+  expects both to follow.
+
+`IG-28-007` partial. Verified: build clean, CTest 11/11, a conflict/round-trip test, and the mission
+scenario still completing (the check that rewiring input did not break the deterministic runs).
+
+Missing: **a rebinding screen** (the model reports everything a UI needs; nothing draws it) and
+**gamepad** -- no gamepad input path exists anywhere in the game.
+
 ### Player settings become their own file (plan_29, plan_28)
 
 **Three files, three lifetimes, three owners** -- the point of `IG-29-005`: `runtime/settings.json`

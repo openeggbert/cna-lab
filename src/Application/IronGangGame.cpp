@@ -716,6 +716,20 @@ namespace IronGang
         peakPedestrianCount_ = std::max(peakPedestrianCount_, pedestrians_.size());
     }
 
+    bool IronGangGame::IsDown(const KeyboardState& keyboard, GameAction action) const
+    {
+        const ActionBinding& binding = settings_.bindings.Get(action);
+        return (binding.primary != Keys::None && keyboard.IsKeyDown(binding.primary)) ||
+               (binding.secondary != Keys::None && keyboard.IsKeyDown(binding.secondary));
+    }
+
+    bool IronGangGame::WasPressed(const KeyboardState& keyboard, GameAction action) const
+    {
+        const ActionBinding& binding = settings_.bindings.Get(action);
+        return (binding.primary != Keys::None && WasPressed(keyboard, binding.primary)) ||
+               (binding.secondary != Keys::None && WasPressed(keyboard, binding.secondary));
+    }
+
     bool IronGangGame::WasPressed(const KeyboardState& current, Keys key) const
     {
         return current.IsKeyDown(key) && previousKeyboard_.IsKeyUp(key);
@@ -1279,7 +1293,7 @@ namespace IronGang
         // plan_28 IG-28-004: Escape used to quit the game outright, which is a debug affordance,
         // not a pause. It now toggles a paused state carrying a real menu; quitting is an entry on
         // it rather than a keystroke that ends the game from anywhere.
-        if (WasPressed(keyboard, Keys::Escape))
+        if (WasPressed(keyboard, GameAction::Pause))
         {
             paused_ = !paused_;
             if (paused_)
@@ -1289,15 +1303,18 @@ namespace IronGang
         }
         if (paused_)
         {
-            if (WasPressed(keyboard, Keys::Up) || WasPressed(keyboard, Keys::W))
+            // Menu navigation reuses the movement bindings rather than owning its own: a player
+            // who rebinds "forward" expects the menu to follow, not to keep a second set of keys
+            // they never chose.
+            if (WasPressed(keyboard, GameAction::MoveForward))
             {
                 pauseMenu_.MoveSelection(-1);
             }
-            if (WasPressed(keyboard, Keys::Down) || WasPressed(keyboard, Keys::S))
+            if (WasPressed(keyboard, GameAction::MoveBack))
             {
                 pauseMenu_.MoveSelection(1);
             }
-            if (WasPressed(keyboard, Keys::Enter) || WasPressed(keyboard, Keys::Space))
+            if (WasPressed(keyboard, GameAction::Confirm))
             {
                 const MenuAction action = pauseMenu_.Activate();
                 ApplyMenuAction(action);
@@ -1310,7 +1327,7 @@ namespace IronGang
             }
         }
 
-        if (WasPressed(keyboard, Keys::Tab))
+        if (WasPressed(keyboard, GameAction::ToggleMap))
         {
             mapVisible_ = !mapVisible_;
         }
@@ -1356,7 +1373,7 @@ namespace IronGang
             cutscene_.Update(simulationSeconds);
         }
 
-        if (missionAdvancesDialogue || WasPressed(keyboard, Keys::Enter))
+        if (missionAdvancesDialogue || WasPressed(keyboard, GameAction::Confirm))
         {
             if (dialogue_.IsActive())
             {
@@ -1377,20 +1394,20 @@ namespace IronGang
             mission_.IsInState("enter_vehicle") &&
             vehicleTransitionState_ == VehicleTransitionState::None &&
             !playerDriving_;
-        if ((missionEntersVehicle || WasPressed(keyboard, Keys::E)) &&
+        if ((missionEntersVehicle || WasPressed(keyboard, GameAction::Interact)) &&
             !dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
         {
             HandleInteraction();
         }
-        if (WasPressed(keyboard, Keys::F5))
+        if (WasPressed(keyboard, GameAction::QuickSave))
         {
             SavePrototype();
         }
-        if (WasPressed(keyboard, Keys::F9))
+        if (WasPressed(keyboard, GameAction::QuickLoad))
         {
             LoadPrototype();
         }
-        if (WasPressed(keyboard, Keys::R))
+        if (WasPressed(keyboard, GameAction::Restart))
         {
             // A failed mission is the one case where "restart" should mean the mission's own last
             // checkpoint rather than the whole prototype (plan_24 IG-24-009).
@@ -1403,7 +1420,7 @@ namespace IronGang
                 ResetPrototype();
             }
         }
-        if (WasPressed(keyboard, Keys::H) && playerDriving_ && hornSound_)
+        if (WasPressed(keyboard, GameAction::Horn) && playerDriving_ && hornSound_)
         {
             measureAudio([&]()
             {
@@ -1420,11 +1437,19 @@ namespace IronGang
             if (playerDriving_)
             {
                 VehicleInput input;
-                input.throttle = (keyboard.IsKeyDown(Keys::W) || keyboard.IsKeyDown(Keys::Up) ? 1.0F : 0.0F) -
-                                 (keyboard.IsKeyDown(Keys::S) || keyboard.IsKeyDown(Keys::Down) ? 1.0F : 0.0F);
-                input.steering = (keyboard.IsKeyDown(Keys::D) || keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
-                                 (keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
-                input.handbrake = keyboard.IsKeyDown(Keys::Space);
+                // Driving reuses the on-foot movement bindings: one set of keys the player has
+                // already rebound, rather than a second set to discover.
+                input.throttle = (IsDown(keyboard, GameAction::MoveForward) ? 1.0F : 0.0F) -
+                                 (IsDown(keyboard, GameAction::MoveBack) ? 1.0F : 0.0F);
+                input.steering = (IsDown(keyboard, GameAction::StrafeRight) ||
+                                          IsDown(keyboard, GameAction::TurnRight)
+                                      ? 1.0F
+                                      : 0.0F) -
+                                 (IsDown(keyboard, GameAction::StrafeLeft) ||
+                                          IsDown(keyboard, GameAction::TurnLeft)
+                                      ? 1.0F
+                                      : 0.0F);
+                input.handbrake = IsDown(keyboard, GameAction::Handbrake);
                 if (performanceScenario_ == PerformanceScenario::Drive ||
                     performanceScenario_ == PerformanceScenario::Mixed ||
                     performanceScenario_ == PerformanceScenario::Mission)
@@ -1450,13 +1475,13 @@ namespace IronGang
                 // below) -- the character briefly stops responding to on-foot input during the
                 // clip, matching how dialogue already freezes movement.
                 OnFootInput input;
-                input.forward = (keyboard.IsKeyDown(Keys::W) || keyboard.IsKeyDown(Keys::Up) ? 1.0F : 0.0F) -
-                                (keyboard.IsKeyDown(Keys::S) || keyboard.IsKeyDown(Keys::Down) ? 1.0F : 0.0F);
-                input.strafe = (keyboard.IsKeyDown(Keys::D) ? 1.0F : 0.0F) -
-                               (keyboard.IsKeyDown(Keys::A) ? 1.0F : 0.0F);
-                input.turn = (keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
-                             (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
-                input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
+                input.forward = (IsDown(keyboard, GameAction::MoveForward) ? 1.0F : 0.0F) -
+                                (IsDown(keyboard, GameAction::MoveBack) ? 1.0F : 0.0F);
+                input.strafe = (IsDown(keyboard, GameAction::StrafeRight) ? 1.0F : 0.0F) -
+                               (IsDown(keyboard, GameAction::StrafeLeft) ? 1.0F : 0.0F);
+                input.turn = (IsDown(keyboard, GameAction::TurnRight) ? 1.0F : 0.0F) -
+                             (IsDown(keyboard, GameAction::TurnLeft) ? 1.0F : 0.0F);
+                input.sprint = IsDown(keyboard, GameAction::Sprint);
                 if (performanceScenario_ == PerformanceScenario::Walk ||
                     performanceScenario_ == PerformanceScenario::Mixed ||
                     performanceScenario_ == PerformanceScenario::Mission)
