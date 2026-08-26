@@ -31,6 +31,13 @@ namespace IronGang
         // Shortest gap between two autosaves, so triggers landing together write one file.
         float autosaveMinimumSpacingSeconds{AutosaveScheduler::kDefaultMinimumSpacingSeconds};
 
+        // plan_20 IG-20-003: how many of the nearest pedestrians are drawn as the skinned
+        // character; the rest stay coloured boxes. Each skinned instance costs a bone-palette
+        // upload and a draw, which a CPU rasterizer feels acutely -- twelve of them made this
+        // project's software-backend profiling runs about ten times slower. 0 disables skinned
+        // pedestrians entirely, which is what a software-backend profiling run wants.
+        int maxSkinnedPedestrians{6};
+
         // Lowest severity that reaches the log: "debug", "info", "warning", or "error".
         // --log-level on the command line overrides this for a single run.
         LogSeverity logSeverity{LogSeverity::Info};

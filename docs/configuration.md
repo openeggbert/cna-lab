@@ -18,6 +18,7 @@ changes none of it from inside the game; player-facing settings are separate wor
   "autosaveIntervalSeconds": 180,
   "autosaveMinimumSpacingSeconds": 20,
   "logSeverity": "info",
+  "maxSkinnedPedestrians": 6,
   "notes": "free text, ignored"
 }
 ```
@@ -29,6 +30,7 @@ changes none of it from inside the game; player-facing settings are separate wor
 | `prototypeYear` | int, 1800–2200 | `1932` | The same header. |
 | `autosaveIntervalSeconds` | number ≥ 0 | `180` | Seconds of unblocked play between periodic autosaves; `0` disables them without disabling checkpoint and district autosaves. |
 | `autosaveMinimumSpacingSeconds` | number ≥ 0 | `20` | Shortest gap between two autosaves, so triggers landing together write one file. |
+| `maxSkinnedPedestrians` | int, 0–64 | `6` | How many of the **nearest** pedestrians are drawn as the skinned character; the rest stay coloured boxes. `0` disables skinned pedestrians, which is what a software-backend profiling run wants. |
 | `logSeverity` | string | `info` | Lowest severity that reaches the log: `debug`, `info`, `warning`, or `error`. `--log-level` overrides it for one run. See `docs/logging.md`. |
 | `notes` | string | — | Accepted and ignored, so the file can carry a comment. |
 

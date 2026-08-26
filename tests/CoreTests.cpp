@@ -2141,6 +2141,8 @@ namespace
             const IronGang::Vector3 separation = northbound.GetPosition() - southbound.GetPosition();
             closestApproach = std::min(closestApproach, separation.Length());
         }
+        Require(northbound.IsWalking() && southbound.IsWalking(),
+                "a pedestrian with a clear lane must report itself walking");
         Require(closestApproach > 0.5F,
                 "pedestrians walking opposite ways must pass beside each other, not through: closest " +
                     std::to_string(closestApproach));
@@ -2167,6 +2169,9 @@ namespace
                                                                   IronGang::kWalkingLaneHalfWidth);
             follower.Update(0.05F, false, IronGang::Vector3{}, clearance);
         }
+        Require(!follower.IsWalking(),
+                "a pedestrian stopped behind another must report itself standing -- that is what "
+                "picks an idle pose instead of sliding a walk cycle along");
         const float gap = leaderZ - follower.GetPosition().Z;
         Require(gap > 0.2F, "the follower must stop short of the pedestrian ahead, not overlap it: gap " +
                                 std::to_string(gap));
@@ -2181,6 +2186,7 @@ namespace
         }
         Require(follower.GetPosition().Z > stoppedZ + 1.0F,
                 "a pedestrian must resume walking once the way ahead clears");
+        Require(follower.IsWalking(), "and must report itself walking again");
 
         // Fleeing ignores congestion on purpose: someone running from a car does not queue.
         IronGang::Pedestrian fleeing;
@@ -2191,6 +2197,7 @@ namespace
         Require(fleeing.IsFleeing(), "a threat must start the flee state");
         Require((fleeing.GetPosition() - beforeFlee).Length() > 0.01F,
                 "a fleeing pedestrian must keep moving even with no clearance ahead");
+        Require(fleeing.IsWalking(), "a fleeing pedestrian is moving, whatever is ahead of it");
     }
 
     // plan_20 IG-20-001 / plan_21 IG-21-001: several pedestrians share one sidewalk path without

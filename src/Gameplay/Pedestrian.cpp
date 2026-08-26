@@ -28,6 +28,7 @@ namespace IronGang
         position_ = path_.Empty() ? Vector3{} : path_.points[targetIndex_];
         walkSpeed_ = walkSpeed;
         yaw_ = 0.0F;
+        walking_ = false;
         fleeTimer_ = 0.0F;
         fleeFromPosition_ = Vector3{};
 
@@ -81,6 +82,7 @@ namespace IronGang
 
         if (fleeTimer_ > 0.0F)
         {
+            walking_ = true;
             Vector3 away = position_ - fleeFromPosition_;
             away.Y = 0.0F;
             const float distance = away.Length();
@@ -105,6 +107,11 @@ namespace IronGang
                                        0.0F, 1.0F);
             speed = walkSpeed_ * t;
         }
+        // "Walking" means moving visibly, not moving at all: a pedestrian creeping the last few
+        // centimetres up to the person ahead should read as standing, or its walk animation slides
+        // along the pavement at a speed nobody's legs are matching. Same threshold as Locomotion's
+        // IsMoving() for the same reason.
+        walking_ = speed > 0.05F;
         if (speed <= 0.0F)
         {
             // Stopped, but still facing the way it was going: a queue of people all facing

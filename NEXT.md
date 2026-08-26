@@ -98,6 +98,35 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### Pedestrians become people, and a measurement I almost got wrong (plan_20)
+
+The nearest few pedestrians (`maxSkinnedPedestrians`, default 6) are now drawn as the **same skinned
+character the player uses**, walking or idling; the rest stay boxes. Each instance starts at its own
+animation phase -- twelve characters in unison read as one puppet drawn twelve times, worse than the
+boxes. A pedestrian queueing behind another stands rather than sliding a walk cycle along, because
+`IsWalking()` reports **visible** movement, not any movement.
+
+**Worth reading before trusting any performance claim here.** A 200-frame `walk` capture took 4m25s
+and, compared against remembered *`mixed`* timings, looked like a tenfold regression. That
+comparison was invalid. A controlled A/B on the same scenario, changing only the cap:
+
+| Skinned | Frame p95 | Render CPU p95 |
+| --- | --- | --- |
+| 0 | 1408.6 ms | 1392.4 ms |
+| 6 | 1417.5 ms | 1403.0 ms |
+| 12 | 1545.4 ms | 1533.8 ms |
+
+**~10% at twelve, under 1% at six** -- on a rasterizer already spending 1.4 s/frame in that scenario
+before the change. Update CPU is unaffected (0.46 ms): the animation players are not the cost, the
+draws are. The cap stays because it bounds cost, not because it rescued anything.
+
+A test caught the other subtlety: "stopped behind someone" initially failed against correct code
+because `IsWalking()` meant "moved at all", and a pedestrian creeping at 0.02 m/s technically had.
+Fixing the *meaning* fixed the animation too.
+
+Not done: no turn clip, fleeing uses the walk cycle faster rather than a run, and every pedestrian
+is the same person (one shared model).
+
 ### Campaign progress survives a save (plan_24)
 
 The gap the entry below named: completing the prologue and reloading lost the unlock. The save now

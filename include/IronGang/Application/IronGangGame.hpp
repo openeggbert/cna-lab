@@ -102,6 +102,11 @@ namespace IronGang
         // response, which would otherwise re-trigger the same failure within a frame. Falls back
         // to ResetPrototype() when the mission has no checkpoint to return to.
         void RetryMission();
+        // plan_20 IG-20-003: marks the nearest `maxSkinnedPedestrians` for skinned drawing and
+        // leaves the rest as boxes. Here rather than in the renderer because the camera position
+        // is the game's knowledge.
+        void MarkNearestPedestriansSkinned(std::vector<ActorPose>& pedestrians,
+                                           const Microsoft::Xna::Framework::Vector3& viewer) const;
         // plan_24 IG-24-021: loads a campaign mission by id and starts it. Falls back to whatever
         // mission is already loaded if the file cannot be read, so a broken mission file costs
         // that mission rather than the session.

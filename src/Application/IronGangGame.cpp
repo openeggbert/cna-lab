@@ -1216,6 +1216,35 @@ namespace IronGang
         }
     }
 
+    void IronGangGame::MarkNearestPedestriansSkinned(std::vector<ActorPose>& pedestrians,
+                                                     const Vector3& viewer) const
+    {
+        const std::size_t budget =
+            std::min<std::size_t>(pedestrians.size(),
+                                  static_cast<std::size_t>(std::max(0, config_.maxSkinnedPedestrians)));
+        if (budget == 0)
+        {
+            return;
+        }
+
+        // Partial sort by distance: only the first `budget` need to be in order.
+        std::vector<std::size_t> order(pedestrians.size());
+        for (std::size_t index = 0; index < order.size(); ++index)
+        {
+            order[index] = index;
+        }
+        std::partial_sort(order.begin(), order.begin() + static_cast<std::ptrdiff_t>(budget), order.end(),
+                          [&](std::size_t left, std::size_t right)
+                          {
+                              return DistanceSquaredXZ(pedestrians[left].position, viewer) <
+                                     DistanceSquaredXZ(pedestrians[right].position, viewer);
+                          });
+        for (std::size_t index = 0; index < budget; ++index)
+        {
+            pedestrians[order[index]].skinned = true;
+        }
+    }
+
     void IronGangGame::RetryMission()
     {
         if (!mission_.HasCheckpoint() || !missionCheckpointWorld_.has_value())
@@ -1751,6 +1780,17 @@ namespace IronGang
                     pedestrian.Update(simulationSeconds, hasThreat, vehicle_.GetPosition(), clearanceAhead);
                 }
 
+                // plan_20 IG-20-003: one animation state per pedestrian, advanced here rather than
+                // in Draw(), which has no time step of its own.
+                std::vector<ActorPose> pedestrianAnimationPoses;
+                pedestrianAnimationPoses.reserve(pedestrians_.size());
+                for (const Pedestrian& pedestrian : pedestrians_)
+                {
+                    pedestrianAnimationPoses.push_back(
+                        {pedestrian.GetPosition(), pedestrian.GetYaw(), pedestrian.IsWalking()});
+                }
+                renderer_.UpdatePedestrianAnimations(simulationSeconds, pedestrianAnimationPoses);
+
                 const PoliceUpdateWorkload policeWorkload = police_.Update(
                     simulationSeconds, playerDriving_, vehicle_.GetPosition(), vehicle_.GetSpeedKph(),
                     witnessPositions, districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
@@ -2118,7 +2158,10 @@ namespace IronGang
         pedestrianPoses.reserve(pedestrians_.size());
         for (const Pedestrian& pedestrian : pedestrians_)
         {
-            pedestrianPoses.push_back({pedestrian.GetPosition(), pedestrian.GetYaw()});
+            // plan_20 IG-20-003: a pedestrian yielding to the one ahead stands still, and the
+            // renderer picks an idle pose for it rather than sliding a walk cycle along.
+            pedestrianPoses.push_back(
+                {pedestrian.GetPosition(), pedestrian.GetYaw(), pedestrian.IsWalking(), false});
         }
 
         std::vector<ActorPose> policePoses;
@@ -2128,6 +2171,11 @@ namespace IronGang
             policePoses.push_back({police_.GetPatrolPosition(i), police_.GetPatrolYaw(i)});
         }
 
+        // Only the nearest few pedestrians are worth a skinned character: each costs a bone
+        // palette and a draw call, and past a handful the difference is invisible while the cost is
+        // not. The camera is what decides, so the choice is made here rather than in the renderer.
+        MarkNearestPedestriansSkinned(pedestrianPoses, playerDriving_ ? vehicle_.GetPosition()
+                                                                      : player_.GetPosition());
         renderer_.DrawTraffic(device, view, projection, trafficPoses, pedestrianPoses, policePoses);
 
         // Gate M10: a real on-screen HUD, replacing the window-title-only display (which stays,

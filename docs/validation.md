@@ -577,6 +577,52 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## Pedestrians become people, and a measurement I almost got wrong (2026-08-26)
+
+plan_20 `IG-20-003` advanced to partial (walk/idle clips and per-instance phase; no turn clip).
+
+**What changed.** The nearest few pedestrians are drawn as the **same skinned character the player
+uses**, walking or idling. Three decisions worth keeping:
+
+* **Per-instance animation phase.** Twelve characters stepping in perfect unison read as one puppet
+  drawn twelve times — worse than the boxes they replace. Each state starts a fraction of a second
+  into the cycle.
+* **Idle when stopped.** A pedestrian queueing behind another (`IG-20-010`) now stands rather than
+  sliding a walk cycle along the pavement. `Pedestrian::IsWalking()` reports **visible** movement,
+  not any movement — someone creeping the last few centimetres up to the person ahead reads as
+  standing. That threshold matched `Locomotion::IsMoving()` deliberately.
+* **The nearest N are skinned, the rest stay boxes** (`maxSkinnedPedestrians`, default 6). The game
+  picks them, because where the camera is looking from is the game's knowledge, not the renderer's.
+
+**The measurement I almost recorded wrongly.** A 200-frame `walk` capture took 4m25s, and against
+remembered timings from *`mixed`* runs I concluded skinned pedestrians had made the software
+rasterizer "about ten times slower". That comparison was invalid — two different scenarios. A
+controlled A/B on the same scenario, changing only the cap:
+
+| Skinned pedestrians | Frame p95 | Render CPU p95 | Draw calls |
+| --- | --- | --- | --- |
+| 0 | 1408.6 ms | 1392.4 ms | 30 |
+| 6 | 1417.5 ms | 1403.0 ms | 42 |
+| 12 | 1545.4 ms | 1533.8 ms | 54 |
+
+So the real cost is **about 10% at twelve and under 1% at six**, on a CPU rasterizer that was
+already spending 1.4 s per frame in this scenario before the change. The cap is still worth having —
+it bounds the cost and matches how games of this era did it — but the reason is "bounded and
+measured", not "recovering from a tenfold regression". Update CPU is unaffected (0.46 ms p95): the
+animation players are not the cost, the skinned draws are.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**; the congestion test
+gained four `IsWalking()` assertions (clear lane walks, queued stands, resumes on clearing, fleeing
+walks whatever is ahead) — the queued-stands one initially **failed against a correct
+implementation**, because "walking" then meant "moved at all" and a pedestrian creeping at
+0.02 m/s technically had; fixing the meaning rather than the test is what made the animation
+choice right too. Three controlled captures as above.
+
+**Boundaries.** No turn clip (there is none in the test rig), and a fleeing pedestrian uses the walk
+cycle at a higher speed rather than a run. The skinned pedestrians share one model, so every
+pedestrian is the same person. `maxSkinnedPedestrians: 0` restores the old box rendering, which is
+what a software-backend profiling run should use.
+
 ## Campaign progress survives a save (2026-08-26)
 
 plan_24 `IG-24-049` closed; plan_29 `IG-29-007` extended. The previous entry ended by naming this as

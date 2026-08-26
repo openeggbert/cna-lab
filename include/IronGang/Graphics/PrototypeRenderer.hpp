@@ -29,6 +29,13 @@ namespace IronGang
     {
         Microsoft::Xna::Framework::Vector3 position;
         float yaw{0.0F};
+        // Pedestrians only (plan_20 IG-20-003): whether this one is walking or standing, which is
+        // what picks its animation clip. Vehicles ignore it.
+        bool moving{true};
+        // Whether to draw this pedestrian as the skinned character rather than a coloured box.
+        // The **caller** decides, because the caller knows where the player is looking from and
+        // the renderer does not; see IronGangGame's nearest-N policy.
+        bool skinned{true};
     };
 
     // The current MC3 -> glTF -> CNJ pipeline does not bake per-object node transforms into
@@ -102,6 +109,13 @@ namespace IronGang
         // not supplied to Initialize() (the procedural player box stays in place instead). Call
         // once per frame from gameplay Update(), not Draw() -- Draw() has no time step of its own.
         void UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName);
+
+        // plan_20 IG-20-003: advances one animation state per pedestrian, creating them as needed
+        // and dropping any surplus. Each is started at its own phase, because a crowd of skinned
+        // characters stepping in perfect unison looks worse than the coloured boxes they replace.
+        // A no-op when the skinned character model is unavailable -- the boxes stay in that case.
+        // Call once per frame from Update(), like UpdateCharacterAnimation.
+        void UpdatePedestrianAnimations(float deltaSeconds, const std::vector<ActorPose>& pedestrians);
 
         // Rebuilds just the static city mesh for a newly loaded district (a district transition,
         // see DistrictManager) without touching the vehicle/player meshes or reloading CNJ
@@ -210,6 +224,10 @@ namespace IronGang
         // model; rendering stays on the direct Model::Draw() path used by the other CNJ assets.
         std::optional<Microsoft::Xna::Framework::Graphics::Model> characterModel_;
         std::unique_ptr<CharacterAnimationState> characterAnimation_;
+        // One per pedestrian, in the same order DrawTraffic receives them. The model itself is
+        // shared: only the bone palette differs per instance, and it is pushed into the effect
+        // immediately before each draw.
+        std::vector<std::unique_ptr<CharacterAnimationState>> pedestrianAnimations_;
 
         bool workloadTrackingEnabled_{false};
         RenderWorkload frameWorkload_;

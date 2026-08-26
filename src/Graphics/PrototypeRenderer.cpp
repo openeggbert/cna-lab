@@ -206,6 +206,39 @@ namespace IronGang
         device.SetDepthTestEnabled(true);
     }
 
+    void PrototypeRenderer::UpdatePedestrianAnimations(float deltaSeconds,
+                                                       const std::vector<ActorPose>& pedestrians)
+    {
+        if (!characterModel_.has_value())
+        {
+            return; // no skinned character loaded: the coloured boxes stay
+        }
+        auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
+        if (skinningData == nullptr)
+        {
+            return;
+        }
+
+        while (pedestrianAnimations_.size() < pedestrians.size())
+        {
+            auto state = std::make_unique<CharacterAnimationState>(*skinningData);
+            // Each new pedestrian starts a fraction of a second into its walk cycle. Without this
+            // every pedestrian steps in perfect unison, which reads as one puppet drawn twelve
+            // times -- worse than the boxes it replaces.
+            const float phase = 0.13F * static_cast<float>(pedestrianAnimations_.size() % 7U);
+            state->Update(phase, "Walk");
+            pedestrianAnimations_.push_back(std::move(state));
+        }
+        pedestrianAnimations_.resize(pedestrians.size());
+
+        for (std::size_t index = 0; index < pedestrians.size(); ++index)
+        {
+            // Standing still is what a yielding pedestrian does (plan_20 IG-20-010), and an idle
+            // pose is how that reads as a person waiting rather than a person sliding.
+            pedestrianAnimations_[index]->Update(deltaSeconds, pedestrians[index].moving ? "Walk" : "Idle");
+        }
+    }
+
     void PrototypeRenderer::UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName)
     {
         if (!characterAnimation_)
@@ -577,8 +610,42 @@ namespace IronGang
             DrawMesh(device, trafficVehicleMesh_,
                     Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
         }
-        for (const ActorPose& pose : pedestrians)
+        for (std::size_t index = 0; index < pedestrians.size(); ++index)
         {
+            const ActorPose& pose = pedestrians[index];
+            // plan_20 IG-20-003: the same skinned character the player uses, when it loaded. The
+            // model is shared and only the bone palette differs, so each instance pushes its own
+            // pose into the effect immediately before its draw.
+            if (pose.skinned && characterModel_.has_value() && index < pedestrianAnimations_.size() &&
+                pedestrianAnimations_[index])
+            {
+                const auto& skinTransforms = pedestrianAnimations_[index]->blendedSkinTransforms;
+                for (ModelMesh* mesh : characterModel_->getMeshesProperty())
+                {
+                    for (Effect* effect : mesh->getEffectsPropertyMutable())
+                    {
+                        if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                        {
+                            skinnedEffect->SetBoneTransforms(skinTransforms);
+                            skinnedEffect->setDiffuseColorProperty(sunTint);
+                        }
+                        else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                        {
+                            skinnedPbrEffect->SetBoneTransforms(skinTransforms);
+                            skinnedPbrEffect->setDiffuseColorProperty(sunTint);
+                        }
+                    }
+                }
+                // The character model's origin is at its feet, while a sidewalk waypoint is
+                // authored at the box mesh's centre height -- so it is lowered by that half-height
+                // rather than drawn floating.
+                DrawModel(*characterModel_,
+                          Matrix::CreateRotationY(pose.yaw) *
+                              Matrix::CreateTranslation(pose.position - Vector3(0.0F, 0.9F, 0.0F)),
+                          view, projection);
+                continue;
+            }
+
             // Unlike the player mesh (whose GetPosition() is eye-height, offset down in Draw()
             // above), sidewalk WaypointPath points are already authored at this mesh's own center
             // height (see PrototypeWorld::BuildWarehouseBlock's sidewalkPaths_ comment) -- no

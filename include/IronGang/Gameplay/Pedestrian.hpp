@@ -52,6 +52,10 @@ namespace IronGang
         [[nodiscard]] const Vector3& GetPathPosition() const noexcept { return position_; }
         [[nodiscard]] float GetYaw() const noexcept { return yaw_; }
         [[nodiscard]] bool IsFleeing() const noexcept { return fleeTimer_ > 0.0F; }
+        // Whether the last Update() actually moved this pedestrian: false while it is stopped
+        // behind someone in its lane (plan_20 IG-20-010), which is what lets an animation pick an
+        // idle pose instead of sliding a walk cycle along the pavement.
+        [[nodiscard]] bool IsWalking() const noexcept { return walking_; }
 
     private:
         WaypointPath path_;
@@ -61,6 +65,7 @@ namespace IronGang
         float walkSpeed_{1.6F};
         float fleeTimer_{0.0F};
         float laneOffsetMetres_{0.0F};
+        bool walking_{false};
         Vector3 fleeFromPosition_{};
     };
 }

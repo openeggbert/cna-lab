@@ -5,5 +5,6 @@
   "autosaveIntervalSeconds": 180,
   "autosaveMinimumSpacingSeconds": 20,
   "logSeverity": "info",
+  "maxSkinnedPedestrians": 6,
   "notes": "Tunables read by IronGang::LoadGameConfig; see docs/configuration.md. Unknown keys are reported as warnings."
 }
