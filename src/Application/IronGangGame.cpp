@@ -540,6 +540,23 @@ namespace IronGang
         // a fresh checkout that has not run the asset pipeline still runs.
         getContentProperty().setRootDirectoryProperty(assetRoot_ + "/generated/models/cnj");
 
+        // plan_09 IG-09-005: the first production-path street prop. Optional like every other
+        // generated asset -- without it the procedural lamp boxes stay.
+        std::optional<Graphics::Model> streetLampModel;
+        try
+        {
+            streetLampModel = getContentProperty().Load<Graphics::Model>("street_lamp");
+            Log::Info(LogCategory::Assets, "Loaded generated street_lamp.cnj");
+        }
+        catch (const std::exception& contentError)
+        {
+            Log::Warning(LogCategory::Assets,
+                         std::string(contentError.what()) +
+                             " -- using procedural lamp boxes. Run scripts/build-assets.sh"
+                             " assets/source/mc3/street_lamp.mc3.xml assets/generated/models to"
+                             " generate it.");
+        }
+
         std::optional<Graphics::Model> warehouseModel;
         try
         {
@@ -601,7 +618,8 @@ namespace IronGang
         }
 
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
-                             std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
+                             std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel),
+                             std::move(streetLampModel));
         RespawnTrafficAndPedestrians();
 
         // Gate M10: a real on-screen HUD (see BitmapFont.hpp for why this is a hand-built bitmap

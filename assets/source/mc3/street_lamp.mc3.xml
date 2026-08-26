@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.3" model="IronGangStreetLamp" unit="meter" coordinate_system="right_handed_y_up">
+  <lights>
+    <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
+  </lights>
+  <materials>
+    <material id="iron" roughness="0.72" metallic="0.65">
+      <base_color>0.21 0.22 0.23 1</base_color>
+    </material>
+    <material id="lamp_glass" roughness="0.25" metallic="0">
+      <base_color>1 0.86 0.51 1</base_color>
+      <emissive_color>0.85 0.68 0.32</emissive_color>
+    </material>
+  </materials>
+  <objects>
+    <box name="Base" size="0.5 0.3 0.5" position="0 0.15 0" material="iron" collision="static"/>
+    <box name="Post" size="0.18 3.7 0.18" position="0 2.0 0" material="iron" collision="static"/>
+    <box name="Arm" size="0.9 0.12 0.12" position="0.4 3.85 0" material="iron" collision="none"/>
+    <box name="Head" size="0.55 0.26 0.4" position="0.8 3.72 0" material="lamp_glass" collision="none"/>
+  </objects>
+</mc3>

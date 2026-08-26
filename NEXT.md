@@ -98,6 +98,34 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+### The first prop authored through the working MC3 pipeline (plan_09)
+
+`assets/source/mc3/street_lamp.mc3.xml` — base, post, arm, and a head with an `<emissive_color>`.
+Two materials, 48 triangles. **The first content written and generated here** rather than inherited:
+the pipeline that had never run in this environment until this morning produced `cnjVersion 2` with
+four mesh parts, each a `PbrEffect` carrying its own colour, metallic, roughness and emissive —
+including the head's, which the MC3 declares and Iron Gang did not have to restate.
+
+`PrototypeRenderer` substitutes the model wherever the district authored a `lamp_west`/`lamp_east`
+box — the same substitution the warehouse uses. **The box stays what the district means by "a lamp
+stands here"**; the model is only how it looks, so placement, collision, the map and the lightmap
+builder are untouched and a workspace with no generated assets still gets boxes. The `lamp_glow_*`
+boxes are dropped because the head has its own emissive material; east lamps are mirrored so the arm
+reaches the road from both pavements.
+
+**Verified by colour, not by eye.** Like-for-like at the same scripted update: the procedural glow's
+two tones (1875 px) are replaced by a single (203,175,104) at 1752 px — exactly the authored glass
+colour × sun.
+
+**A gap the lamp exposed.** `content_budget.py` only checks the group containing a source it is
+*given*, and `build-assets.sh` only gives it the file being built — so an unbuilt MC3 file is
+unbudgeted and nothing says so. That is how this lamp arrived. Every shipped MC3 source is now
+required to have a budget entry; mutation-checked.
+
+Closed `IG-09-005`. Verified: CTest 16/16. Not done: one prop is not a prop *set* (no bench, sign or
+bin), and `IG-09-008`'s author-once-place-many convention does not exist — the lamp is re-drawn per
+position, not instanced.
+
 ### Deleting the workaround the stale diagnosis produced (plan_08)
 
 Removed: `assets/models/model-materials.json`, `ModelMaterialTable`, `ShadedBaseColor()`, its

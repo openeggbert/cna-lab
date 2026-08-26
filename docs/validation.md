@@ -1867,6 +1867,54 @@ restricts a mission file to the five state ids its int-based save format encodes
 a new state cannot be authored yet. Nothing here was visually verified: this environment has no
 display.
 
+## The first prop authored through the working MC3 pipeline (2026-08-26)
+
+plan_09 `IG-09-005` closed. Gates M12 and M14 untouched.
+
+**What was authored.** `assets/source/mc3/street_lamp.mc3.xml` -- a base, a post, an arm and a head,
+with two materials: `iron` (roughness 0.72, metallic 0.65) and `lamp_glass`, which carries an
+`<emissive_color>`. 48 triangles.
+
+This is the first content written **and generated** here rather than inherited. The pipeline that
+had never run in this environment until this morning produced `cnjVersion 2` with four mesh parts,
+each on its own bone, each a `PbrEffect` carrying its own `diffuseColor`, `metallicFactor`,
+`roughnessFactor` and `emissiveFactor` -- including the head's emissive, which the MC3 declares and
+nothing in Iron Gang had to restate.
+
+**How it is placed, and what deliberately did not move.** `PrototypeRenderer` substitutes the model
+wherever the district authored a `lamp_west`/`lamp_east` box -- the same substitution the warehouse
+already uses. The box remains what the district **means** by "a lamp stands here"; the model is only
+how it looks. Placement, collision, the district map and the lightmap builder are untouched, and a
+workspace without generated assets still gets the procedural boxes. The `lamp_glow_*` boxes are
+dropped when the model loads, because the head carries its own emissive material rather than needing
+a separate glowing cube. East-side lamps are drawn with a 180 degree yaw so the arm reaches the road
+from both pavements.
+
+**Verified by colour, not by eye.** A like-for-like capture at the same scripted update shows the
+procedural glow's two tones -- (190,164,97) x1404 and (203,175,103) x471 -- replaced by a single
+(203,175,104) x1752. That is exactly the authored glass colour (1, 0.86, 0.51) times the shared sun
+brightness, which is stronger evidence than "it looks about right": the head is rendering, with the
+material the MC3 file declares, shaded by the same sun as everything else.
+
+The lamp is registered in `assets/licenses/asset-registry.csv`, budgeted in
+`assets/content-budgets.json` (48/192 triangles, 2/8 materials, 0/4 textures), and validated against
+Mesh Craft's XSD by the test added earlier today -- which globs the MC3 directory, so it picked the
+new file up without being told.
+
+**A gap the lamp exposed in the guards.** `content_budget.py` only checks the group containing a
+source it is *given*, and `build-assets.sh` only gives it the file being built -- so an MC3 file
+nobody has built yet is unbudgeted and nothing says so. That is exactly how this lamp arrived.
+`test_content_budget.py` now requires **every** shipped MC3 source to have a budget entry.
+Mutation-checked: deleting the lamp's entry fails three assertions.
+
+16 CTest targets pass, `./scripts/check-syntax.sh` clean.
+
+**Not verified.** One prop is not a "prop set": there is no bench, sign or bin, and `IG-09-008`'s
+definition/instance convention (author once, place many) does not exist -- the lamp is re-drawn per
+position rather than instanced. `metallic` and the emissive reach the effect and the software backend
+does nothing with them, so the head is bright because its base colour is bright, not because it
+emits. And the lamp has only been seen in a still, not in motion on the real display.
+
 ## Deleting the workaround the stale diagnosis produced (2026-08-26)
 
 plan_08 `IG-08-014` stays partial, but for a smaller reason than before. Gates M12 and M14

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import subprocess
 import sys
 import tempfile
@@ -117,6 +118,26 @@ class ContentBudgetTests(unittest.TestCase):
             result = self.run_validator(root, policy_path, "--source", str(unknown))
             self.assertEqual(result.returncode, 2)
             self.assertIn("no content-budget entry covers", result.stderr)
+
+
+
+    def test_every_shipped_mc3_source_has_a_budget_entry(self):
+        """plan_09 IG-09-005: a new MC3 prop with no budget entry must not slip in silently.
+
+        content_budget.py only checks the group containing a source it is *given*, and
+        build-assets.sh only gives it the file being built. So an MC3 file nobody has built yet is
+        unbudgeted and nothing says so -- which is how the street lamp arrived.
+        """
+        root = pathlib.Path(__file__).resolve().parent.parent
+        policy = json.loads((root / "assets" / "content-budgets.json").read_text())
+        covered = {source for asset in policy["assets"] for source in asset["sources"]}
+        sources = sorted((root / "assets" / "source" / "mc3").glob("*.mc3.xml"))
+        self.assertGreaterEqual(len(sources), 6, "the shipped MC3 sources must be found")
+        for source in sources:
+            relative = source.relative_to(root).as_posix()
+            with self.subTest(source=relative):
+                self.assertIn(relative, covered,
+                              f"{relative} has no entry in assets/content-budgets.json")
 
 
 if __name__ == "__main__":

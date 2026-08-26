@@ -6,16 +6,36 @@
     {
       "id": "prototype_city_block",
       "category": "district_prototype",
-      "sources": ["assets/source/mc3/prototype_city_block.mc3.xml"],
-      "baseline": {"triangles": 96, "materials": 5, "textures": 0},
-      "limits": {"triangles": 384, "materials": 20, "textures": 8}
+      "sources": [
+        "assets/source/mc3/prototype_city_block.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 96,
+        "materials": 5,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 384,
+        "materials": 20,
+        "textures": 8
+      }
     },
     {
       "id": "warehouse",
       "category": "building",
-      "sources": ["assets/source/mc3/warehouse.mc3.xml"],
-      "baseline": {"triangles": 12, "materials": 1, "textures": 0},
-      "limits": {"triangles": 48, "materials": 4, "textures": 4}
+      "sources": [
+        "assets/source/mc3/warehouse.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 12,
+        "materials": 1,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 48,
+        "materials": 4,
+        "textures": 4
+      }
     },
     {
       "id": "sedan",
@@ -26,15 +46,50 @@
         "assets/source/mc3/vehicle_windshield.mc3.xml",
         "assets/source/mc3/vehicle_wheel.mc3.xml"
       ],
-      "baseline": {"triangles": 48, "materials": 4, "textures": 0},
-      "limits": {"triangles": 192, "materials": 8, "textures": 8}
+      "baseline": {
+        "triangles": 48,
+        "materials": 4,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 192,
+        "materials": 8,
+        "textures": 8
+      }
     },
     {
       "id": "test_character",
       "category": "character",
-      "sources": ["assets/source/gltf/test_character.gltf"],
-      "baseline": {"triangles": 36, "materials": 1, "textures": 1},
-      "limits": {"triangles": 144, "materials": 4, "textures": 4}
+      "sources": [
+        "assets/source/gltf/test_character.gltf"
+      ],
+      "baseline": {
+        "triangles": 36,
+        "materials": 1,
+        "textures": 1
+      },
+      "limits": {
+        "triangles": 144,
+        "materials": 4,
+        "textures": 4
+      }
+    },
+    {
+      "id": "street_lamp",
+      "category": "street_prop",
+      "sources": [
+        "assets/source/mc3/street_lamp.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 48,
+        "materials": 2,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 192,
+        "materials": 8,
+        "textures": 4
+      }
     }
   ]
 }

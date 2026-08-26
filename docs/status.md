@@ -42,7 +42,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 
 <!-- BEGIN GENERATED PLAN PROGRESS -->
 
-**307 of 2148 tasks done** (14%). Open by priority: P0 179 · P1 1009 · P2 596 · P3 57.
+**308 of 2148 tasks done** (14%). Open by priority: P0 178 · P1 1009 · P2 596 · P3 57.
 
 | # | Group | Done | |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ Neither can be closed in a headless container; see `docs/performance-baseline.md
 | 06 | [CNA and cna-extended integration roadmap](../plan/plan_06-cna-ext-collaboration-roadmap.md) | 1/27 | 3% |
 | 07 | [Rendering foundation](../plan/plan_07-rendering-foundation.md) | 0/61 | 0% |
 | 08 | [Materials, textures, lighting, shadows, and post-processing](../plan/plan_08-materials-textures-lighting-shadows-and-post-processing.md) | 0/78 | 0% |
-| 09 | [Mesh Craft and MC3 source pipeline](../plan/plan_09-mesh-craft-and-mc3-source-pipeline.md) | 3/50 | 6% |
+| 09 | [Mesh Craft and MC3 source pipeline](../plan/plan_09-mesh-craft-and-mc3-source-pipeline.md) | 4/50 | 8% |
 | 10 | [glTF, CNJ, MCB, and runtime packages](../plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md) | 1/68 | 1% |
 | 11 | [Asset registry, provenance, and build cache](../plan/plan_11-asset-registry-provenance-and-build-cache.md) | 25/67 | 37% |
 | 12 | [Entity, scene, and world-object model](../plan/plan_12-entity-scene-and-world-object-model.md) | 0/58 | 0% |
