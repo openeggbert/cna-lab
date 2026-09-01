@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0000aa">
+  <meta name="description" content="Build Signal Cabin in 24 lessons: a complete Explore2D tutorial from an empty C++23 project to a tested CNA adventure game.">
+  <meta property="og:title" content="Explore2D Tutorial — Build Signal Cabin">
+  <meta property="og:description" content="A 24-lesson hands-on path through rooms, procedural EGA art, interactions, state, animation, audio, testing and CNA.">
+  <meta property="og:type" content="article">
+  <title>24-Lesson Tutorial — Explore2D</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body class="docs-page tutorial-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="wordmark" href="index.html" aria-label="Explore2D home">
+      <span class="wordmark-mark" aria-hidden="true">E2</span>
+      <span>EXPLORE<span class="accent-cyan">2D</span></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+      <a href="index.html">Overview</a>
+      <a href="developers.html">Developers</a>
+      <a class="active" href="tutorial.html" aria-current="page">24-lesson tutorial</a>
+      <a href="index.html#visuals">Visual system</a>
+      <a class="nav-github" href="https://github.com/openeggbert/explore-2d">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="tutorial-hero">
+      <div class="section-shell tutorial-hero-grid">
+        <div>
+          <p class="eyebrow">Complete course · 24 practical lessons</p>
+          <h1>Build<br><span>Signal Cabin.</span></h1>
+          <p class="hero-lead">Create a four-room mountain-radio adventure from an empty C++23 project. Restore the generator, speak with the caretaker, unlock the tower and put an emergency signal back on the air.</p>
+          <div class="course-facts">
+            <span>6 modules</span><span>24 checkpoints</span><span>4–6 hours</span><span>No art assets</span>
+          </div>
+        </div>
+        <div class="course-map" aria-label="Signal Cabin course progression">
+          <div class="course-map-title"><span>COURSE ROUTE</span><span>START → SIGNAL</span></div>
+          <div class="map-route">
+            <div><i>01</i><strong>FOUNDATION</strong><small>Project + world</small></div>
+            <span>→</span>
+            <div><i>02</i><strong>PLACE</strong><small>Art + rooms</small></div>
+            <span>→</span>
+            <div><i>03</i><strong>ACTION</strong><small>Items + rules</small></div>
+            <span>↓</span>
+            <div><i>06</i><strong>SHIP</strong><small>Tests + CNA</small></div>
+            <span>←</span>
+            <div><i>05</i><strong>FEEDBACK</strong><small>Motion + sound</small></div>
+            <span>←</span>
+            <div><i>04</i><strong>STATE</strong><small>Story + puzzle</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="course-intro section-shell">
+      <div>
+        <p class="eyebrow">Why 24 lessons?</p>
+        <h2>Enough repetition to learn.<br>No artificial filler.</h2>
+      </div>
+      <p>Four lessons per module produce a useful rhythm: understand one concept, implement it, connect it to the game, then verify a visible checkpoint. The course is detailed enough for a first Explore2D project without splitting every line of C++ into a separate chapter.</p>
+    </section>
+
+    <div class="section-shell tutorial-layout">
+      <aside class="course-sidebar" aria-label="Tutorial progress and modules">
+        <div class="progress-card">
+          <div><span>Your progress</span><strong data-progress-label>0 / 24</strong></div>
+          <progress data-tutorial-progress max="24" value="0">0 of 24 lessons</progress>
+          <p>Stored only in this browser.</p>
+          <button type="button" data-reset-progress>Reset progress</button>
+        </div>
+        <nav class="module-nav">
+          <a href="#module-1"><span>01–04</span> Foundations</a>
+          <a href="#module-2"><span>05–08</span> Build the place</a>
+          <a href="#module-3"><span>09–12</span> Make it interactive</a>
+          <a href="#module-4"><span>13–16</span> State and story</a>
+          <a href="#module-5"><span>17–20</span> Feedback and identity</a>
+          <a href="#module-6"><span>21–24</span> Test and ship</a>
+        </nav>
+        <div class="sidebar-callout">
+          <strong>Need an API detail?</strong>
+          <p>Keep the developer guide open as the course reference.</p>
+          <a href="developers.html">Open developer guide →</a>
+        </div>
+      </aside>
+
+      <div class="course-content">
+        <section class="course-prerequisites">
+          <p class="eyebrow">Before lesson 1</p>
+          <h2>Prerequisites</h2>
+          <ul>
+            <li>A C++23 compiler and CMake 3.25 or newer.</li>
+            <li>A local Explore2D checkout. CNA is not needed until lesson 23.</li>
+            <li>Comfort with structs, vectors, functions and basic CMake targets.</li>
+            <li>A new directory named <code>signal-cabin</code> beside <code>explore-2d</code>.</li>
+          </ul>
+          <div class="course-contract"><strong>Course rule</strong><p>Do not continue when a checkpoint fails. Each lesson assumes the previous room, ID and rule names remain exactly as written.</p></div>
+        </section>
+
+        <section id="module-1" class="course-module">
+          <header class="module-heading"><span>Module 1 · Lessons 01–04</span><h2>Foundations</h2><p>Establish the mental model, build graph and smallest valid world before drawing a detailed scene.</p></header>
+
+          <article id="lesson-01" class="lesson-card" data-lesson="01">
+            <header><span class="lesson-number">Lesson 01</span><label><input type="checkbox" data-lesson-check="01"> Mark complete</label></header>
+            <h3>Map the game as state changes</h3>
+            <p class="lesson-outcome">Outcome: a one-page design with four rooms, three required items and one winning condition.</p>
+            <div class="lesson-body">
+              <p>Explore2D games are easiest to build when you describe progression before art. Signal Cabin will contain <strong>cabin</strong>, <strong>forest_path</strong>, <strong>generator</strong> and <strong>tower</strong>.</p>
+              <pre><code>CABIN: talk to Mara → reveal gate key
+FOREST PATH: collect patch cable
+GENERATOR: install fuse + cable → power_on
+TOWER: requires gate_open + power_on → win</code></pre>
+              <p>Create these stable IDs now: items <code>gate_key</code>, <code>patch_cable</code>, <code>ceramic_fuse</code>; flags <code>met_mara</code>, <code>key_revealed</code>, <code>gate_open</code>, <code>fuse_installed</code>, <code>cable_installed</code>, <code>power_on</code>.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>You can explain the complete winning route without mentioning rendering or CNA.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-02" class="lesson-card" data-lesson="02">
+            <header><span class="lesson-number">Lesson 02</span><label><input type="checkbox" data-lesson-check="02"> Mark complete</label></header>
+            <h3>Create the project skeleton</h3>
+            <p class="lesson-outcome">Outcome: a CMake project with a reusable world library and a scenario-test target.</p>
+            <div class="lesson-body">
+              <pre><code>signal-cabin/
+├── CMakeLists.txt
+├── src/
+│   ├── SignalCabinWorld.hpp
+│   └── SignalCabinWorld.cpp
+└── test/
+    └── ScenarioTests.cpp</code></pre>
+              <p>Use the developer guide's CMake integration. Link <code>signal_cabin_world</code> publicly to <code>Explore2D::Core</code>. Do not add CNA yet.</p>
+              <pre><code>add_executable(signal_cabin_tests test/ScenarioTests.cpp)
+target_link_libraries(signal_cabin_tests
+    PRIVATE signal_cabin_world)
+
+enable_testing()
+add_test(NAME signal-cabin.scenario
+    COMMAND signal_cabin_tests)</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>CMake configures with <code>-DEXPLORE2D_BUILD_CNA=OFF</code> and creates the test executable.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-03" class="lesson-card" data-lesson="03">
+            <header><span class="lesson-number">Lesson 03</span><label><input type="checkbox" data-lesson-check="03"> Mark complete</label></header>
+            <h3>Construct the smallest valid world</h3>
+            <p class="lesson-outcome">Outcome: <code>buildWorld()</code> returns one room that passes validation.</p>
+            <div class="lesson-body">
+              <pre><code>e2d::WorldDefinition buildWorld() {
+    e2d::WorldDefinition world;
+    world.title = "Signal Cabin";
+    world.startRoom = "cabin";
+
+    e2d::RoomDefinition cabin;
+    cabin.id = "cabin";
+    cabin.label = "SIGNAL CABIN";
+    cabin.background = e2d::PaletteColor::blue;
+    cabin.defaultSpawn = {32, 232};
+    cabin.solids.push_back({0, 260, 492, 28});
+    world.addRoom(std::move(cabin));
+    return world;
+}</code></pre>
+              <p>In the test, call <code>world.validate()</code>, assert the error vector is empty, then construct <code>AdventureSession</code> and assert <code>currentRoomId() == "cabin"</code>.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span><code>ctest</code> reports one passing scenario test and the session starts in the cabin.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-04" class="lesson-card" data-lesson="04">
+            <header><span class="lesson-number">Lesson 04</span><label><input type="checkbox" data-lesson-check="04"> Mark complete</label></header>
+            <h3>Render the first headless frame</h3>
+            <p class="lesson-outcome">Outcome: a 640×350 frame exists before any desktop window is introduced.</p>
+            <div class="lesson-body">
+              <pre><code>auto world = buildWorld();
+e2d::AdventureSession session{world};
+e2d::AdventureRenderer renderer{world};
+
+renderer.renderTitle();
+assert(renderer.canvas().width() == 640);
+assert(renderer.canvas().height() == 350);
+
+renderer.render(session);
+assert(renderer.canvas().bytes().size()
+    == 640U * 350U * 4U);</code></pre>
+              <p>The renderer is part of the core. It produces CPU-owned RGBA bytes from palette-indexed operations, making visual smoke tests possible without CNA.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The test renders both title and world frames and still runs with CNA disabled.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="module-2" class="course-module">
+          <header class="module-heading"><span>Module 2 · Lessons 05–08</span><h2>Build the place</h2><p>Turn the blank room into a readable cabin, support the player and connect the first screens.</p></header>
+
+          <article id="lesson-05" class="lesson-card" data-lesson="05">
+            <header><span class="lesson-number">Lesson 05</span><label><input type="checkbox" data-lesson-check="05"> Mark complete</label></header>
+            <h3>Learn the coordinate and palette contract</h3>
+            <p class="lesson-outcome">Outcome: a measured room sketch that fits the 492×262 viewport and uses only palette indices.</p>
+            <div class="lesson-body">
+              <p>Room-local origin is <code>(0,0)</code>; the renderer places it at framebuffer <code>(8,8)</code>. The standard player is 14×28 pixels and stands at <code>y = 232</code> on a floor beginning at <code>y = 260</code>.</p>
+              <pre><code>using P = e2d::PaletteColor;
+
+cabin.background = P::blue;
+cabin.decorations = {
+    e2d::RectVisual{{0, 210, 492, 50}, P::brown, true},
+    e2d::LineVisual{{0, 210}, {491, 210}, P::brightYellow},
+    e2d::TextVisual{{170, 30}, "SIGNAL CABIN", P::white, 2}
+};</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>No world-definition code contains an arbitrary RGB value.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-06" class="lesson-card" data-lesson="06">
+            <header><span class="lesson-number">Lesson 06</span><label><input type="checkbox" data-lesson-check="06"> Mark complete</label></header>
+            <h3>Draw the cabin with reusable motifs</h3>
+            <p class="lesson-outcome">Outcome: a recognisable interior built from rectangles, lines, circles and text.</p>
+            <div class="lesson-body">
+              <p>Create helpers such as <code>addWindow</code>, <code>addDesk</code> and <code>addRadio</code>. Each helper receives a room and origin, builds a <code>Drawing</code>, then appends its visuals.</p>
+              <pre><code>e2d::Drawing radio;
+radio.origin({330, 142})
+    .rectangle({0, 0, 116, 92}, P::darkGray)
+    .rectangle({8, 8, 100, 76}, P::black)
+    .text({22, 16}, "RADIO", P::brightYellow)
+    .circle({30, 54}, 9, P::lightGray, false)
+    .line({50, 50}, {92, 50}, P::brightGreen)
+    .line({50, 61}, {88, 61}, P::brightCyan);
+radio.appendTo(cabin.decorations);</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The cabin communicates “radio station” before any label or dialogue is read.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-07" class="lesson-card" data-lesson="07">
+            <header><span class="lesson-number">Lesson 07</span><label><input type="checkbox" data-lesson-check="07"> Mark complete</label></header>
+            <h3>Add support, platforms and movement tests</h3>
+            <p class="lesson-outcome">Outcome: the player stands on the floor, turns deliberately and can jump onto a low platform.</p>
+            <div class="lesson-body">
+              <pre><code>cabin.solids.push_back({0, 260, 492, 28});
+cabin.solids.push_back({180, 218, 112, 10});
+
+e2d::SessionConfig config;
+config.turnBeforeWalk = true;
+config.walkStep = 10.0F;
+
+e2d::AdventureSession session{world, config};
+session.walk(e2d::Direction::left); // first press turns
+assert(session.player().facing == e2d::Facing::left);</code></pre>
+              <p>Keep collision geometry simpler than decoration. The desk may use many visuals but only one solid top.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>A headless movement test confirms facing, position and grounded state after ticks.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-08" class="lesson-card" data-lesson="08">
+            <header><span class="lesson-number">Lesson 08</span><label><input type="checkbox" data-lesson-check="08"> Mark complete</label></header>
+            <h3>Connect the forest, generator and tower</h3>
+            <p class="lesson-outcome">Outcome: four rooms with explicit directional exits and sensible spawns.</p>
+            <div class="lesson-body">
+              <p>Create the remaining rooms with distinct backgrounds and ground silhouettes. Connect cabin ↔ forest_path ↔ generator ↔ tower.</p>
+              <pre><code>forest.exits.push_back({
+    e2d::Direction::left, "cabin", {462, 232}, {}, {}});
+forest.exits.push_back({
+    e2d::Direction::right, "generator", {8, 232}, {}, {}});
+
+generator.exits.push_back({
+    e2d::Direction::right, "tower", {8, 232},
+    {e2d::Condition::flag("gate_open")},
+    "The locked service gate blocks the tower path."});</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Validation finds all exit destinations, and the blocked tower exit shows its message before the gate opens.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="module-3" class="course-module">
+          <header class="module-heading"><span>Module 3 · Lessons 09–12</span><h2>Make it interactive</h2><p>Add examination, collection, inventory use and deliberate overlap resolution.</p></header>
+
+          <article id="lesson-09" class="lesson-card" data-lesson="09">
+            <header><span class="lesson-number">Lesson 09</span><label><input type="checkbox" data-lesson-check="09"> Mark complete</label></header>
+            <h3>Create your first EXAMINE hotspot</h3>
+            <p class="lesson-outcome">Outcome: examining the cabin radio explains the immediate problem.</p>
+            <div class="lesson-body">
+              <pre><code>cabin.hotspots.push_back({
+    "cabin_radio", "RADIO", {326, 138, 124, 100},
+    e2d::HotspotKind::mechanism, {}, {}});
+
+world.addInteraction({
+    e2d::Verb::examine, "cabin_radio", std::nullopt, {},
+    {{"The receiver has local power, but the tower returns only static.",
+        e2d::MessageStyle::inspect}},
+    {}, 0, ""});</code></pre>
+              <p>EXAMINE first opens the nearby/inventory target choice, then confirms the selected rule. Your test should call <code>performVerb(examine)</code>, assert choice mode, confirm and assert message mode.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The radio message appears and closes back to world mode.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-10" class="lesson-card" data-lesson="10">
+            <header><span class="lesson-number">Lesson 10</span><label><input type="checkbox" data-lesson-check="10"> Mark complete</label></header>
+            <h3>Collect the patch cable</h3>
+            <p class="lesson-outcome">Outcome: TAKE changes the pose, inventory and world artwork.</p>
+            <div class="lesson-body">
+              <p>Add <code>patch_cable</code> to world items. Add a forest hotspot visible only while <code>cable_taken</code> is clear, with a small cyan cable visual.</p>
+              <pre><code>world.addInteraction({
+    e2d::Verb::take, "patch_cable_pickup", std::nullopt, {},
+    {{"You coil the weatherproof patch cable.",
+        e2d::MessageStyle::inspect}},
+    {e2d::Mutation::addItem("patch_cable"),
+     e2d::Mutation::setFlag("cable_taken")},
+    10, "take_cable_once"});</code></pre>
+              <p>The session automatically turns toward the hotspot and enters the temporary <code>taking</code> pose before returning to standing.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The item disappears from the room, appears in inventory and cannot be taken twice.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-11" class="lesson-card" data-lesson="11">
+            <header><span class="lesson-number">Lesson 11</span><label><input type="checkbox" data-lesson-check="11"> Mark complete</label></header>
+            <h3>Use the cable on the generator</h3>
+            <p class="lesson-outcome">Outcome: USE combines a carried item with a mechanism and consumes the item.</p>
+            <div class="lesson-body">
+              <pre><code>world.addInteraction({
+    e2d::Verb::use,
+    "blue_terminals",
+    std::optional&lt;std::string&gt;{"patch_cable"},
+    {e2d::Condition::notFlag("cable_installed")},
+    {{"The cable bridges the blue terminals exactly.",
+        e2d::MessageStyle::inspect}},
+    {e2d::Mutation::setFlag("cable_installed"),
+     e2d::Mutation::removeItem("patch_cable")},
+    10, ""});</code></pre>
+              <p>Add a zero-area scenery hotspot whose cable visual is conditioned on <code>cable_installed</code>. This makes the state change visible after the message closes.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The cable leaves inventory and remains visibly connected in the generator room.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-12" class="lesson-card" data-lesson="12">
+            <header><span class="lesson-number">Lesson 12</span><label><input type="checkbox" data-lesson-check="12"> Mark complete</label></header>
+            <h3>Resolve the key-on-desk overlap</h3>
+            <p class="lesson-outcome">Outcome: EXAMINE targets the desk while TAKE targets the revealed key inside the same region.</p>
+            <div class="lesson-body">
+              <p>Add a large <code>desk</code> hotspot and a smaller <code>gate_key_pickup</code> hotspot inside it. The desk's first EXAMINE rule sets <code>key_revealed</code>; make the key visible only while that flag is set and <code>key_taken</code> is clear.</p>
+              <p>Explore2D's action-aware resolution prefers a hotspot with an applicable rule for the current verb. Do not “fix” the overlap by moving the logical areas apart; test the behaviour intentionally.</p>
+              <pre><code>place(session, "cabin", {215, 220});
+session.performVerb(e2d::Verb::take);
+assert(session.hasItem("gate_key"));
+assert(session.flag("key_taken"));</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The overlap regression test proves the desk never swallows TAKE for its key.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="module-4" class="course-module">
+          <header class="module-heading"><span>Module 4 · Lessons 13–16</span><h2>State and story</h2><p>Turn isolated actions into a coherent puzzle chain and state-sensitive conversation.</p></header>
+
+          <article id="lesson-13" class="lesson-card" data-lesson="13">
+            <header><span class="lesson-number">Lesson 13</span><label><input type="checkbox" data-lesson-check="13"> Mark complete</label></header>
+            <h3>Unlock a conditional route</h3>
+            <p class="lesson-outcome">Outcome: the brass key opens the service gate and enables the generator-to-tower exit.</p>
+            <div class="lesson-body">
+              <p>Create a <code>service_gate</code> mechanism at the generator's right edge. The USE rule requires <code>gate_key</code>, sets <code>gate_open</code> and optionally consumes the key.</p>
+              <pre><code>world.addInteraction({
+    e2d::Verb::use, "service_gate",
+    std::optional&lt;std::string&gt;{"gate_key"},
+    {e2d::Condition::notFlag("gate_open")},
+    {{"The brass key releases the weathered lock.",
+        e2d::MessageStyle::inspect}},
+    {e2d::Mutation::setFlag("gate_open")},
+    20, ""});</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The same exit blocks before the rule and moves to the tower afterward.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-14" class="lesson-card" data-lesson="14">
+            <header><span class="lesson-number">Lesson 14</span><label><input type="checkbox" data-lesson-check="14"> Mark complete</label></header>
+            <h3>Reveal the fuse through exploration</h3>
+            <p class="lesson-outcome">Outcome: examining the parts cabinet creates a newly visible pickup.</p>
+            <div class="lesson-body">
+              <p>Add <code>parts_cabinet</code> and a hidden <code>fuse_pickup</code>. The first high-priority cabinet rule sets <code>fuse_revealed</code>; a lower-priority fallback describes the now-empty shelf.</p>
+              <pre><code>// First visit: priority 10, only while not revealed.
+{e2d::Condition::notFlag("fuse_revealed")}
+{e2d::Mutation::setFlag("fuse_revealed")}
+
+// Fuse hotspot visibility:
+{e2d::Condition::flag("fuse_revealed"),
+ e2d::Condition::notFlag("fuse_taken")}</code></pre>
+              <p>This is the core exploration pattern: observation changes state, and changed state makes a new action possible.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The fuse is absent initially, appears after EXAMINE and enters inventory after TAKE.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-15" class="lesson-card" data-lesson="15">
+            <header><span class="lesson-number">Lesson 15</span><label><input type="checkbox" data-lesson-check="15"> Mark complete</label></header>
+            <h3>Write a speaker-aware conversation</h3>
+            <p class="lesson-outcome">Outcome: ENTER near Mara alternates compact bubbles between her and the player.</p>
+            <div class="lesson-body">
+              <p>Add a character hotspot <code>caretaker</code> with an interaction area around Mara's figure. Create a priority-10 first conversation conditioned on <code>notFlag("met_mara")</code>, followed by priority-1 state-specific reminder rules.</p>
+              <pre><code>{
+  {"Mara: The storm killed the tower feed.",
+      e2d::MessageStyle::speech,
+      e2d::MessageSpeaker::target},
+  {"I found a cable on the forest path.",
+      e2d::MessageStyle::speech,
+      e2d::MessageSpeaker::player},
+  {"Mara: Find the main fuse before throwing the lever.",
+      e2d::MessageStyle::speech,
+      e2d::MessageSpeaker::target}
+}</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The test advances line by line and observes target → player → target anchors.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-16" class="lesson-card" data-lesson="16">
+            <header><span class="lesson-number">Lesson 16</span><label><input type="checkbox" data-lesson-check="16"> Mark complete</label></header>
+            <h3>Gate the generator with compound state</h3>
+            <p class="lesson-outcome">Outcome: the main lever starts only after both repairs; otherwise it explains what is missing.</p>
+            <div class="lesson-body">
+              <p>Create the successful priority-20 contextual rule with three conditions: fuse installed, cable installed and power not on. Create priority-10 “already running” and priority-0 warning fallbacks.</p>
+              <pre><code>{e2d::Condition::flag("fuse_installed"),
+ e2d::Condition::flag("cable_installed"),
+ e2d::Condition::notFlag("power_on")}
+
+{e2d::Mutation::setFlag("power_on")}</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Tests cover missing-both, missing-one, successful start and already-running cases.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="module-5" class="course-module">
+          <header class="module-heading"><span>Module 5 · Lessons 17–20</span><h2>Feedback and identity</h2><p>Give Signal Cabin a title, selective motion, restrained sound and readable terminal states.</p></header>
+
+          <article id="lesson-17" class="lesson-card" data-lesson="17">
+            <header><span class="lesson-number">Lesson 17</span><label><input type="checkbox" data-lesson-check="17"> Mark complete</label></header>
+            <h3>Design the title screen and language settings</h3>
+            <p class="lesson-outcome">Outcome: an engine-owned NEW GAME / LOAD / SETTINGS / QUIT screen with original Signal Cabin artwork and English/Czech selection.</p>
+            <div class="lesson-body">
+              <pre><code>auto tr = [](std::string english, std::string czech) {
+    e2d::LocalizedText text{std::move(english)};
+    text.addTranslation("cs", std::move(czech));
+    return text;
+};
+
+world.presentation.title.subtitle =
+    tr("A MOUNTAIN RADIO ADVENTURE",
+       "DOBRODRUŽSTVÍ HORSKÉHO RÁDIA");
+world.presentation.title.byline =
+    tr("AN EXPLORE2D GAME", "HRA V EXPLORE2D");
+world.localization.languages = {
+    {"en", tr("English", "Angličtina")},
+    {"cs", tr("Czech", "Čeština")}
+};
+world.presentation.title.startLabel =
+    tr("NEW GAME", "NOVÁ HRA");
+world.presentation.title.settingsLabel =
+    tr("SETTINGS", "NASTAVENÍ");
+world.presentation.title.titleColors = {
+    P::brightCyan, P::brightMagenta,
+    P::brightYellow, P::brightGreen};
+world.presentation.title.artwork = {
+    e2d::RectVisual{{18, 82, 604, 145}, P::blue, true},
+    e2d::CircleVisual{{548, 110}, 18, P::brightYellow, true},
+    e2d::LineVisual{{80, 210}, {280, 86}, P::white}
+};</code></pre>
+              <p>Apply the same helper to every item, room, hotspot, code-drawn label, dialogue line, hazard and interface string created in earlier lessons. Stable IDs such as <code>brass_key</code> stay untranslated.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span><code>renderTitle()</code> produces original art, Settings changes language without starting a new game, and both complete routes run with English and Czech text.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-18" class="lesson-card" data-lesson="18">
+            <header><span class="lesson-number">Lesson 18</span><label><input type="checkbox" data-lesson-check="18"> Mark complete</label></header>
+            <h3>Add one loop and one action animation</h3>
+            <p class="lesson-outcome">Outcome: the powered tower beacon pulses and generator startup sparks once.</p>
+            <div class="lesson-body">
+              <p>Add <code>tower_beacon</code> as autoplay + loop conditioned on <code>power_on</code>. Add <code>generator_start</code> as non-autoplay + non-loop, then append <code>Mutation::playAnimation("generator_start")</code> to the successful lever rule.</p>
+              <p>Use 6–8 ticks per beacon frame and 2–3 ticks per spark frame. Keep the rest of the forest, cabin and machinery static.</p>
+              <pre><code>assert(world.room("tower")-&gt;animations.size() == 1);
+assert(world.room("generator")-&gt;animations.size() == 1);
+assert(session.animationElapsed("generator_start").has_value());</code></pre>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Frame-selection tests show the beacon changing, and the startup animation expires after one pass.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-19" class="lesson-card" data-lesson="19">
+            <header><span class="lesson-number">Lesson 19</span><label><input type="checkbox" data-lesson-check="19"> Mark complete</label></header>
+            <h3>Compose the monophonic sound set</h3>
+            <p class="lesson-outcome">Outcome: title, menu, pickup, repair, warning, death and victory have distinct short cues.</p>
+            <div class="lesson-body">
+              <pre><code>world.addSoundEffect({
+    "pickup", {{440, 1}, {660, 1}, {880, 2}}, 0.15F});
+world.addSoundEffect({
+    "warning", {{147, 2}, {110, 3}}, 0.16F});
+world.addSoundEffect({
+    "repair", {{880, 1}, {0, 1}, {880, 1}}, 0.13F});
+world.addSoundEffect({
+    "unlock", {{196, 1}, {247, 1}, {330, 2}}, 0.15F});
+world.addSoundEffect({
+    "victory", {{392, 2}, {523, 2}, {659, 2},
+                {784, 2}, {1047, 6}}, 0.18F});
+
+world.presentation.sounds.pickup = "pickup";
+world.presentation.sounds.warning = "warning";
+world.presentation.sounds.victory = "victory";</code></pre>
+              <p>Now give the earlier cable/fuse rules the explicit <code>repair</code> cue and the gate rule the <code>unlock</code> cue through their final <code>soundEffect</code> field. Add equally short title, menu, death and save/load definitions to their presentation bindings. Keep volume around 0.10–0.20 and phrases under one second for frequent actions.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Core tests observe queued effect IDs; later the CNA smoke test proves device playback.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-20" class="lesson-card" data-lesson="20">
+            <header><span class="lesson-number">Lesson 20</span><label><input type="checkbox" data-lesson-check="20"> Mark complete</label></header>
+            <h3>Create danger, death and victory</h3>
+            <p class="lesson-outcome">Outcome: one optional hazard route and a condition-gated final transmission.</p>
+            <div class="lesson-body">
+              <p>Add a fallen bridge hazard to the forest side route. At the tower console, make the winning contextual rule require <code>power_on</code> and <code>gate_open</code>.</p>
+              <pre><code>tower.hotspots.push_back({
+    "relay_console", "RELAY CONSOLE",
+    {305, 140, 150, 105},
+    e2d::HotspotKind::mechanism, {}, {}});
+
+world.addInteraction({
+    e2d::Verb::context, "relay_console", std::nullopt,
+    {e2d::Condition::flag("power_on"),
+     e2d::Condition::flag("gate_open")}, {},
+    {e2d::Mutation::win(
+        "THE SIGNAL CABIN TRANSMITTER IS BACK ON THE AIR.")},
+    20, ""});
+
+world.hints.push_back({
+    "Install the fuse and patch both blue terminals.",
+    {e2d::Condition::notFlag("power_on")}, 20});
+world.hints.push_back({
+    "Climb the tower and operate the relay console.",
+    {e2d::Condition::flag("power_on")}, 20});</code></pre>
+              <p>Pressing F1 does not change these flags. It pauses the visible action and shows whichever matching hint has the highest priority.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Victory starts a fresh session, death resumes at the latest travel-anchor checkpoint, and F1 follows the unfinished objective without mutating game state.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="module-6" class="course-module">
+          <header class="module-heading"><span>Module 6 · Lessons 21–24</span><h2>Test and ship</h2><p>Protect progress, automate the complete route, add CNA and finish with a disciplined release pass.</p></header>
+
+          <article id="lesson-21" class="lesson-card" data-lesson="21">
+            <header><span class="lesson-number">Lesson 21</span><label><input type="checkbox" data-lesson-check="21"> Mark complete</label></header>
+            <h3>Verify save and restore</h3>
+            <p class="lesson-outcome">Outcome: a mid-puzzle snapshot round-trips without preserving transient presentation state.</p>
+            <div class="lesson-body">
+              <pre><code>const auto path = std::filesystem::temp_directory_path()
+    / "signal-cabin-test.e2dsave";
+std::string error;
+assert(e2d::saveSnapshot(session.snapshot(), path, &amp;error));
+
+const auto loaded = e2d::loadSnapshot(path);
+assert(loaded);
+
+e2d::AdventureSession restored{world};
+assert(restored.restore(*loaded.snapshot));
+assert(restored.flag("cable_installed"));
+assert(restored.hasItem("ceramic_fuse"));</code></pre>
+              <p>Delete the temporary test save afterward. The real CNA host binds S/L to the path in <code>HostConfig</code>.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Room, inventory and flags survive; message mode, sounds and animations restart safely.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-22" class="lesson-card" data-lesson="22">
+            <header><span class="lesson-number">Lesson 22</span><label><input type="checkbox" data-lesson-check="22"> Mark complete</label></header>
+            <h3>Script the complete winning route</h3>
+            <p class="lesson-outcome">Outcome: one deterministic test proves the game remains finishable.</p>
+            <div class="lesson-body">
+              <pre><code>talk_to_mara(session);
+reveal_and_take_key(session);
+take_patch_cable(session);
+unlock_service_gate(session);
+reveal_take_and_install_fuse(session);
+install_patch_cable(session);
+start_generator(session);
+activate_tower_console(session);
+
+assert(session.mode() == e2d::SessionMode::won);</code></pre>
+              <p>Write helpers in terms of public session actions: place via snapshot, call verbs, select inventory choices and dismiss messages. Do not set puzzle flags directly in the winning-route test.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The full route and a separate hazard → death → restart test both pass from clean sessions.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-23" class="lesson-card" data-lesson="23">
+            <header><span class="lesson-number">Lesson 23</span><label><input type="checkbox" data-lesson-check="23"> Mark complete</label></header>
+            <h3>Launch the real CNA host</h3>
+            <p class="lesson-outcome">Outcome: Signal Cabin opens in a resizable desktop window with audio and fullscreen.</p>
+            <div class="lesson-body">
+              <pre><code>e2d::cna::HostConfig host;
+host.windowTitle = "Signal Cabin";
+host.presentationScale = 2;
+host.savePath = "signal-cabin.e2dsave";
+
+e2d::cna::AdventureGame game{
+    buildWorld(), {}, {}, host};
+game.Run();</code></pre>
+              <p>Configure with a complete CNA checkout via <code>-DCNA_SOURCE_DIR=/path/to/cna</code>. Play the real route once. Verify point-sampled scaling, F1 at multiple puzzle stages, F11 in both directions, title audio, pickup/repair cues, save/load and clean quit.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The executable reaches the title, begins a game, shows F1 help, toggles fullscreen and produces sound.</span></div>
+            </div>
+          </article>
+
+          <article id="lesson-24" class="lesson-card" data-lesson="24">
+            <header><span class="lesson-number">Lesson 24</span><label><input type="checkbox" data-lesson-check="24"> Mark complete</label></header>
+            <h3>Run the release pass</h3>
+            <p class="lesson-outcome">Outcome: a small, complete, documented and reproducible Explore2D game.</p>
+            <div class="lesson-body">
+              <ol class="release-list">
+                <li>Configure a fresh headless build directory and run all tests.</li>
+                <li>Generate title, each room, dialogue, TAKE pose and action-animation previews.</li>
+                <li>Confirm every state change has a visible room consequence.</li>
+                <li>Build against the complete CNA checkout and run a bounded dummy video/audio smoke test.</li>
+                <li>Write controls, premise, build instructions, suggested route and license in README.</li>
+                <li>Commit only source and intentional assets; keep build directories and saves ignored.</li>
+              </ol>
+              <div class="final-checkpoint"><span>COURSE COMPLETE</span><strong>The emergency signal is back on the air.</strong><p>You now have the full pattern needed for a new Explore2D game: room → interaction → item → state change → room.</p></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="course-finish">
+          <p class="eyebrow">After the course</p>
+          <h2>Replace the lesson content.<br>Keep the architecture.</h2>
+          <p>Signal Cabin is deliberately small. Keep its clean separation and testing strategy, then replace its story, room graph, procedural art, items, conversations and puzzle chain with your own game.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="developers.html">Use the developer guide</a>
+            <a class="button button-secondary" href="https://github.com/openeggbert/black-pine">Study Black Pine</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div><a class="wordmark-small" href="index.html">EXPLORE<span>2D</span></a><p>Fixed-screen adventure engine for C++23 and CNA.</p></div>
+    <p><a href="developers.html">Developer guide</a> · <a href="https://github.com/openeggbert/explore-2d">Source</a> · MIT licensed · <span id="year">2026</span></p>
+  </footer>
+</body>
+</html>
