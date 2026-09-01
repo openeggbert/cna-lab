@@ -1,0 +1,60 @@
+{
+  "id": "lamp_collision",
+  "version": 1,
+  "steps": [
+    {
+      "update": 20,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 21,
+      "held": []
+    },
+    {
+      "update": 50,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 51,
+      "held": []
+    },
+    {
+      "update": 80,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 81,
+      "held": []
+    },
+    {
+      "update": 150,
+      "held": [
+        "move_back"
+      ]
+    },
+    {
+      "update": 183,
+      "held": []
+    },
+    {
+      "update": 260,
+      "held": [
+        "strafe_left"
+      ]
+    },
+    {
+      "update": 620,
+      "held": []
+    },
+    {
+      "update": 700,
+      "held": []
+    }
+  ]
+}

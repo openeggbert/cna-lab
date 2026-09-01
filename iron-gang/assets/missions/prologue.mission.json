@@ -1,0 +1,62 @@
+{
+  "id": "prototype_delivery",
+  "title": "The Quiet Delivery",
+  "version": 2,
+  "initialState": "introduction",
+  "variables": [
+    { "id": "briefing_read", "type": "bool", "value": false },
+    { "id": "cargo_secured", "type": "bool", "value": false },
+    { "id": "deliveries_made", "type": "int", "value": 0 },
+    { "id": "handover_radius", "type": "float", "value": 3.0 }
+  ],
+  "states": [
+    {
+      "id": "introduction",
+      "objective": "Listen to Mara (Enter advances dialogue)",
+      "when": "dialogue_finished",
+      "next": "reach_vehicle"
+    },
+    {
+      "id": "reach_vehicle",
+      "objective": "Walk to the sedan",
+      "onEnter": [
+        { "action": "set", "variable": "briefing_read", "value": "true" }
+      ],
+      "when": "player_vehicle_distance <= handover_radius",
+      "next": "enter_vehicle"
+    },
+    {
+      "id": "enter_vehicle",
+      "objective": "Press E to enter the sedan",
+      "when": "player_driving",
+      "next": "drive_to_warehouse"
+    },
+    {
+      "id": "drive_to_warehouse",
+      "objective": "Drive into the green warehouse marker",
+      "checkpoint": true,
+      "onEnter": [
+        { "action": "set", "variable": "cargo_secured", "value": "true" }
+      ],
+      "transitions": [
+        { "when": "police_chase_seconds > 25", "next": "busted" },
+        { "when": "player_driving && vehicle_in_warehouse_goal && cargo_secured", "next": "completed" }
+      ]
+    },
+    {
+      "id": "busted",
+      "objective": "The delivery is blown",
+      "outcome": "failed",
+      "reason": "The police stayed on you too long to make the drop"
+    },
+    {
+      "id": "completed",
+      "objective": "Prototype mission complete",
+      "outcome": "completed",
+      "onEnter": [
+        { "action": "set", "variable": "deliveries_made", "value": "deliveries_made + 1" },
+        { "action": "log", "message": "delivery complete" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "id": "gate_m1",
+  "version": 1,
+  "steps": [
+    {
+      "update": 20,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 21,
+      "held": []
+    },
+    {
+      "update": 50,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 51,
+      "held": []
+    },
+    {
+      "update": 80,
+      "held": [
+        "confirm"
+      ]
+    },
+    {
+      "update": 81,
+      "held": []
+    },
+    {
+      "update": 150,
+      "held": [
+        "move_forward"
+      ]
+    },
+    {
+      "update": 260,
+      "held": []
+    },
+    {
+      "update": 300,
+      "held": [
+        "interact"
+      ]
+    },
+    {
+      "update": 301,
+      "held": []
+    },
+    {
+      "update": 420,
+      "held": [
+        "move_forward"
+      ]
+    },
+    {
+      "update": 700,
+      "held": []
+    },
+    {
+      "update": 740,
+      "held": [
+        "handbrake"
+      ]
+    },
+    {
+      "update": 830,
+      "held": []
+    },
+    {
+      "update": 1020,
+      "held": [
+        "quick_save"
+      ]
+    },
+    {
+      "update": 1021,
+      "held": []
+    },
+    {
+      "update": 1080,
+      "held": [
+        "move_forward"
+      ]
+    },
+    {
+      "update": 1210,
+      "held": []
+    },
+    {
+      "update": 1270,
+      "held": [
+        "handbrake"
+      ]
+    },
+    {
+      "update": 1350,
+      "held": []
+    },
+    {
+      "update": 1410,
+      "held": [
+        "quick_load"
+      ]
+    },
+    {
+      "update": 1411,
+      "held": []
+    },
+    {
+      "update": 1530,
+      "held": []
+    },
+    {
+      "update": 1590,
+      "held": [
+        "restart"
+      ]
+    },
+    {
+      "update": 1591,
+      "held": []
+    },
+    {
+      "update": 1710,
+      "held": []
+    }
+  ]
+}

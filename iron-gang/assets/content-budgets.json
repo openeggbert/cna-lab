@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "scope": "Bootstrap source-asset guardrails for the current first-district prototype; revise with measured production-asset evidence before replacing these models.",
+  "method": "Triangle ceilings are 4x the committed baseline. Material ceilings are 4x except the four-part sedan's 2x grouped reserve; texture limits reserve explicit authored slots rather than multiplying today's mostly-zero baseline. Texture limits count resources, not bytes or GPU residency; resolution/memory limits remain governed by the M12 VRAM tracker until representative production textures exist.",
+  "assets": [
+    {
+      "id": "prototype_city_block",
+      "category": "district_prototype",
+      "sources": [
+        "assets/source/mc3/prototype_city_block.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 96,
+        "materials": 5,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 384,
+        "materials": 20,
+        "textures": 8
+      }
+    },
+    {
+      "id": "warehouse",
+      "category": "building",
+      "sources": [
+        "assets/source/mc3/warehouse.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 12,
+        "materials": 1,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 48,
+        "materials": 4,
+        "textures": 4
+      }
+    },
+    {
+      "id": "sedan",
+      "category": "vehicle",
+      "sources": [
+        "assets/source/mc3/vehicle_body.mc3.xml",
+        "assets/source/mc3/vehicle_cabin.mc3.xml",
+        "assets/source/mc3/vehicle_windshield.mc3.xml",
+        "assets/source/mc3/vehicle_wheel.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 48,
+        "materials": 4,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 192,
+        "materials": 8,
+        "textures": 8
+      }
+    },
+    {
+      "id": "test_character",
+      "category": "character",
+      "sources": [
+        "assets/source/gltf/test_character.gltf"
+      ],
+      "baseline": {
+        "triangles": 36,
+        "materials": 1,
+        "textures": 1
+      },
+      "limits": {
+        "triangles": 144,
+        "materials": 4,
+        "textures": 4
+      }
+    },
+    {
+      "id": "warehouse_block_props",
+      "category": "street_prop_set",
+      "sources": [
+        "assets/source/mc3/warehouse_block_props.mc3.xml"
+      ],
+      "baseline": {
+        "triangles": 984,
+        "materials": 3,
+        "textures": 0
+      },
+      "limits": {
+        "triangles": 3936,
+        "materials": 12,
+        "textures": 6
+      }
+    }
+  ]
+}

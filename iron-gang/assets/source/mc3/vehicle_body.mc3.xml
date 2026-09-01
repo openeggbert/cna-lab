@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.3" model="IronGangSedanBody" unit="meter" coordinate_system="right_handed_y_up">
+  <lights>
+    <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
+  </lights>
+  <materials>
+    <material id="body_paint" roughness="0.45" metallic="0.35">
+      <base_color>0.455 0.102 0.118 1</base_color>
+    </material>
+  </materials>
+  <objects>
+    <box name="Body" size="2.1 0.65 4.2" position="0 0 0" material="body_paint" collision="none"/>
+  </objects>
+</mc3>

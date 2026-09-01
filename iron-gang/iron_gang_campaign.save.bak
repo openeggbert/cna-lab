@@ -1,0 +1,13 @@
+format=iron-gang-save-v2
+checksum=9e2e0f3efa01d329
+mission_id=countryside_run
+mission_state_id=reach_farmhouse
+campaign_completed.prototype_delivery=1
+player_position=0,0,0
+player_yaw=0
+vehicle_position=0,0,0
+vehicle_yaw=0
+vehicle_speed=0
+player_driving=0
+vehicle_integrity=1
+district_id=0

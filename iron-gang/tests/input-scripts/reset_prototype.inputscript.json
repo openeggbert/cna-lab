@@ -1,0 +1,26 @@
+{
+  "id": "reset_prototype",
+  "version": 1,
+  "steps": [
+    { "update": 20, "held": ["confirm"] },
+    { "update": 21, "held": [] },
+    { "update": 50, "held": ["confirm"] },
+    { "update": 51, "held": [] },
+    { "update": 80, "held": ["confirm"] },
+    { "update": 81, "held": [] },
+
+    { "update": 150, "held": ["move_forward"] },
+    { "update": 260, "held": [] },
+    { "update": 300, "held": ["interact"] },
+    { "update": 301, "held": [] },
+
+    { "update": 420, "held": ["move_forward"] },
+    { "update": 560, "held": [] },
+    { "update": 620, "held": ["handbrake"] },
+    { "update": 700, "held": [] },
+
+    { "update": 780, "held": ["restart"] },
+    { "update": 781, "held": [] },
+    { "update": 900, "held": [] }
+  ]
+}

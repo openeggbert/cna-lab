@@ -1,0 +1,62 @@
+# CMake and IDE build trees
+cmake-build-*/
+build/
+out/
+_deps/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.ninja
+.ninja_*
+
+# Binaries and compiler output
+__pycache__/
+*.py[cod]
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.dSYM/
+iron_shadows
+iron_shadows_core_tests
+
+# Runtime-generated state
+runtime/
+logs/
+crash-dumps/
+
+# Generated content; source MC3 stays tracked
+assets/generated/
+*.cnj
+*.bin
+*.glb
+*.gltf
+# ...except assets/source/gltf/, a source tree of its own for hand-authored glTF that bypasses
+# MC3 (Mesh Craft has no rigging/skinning authoring support -- see gen_test_character_gltf.py's
+# own header comment). Unlike every *.glb/*.gltf elsewhere in this repo, these are source, not a
+# regenerable build artifact of the MC3 pipeline.
+!assets/source/gltf/*.gltf
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+local.cmake

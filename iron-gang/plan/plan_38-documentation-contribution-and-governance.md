@@ -1,0 +1,29 @@
+# 38. Documentation, contribution, and governance
+
+[Back to master plan](../plan.md)
+
+
+Keep architectural decisions, workflows, and project status understandable over a multi-year effort.
+
+- [ ] **IG-38-001 P0** — Keep README build instructions synchronized with real dependency requirements (CNA, sharp-runtime, easy-gl, cna-extended, Mesh Craft).
+- [ ] **IG-38-002 P0** — Keep analysis.md and plan/plan_*.md updated after major scope or architectural decisions (e.g. the cna-extended adoption and the locked Mafia-1-fidelity scope decisions).
+- [ ] **IG-38-003 P0** — Record exact validation status without claiming unrun builds or tests.
+- [ ] **IG-38-004 P1** — Keep a lightweight decision log (not a formal ADR process) for entity/ECS, physics library, asset package, and rendering-integration decisions.
+- [ ] **IG-38-005 P1** — Create subsystem READMEs with ownership, threading, data, tests, and debugging.
+- [ ] **IG-38-006 P1** — Create coding standards for C++23 usage, includes, ownership, and errors.
+- [ ] **IG-38-007 P1** — Create asset-authoring standards for MC3, Blender, textures, characters, vehicles, and audio (manual authoring workflow, no procedural generator tooling).
+- [ ] **IG-38-008 P1** — Create contributor setup and first-task guide.
+- [ ] **IG-38-009 P1** — Create issue templates for bugs, features, assets, and CNA/cna-extended upstream defects.
+- [ ] **IG-38-010 P1** — Create pull-request checklist for tests, docs, provenance, and performance.
+- [ ] **IG-38-011 P1** — Create release-note and changelog process.
+- [ ] **IG-38-012 P1** — Create a glossary of CNA, cna-extended, MC3, CNJ, MCB, district, entity, mission, and content terms.
+- [ ] **IG-38-013 P1** — Create architecture diagrams generated from source where practical.
+- [x] **IG-38-014 P1** — Create a current milestone/status dashboard (which district/chapter is playable, which is in progress). *(`docs/status.md`, in two halves. The **prose** -- what you can play right now, what is still prototype fidelity, and which gates are blocked on what (M12's physical display, M14's separate machine) -- is hand-written, because no script knows what "playable" means. The **plan-progress table** is generated from `plan/plan_*.md` by `scripts/status_report.py` and verified by a CTest (`--check` fails when it is stale), because the counts are exactly the part that goes wrong silently: nobody notices "36/76" became untrue, and a dashboard nobody trusts is worse than none. `NEXT.md` now opens by pointing at it, and its own twenty session entries were compressed into one table -- the detail was already in `docs/validation.md`, and a 192 KB continuity document defeats the purpose of a continuity document. Covered by `tests/test_status_report.py` (round trip, staleness detection, missing markers, empty/heading-less/task-less plan directories, and the committed dashboard being current).)*
+- [ ] **IG-38-015 P1** — Create a decision log for scope cuts (this plan-trim itself is the first entry).
+- [ ] **IG-38-016 P1** — Create onboarding sample tasks that do not require the full campaign.
+- [ ] **IG-38-017 P1** — Create documentation lint and broken-link checks.
+- [ ] **IG-38-018 P2** — Create API documentation after interfaces stabilize.
+- [ ] **IG-38-019 P2** — Create content creator documentation with screenshots and examples for the manual MC3/Blender authoring workflow.
+- [ ] **IG-38-020 P3** — Create translation/localization contributor guidance once a second language is actually planned (out of scope for the single-language v1).
+- [ ] **IG-38-021 P2** — Create community code of conduct if external collaboration begins.
+- [ ] **IG-38-022 P2** — Create archival policy for obsolete plans and formats.

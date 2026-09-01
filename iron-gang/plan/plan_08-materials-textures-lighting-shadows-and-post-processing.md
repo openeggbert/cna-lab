@@ -1,0 +1,84 @@
+# 08. Materials, textures, lighting, shadows, and post-processing
+
+[Back to master plan](../plan.md)
+
+Build the visual foundation for a convincing historical district at Mafia-1 fidelity: baked lighting, one dynamic sun, limited shadows, and restrained post-processing, targeting the ~2-4GB RAM / 512MB-1GB VRAM budget in `docs/performance-targets.md`. SSAO, screen-space reflections, volumetric fog, and temporal anti-aliasing are explicitly out of scope for v1.
+
+- [ ] **IG-08-001 P0** — Define a small production PBR material model compatible with CNA's `PbrEffect`/`SkinnedPbrEffect`.
+- [ ] **IG-08-002 P0** — Define texture color-space rules.
+- [ ] **IG-08-003 P0** — Define texture naming, channel packing, and compression rules.
+- [ ] **IG-08-004 P0** — Implement one directional sun and one simple (non-cascaded) shadow path sized for a single district.
+- [ ] **IG-08-005 P0** — Implement fog and color grading sufficient for the vertical slice.
+- [ ] **IG-08-006 P1** — Create material instances and per-object overrides.
+- [ ] **IG-08-007 P1** — Create default materials for stone, brick, plaster, metal, glass, wood, road, cloth, skin, and vegetation sharing one PBR material model rather than per-type subsystems.
+- [ ] **IG-08-008 P1** — Create normal/tangent validation in the asset pipeline.
+- [ ] **IG-08-009 P1** — Create texture mip and maximum-dimension validation.
+- [ ] **IG-08-010 P1** — Create a load-time texture budget check per district; districts load and unload wholesale (see `plan_13`), so no runtime streaming-residency system is needed.
+- [ ] **IG-08-011 P1** — Create alpha-mask and alpha-blend material policies.
+- [ ] **IG-08-012 P1** — Create double-sided material policy.
+- [ ] **IG-08-013 P1** — Create shadow-caster distance and culling rules for the single shadow path.
+- [ ] **IG-08-014 P0** — Create a baked-lighting workflow for buildings (static lightmaps or vertex-baked ambient) as the primary lighting source. *(Partial. The **procedural** city gets real per-face baked lighting via `LightmapMesh`/`DrawStaticCityMesh()`. **Imported** models are shaded by the shared `SunLight` brightness applied to **the colour the asset itself carries**: since CNA's glTF->CNJ material work landed, a generated `.cnj` is `cnjVersion 2` with `diffuseColor`/`metallicFactor`/`roughnessFactor`/`emissiveFactor` and a `PbrEffect`, and the loader applies them. `PrototypeRenderer` captures each model's diffuse colour once at load and multiplies by the sun each frame -- capturing once matters, because reading back and multiplying in place compounds and fades the model to black. A model whose `.cnj` predates that work is detected and logged with the fix (`scripts/build-assets.sh`) rather than silently rendering white. An earlier `assets/models/model-materials.json` override, written when the generated assets in this workspace were months stale, has been removed: keeping a second copy of numbers the asset already carries is exactly the drift the pipeline exists to avoid. What remains open is the *baked* half -- per-face ambient for imported geometry still needs a colour channel to bake into.)*
+- [ ] **IG-08-015 P1** — Create a bounded local-light system for interiors and streets: a handful of lights per district, not per-lamp dynamic shadows.
+- [ ] **IG-08-016 P1** — Create bloom, tone mapping, and exposure as simple, cheap post-process settings.
+- [ ] **IG-08-017 P2** — Create historical color-depth/CRT effects as optional stylistic post-processes, not defaults.
+- [ ] **IG-08-018 P3** — Explicitly defer SSAO, screen-space reflections, volumetric fog, and temporal anti-aliasing; revisit only if profiling the first district shows headroom under the `docs/performance-targets.md` budget.
+- [ ] **IG-08-019 P1** — Define the scope, API, and explicit non-goals of the PBR material model.
+- [ ] **IG-08-020 P1** — Implement the smallest deterministic reference path for the PBR material model.
+- [ ] **IG-08-021 P1** — Add focused unit tests for the PBR material model.
+- [ ] **IG-08-022 P1** — Add an integration scenario that exercises the PBR material model in a running game flow.
+- [ ] **IG-08-023 P2** — Add logging/counters for the PBR material model and profile it against the first district.
+- [ ] **IG-08-024 P2** — Document usage examples and common failure modes for the PBR material model.
+- [ ] **IG-08-025 P1** — Define the scope, API, and explicit non-goals of the texture manager.
+- [ ] **IG-08-026 P1** — Implement the smallest deterministic reference path for the texture manager.
+- [ ] **IG-08-027 P1** — Add focused unit tests for the texture manager.
+- [ ] **IG-08-028 P1** — Add an integration scenario that exercises the texture manager in a running game flow.
+- [ ] **IG-08-029 P2** — Add logging/counters for the texture manager and profile it against the first district.
+- [ ] **IG-08-030 P2** — Document usage examples and common failure modes for the texture manager.
+- [ ] **IG-08-031 P1** — Define the scope, API, and explicit non-goals of the directional sunlight system.
+- [ ] **IG-08-032 P1** — Implement the smallest deterministic reference path for the directional sunlight system.
+- [ ] **IG-08-033 P1** — Add focused unit tests for the directional sunlight system.
+- [ ] **IG-08-034 P1** — Add an integration scenario that exercises the directional sunlight system in a running game flow.
+- [ ] **IG-08-035 P2** — Add logging/counters for the directional sunlight system and profile it against the first district.
+- [ ] **IG-08-036 P2** — Document usage examples and common failure modes for the directional sunlight system.
+- [ ] **IG-08-037 P1** — Define the scope, API, and explicit non-goals of the single-shadow-path renderer.
+- [ ] **IG-08-038 P1** — Implement the smallest deterministic reference path for the single-shadow-path renderer.
+- [ ] **IG-08-039 P1** — Add focused unit tests for the single-shadow-path renderer.
+- [ ] **IG-08-040 P1** — Add an integration scenario that exercises the single-shadow-path renderer in a running game flow.
+- [ ] **IG-08-041 P2** — Add logging/counters for the single-shadow-path renderer and profile it against the first district.
+- [ ] **IG-08-042 P2** — Document usage examples and common failure modes for the single-shadow-path renderer.
+- [ ] **IG-08-043 P1** — Define the scope, API, and explicit non-goals of the local light manager.
+- [ ] **IG-08-044 P1** — Implement the smallest deterministic reference path for the local light manager.
+- [ ] **IG-08-045 P1** — Add focused unit tests for the local light manager.
+- [ ] **IG-08-046 P1** — Add an integration scenario that exercises the local light manager in a running game flow.
+- [ ] **IG-08-047 P2** — Add logging/counters for the local light manager and profile it against the first district.
+- [ ] **IG-08-048 P2** — Document usage examples and common failure modes for the local light manager.
+- [ ] **IG-08-049 P1** — Define the scope, API, and explicit non-goals of the fog system.
+- [ ] **IG-08-050 P1** — Implement the smallest deterministic reference path for the fog system.
+- [ ] **IG-08-051 P1** — Add focused unit tests for the fog system.
+- [ ] **IG-08-052 P1** — Add an integration scenario that exercises the fog system in a running game flow.
+- [ ] **IG-08-053 P2** — Add logging/counters for the fog system and profile it against the first district.
+- [ ] **IG-08-054 P2** — Document usage examples and common failure modes for the fog system.
+- [ ] **IG-08-055 P1** — Define the scope, API, and explicit non-goals of color grading and simple post-processing (bloom, tone mapping, exposure).
+- [ ] **IG-08-056 P1** — Implement the smallest deterministic reference path for color grading and simple post-processing.
+- [ ] **IG-08-057 P1** — Add focused unit tests for color grading and simple post-processing.
+- [ ] **IG-08-058 P1** — Add an integration scenario that exercises color grading and simple post-processing in a running game flow.
+- [ ] **IG-08-059 P2** — Add logging/counters for color grading and simple post-processing and profile it against the first district.
+- [ ] **IG-08-060 P2** — Document usage examples and common failure modes for color grading and simple post-processing.
+- [ ] **IG-08-061 P1** — Define the scope, API, and explicit non-goals of baked environment/ambient lighting.
+- [ ] **IG-08-062 P1** — Implement the smallest deterministic reference path for baked environment/ambient lighting.
+- [ ] **IG-08-063 P1** — Add focused unit tests for baked environment/ambient lighting.
+- [ ] **IG-08-064 P1** — Add an integration scenario that exercises baked environment/ambient lighting in a running game flow.
+- [ ] **IG-08-065 P2** — Add logging/counters for baked environment/ambient lighting and profile it against the first district.
+- [ ] **IG-08-066 P2** — Document usage examples and common failure modes for baked environment/ambient lighting.
+- [ ] **IG-08-067 P2** — Define the scope, API, and explicit non-goals of the combined glass/skin/vegetation/road material variants (one shared system, not four).
+- [ ] **IG-08-068 P2** — Implement the smallest deterministic reference path for the combined material variants.
+- [ ] **IG-08-069 P2** — Add focused unit tests for the combined material variants.
+- [ ] **IG-08-070 P2** — Add an integration scenario that exercises the combined material variants in a running game flow.
+- [ ] **IG-08-071 P2** — Add logging/counters for the combined material variants and profile them against the first district.
+- [ ] **IG-08-072 P2** — Document usage examples and common failure modes for the combined material variants.
+- [ ] **IG-08-073 P2** — Define the scope, API, and explicit non-goals of the interior light-baking bridge.
+- [ ] **IG-08-074 P2** — Implement the smallest deterministic reference path for the interior light-baking bridge.
+- [ ] **IG-08-075 P2** — Add focused unit tests for the interior light-baking bridge.
+- [ ] **IG-08-076 P2** — Add an integration scenario that exercises the interior light-baking bridge in a running game flow.
+- [ ] **IG-08-077 P2** — Add logging/counters for the interior light-baking bridge and profile it against the first district.
+- [ ] **IG-08-078 P2** — Document usage examples and common failure modes for the interior light-baking bridge.

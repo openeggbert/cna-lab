@@ -1,0 +1,56 @@
+{
+  "id": "countryside_run",
+  "title": "Out of Town",
+  "version": 2,
+  "initialState": "briefing",
+  "retry": "checkpoint",
+  "variables": [
+    { "id": "cargo_loaded", "type": "bool", "value": false },
+    { "id": "runs_made", "type": "int", "value": 0 }
+  ],
+  "states": [
+    {
+      "id": "briefing",
+      "objective": "Take the sedan out to the countryside farmhouse",
+      "when": "player_driving",
+      "next": "drive_to_countryside"
+    },
+    {
+      "id": "drive_to_countryside",
+      "objective": "Drive north out of the block",
+      "checkpoint": true,
+      "onEnter": [
+        { "action": "set", "variable": "cargo_loaded", "value": "true" },
+        { "action": "log", "message": "heading for the county road" }
+      ],
+      "transitions": [
+        { "when": "vehicle_disabled", "next": "wrecked" },
+        { "when": "current_district == 'countryside'", "next": "reach_farmhouse" }
+      ]
+    },
+    {
+      "id": "reach_farmhouse",
+      "objective": "Pull into the farmhouse yard",
+      "checkpoint": true,
+      "transitions": [
+        { "when": "vehicle_disabled", "next": "wrecked" },
+        { "when": "player_driving && vehicle_in_delivery_goal && cargo_loaded", "next": "delivered" }
+      ]
+    },
+    {
+      "id": "delivered",
+      "objective": "Run complete",
+      "outcome": "completed",
+      "onEnter": [
+        { "action": "set", "variable": "runs_made", "value": "runs_made + 1" },
+        { "action": "log", "message": "cargo delivered to the farmhouse" }
+      ]
+    },
+    {
+      "id": "wrecked",
+      "objective": "The sedan is finished",
+      "outcome": "failed",
+      "reason": "The sedan was wrecked before the cargo arrived"
+    }
+  ]
+}

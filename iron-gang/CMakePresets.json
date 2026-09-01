@@ -1,0 +1,124 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CNA_USE_CCACHE": "ON",
+        "CNA_BUILD_TESTS": "OFF",
+        "CNA_BUILD_EXAMPLES": "OFF",
+        "CNA_ENABLE_NET": "OFF",
+        "IRON_GANG_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "dev-easygl",
+      "inherits": "base",
+      "displayName": "Development - EasyGL",
+      "binaryDir": "${sourceDir}/cmake-build-dev-easygl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CNA_GRAPHICS_RENDERER": "OPENGLES3"
+      }
+    },
+    {
+      "name": "dev-vulkan",
+      "inherits": "base",
+      "displayName": "Development - Vulkan",
+      "binaryDir": "${sourceDir}/cmake-build-dev-vulkan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CNA_GRAPHICS_RENDERER": "VULKAN"
+      }
+    },
+    {
+      "name": "compile-software",
+      "inherits": "base",
+      "displayName": "Compile check - software backend",
+      "binaryDir": "${sourceDir}/cmake-build-compile-software",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CNA_GRAPHICS_RENDERER": "SOFTWARE"
+      }
+    },
+    {
+      "name": "release-easygl",
+      "inherits": "base",
+      "displayName": "Release - EasyGL",
+      "binaryDir": "${sourceDir}/cmake-build-release-easygl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CNA_GRAPHICS_RENDERER": "OPENGLES3",
+        "IRON_GANG_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "web-emscripten",
+      "displayName": "Web - Emscripten / WebGL2",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-web-emscripten",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CNA_USE_CCACHE": "OFF",
+        "CNA_BUILD_TESTS": "OFF",
+        "CNA_BUILD_EXAMPLES": "OFF",
+        "CNA_ENABLE_NET": "OFF",
+        "CNA_ENABLE_VIDEO": "OFF",
+        "CNA_PLATFORM_RATCHET": "OFF",
+        "CNA_PLATFORM": "SDL3",
+        "CNA_GRAPHICS_RENDERER": "WEBGL2",
+        "IRON_GANG_BUILD_TESTS": "OFF",
+        "IRON_GANG_SHARP_RUNTIME_DIR": "${sourceDir}/../sharp-runtimenext"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev-easygl",
+      "configurePreset": "dev-easygl",
+      "jobs": 4
+    },
+    {
+      "name": "dev-vulkan",
+      "configurePreset": "dev-vulkan",
+      "jobs": 4
+    },
+    {
+      "name": "compile-software",
+      "configurePreset": "compile-software",
+      "jobs": 4
+    },
+    {
+      "name": "release-easygl",
+      "configurePreset": "release-easygl",
+      "jobs": 4
+    },
+    {
+      "name": "web-emscripten",
+      "configurePreset": "web-emscripten",
+      "jobs": 4
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev-easygl",
+      "configurePreset": "dev-easygl",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "compile-software",
+      "configurePreset": "compile-software",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

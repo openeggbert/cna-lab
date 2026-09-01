@@ -1,0 +1,3584 @@
+# Validation record
+
+## M12 profiling baseline (2026-08-24)
+
+The `dev-easygl` and `release-easygl` presets now both configure, compile, launch, and render on
+this workspace's host display (OpenGL ES 3.2 Mesa through CNA EasyGL). Iron Gang now has a bounded
+`--profile <json>` capture and a deterministic `--profile-scenario mixed` workload covering walk,
+drive, ambient AI, physics, audio control, and a real district transition. Unit tests cover p95/
+average/maximum calculation and report policy; the real EasyGL runs validate the integrated path.
+
+The first Release baseline does **not** close M12. Intro/idle passes the 30 FPS minimum at 16.876 ms
+frame p95, but mixed movement/load captures reproduce a 51.628-57.705 ms p95 failure even though
+all measured CPU subsystem p95 values are far inside budget. RAM passes at ~220 MiB and district
+load passes at ~6 ms. Two final identical 180-frame intro runs also flipped back-to-back from
+51.381 ms to 16.897 ms p95 with virtually unchanged render CPU, exposing independent host/display
+frame-pacing instability. VRAM reporting is deliberately marked incomplete. Full evidence and the
+next diagnostic question are in `docs/performance-baseline.md`.
+
+Follow-up instrumentation adds isolated `intro`/`idle`/`walk`/`drive`/`mixed` scenarios,
+`--vsync on|off`, requested scheduler/presentation metadata, and direct `present_cpu` timing around
+CNA's `Game::EndDraw()`. The final graphical integration used an isolated Xvfb `:99` with
+`WAYLAND_DISPLAY` removed and `SDL_VIDEODRIVER=x11` forced, preventing a visible Wayland window.
+Mesa llvmpipe completed paired 540-frame full-mixed runs at 17.087 ms p95 (v-sync requested off)
+and 16.898 ms p95 (requested on), each with two district-load samples. Present p95 was 11.604 ms
+and 13.220 ms respectively. Xvfb has no real vblank and is unaccelerated, so these are diagnostic
+integration results rather than hardware qualification; M12 remains open.
+
+VRAM visibility was then extended without changing CNA: `VideoMemoryAccumulator` walks loaded CNJ
+meshes, deduplicates their vertex/index buffers and built-in/generic-effect textures by identity,
+and computes logical texture storage including mips and block compression. Unit tests cover exact
+uncompressed, DXT, cube, and 3D texture-size calculations plus JSON category output. A Release
+EasyGL 12-frame idle integration run on the same isolated Xvfb/X11 path reported 394,340 tracked
+bytes: 386,168 game-owned, 8,160 imported model buffers, and 12 imported model textures. This is a
+stronger lower bound, not full residency; backend programs, swapchain/depth/render targets,
+transients, driver padding, and physical residency remain unknown, so `tracking_complete=false`
+and M12 stays open.
+
+The next M12 follow-up added a non-blocking GPU command-range timer without enabling CNA's entire
+77-source GraphicsExt module: `GpuFrameTimer` uses the same renderer timer-query contract, guards
+one pending query from overwrite, and never substitutes a CPU clock. JSON tests cover support
+metadata, escaped unsupported reasons, discarded-result counts, and the `gpu_render` metric. A
+full 540-frame Release EasyGL mixed run on isolated Xvfb/X11 produced 538 valid samples with GPU
+p95 7.786 ms, Present CPU p95 12.189 ms, and frame p95 16.918 ms; a separate 120-frame idle run
+reported GPU/frame p95 9.150/17.091 ms. One 32-bit all-ones EasyGL/metagl timer sentinel in each
+run was explicitly counted and discarded rather than reported as a false 4.295-second GPU frame.
+Release/development EasyGL, software plus all CTest targets, strict syntax checks, Emscripten/Web,
+and the full mixed runtime flow pass. This proves the reporting path; llvmpipe is still not
+qualifying hardware.
+
+`IG-35-005` then added scoped render-workload counts to JSON schema 2. Unit coverage checks exact
+nearest-rank statistics and scope metadata. A 540-frame Release EasyGL mixed run, again only on
+isolated Xvfb/X11, sampled every frame and reported p95/max of 18 draw calls, 56 explicit
+state-change calls, 1,768 declared vertices, 948 triangles, 16 geometry instances, and 67 submitted
+visible objects. Transition frames reset to zero instead of leaking the previous frame's counts.
+The report explicitly excludes HUD backend batching and driver state deduplication; “visible” means
+submitted because no culling path exists yet. Software/CTest, syntax, Release/development EasyGL,
+Web/Emscripten, and the mixed runtime flow all pass.
+
+The next presentation diagnostic uses CNA's public platform GL-context acknowledgement rather than
+linking Iron Gang directly to SDL. JSON schema 3 distinguishes requested/applied/unknown and warns
+that platform acceptance is not physical-vblank proof. Two 60-frame Release EasyGL idle runs on
+isolated Xvfb requested intervals 0 and 1; the platform rejected both (`apply_succeeded=false`,
+`applied=null`). Their frame p95 values, 17.049/16.950 ms, are therefore correctly treated as an
+invalid v-sync comparison instead of evidence that the settings are equivalent.
+
+The district-load follow-up adds schema-4 per-transition phase, target-object, and memory-delta
+evidence. Unit tests verify exact phase aggregation, counts, negative RSS delta and positive tracked
+video-memory delta output. One isolated 540-frame Release EasyGL `mixed` run captured exactly one
+WarehouseBlock -> Countryside transition: 0.045 ms world/static-physics activation + 0.219 ms
+renderer rebuild/upload submission = 0.264 ms total, 25 procedural world objects, 5 target static
+bodies, 0 B RSS delta, and -135,576 B tracked logical renderer-memory delta. District I/O,
+decompression, and parse are correctly `null`: runtime districts are generated in memory and read
+no package. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and
+the isolated real flow pass. Initialization is now solely `startup_cpu`, correcting the older
+district p95 that accidentally included broad startup work.
+
+The physics-profiler follow-up adds JSON schema 5 and an opt-in Jolt-seam snapshot. A deterministic
+physics test proves exact body, fixed-step, public-raycast, character-update, and four-wheel-raycast
+counts; it also verifies operation counters are consumed while current body state is retained.
+Actual rigid-body and CharacterVirtual contacts are covered separately. One isolated 540-frame
+Release EasyGL `mixed` run sampled 542 updates, reaching 9 bodies, 1 active rigid body, 2 character
+contacts, 1 fixed step, 1 character collision update, and 4 wheel rays per update at p95/max where
+applicable; physics CPU was 0.206 ms p95. Software plus 3/3 CTest, strict syntax, Release/development
+EasyGL, Web/Emscripten, and the isolated real flow pass. Ordinary play keeps profiling disabled and
+does not take the contact-counter mutex.
+
+The ambient-AI follow-up adds schema 6 with per-update current traffic/pedestrian/fleeing/patrol
+counts and exact traffic-update/obstacle, pedestrian-update/threat, police-witness/patrol loop
+counts. `ai_cpu` now excludes the adjacent mission update so its scope matches the documented
+ambient-AI budget. Unit coverage proves statistics/JSON and direct police instrumentation,
+including two patrol iterations on the escalation tick. An isolated 540-frame Release EasyGL
+`mixed` run sampled 543 updates: AI CPU 0.007 ms p95, with p95/max 2 traffic vehicles, 2
+pedestrians, 4 obstacle checks, 2 threat checks, and 4 witness checks. This route correctly had no
+fleeing pedestrian or active police patrol; the deterministic police test covers their nonzero
+work. No road-graph/path-request numbers are invented while only fixed WaypointPaths exist.
+
+The audio follow-up adds schema 7 with exact game-owned loaded-asset, retained-loop state, streamed-
+asset, one-shot start, loop-control, and parameter-update counts. Unit coverage proves nearest-rank
+statistics and the report's explicit observability boundary. An isolated 540-frame Release EasyGL
+`mixed` run with dummy SDL audio sampled 544 updates: audio-control CPU was 0.019 ms p95, all four
+one-shot footstep requests succeeded, and the one retained engine loop started and reached playing
+state. CNA exposes neither fire-and-forget voice lifetime nor decoder/mixer callback, active backend
+channel, or bus costs, so the report marks those unavailable instead of inventing zeroes. Software
+plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and the isolated real flow
+pass; no visible host display was used.
+
+The frame-pacing follow-up adds schema 8 with five mutually exclusive histogram buckets, strict
+>33.333 ms minimum-budget misses, >50 ms hitches, >100 ms severe hitches, and first-frame-after-
+district-transition association. Unit coverage proves exact-threshold inclusivity and transition
+indexing. An isolated 540-frame Release EasyGL `mixed` run sampled 539 intervals at 16.988 ms p95
+and found one 55.936 ms hitch (0.186%), no severe hitch, and a non-hitch 17.345 ms transition
+boundary. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and
+the isolated real flow pass. The result validates the detector but does not qualify llvmpipe/Xvfb
+as physical target hardware or diagnose the one hitch; no visible host display was used.
+
+The release-summary follow-up adds `scripts/performance_report.py`, a standard-library schema-8
+Markdown generator that independently evaluates raw measurements against locked targets. It
+requires two mixed captures with distinct canonical contents, explicit physical hardware identity,
+Release OPENGLES3, acknowledged presentation, complete VRAM, and all direct budgets before emitting `PASS`; absent
+qualification remains `DIAGNOSTIC`, while a declared qualification with verified archives but
+measured blockers is `FAIL`. Missing or unverifiable archive sources are invalid input (exit 2), as
+recorded by the later archive-enforcement follow-up. A new fourth CTest covers diagnostic Xvfb, a
+synthetic two-capture pass, duplicate-copy refusal, swap/VRAM failures, stale schemas, and histogram
+mismatch. The real isolated capture correctly remains
+diagnostic with one-run, virtual-display, rejected-swap, and incomplete-VRAM blockers.
+
+The content-budget follow-up adds versioned `assets/content-budgets.json` plus standard-library
+`scripts/content_budget.py`. Exact committed baselines pass: district prototype 96 triangles/5
+materials/0 textures, warehouse 12/1/0, grouped sedan 48/4/0, and test character 36/1/1. Bootstrap
+triangle ceilings are 4x current geometry; material/texture-count reserves are documented and not
+claimed as final production limits. `build-assets.sh` now requires a matching passing budget group
+after XSD validation and before conversion. New `iron_gang_content_budget_tests` makes CTest 5/5
+and proves real-source integration, actionable overflow, unsupported-MC3 rejection, malformed glTF
+triangle rejection, and unregistered-source rejection. Texture resolution remains deliberately
+outside this first policy until representative production textures exist; aggregate M12 VRAM
+tracking remains authoritative.
+
+The lifecycle-memory follow-up adds no-window `iron_gang_memory_soak_tests`, making CTest 6/6. Its
+bounded CI case runs 200 mission-reset/save-read-resume completions and 400 district transitions;
+after 20 warm-up cycles, current and peak RSS each grew only 4,096 B, current-RSS slope was 34
+B/cycle, and WarehouseBlock returned to exactly 8 Jolt bodies after every round trip. A separate
+5,000-cycle local run (10,000 transitions/save replay each cycle) also ended at +4,096 B current/
+peak RSS with 0 B/cycle rounded trend and 8 bodies. The test enforces 8 MiB current, 16 MiB peak,
+and 32 KiB/cycle trend allowances with a 60-second CTest timeout. It validates core ownership, not
+render/audio/backend residency or physical-hardware M12 qualification.
+
+The capture-comparison follow-up adds standard-library `scripts/performance_compare.py` and a
+seventh CTest. Six CLI tests cover identical evidence, multiple simultaneous regressions, tolerance
+overrides, hardware/kind mismatch, changed budget or GPU-sample availability, and incomplete
+qualifying evidence. The latest real schema-8 Xvfb capture self-comparison reports all 15 available
+metrics unchanged and exits 0. That is an integrated parser/report check only: meaningful temporal
+comparison still requires a later compatible capture from the same named environment, and physical
+M12 qualification still requires the separate release-summary rules.
+
+The representative-mission follow-up adds `--profile-scenario mission`. Parser/name tests cover
+the public scenario seam. A 120-frame isolated Xvfb negative integration correctly refused an
+incomplete report; a 900-frame upper-bound run exited on real mission completion after 647 updates
+and produced 642 frame intervals with 16.936 ms p95, one 69.503 ms hitch, no severe hitch, 167.9 MiB
+peak RSS, and no accidental district transition. The schema-8 output passes both summary and
+comparison tooling. This validates the full production mission route but remains a virtual-display
+diagnostic, not physical M12 qualification.
+
+The complete-VRAM follow-up adds `scripts/vram_evidence.py` and an eighth CTest. The binder requires
+an original schema-8 profile, a versioned manifest, and the raw vendor/OS capture; SHA-256 binds both
+artifacts, exact scope/process/time metadata is validated, inputs cannot be overwritten, and the
+enriched total conservatively keeps the larger of logical bytes and external peak residency.
+The CLI also reconstructs and verifies a later archived enriched capture without writing any file.
+Six tests cover a synthetic report-qualified/verified flow plus semantic tampering, capture hash,
+scope/time, raw-artifact, flooring, duplicate JSON keys, and overwrite failures. Report/comparison
+tests validate evidence structure, hardware identity, profiler compatibility, and duplicate-key
+refusal for generated capture input. No physical profiler artifact exists in this workspace, so the
+real Xvfb evidence remains incomplete and this plumbing does not close M12.
+The shared evidence validator additionally refuses any process basename other than
+`iron_gang`/`iron_gang.exe`, a non-positive PID, and an end time that is not strictly later than the
+start; binder and report tests cover the same downstream contract.
+
+The capture-correlation follow-up adds a backward-compatible schema-8 `capture_session` object with
+executable, PID-known state/value, and microsecond UTC start/end. Complete VRAM binding now requires
+the external artifact manifest to name the same PID and a measurement interval enclosing the whole
+game capture. Python fixtures cover PID/interval mismatch; the C++ report test covers emitted
+metadata. Software, development/Release EasyGL, Web/Emscripten, strict syntax, and all 8 CTests pass.
+A 60-frame Release EasyGL `idle` run on isolated Xvfb emitted a positive 1.198-second session and
+remained correctly diagnostic; no host-visible window was used.
+
+The qualification-archive follow-up makes the report itself re-run complete four-file VRAM
+verification. Every declared qualifying enriched capture now requires one ordered
+`--vram-bundle` containing its original profile, manifest, and raw profiler artifact. Missing
+bundles/sources, count mismatches, raw-artifact mutation, semantic enriched-output changes, and an
+enriched input changing during verification/parsing exit 2 before evaluation. The report and VRAM
+CLI suites both remain 6/6, including a two-independent-bundle synthetic `PASS`; diagnostics remain
+readable without bundles. This strengthens provenance but does not supply the still-missing
+physical M12 capture.
+
+Report-output preservation then closes the destructive alias case: `--output` is refused when it
+equals or hardlinks to any capture/archive input, and valid output uses a same-directory atomic
+replace. The seventh report CLI test proves the protected bytes remain identical for capture,
+hardlink, and raw-artifact collisions and that a successful nested output leaves no temporary file.
+
+Release summaries now embed exact evidence provenance: evaluated-capture SHA-256, capture PID/UTC
+interval, and—when supplied—the verified original/manifest/raw-artifact names and hashes. Inputs
+are re-hashed after parsing and again immediately before output. The real stored Xvfb session
+renders its known PID/interval and hash
+`df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0`; bundle fields correctly
+remain absent for that diagnostic. Report 7/7 and VRAM 6/6 focused tests pass.
+
+Presentation evidence is now structurally correlated too. The shared schema-8 loader requires a
+0/1 `swap_interval.requested` matching `timing.vertical_sync_requested`; known/success/null states
+must be coherent, and successful `applied` must equal the request. Report coverage rejects both
+request-1/applied-0 and v-sync/request contradictions; comparator coverage independently reaches
+the shared refusal. Report 7/7, comparator 6/6, VRAM 6/6, and both existing real Xvfb diagnostics
+pass parsing with their honest rejected-acknowledgement blocker.
+
+Frame-pacing derived fields are now validated against their stored histogram rather than trusted
+independently. Fixed bucket bounds, minimum-miss/hitch/severe counts and percentages, comparison
+operators, district transition/load sample equality, measured/hitch count bounds, and boundary
+maximum/hitch consistency are enforced. Report tests reject a forged hitch count, threshold, and
+transition count; both retained Xvfb captures still parse with unchanged diagnostic output.
+
+VRAM archive roles now require three distinct source files/inodes and a non-empty regular raw
+profiler artifact. The binder/verifier and report-driven verification all inherit the check.
+Expanded VRAM CLI coverage rejects an empty artifact, a raw-artifact hardlink to the original
+profile, and an output hardlink to an input while proving source bytes remain unchanged; 6/6 tests
+pass.
+
+Capture/evidence times now require canonical `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`. Date-only input, a
+space instead of `T`, and seven fractional digits are refused, avoiding Python ISO parsing that
+would otherwise accept reduced forms or truncate sub-microsecond evidence boundaries. Report 7/7,
+VRAM 6/6, comparator 6/6, and both locally retained real Xvfb captures pass.
+
+Hardware/tool identity strings and report/comparison titles are now normalized to non-empty
+printable single lines. Blank report hardware, newline title, multiline VRAM hardware identity,
+and multiline comparator hardware are refused before Markdown generation. Report 7/7, comparator
+6/6, and VRAM 6/6 pass.
+
+The comparator now hashes and rechecks baseline/candidate, embeds both digests in Markdown, refuses
+`--output` path/hardlink aliases to either input, and writes atomically. Its new seventh CLI test
+proves preservation and temporary-file cleanup. The real Xvfb self-comparison remains
+`NO REGRESSION` and displays the expected `df217f17…41cd0` hash for both roles.
+
+Qualifying comparisons now also require a verified original-profile/evidence-manifest/raw-artifact
+bundle for both baseline and candidate. The comparator reconstructs each enriched input with
+`vram_evidence.py --verify-enriched`, stability-checks and output-protects all archive members, and
+records their hashes. The synthetic VRAM integration reaches `NO REGRESSION` with two independent
+archives and then proves candidate-artifact mutation exits 2. Diagnostic comparison remains
+bundle-optional. Comparator 7/7 and VRAM 6/6 focused suites pass; this is evidence hardening, not a
+physical M12 capture.
+
+Report and comparator Markdown now render dynamic text through one shared safe path. HTML-like
+content and inline Markdown punctuation are escaped; filenames use HTML `<code>` with encoded table
+pipes, and control characters are displayed as explicit Unicode escapes. Existing atomic-output
+tests now include backticks, `<b>`, `*`, a pipe, and a newline in titles/hardware/capture names and
+prove provenance rows remain data. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass;
+the real Xvfb diagnostic outputs retain their prior status/hash without launching the game.
+
+Qualifying mixed captures now form one repeatability set rather than merely passing independently.
+The report requires exact agreement on resolution, fixed-timestep/v-sync/swap request, GPU timer
+policy, representative workload counts, complete-VRAM coverage, and external source/tool identity.
+A 1280-vs-1920 synthetic pair and profiler-version mismatch both produce `FAIL`. Every stored
+budget value is also checked against the locked schema-8 constants; changing 33.333 to 40 exits 2,
+including through the comparator's shared loader. Report 7/7, comparator 7/7, VRAM 6/6, and both
+retained Xvfb diagnostics pass; no graphical process was launched.
+
+Archive independence is now checked across captures as well as inside each bundle. A qualifying
+report/comparison refuses any original, manifest, or raw source that shares a path or hardlinked
+inode with another bundle. The release integration uses two valid enriched outputs sharing one raw
+source; comparator coverage uses a cross-bundle hardlink. Both exit 2, while diagnostic
+self-comparison remains available. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+
+All schema-8 measurement summaries now enforce zero-sample zero values, one-sample equality, and
+average/p95 not exceeding maximum. Frame-pacing histogram counts additionally locate the
+nearest-rank p95 bucket, and `frame_interval.p95_ms` must lie within its threshold bounds. Focused
+tests reject all three contradiction classes. Report 7/7, comparator 7/7, VRAM 6/6, both retained
+Xvfb captures, and the known-hash self-comparison pass; no graphical process was launched.
+
+Frame-pacing validation now also locates the highest non-empty bucket and requires
+`frame_interval.maximum_ms` within its bounds. A false 60 ms maximum exits 2; correcting the
+comparator's older internally inconsistent maximum keeps all focused suites and retained
+diagnostics passing. Full isolated 8/8 CTest also passes with its smoke process inside Xvfb.
+
+District-boundary pacing now preserves its subset relationship: boundary hitches cannot outnumber
+global hitches and boundary maximum cannot exceed the global frame maximum. Two contradictions
+exit 2; an exact serialized 50.000 ms accepts either hidden-precision hitch state. Focused suites
+and both retained diagnostics pass; full isolated 8/8 CTest also passes inside Xvfb.
+
+Boundary maximum must now match a non-empty global histogram bucket as well. A 40 ms boundary in an
+empty 33.333–50 ms range exits 2, while the exact-50.000 ms rounding case remains readable via an
+adjacent populated bucket. Focused suites, retained diagnostics, and full isolated 8/8 CTest pass
+inside Xvfb.
+
+The common JSON loader now rejects non-standard `NaN`, `Infinity`, and `-Infinity` constants at
+parse time, including in unknown fields, alongside its existing duplicate-key refusal. Report,
+comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,
+7/7, and 6/6; no runtime process was launched.
+
+The same parse boundary now rejects standard-form floating-point tokens that decode outside finite
+range and integers beyond the C++ producer's signed-negative/unsigned-positive 64-bit domain. An
+ignored `1e400` and a 101-digit integer both exit 2 without a traceback. Focused suites remain 7/7,
+7/7, and 6/6, and both retained diagnostics pass; full isolated CTest passes 8/8 with its smoke
+process inside Xvfb.
+
+Qualifying mixed captures now require the documented 900-draw-frame window: at least 899 frame
+intervals after the baseline-only first draw, at least 899 samples for each budgeted CPU metric, and
+at least 899 samples throughout all workload summaries. A four-sample frame/render/audio-workload
+case produces report `FAIL`; the full synthetic pair remains `PASS`. Focused suites pass 7/7, 7/7,
+and 6/6. The retained 539-interval mixed capture remains a valid diagnostic with the expected new
+blocker; the mission diagnostic is unchanged. Full isolated CTest passes 8/8 with its smoke process
+inside Xvfb.
+
+Qualifying baseline/candidate comparison now invokes that same shared sample-window check. The VRAM
+integration rebinds a valid independent candidate with only four frame intervals and proves exit 2
+before metric comparison, then restores the full candidate for its remaining archive checks.
+Focused suites pass 7/7, 7/7, and 6/6; the retained short Xvfb diagnostic self-comparison remains
+`NO REGRESSION`. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
+Machine evidence strings are now canonical at their raw JSON boundary. UTC values, external
+source/scope, artifact file name, and SHA-256 tokens no longer gain validity from trimming. Padded
+capture time/embedded digest report cases and padded scope/profile digest/artifact name/evidence time
+VRAM cases all exit 2. Focused suites pass 7/7, 7/7, and 6/6; both retained diagnostics and their
+diagnostic self-comparison pass. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
+A new isolated Release EasyGL/Xvfb `mixed --smoke 900` integration then exercised the full sample
+floor through the real game: 899 frame intervals, 900 render samples, 903 update/physics/AI/audio
+samples, complete workload summaries, and one 0.280 ms district transition. Its report hash is
+`63a62c8b…a3230c`; frame p95 is 17.127 ms with one non-transition hitch and no severe hitch. It has
+no short-window blocker but remains `DIAGNOSTIC` for Xvfb/llvmpipe, one run, declined swap, and
+incomplete physical VRAM. No real-screen window was opened.
+
+A second independent 900-draw Xvfb mixed run supplies another 899 intervals and removes the
+two-capture-count blocker from the pair report. Its hash is `a80043f0…3149e`; pair-report hash is
+`8a4dd4af…e0a36`. Frame p95 varied from 17.127 to 24.656 ms and the second run contained one
+113.286 ms severe non-transition hitch; comparator exit 1 correctly reports frame/render/GPU/
+Present/miss-rate regressions (`73323a1f…002cc`). Both runs still pass the minimum direct budgets
+but remain diagnostic for virtual hardware, declined swap, and incomplete physical VRAM. No
+real-screen window was opened.
+
+Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
+synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
+at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces
+report `FAIL`; a separately rebound overlapping comparator candidate exits 2. Diagnostic
+self-comparison remains supported. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+
+Qualifying comparison additionally enforces direction: candidate UTC start must be at or after
+baseline UTC end. The VRAM integration binds a valid separate 09:00 candidate against the 10:00
+baseline and proves exit 2, while the ordinary 11:00 candidate remains `NO REGRESSION`. Overlap
+retains its own refusal and diagnostic self-comparison remains supported. Focused suites pass 7/7,
+7/7, and 6/6.
+
+Schema-8 memory summaries are also re-derived. Peak RSS must agree with `memory.known`; RAM/VRAM
+budget flags must agree with the locked limits; and the three logical VRAM categories must sum to
+raw `tracked_bytes` or enriched `logical_tracked_bytes`. Four report negatives reject contradictions,
+and enrichment validates its result. Report 7/7, comparator 7/7, VRAM 6/6, both retained Xvfb
+diagnostics, and full 8/8 CTest pass; no graphical process ran.
+
+VRAM `coverage` is now fixed according to completeness instead of merely being printable. Raw
+captures retain the exact logical-resource inclusions and backend/residency omissions; externally
+enriched captures retain the exact complete-process-residency and conservative-maximum statement.
+Two broader false claims exit 2. Focused suites, both retained diagnostics, and full isolated 8/8
+CTest pass; its smoke process remained confined to Xvfb.
+
+Incomplete VRAM state now forbids stale `logical_tracked_bytes` and `complete_evidence`; those
+fields are binder-owned and only valid with `tracking_complete=true`. Two independent stale-field
+cases exit 2, while normalized raw fixtures, focused suites, retained diagnostics, and full isolated
+8/8 CTest pass inside Xvfb.
+
+Process executable identity validation now checks the full path/name for a single printable line
+before accepting its `iron_gang`/`iron_gang.exe` basename. Separate report and VRAM cases reject a
+newline-prefixed path in capture-session and external-manifest data. Focused suites, both retained
+diagnostics, and full isolated 8/8 CTest pass. Its Xvfb smoke remained separate from the
+user-requested visible instance, which stayed running.
+
+Root capture `schema_version` now requires an actual non-boolean JSON integer equal to 8. A
+floating-point `8.0` no longer passes through Python's numeric equality. The new report negative,
+all focused suites, both retained diagnostics, and full isolated 8/8 CTest pass with its smoke
+process inside Xvfb.
+
+Producer-authored `checks` are correlated with frame/CPU/district sample availability and p95 budget
+direction. Frame minimum/recommended, aggregate CPU, and district-load contradictions exit 2;
+district load is `null` only without samples. Exact serialized budget equality deliberately accepts
+either boolean because C++ evaluates full precision before writing three decimals. Four negative
+and one boundary report cases pass alongside comparator 7/7, VRAM 6/6, both retained diagnostics,
+and full 8/8 CTest with its graphical smoke process isolated inside Xvfb.
+
+Release qualification now retains the producer's full-precision decision at that rounded boundary:
+a valid stored `false` for frame, aggregate CPU, or mixed-district load blocks qualification rather
+than being overwritten by a comparison against the serialized p95. The 30/60 FPS table cells use
+the same producer checks. Exact 33.333/8.000/1000.000 failure cases pass with report 7/7, comparator
+7/7, VRAM 6/6, and both retained diagnostics; full isolated CTest passes 8/8 with its smoke process
+inside Xvfb.
+
+GPU timing metadata now requires `non_blocking:true`, exact Draw-excluding-Present scope, a
+non-negative discard count, and empty/non-empty unsupported reason matching the support flag. Four
+report contradictions exit 2; sample count intentionally does not imply support because the generic
+C++ writer allows manual measurements. Focused suites, both retained diagnostics, and full isolated
+8/8 CTest pass; the smoke process ran only inside Xvfb.
+
+District-load detail now reproduces its world/physics, renderer-upload, and total measurement rows:
+sample count, phase sum, average, nearest-rank p95, and maximum are correlated with only a 0.001001 ms
+serialization tolerance. Fixed procedural/null-I/O metadata, asset counts, resident-known state,
+and signed RAM/VRAM deltas are validated too. Six contradictions fail and one rounding-boundary case
+passes; focused suites, both retained zero-transition diagnostics, and full isolated 8/8 CTest
+remain clean, with the smoke process confined to Xvfb.
+
+All producer-defined render/physics/AI/audio workload metrics and fixed scopes are now mandatory.
+Count summaries enforce zero/one-sample, average/p95/maximum, and integral p95/maximum invariants.
+Six missing/mutated/corrupt cases exit 2. Cross-metric count equality and peak==maximum are not
+invented because the generic writer does not guarantee them; focused suites and both retained
+diagnostics pass, followed by full isolated 8/8 CTest with its smoke process confined to Xvfb.
+
+Base capture metadata now requires printable non-empty backend/build/scenario text, positive
+resolution and target-frame duration, boolean timing flags, and the formerly omittable `startup_cpu`
+row. Values stay extensible for the generic diagnostic writer; qualifying policy remains separate.
+Six malformed shapes exit 2 while focused suites, both retained diagnostics, and full isolated 8/8
+CTest pass; the smoke process remained confined to Xvfb.
+
+Swap metadata now fixes its proof to platform acknowledgement that explicitly excludes physical
+vblank/compositor proof. Success requires an empty reason; failure/unknown requires a printable
+non-empty one. Three contradictions exit 2, the qualifying failure fixture carries a real reason,
+and focused suites, both retained declined-Xvfb diagnostics, and full isolated 8/8 CTest pass; the
+smoke process remained confined to Xvfb.
+
+Frame-pacing metadata now fixes both sampling meanings to the C++ producer contract: consecutive
+`BeginFrame` wall-clock intervals with a baseline-only first frame, and the first interval after
+`RecordDistrictLoad` for a transition boundary. Two independently mutated scope cases exit 2;
+focused suites, both retained Xvfb diagnostics, and full isolated 8/8 CTest pass. Its smoke process
+remained inside Xvfb, with no use of the visible host display.
+
+The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
+map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
+vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
+guide is not road-aware because no district road graph exists yet. `TestDistrictMapProjection`
+proves exact X/Z-to-screen point and footprint mapping. Software build plus 3/3 CTest and strict
+syntax pass. Two synthetic `Tab` presses inside isolated Xvfb/X11 were visually captured: the first
+showed the complete map and the second restored the unobscured game view. No test used the visible
+host display. Both `LeftShift` and `RightShift` remain mapped to sprint only in the on-foot input
+branch.
+
+The Linux M12 VRAM follow-up adds `scripts/drm_vram_capture.py`. A no-window surfaceless EGL probe
+against the host AMD 780M confirmed the kernel exposes three descriptors with one shared
+`drm-client-id` and amdgpu resident aliases for `vram`, `gtt`, and `cpu`; this probe opened no game
+window. Synthetic coverage then proves descriptor/client deduplication, standard
+`drm-resident-<region>` and amdgpu alias parsing, bytes/KiB/MiB conversion, all-region and
+multi-client summation, and refusal of mismatched aliases, unsupported units, invalid device IDs,
+or clients without resident fields. The binder also semantically reconstructs a built-in raw JSON
+artifact before enrichment; mutating a sample total and updating its hash still exits 2. The
+focused VRAM suite passes 9/9 and full isolated CTest passes 8/8. A three-draw Xvfb/SOFTWARE
+integration produced its normal incomplete profile, then the wrapper exited 2 because the process
+had no DRM resident samples; neither a raw artifact nor manifest was created. No physical-display
+Iron Gang capture was launched, so this validates the measurement/evidence path without claiming
+M12 qualification.
+
+A subsequent no-window Release EasyGL integration used `SDL_VIDEODRIVER=offscreen` with both
+`DISPLAY` and `WAYLAND_DISPLAY` removed. It created a real OPENGLES3 context on the AMD Radeon 780M
+and let the wrapper collect 100 complete samples for the exact Iron Gang PID. The peak was
+51,986,432 B across one deduplicated amdgpu client (49,020,928 B GTT, 2,965,504 B VRAM, 0 B CPU);
+the raw artifact, manifest, original profile, and enriched profile passed full binder
+reconstruction. The 30-draw `idle` run is intentionally diagnostic: it is short, render CPU p95 is
+20.024 ms, and offscreen presentation is not physical vblank evidence. New report coverage proves
+that `offscreen`, `headless`, and `surfaceless` labels cannot be promoted with
+`--qualifying-hardware`.
+
+Two subsequent full Release EasyGL `mixed --smoke 900` offscreen captures each supplied 899 frame
+intervals, complete workloads, one real district transition, and independently reconstructed DRM
+archives. Both have the same 58,273,792 B (55.57 MiB) peak, while amdgpu placement differs between
+54,296,576 B GTT + 3,977,216 B VRAM and 50,331,648 B GTT + 7,942,144 B VRAM; the stable sum proves
+why all resident regions are included. Frame p95 is 18.003/17.461 ms, district load 0.599/0.710 ms,
+RAM 177.1 MiB, and both local rows are `PASS`. A qualifying-intent audit verifies all six source
+archives and reports exactly one blocker: the offscreen hardware label. The diagnostic comparator
+flags only the district-boundary frame's 17.680 -> 20.306 ms increase; every ordinary timing,
+memory, and hitch metric passes. This completes the memory-tracker real-flow integration without
+claiming physical-display M12 qualification.
+
+## Current modular dependency baseline (2026-08-22)
+
+Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`
+checkouts. Its own CMake graph names `CNA::GraphicsCore`, `CNA::Runtime`,
+`SharpRuntime::IO`, and `SharpRuntime::Text.Json`; CNA is added `EXCLUDE_FROM_ALL`, so its
+unrelated Devices, GraphicsExt, C API, examples, and tools are absent from Iron Gang's default
+`all` target. The former `cna-extended` animation wrapper was replaced by a small game-owned
+state over CNA's `AnimationPlayer`, preserving the existing 0.25-second clip crossfade.
+
+Validated against `cnanext` 0.1.0-alpha.1 and `sharp-runtime` 0.1.0-alpha.1:
+
+- a fresh `compile-software` configure and full build completed successfully;
+- the default build graph contains only Iron Gang, its selected CNA/Sharp Runtime module closure,
+  and Jolt—not unused CNA devices, extensions, examples, or tools;
+- `./scripts/check-syntax.sh` passed all 23 Iron Gang source/test translation units;
+- all three CTest targets passed; and
+- `iron_gang --smoke 5` loaded both districts' prototype assets, the skinned character and its
+  animation clips, textures, and audio, then exited successfully.
+
+The historical entries below describe the milestone state at the time each gate was completed;
+references there to the old `../cna`/`cna-extended` graph are not current build instructions.
+
+## Completed for this scaffold
+
+- Every Iron Gang `.cpp` file passed a C++23 syntax-only compile against the actual supplied CNA and sharp-runtime headers with software-backend definitions.
+- The prototype MC3 scene passed the supplied Mesh Craft `mc3.xsd`.
+- `./scripts/preflight.sh` confirms CNA, sharp-runtime, EasyGL, and cna-extended siblings, plus populated CNA-vendored SDL/SDL_image/SDL_mixer.
+- The full `compile-software` preset configured and built (780 targets, `-j4`, ccache), including `cna-extended` linking against the parent-provided `CNA` target as designed.
+- `iron_gang_core_tests` linked against the real project sources, CNA, sharp-runtime, and `CNA_EXTENDED`, and all tests (collision, vehicle, mission, dialogue, save round-trip) passed via `ctest --preset compile-software`.
+- CMake target and backend names used by Iron Gang were checked against CNA's and cna-extended's current CMake files.
+- The full MC3 -> GLB -> CNJ pipeline ran end to end for a real production asset: `assets/source/mc3/warehouse.mc3.xml` validated against `mc3.xsd`, converted via Mesh Craft's `mc3togltf` and CNA's `cna_tool_gltf_to_cnj` (both already built in this workspace), producing `warehouse.cnj` + binary vertex/index sidecars. `./cmake-build-compile-software/iron_gang --smoke 30` loaded it through `Content.Load<Model>()` (confirmed by the `[IronGang] Loaded generated warehouse.cnj` log line), drew it in place of the procedural warehouse box, and exited cleanly; `ctest --preset compile-software` still passes, confirming the mission/collision logic is unaffected.
+- The same pipeline was repeated for the sedan as four single-object MC3 files (`vehicle_body`/`vehicle_cabin`/`vehicle_windshield`/`vehicle_wheel`, one MC3 file per part because `cna_tool_gltf_to_cnj` does not bake per-object node transforms -- see `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md` `IG-10-004b`), composed by `PrototypeRenderer` with Iron Gang's own per-part transforms; the smoke run logs `[IronGang] Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj` and `ctest` still passes.
+- Jolt Physics v5.6.0 (shared checkout at `~/deps/jolt`) was added as a dependency and built successfully as part of the `compile-software` preset (GPU-compute shader options disabled; not needed for CPU rigid-body/character/vehicle physics). `IronGang::Physics::PhysicsWorld` (`src/Physics/PhysicsWorld.cpp`) hides every Jolt type behind a PIMPL boundary. `tests/PhysicsTests.cpp` (`iron_gang_physics_tests`, run via `ctest`) exercises and passes 5 scenarios: a raycast hitting a known static floor, a dynamic box settling under gravity, a trigger volume firing enter/exit events, a capsule character controller stopped by a wall while remaining grounded, and a 4-wheel `VehicleConstraint` vehicle settling onto its suspension and then driving forward under throttle input.
+- `PlayerController` and `VehicleController` were migrated to be driven by `PhysicsWorld` instead of the old fixed-height/kinematic math, with world geometry collision coming from real static bodies (`PrototypeWorld::BuildPhysicsStaticBodies`, including a dedicated ground-plane body -- a real bug: the render-only ground box is deliberately `collidable=false` for the unrelated XZ-only `CanOccupy` check, so it was silently never getting a physics body until this was added). `tests/CoreTests.cpp` gained `TestPlayerMotion` (walks forward from spawn, and confirms walking into the hotel's static collider for 5 simulated seconds does not tunnel through it) and an updated `TestVehicleMotion` (confirms the physics-driven vehicle accelerates on the real district's ground plane); both pass via `ctest --preset compile-software`. A standalone diagnostic (not committed) confirmed the sedan settles with all four wheels in ground contact and accelerates smoothly. **Not verified**: actual driving/handling *feel* (acceleration curve, top speed, steering sharpness) and visual alignment of the rendered mesh with the physics capsule/chassis, since this environment has no display or interactive input -- see `NEXT.md`.
+- Gate M5 (second district): `IronGang::DistrictManager` (`src/World/DistrictManager.cpp`) was added to own the currently loaded `PrototypeWorld` and its static physics bodies, and a second, genuinely different `Countryside` district was added alongside `WarehouseBlock`, each with its own exit trigger back to the other. `PhysicsWorld::GetBodyCount()` was added (test/diagnostic only, wraps `JPH::PhysicsSystem::GetNumBodies()`) so `tests/CoreTests.cpp`'s new `TestDistrictTransition` could assert that two full round trips (warehouse -> countryside -> warehouse -> countryside) leave the physics body count exactly where it started each time it revisits the same district -- this caught a test-design mistake (asserting equal body counts after a *one-way* swap, which is wrong since the two districts have a different number of static bodies) before it was corrected to only assert equality on round trips. `SaveSnapshot`/`SaveGame` gained a `districtId` field (additive, no save-format version bump) and `TestSaveRoundTrip` now covers it. A full `./scripts/check-syntax.sh` pass and a `./cmake-build-compile-software/iron_gang --smoke 120` run (exit 0, correct warehouse/vehicle CNJ loading logged) both passed after this change. **Not verified**: actually walking/driving through an exit trigger interactively (no display access), and the loading screen's visual appearance beyond a dark clear + "Loading..." window title.
+- Gate M6 (one skinned character, partial): `cna-extended` (a sibling repo, touched with the owner's explicit go-ahead for this one addition) gained `ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT` -- an ECS component/system pair wrapping cna's general-purpose `Model`+`AnimationPlayer` skinned path, which the existing `SkinnedModelComponentEXT`/`AnimationSystem3DEXT` do not (they only wrap the separate Avatar-specific `SkinnedModelEXT` data model, not the path cna's own glTF/CNJ import tools actually populate for a skinned asset). Verified there: 3 new unit tests (`ModelAnimationSystem3DEXTTests.cpp`, clip start/switch/hard-cut/unknown-name behavior against a real `AnimationPlayer`) plus a new `RenderSystem3DEXTTest.ModelAnimationComponent_PosesAndDraws` real-pixel-render case, all reusing cna's own proven-good `kSkinnedAnimatedGltf` fixture; full `cna-extended` suite re-run clean (2367 tests, 1 unrelated pre-existing parallel-run flake). For Iron Gang itself: a hand-authored 3-bone test character (`assets/source/gltf/gen_test_character_gltf.py` generates `assets/source/gltf/test_character.gltf` -- Mesh Craft/MC3 has no rigging/skinning authoring support, confirmed by checking `mc3.xsd` for any skin/bone/joint concept and finding none) was converted via `cna_tool_gltf_to_cnj` to `assets/generated/models/cnj/test_character.cnj` and verified by a standalone diagnostic program (not committed) that loaded it through `ContentManager`/`AnimationPlayer` directly and confirmed the "Walk" clip's leg-swing math matches hand-derived pivot-rotation values (`y≈0.084`, `z≈±0.380` at the swing extremes) and that "Idle" holds bind pose. `PrototypeRenderer` gained a minimal, dedicated `CNA::Extended::ECS::World` (just `ModelAnimationSystem3DEXT`, one entity) to drive the real component/system pair, and draws the resulting model directly via `Model::Draw()` (the same pattern already used for `warehouseModel_`/`vehicleModels_`) after pushing bone transforms onto its `SkinnedEffect`, rather than introducing `RenderSystem3DEXT`/`Camera3DEXT` (Iron Gang has no other ECS-driven rendering to justify that). A first attempt at this asset with no material/texture at all crashed at runtime (`TextureEnabled=true but texture0 is null` -- a skinned mesh with no material still gets `TextureEnabled=true` from cna's importer); fixed by adding a trivial 1x1 white texture (the same bytes cna's own test fixtures use) to every primitive. `./scripts/check-syntax.sh`, the full `ctest` suite, and a `--smoke 30` run (exit 0, `[IronGang] Loaded generated test_character.cnj` logged, no crash) all passed after the fix -- note this environment's shared multi-tenant machine was under heavy contention while validating this change (`load average` ~5 on 16 cores from concurrent unrelated sessions), which made the CPU software rasterizer visibly slower per frame; this was confirmed to be real system load, not a hang, by running longer and observing continued forward progress (236 frames in 60 real seconds) rather than a stuck call. **Not verified**: dialogue-pose/vehicle-entry-exit animations (not implemented), and any interactive/visual check of how the character actually looks or moves, since this environment has no display.
+- Gate M6 clip blending (follow-up, same session): `ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT` (cna-extended) gained `BlendDurationEXT`/`BlendFromSkinTransformsEXT`/`BlendedSkinTransformsEXT` -- a per-bone `Matrix::Lerp` crossfade from a frozen outgoing-pose snapshot to the new clip's live pose over `BlendDurationEXT` seconds (default 0.25s; 0 = hard cut), replacing the earlier hard-cut-only behavior. `RenderSystem3DEXT` and Iron Gang's `PrototypeRenderer` were updated to read `BlendedSkinTransformsEXT` instead of `PlayerEXT.GetSkinTransforms()` directly. Verified in `cna-extended`: 2 new tests using a hand-verified two-named-clip glTF fixture (cross-checked against a real `AnimationPlayer` via a throwaway diagnostic before being embedded) proving the blend math numerically at t=0/halfway/finished, plus a `BlendDurationEXT=0` hard-cut case; full suite re-run clean at 2369/2369, including the previously-flaky `TexturePackerFileReaderTests` case (confirming that earlier failure was a parallel-run isolation flake, not a real regression). Verified in Iron Gang: full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` passes on every file, and a `--smoke 20` run exits 0 with correct asset-loading logs. **Not verified**: how the crossfade actually looks during a real Idle<->Walk transition, since this environment has no display.
+- Gate M6 dialogue pose (follow-up, same session): `gen_test_character_gltf.py` gained a third "Dialogue" clip -- a static "parade rest" leg stance rotated about the local Z axis (a different axis than Walk's X-axis swing, so it reads as a genuinely distinct pose, not a frozen mid-walk frame) -- regenerated into `test_character.cnj` (now 3 clips). `IronGangGame::Update` calls `renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue")` whenever `dialogue_.IsActive() && !playerDriving_ && !transitioning`, alongside the existing Walk/Idle call (which only fires when dialogue is NOT active, so the two never race). Verified: a standalone diagnostic (not committed) loaded the regenerated CNJ through `ContentManager`/`AnimationPlayer` and confirmed the Dialogue pose's foot position matches hand-derived pivot-rotation math exactly (`(-0.0747, 0.00876, 0)` for the left foot at an 8° Z-axis rotation about the hip pivot). Full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` clean, and a `--smoke 20` run exits 0 -- notably, smoke mode never dismisses the opening dialogue, so this run exercised the new Dialogue clip continuously for its entire duration, not just at t=0. **Not verified**: how the pose actually looks, since this environment has no display.
+- Gate M6 vehicle entry/exit animation (follow-up, same session, gate M6 now fully done): `gen_test_character_gltf.py` gained two more one-shot clips, "EnterVehicle" (standing -> sitting, both legs bending forward together via `quat_x`, unlike Walk's alternating phase) and "ExitVehicle" (the reverse), each authored as a 1-second clip but only ever played for 0.5s (`IronGangGame::kVehicleTransitionSeconds`) so the motion is still visibly in progress -- not already at its end pose -- when the game switches away, and so `LoopEXT`'s default-true modulo wraparound never triggers. `test_character.cnj` regenerated with 5 clips total. Added a small `VehicleTransitionState` (`None`/`Entering`/`Exiting`) state machine to `IronGangGame`: entering the sedan starts `Entering` and keeps the character visible/on-foot-input-suppressed while "EnterVehicle" plays, only flipping `playerDriving_` true (hiding the character) once the clip finishes; exiting flips `playerDriving_` false immediately (character visible right where the car is) and starts `Exiting` while "ExitVehicle" plays. `HandleInteraction()` ignores a new interaction while a transition is already in progress; `LoadPrototype()`/`ResetPrototype()` both reset the state to `None` for safety. Verified: two standalone diagnostics (not committed) loaded the regenerated CNJ and confirmed both clips' foot-position math at t=0/0.5s matches hand-derived pivot-rotation values exactly (e.g. `EnterVehicle@0.5` and `ExitVehicle@0.5` both land at the same halfway pose, as expected by symmetry). Full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` clean, and a `--smoke 20` run exits 0. **Not verified**: the vehicle-transition *state machine itself* (as opposed to the underlying clip math) was checked by careful manual code review of `HandleInteraction()`/`Update()`'s new branches, not by an automated test -- smoke mode never presses 'E' and `IronGangGame` is not unit-testable headlessly today. Also not verified: how any of this actually looks, since this environment has no display.
+- Gate M7 (one data-driven mission, done at prototype fidelity): `assets/missions/prologue.mission.json` (a pre-existing stub file from the original scaffold, previously just documentation of an "intended future form") is now the real, active mission definition -- 5 states, each with objective text, a named transition condition, and a next-state id. New `MissionDefinition`/`LoadMissionDefinition` (`include/`/`src/Missions/MissionDefinition.hpp/.cpp`) parse and validate it using sharp-runtime's own `System::Text::Json` (`JsonDocument`/`JsonElement`, backed by vendored `nlohmann::json`) -- already a linked dependency, no new library added. Validation rejects (with an actionable error): duplicate state ids, an `initialState`/`next` that doesn't match any state id, an unrecognized condition name, and an empty state list. `PrototypeMission` now resolves its current state's objective text and transition condition against a loaded `MissionDefinition` instead of a hardcoded switch statement, while keeping `PrototypeMissionState` (a fixed enum) for `SaveGame`'s existing int-based format and public-API compatibility -- `LoadMission()` additionally rejects any mission file introducing a state id outside that fixed set. `IronGangGame::Initialize` loads the real file, falling back to an identical hardcoded default (matching `DialogueSystem::LoadFallbackPrologue()`'s convention) on any failure. Verified: the pre-existing `TestMissionFlow` (hardcoded default) still passes unchanged; two new tests -- `TestMissionLoadsCommittedFile` (loads the real committed file and drives it through the identical reach-vehicle/enter-vehicle/drive-to-warehouse/completed flow) and `TestMissionValidationRejectsMalformedData` (6 cases: dangling `next`, dangling `initialState`, duplicate id, unknown condition, empty states, missing file -- all correctly rejected -- plus one well-formed minimal mission that still loads correctly afterward, proving failures don't corrupt the loader's own state) -- both pass. A standalone diagnostic (not committed) confirmed the real committed file parses to the exact expected 5-state structure. Full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` passes on every file (including the new `IRON_GANG_SOURCE_ASSET_DIR` compile definition added to both the CMake test target and the syntax-check script so the real committed file can be validated by path), and a `--smoke 20` run exits 0 with no mission-load fallback message (confirming the real file loaded successfully at runtime, not just in the standalone test). **Not verified**: save/load resuming correctly mid-mission with the new data-driven system was reasoned through (the int-enum save format and `SetState()`/`GetState()` are unchanged) but not covered by a new dedicated test, and there is no display to check the objective-text window title actually updates correctly on screen.
+- Gate M8 (one in-engine cutscene, done at prototype fidelity, camera-track-only scope): new `CutscenePlayer`/`CutsceneSequence` (`include/`/`src/Cutscenes/CutscenePlayer.hpp/.cpp`, `CutsceneSequence.hpp/.cpp`) play a hand-written, versioned JSON camera keyframe sequence, parsed/validated the same way as `MissionDefinition` (sharp-runtime's `System::Text::Json`, inline validation rejecting an empty keyframe list, a first keyframe not at time 0, non-strictly-ascending keyframe times, and a duration shorter than the last keyframe). `assets/cutscenes/prologue_intro.cutscene.json`: a 2.5s pan from an establishing shot of the warehouse delivery target `(25, 12, -34)` looking at `(0, 2, -34)` to `(0, 4.65, 27.5)` looking at `(0, 1.25, 20)` -- the second keyframe computed by hand to exactly match `Draw()`'s own `target = playerPos + (0,-0.45,0); camera = target - forward*7.5 + (0,3.4,0)` formula at the player's spawn point (`(0, 1.70, 20)`, yaw 0), so the cut back to the normal follow camera has no visible pop. `IronGangGame::Initialize()` starts it alongside the opening dialogue; `Update()` ticks it every frame (gated on `!transitioning`, independent of dialogue's own pace) and treats a second Enter press (once dialogue has already finished) as a skip; `Draw()` overrides `view`/`target` with the cutscene's interpolated camera whenever `IsActive()`; player/vehicle input and physics stepping are frozen while it plays via the same `!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning` gate already used for dialogue. `LoadPrototype()`/`ResetPrototype()` both force `cutscene_.Skip()` defensively. Verified: `TestCutscenePlayerAdvancesAndFinishes` (fixed-time updates, asserts exact linear-interpolation numbers at the halfway point and the exact terminal keyframe once finished), `TestCutscenePlayerSkipAppliesTerminalState` (Skip() partway through must produce the identical terminal camera state a natural finish would), `TestCutsceneValidationRejectsMalformedData` (5 malformed-data cases + a missing file, all correctly rejected, plus one well-formed sequence that still loads afterward) -- all pass. A standalone diagnostic (not committed) confirmed the real committed file parses to the exact intended keyframe values. Full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` clean, a `--smoke 20` run (covers only the first ~0.3 simulated seconds, mid-cutscene) and a `--smoke 200` run (covers ~3.3 simulated seconds, past the cutscene's 2.5s duration, confirming it naturally finishes and the game keeps running normally afterward) both exit 0 with no cutscene-load fallback message. **Not verified**: the actual Enter-press skip path in a real running game (smoke mode's dialogue never becomes inactive on its own, so the skip branch was only exercised by the standalone unit tests, not an end-to-end game run), and any visual/interactive check of how the pan actually looks, since this environment has no display.
+- Gate M9 (traffic, pedestrians, one police-response scenario, done at first-pass/prototype fidelity, including the gate's own literal "ten-minute soak" wording): new `WaypointPath`/`AdvanceAlongPath()` (`include/`/`src/World/WaypointPath.hpp/.cpp`) -- a hand-authored ordered polyline plus a `loop` flag, not a graph -- is a shared path-following helper used by both new `TrafficVehicle` and new `Pedestrian` (`include/`/`src/Gameplay/`). `TrafficVehicle::Update()` accelerates toward a cruise speed (6 units/s²) and brakes (12 units/s²) when an externally-computed obstacle distance falls inside a 10-unit braking distance / 3-unit minimum gap; `IronGangGame`'s new `DistanceAheadIfInLane()` helper supplies that distance from other traffic vehicles and the player's own vehicle. `Pedestrian::Update()` walks a fixed sidewalk path at 1.6 units/s, overridden by a 4-second "flee directly away from the last-known threat position" state (2.5x speed, continuing off its own timer even after the threat is no longer reported present) when the player's vehicle comes within 6 units. New `PoliceSystem::Update()` runs `Clear -> Dispatched -> Chasing`: Clear triggers on a witnessed offense (player speeding >70 km/h, or within 2.5 units of a witness, while any traffic-vehicle/pedestrian position is within a 15-unit "witness radius" -- a simplified proximity check, not a real vision-cone/line-of-sight test); Dispatched holds for a fixed 2 seconds; Chasing drives up to 2 patrol cars straight toward the player's current position (ignoring roads) at 9 units/s, escalating to a second car after 20 seconds still chasing (the one locked escalation tier), and resolves back to Clear once the closest patrol car has stayed beyond 40 units for 3 sustained seconds. `PrototypeWorld::BuildWarehouseBlock()` hand-authors one 4-point traffic loop (both lanes of `road_north_south`, X=±3) and two 2-point sidewalk paths (X=±7.5, matching `sidewalk_west`/`sidewalk_east`); `BuildCountryside()` was not touched, so it has neither, by design. `IronGangGame` gained `RespawnTrafficAndPedestrians()` (spawns 2 traffic vehicles + 2 pedestrians, resets `police_`; called from `Initialize()`, district arrival, load, and reset, since none of this ambient state is part of `SaveGame`), ticks all three systems every frame gated only on `!transitioning` (they keep running through dialogue/cutscenes), and a new `PrototypeRenderer::DrawTraffic()` draws them as colored boxes distinct from the player's own sedan/character meshes. The window title appends "Police dispatched..."/"WANTED" while not Clear. Verified: 4 new deterministic unit tests in `tests/CoreTests.cpp` -- `TestWaypointPathAdvancesAndWraps`, `TestTrafficVehicleAcceleratesAndBrakes`, `TestPedestrianFleesAndResumesPath`, and `TestPoliceSystemFullCycle` (the big one: exercises the FULL `Clear -> Dispatched -> Chasing -> escalate -> resolve` cycle against hand-computed, standalone-diagnostic-confirmed position/timer values, plus two negative cases -- not driving, and a witness outside the radius -- both correctly never triggering a chase). A standalone diagnostic (not committed) caught a wrong test assumption before it shipped: starting a mover exactly AT its first waypoint (as `Reset()` does) immediately wraps to the second waypoint on the very first `AdvanceAlongPath()` call, since distance-to-current-target is already 0 -- the first draft of `TestWaypointPathAdvancesAndWraps` assumed no wrap on that first call and failed until corrected to match the actual (correct) behavior. Full `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh` clean, two short `--smoke` runs (30 and 90 draw frames, ~10s and ~25s wall-clock), and the gate's own literal "ten-minute soak" requirement: a `--smoke 3000` run, launched in the background and timed via `date +%s` before/after, ran for 980 real seconds (~16.3 minutes) with `trafficVehicles_`/`pedestrians_`/`police_` all ticking every frame throughout, exiting cleanly (exit 0, no crash, no error, no asset-fallback message in the log). Confirmed via `cna/src/Microsoft/Xna/Framework/Game.cpp` that `Game::Tick()` uses a fixed 1/60s timestep accumulator fed by real elapsed wall-clock time (`IsFixedTimeStep_` defaults true, `TargetElapsedTime_` = 1/60s), so simulated game time tracks real wall-clock time 1:1 for this workload -- a ten-minute soak genuinely requires close to ten real minutes of runtime, there is no way to compress it via a larger `--smoke` frame count alone. **Not verified**: memory-leak growth specifically over the soak run (only crash/stall-freedom was checked, no periodic memory sampling was added), and, as with every other visual milestone this session, there is no display to check how any of this actually looks.
+
+- Gate M10 (production assets/collision, baked lighting, one dynamic sun, limited shadows, audio, UI -- all five pieces done at first-pass/prototype fidelity): **UI** -- `include/`/`src/UI/BitmapFont.hpp`/`.cpp` builds a real `SpriteFont` at runtime from the public-domain font8x8 bitmap glyphs (CNA has no XNB font pipeline), drawn via `SpriteBatch` each frame in `IronGangGame::Draw()` (objective/speed/dialogue/wanted/status), replacing the window-title-only display. **Dynamic sun** -- `include/IronGang/Graphics/SunLight.hpp`'s `ComputeSunBrightness()`/`ComputeBrightnessForNormal()` compute a CPU brightness scalar from a single fixed sun direction (confirmed `BasicEffect`/`SkinnedEffect`/etc.'s built-in `DirectionalLight0` lighting is a no-op on the SOFTWARE backend by reading its own source), applied via `PrototypeRenderer::DrawMesh()`'s new `tint` parameter (procedural boxes) and a new `SetModelDiffuseColor()` helper (CNJ `Model` content) to every dynamic actor (player/vehicle/traffic/pedestrians/police) each frame -- confirmed `DiffuseColor` DOES apply unconditionally on this backend, independent of the lighting no-op. **Limited shadows** -- new `PrototypeRenderer::DrawShadowDecal()` draws a flat, dark, alpha-blended "blob shadow" beneath the player and their own vehicle only (confirmed the SOFTWARE backend has no shadow-map support at all and real shadow-mapping is not achievable without modifying CNA itself). **Baked lighting** -- new `include/`/`src/Graphics/LightmapMesh.hpp`/`.cpp`: `LightmapMeshBuilder` builds the static city mesh (procedural boxes only) with 24 vertices per box (one per face, no sharing, since each face needs its own UV), baking one flat-shaded lightmap tile per face from the shared sun direction into a real texture atlas (fixed 32-column grid of 4x4 tiles, each face sampling the exact tile center to avoid bilinear bleed), sampled via a new `PrototypeRenderer::lightmapEffect_` (`DualTextureEffect`, confirmed fully implemented on the SOFTWARE backend: `finalColor = vertexColor * (texture0*2) * texture1 * diffuseColor`) with `texture0` a flat near-gray identity texture and `texture1` the real baked atlas; MC3-sourced models stay out of scope (no lightmap UV channel in that pipeline). **Audio** -- real CC0 sound from Nox Sound Design's "Essentials Series" pack (itch.io, 988MB); WebSearch/WebFetch confirmed the license but the actual download needed a JS-driven payment-bypass step neither `curl` nor this environment's (unconnected) browser tools could complete, so the user downloaded it manually and handed it off. Three files extracted (renamed only) into `assets/audio/` (`engine_loop.wav`, `horn.wav`, `footstep.wav`), recorded in `assets/licenses/asset-registry.csv`; no ambience/siren (not in the pack, and a second CC0 source hit the same download friction). `IronGangGame` gained `engineSound_`/`engineSoundInstance_`/`footstepSound_`/`hornSound_` (`SoundEffect(const std::string&)`, SDL3_mixer decodes WAV natively, no XNB step), each optional with the same try/catch-with-fallback convention as every other optional asset; the looped engine sound ties to `playerDriving_` with speed-scaled volume/pitch, the horn fires on H while driving, footsteps fire on a fixed-interval timer while walking. Verified: `TestSunBrightnessMatchesHandComputedValue`, `TestLightmapMeshBuilderBakesPerFaceBrightness` (both against hand-computed/Python-cross-checked values), `TestBitmapFontGlyphAtlas`, the full `ctest` suite, `./scripts/check-syntax.sh`, `--smoke` runs, and -- since `--smoke` mode never drives or walks -- a standalone diagnostic (not committed) that directly exercised `SoundEffectInstance`/`SoundEffect` playback against the real audio files through the real SDL3_mixer pipeline, confirming correct state transitions and successful playback with no exceptions (this environment's audio hardware initialized successfully, so `NoAudioHardwareException`'s fallback was reasoned about but not actually exercised). **Measured a real ~4-5x per-frame slowdown** from the lightmap's two-bilinear-texture-sample draw path on this environment's CPU software rasterizer (a `--smoke 20` run went from ~10s to ~26s wall-clock), not yet profiled against `docs/performance-targets.md` (real gate M12 scope). **Not verified**: how any of this actually looks or sounds, since this environment has no display and cannot play audio for a human to hear.
+
+- Gate M11 (mission happy-path/failure/retry/save-load/cutscene-skip automation, all ten sub-tasks `IG-39-060`-`069` done): almost no new production code -- mostly proving what already exists end to end. New tests in `tests/CoreTests.cpp`: `TestSaveLoadMidMissionPlaythrough` (saves mid-mission, loads into a fresh `PrototypeMission`, proves it can still complete -- not just that the state enum round-trips), `TestCutsceneSkipDoesNotBlockMissionProgression` (confirms `PrototypeMission::Update()`'s architectural independence from cutscene state with a regression test), `TestMissionResetActsAsRetry` (this prototype's one mission has no real failure/branching state -- `plan_24`'s own locked scope -- so "retry" is proven via `Reset()` returning to the initial state and completing again), `TestVehicleStatePersistsIndependentlyOfPlayer` ("vehicle-loss recovery" reinterpreted at the level that actually exists, since no combat/damage system exists yet: a save made on foot far from a parked vehicle restores both positions independently), and `TestDistrictTransitionPreservesMissionState` (a full district round trip mid-mission leaves mission state untouched). Fresh-start playthrough and missing-optional-asset behavior were already covered by pre-existing tests. Soak test: a `--smoke 3000` background run exercising the full M10-era rendering/audio path; the lightmap draw path made it far slower per frame than the M9 baseline, so it was manually stopped (`TaskStop`, not a crash) after 65 minutes (3925s) of continuous, error-free execution -- more than six times the gate's own "ten minutes" wording. Performance capture: `/usr/bin/time -v ./iron_gang --smoke 60` measured 55988 KB (~55MB) maximum resident set size (far under the ~2-4GB budget) and ~1.55s/frame average, dominated by the lightmap's two-bilinear-texture-sample draw path plus HUD text drawing -- not meaningfully comparable to the 30-60 FPS target, since this CPU software rasterizer backend was never intended to be performant (it exists only because this environment has no GPU/display); real frame-time verification needs a `dev-easygl`/`dev-vulkan` build, still unverified here. License audit: found and fixed two real gaps -- `assets/licenses/asset-registry.csv` was missing rows for `assets/missions/prologue.mission.json` and `assets/cutscenes/prologue_intro.cutscene.json` (both original content, same convention as the already-tracked dialogue file), and `THIRD_PARTY.md` still claimed no external content was bundled, which became false as of gate M10 (font8x8 Public Domain font, Nox Sound Design CC0 audio) -- both corrected. Verified: full `compile-software` rebuild (clean), all three `ctest` targets pass (5 new tests), `./scripts/check-syntax.sh` clean.
+
+## M12 native-window evidence
+
+The M12 native-window evidence follow-up adds CNA's validated native-window classification to every
+new schema-8 profile. Report/comparator focused suites pass 7/7 each, full isolated CTest passes
+8/8 including the C++ writer assertion, syntax validation passes, and the EasyGL executable builds
+cleanly. A real AMD offscreen run with `DISPLAY` and `WAYLAND_DISPLAY` removed emitted
+`Headless/false` despite a successful GL context and swap acknowledgement; an innocently named
+physical-display report still blocked it. A separate isolated Xvfb profile emitted `X11/true`,
+confirming the two platform paths remain distinct. Neither run used the visible host display or
+supplies physical qualification.
+
+The following M12 runtime-identity pass records `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION` from
+the current EasyGL context. A no-window AMD run reported the Radeon 780M/radeonsi, while isolated
+Xvfb reported Mesa llvmpipe. The latter remained software-blocked under the intentionally misleading
+label `Discrete GPU physical-display claim`, demonstrating that classification no longer depends
+on operator prose. Old diagnostics remain readable but missing runtime identity cannot qualify.
+A complete short DRM-wrapper follow-up then retained 100 samples, bound a 49.57 MiB peak, verified
+the enriched profile, and reported Radeon runtime plus `Headless/false`; all direct metrics passed
+while the presentation classification remained diagnostic. No visible display was used.
+A subsequent pair of full Release `mixed --smoke 900` DRM runs passes every direct minimum with
+17.147/17.907 ms frame p95, no minimum misses or hitches, stable 55.574 MiB complete residency, and
+`NO REGRESSION` comparison. Both archives verify independently. The qualifying audit fails only on
+the offscreen label and each capture's machine-derived `Headless` state. No visible display was used.
+This real raw/manifest/enriched/report output plus the existing documentation closes the final
+memory-tracker logging task `IG-35-030`; a live overlay is intentionally outside the bounded
+profiler scope. The physical M12 gate remains open.
+A further Release AMD offscreen `--vsync on` integration recorded requested/applied interval 1 with
+successful acknowledgement, 17.122 ms frame p95, and a verified 49.57 MiB DRM peak. Its independent
+window evidence remained `Headless/false`, so the visible `1 / yes` report row correctly failed
+local qualification. This validates the non-vblank proof boundary without using a visible display.
+The final physical-pair workflow is now covered by `iron_gang_m12_capture_pair_tests`. Four isolated
+fake-tool integrations prove exact two-run ordering and the locked `mixed --smoke 900`/v-sync
+arguments, qualifying comparison after PASS, diagnostic comparison plus preserved artifacts after
+FAIL, regression exit 1, and all-output collision refusal before the first tool starts. The focused
+CTest passes 1/1 and the complete compile-software suite passes 9/9; no game or visible display is
+used by this orchestration test.
+A real follow-up invoked the orchestrator with both desktop display variables removed and
+`SDL_VIDEODRIVER=offscreen`. All six stages completed: two independent 899-interval AMD EasyGL
+captures, both DRM bindings, qualifying-intent report, and diagnostic comparison. Both four-file
+archives independently re-verify, each records 58,273,792 B complete residency, all direct minimum
+budgets pass, qualification has only the explicit offscreen label plus two `Headless` blockers, and
+comparison says `NO REGRESSION`. The designed process exit is 1 (valid gate failure), not workflow
+error 2. No visible display was available to the processes.
+
+The frame-outlier correlation follow-up adds bounded top-eight context to new schema-8 profiles:
+every retained existing frame interval includes its zero-based aggregate sample index and the
+scenario phase/update at the `BeginFrame` ending it. C++ tests prove top-eight retention, descending
+order, stable ties, phase/update storage, and JSON output. The report's expanded 8/8 suite validates
+good rendering plus duplicate/negative/out-of-range indices, wrong maximum/order, non-canonical
+phase/update, and record-count failures; comparator 8/8 proves both retained lists render. Older
+schema-8 diagnostics remain accepted without the additive block.
+
+Release EasyGL and compile-software rebuild, complete 9/9 CTest, and strict syntax validation pass.
+A real AMD offscreen paired run with both desktop display variables absent then exercised producer,
+DRM binding, report, and comparison end to end. Its two 899-interval captures record
+17.997/17.868 ms p95, 30.114/26.204 ms maximum, no >33.333 ms miss or hitch, and stable 55.574 MiB
+complete residency. The maxima correlate to `mixed_drive` samples 534/208 and scenario updates
+536/210; the earlier isolated ~76 ms hitch did not reproduce. Comparison is `NO REGRESSION` and the
+qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
+`Headless` states. No visible display was used and physical M12 remains open.
+
+## Dialogue gets the stable ids a locked decision already required (2026-08-26)
+
+plan_25 `IG-25-001` closed; plan_34 `IG-34-015` advanced; `IG-34-006`'s dialogue gap closed.
+
+**A locked decision that was quietly untrue.** `plan.md`'s decision 10 and plan_25's own header both
+say every line of dialogue uses a stable string ID **from day one**, so a second language can be
+added without touching the system or rewriting content. The shipped dialogue was
+`speaker|text` — no ids at all. The decision had been recorded, agreed, and not implemented, and
+nothing in the repository would have noticed.
+
+**What changed.** `assets/dialogues/prologue.dialogue.json`, schema version 1, with an id per line.
+The ids name what a line **is** (`prologue.mara.no_heroics`) rather than what it says, so editing
+the English never invalidates a reference or a translation — which is the entire point of having
+them.
+
+Validation refuses an unsupported version, a missing or duplicate line id, an empty speaker or text,
+an unknown field, a non-string field, and a conversation with no lines. A **duplicate id** is worth
+calling out: it makes every reference ambiguous and would silently make one line's translation serve
+both. A rejected file leaves the previously loaded conversation intact — half a conversation is
+worse than the built-in fallback, which now carries the same ids as the file it stands in for.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestDialogueLinesCarryStableIds` covers the committed file, lookup by id, a **missing reference**
+returning null rather than silently resolving to line 0, ids resolving identically regardless of
+where the conversation has got to, fallback parity, and ten rejection cases. A `--smoke 200` run
+prints the first line, confirming the game reads the new file. Three places referenced the old
+`.txt` and were updated together: the game, `scripts/release_archive.py`'s packaged-asset list, and
+`scripts/test-missing-asset-fallback.sh` — the last of which **failed the suite** until it was, which
+is the regression test doing its job.
+
+**Boundaries.** One conversation, one language, and no locale files: the ids exist so a second
+language *can* be added, not because one has been. Nothing else references a dialogue line yet — no
+mission, cutscene, or subtitle file names one — so `IG-34-015`'s cross-content stale-reference case
+has nothing to test.
+
+## A property test that could not fail, and the audit of a plan nobody had updated (2026-08-26)
+
+plan_34 `IG-34-001`/`007`/`008`/`010`/`012`/`016` closed; `IG-34-006`/`011` given honest partial
+notes.
+
+**The property test.** `TestSaveRoundTripsRandomSnapshots` puts 250 randomly generated snapshots
+through write/read and compares every field. Values come from the deterministic `RandomSource`, so a
+failure is reproducible from its seed rather than a story about a run nobody can repeat, and string
+values are drawn from fragments chosen to poke at the line format: `=`, `:`, `;`, quotes, leading and
+trailing spaces, non-ASCII bytes, emoji.
+
+**It passed on the first run, which for a property test means nothing until you check it can fail.**
+So I mutated `MissionValue::ToText` to print floats with two decimals and re-ran: **the test stayed
+green**. The comparison was `actual.ToText() == expected.ToText()` — self-referential, and happy to
+agree while both sides lost precision equally. That is the same shape of hollow assertion I caught in
+my own work two iterations ago.
+
+Comparing typed values instead, the same mutation now fails it:
+`float "var_4" must round-trip bit for bit (iteration 1): wrote -31109.312500, read -31109.310547`.
+The original formatting is restored, and the reason the comparison is not text is written into the
+test.
+
+**The audit.** plan_34 stood at 0 of 38 while much of what it asks for had been built over the last
+twenty-odd iterations and never recorded — which is exactly the drift `IG-38-003` exists to prevent,
+in the file least likely to be read. Six entries were verifiably done and are now marked with the
+tests that cover them; two more are partial with their gaps named rather than left implied:
+`IG-34-011`'s cancellation is untested **because `DistrictManager` cannot cancel a transition**, and
+`IG-34-006`'s remaining gaps are `DialogueSystem`'s parser, the two physics-backed controllers, and
+the renderer's animation state, which needs a graphics device.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12** before the mutation, red
+during it, green after restoring — the check that the test earns its place. Task count moved from
+269 to 277.
+
+**Boundaries.** Nothing in plan_34's CI half (`IG-34-003`/`004`/`005`, sanitizer jobs) is done: there
+is no CI configuration in the repository at all, and writing one that cannot be executed here would
+be a claim rather than a result.
+
+## Witnesses stop seeing through walls (2026-08-26)
+
+plan_22 `IG-22-002` closed — a **P0** that had been carrying "simplified to a fixed-radius proximity
+check" since gate M9 — and `IG-22-011`'s false-positive half largely with it.
+
+**What changed.** A witness must now be both close **and** able to see. `HasLineOfSight`
+(`include/IronGang/Gameplay/Visibility.hpp`) traces the segment from the witness's eye height to the
+player's vehicle against the district's collidable boxes with the slab method. The **game** filters
+the witness list before `PoliceSystem` ever sees it: the police system has no business knowing about
+geometry, and keeping it that way is why its tests need no world.
+
+Two details that decide whether this helps or hurts:
+
+* **Distance first, then the ray.** `PoliceSystem::kWitnessRadius` became public so the caller can
+  reject candidates the police system would reject anyway, rather than tracing rays to pedestrians
+  on the other side of the district.
+* **Paint is not a wall.** Road markings, stop lines, and trigger decals are `WorldBox`es too, but
+  non-collidable ones are skipped — treating paint as an occluder would blind every witness standing
+  near a crossing, which is worse than the problem being fixed.
+
+**Measured, not assumed.** In a real `mixed --smoke 400` run, witness checks per update fell from
+**16 to 9**: nearly half the "witnesses" had been reporting through something. `ai_cpu` p95 moved
+0.068 → 0.074 ms, which is the ray tracing paying for itself by shrinking the work downstream of it.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestWitnessesCannotSeeThroughWalls` covers a segment through the box, past each side, over the top,
+stopping short, starting inside, two degenerate segments (inside and outside), and the
+parallel-to-a-slab case the algorithm has to special-case; then line of sight blocked by a building,
+clear across open ground, an empty world, a non-collidable marking never blocking, and — against the
+**real district** — the warehouse blocking sight straight through it while two points on the open
+road see each other.
+
+**Boundaries.** Still a radius plus a ray, **not a vision cone**: a witness facing away sees the act
+just as well as one watching it. A cone needs a facing direction and a peripheral-vision rule per
+witness, and neither changes the outcome nearly as much as noticing a building is in the way. Sight
+is traced to the vehicle's centre only, so a car half-hidden behind a corner is either fully seen or
+fully missed.
+
+## Running a red is an offence, and the player is told why (2026-08-26)
+
+plan_22 `IG-22-001` completed (its note had said "no running a light -- no signals exist yet");
+`IG-22-011` advanced to partial (feedback done; false-positive prevention still needs line of sight).
+
+**Detection lives where the knowledge is.** Speeding and collisions are inside `PoliceSystem`;
+running a red is computed by the game, which owns both the signal and the vehicle, and passed in
+through a new `PoliceObservation`. That replaced a growing positional parameter list — the signature
+was already `(delta, driving, position, speed, witnesses, spawn)` and a seventh argument would have
+made call sites unreadable.
+
+**A segment, not a position.** At 20 m/s a 60 Hz frame covers a third of a metre, so a car is behind
+the stop line one frame and well past it the next. `CrossedLine` tests the segment between the two
+frames, which is what makes it catch precisely the fast crossings that matter. Reversing back over a
+line does not count as running it again, and crossing the same plane on the pavement beside the lane
+does not count at all.
+
+**The worst offence wins the label.** Hitting someone while speeding through a red reports the
+collision, so the reason shown is the worst thing the player did rather than whichever check
+happened to run first.
+
+**The HUD says why.** `WANTED - ran a red light` rather than a bare `WANTED`. The information already
+existed at the moment of detection; withholding it is the most common complaint about systems like
+this. The record clears when the chase resolves.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestRunningARedLightIsAWitnessedOffence` covers six crossing cases (through, short of, beyond,
+reversing, beside the lane, and a barely-there crossing), no witness / a distant witness / a close
+witness, not-driving, worst-offence precedence, speeding still reporting speeding, and the record
+clearing on escape. Ten existing `PoliceSystem::Update` call sites were migrated to the observation
+struct by a targeted regex rather than a blanket replace — the lesson from the previous iteration,
+where a global rename broke an unrelated assertion 2000 lines away.
+
+**Boundaries.** Witness perception is still a fixed-radius proximity check with no line of sight
+(`IG-22-002`), so a "witness" through a wall sees everything — that is the false-positive half of
+`IG-22-011` and it is untouched. Traffic AI obeys the lights; the player is now merely *observed*
+disobeying them. No ticket or traffic-stop flow (`IG-22-005`): the response to running a red is the
+same chase as any other offence.
+
+## The crossing gets a light (2026-08-26)
+
+plan_21 `IG-21-003` and `IG-21-007` closed.
+
+**The design decision worth keeping: a red light is an obstacle.** Traffic already brakes for
+whatever is ahead in its lane, so a red is folded into the same `DistanceAheadInLane` minimum as the
+car in front. `TrafficVehicle` needed **no new state at all**, and a car queued behind one waiting
+at a red brakes for the car rather than the light — which a separate "stopped at signal" state would
+have had to reproduce.
+
+**One signal drives both directions.** `GetOpposingPhase()` derives the crossing direction's colour
+from the same timer rather than running a second light, which makes "both green at once" impossible
+by construction; two independent lights at one crossing eventually drift into exactly that. The
+opposing direction gets its own amber before this one turns green, so nobody is in the crossing when
+it flips.
+
+**Amber stops traffic**, deliberately. At this scale, a car deciding whether it can "make it" is a
+rule nobody watching would notice, and one that puts vehicles in the intersection at the moment the
+phase changes.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestTrafficSignalCyclesAndOpposesItself` covers phase order and durations, the wrap, offsets
+(including past the cycle and negative), refused zero-length phases and negative/NaN deltas, the
+world's two stop lines reading opposing phases, a vehicle seeing its own line ahead but not after
+passing it, and a vehicle braking to a halt and pulling away again. Two invariants are checked over
+2000 steps whose size deliberately does not divide the cycle: **never both moving**, and — the one
+that is easy to forget — **both directions do get a green**, since an intersection nobody may cross
+satisfies the first and is still broken. A real `mixed --smoke 400` run shows no errors, obstacle
+checks unchanged at 16 per update, `ai_cpu` p95 0.068 ms.
+
+**A mistake worth recording.** Renaming a call in my new test, I ran a blanket
+`GetSpeed()` → `GetForwardSpeed()` replace over the whole test file and silently broke an unrelated
+`VehicleController` assertion 2000 lines away. The build caught it, but the run before it had passed
+against a stale binary — a global replace over a file I only meant to touch in one place.
+
+**Boundaries.** One crossing, fixed timing, hand-placed in code rather than in district data. The
+**player's** vehicle ignores the light entirely: running a red is not an offence, and `PoliceSystem`
+never hears about it. No turn signals, no stop signs, no priority junctions, and pedestrians do not
+use crossings (`IG-20-012`).
+
+## Pedestrians become people, and a measurement I almost got wrong (2026-08-26)
+
+plan_20 `IG-20-003` advanced to partial (walk/idle clips and per-instance phase; no turn clip).
+
+**What changed.** The nearest few pedestrians are drawn as the **same skinned character the player
+uses**, walking or idling. Three decisions worth keeping:
+
+* **Per-instance animation phase.** Twelve characters stepping in perfect unison read as one puppet
+  drawn twelve times — worse than the boxes they replace. Each state starts a fraction of a second
+  into the cycle.
+* **Idle when stopped.** A pedestrian queueing behind another (`IG-20-010`) now stands rather than
+  sliding a walk cycle along the pavement. `Pedestrian::IsWalking()` reports **visible** movement,
+  not any movement — someone creeping the last few centimetres up to the person ahead reads as
+  standing. That threshold matched `Locomotion::IsMoving()` deliberately.
+* **The nearest N are skinned, the rest stay boxes** (`maxSkinnedPedestrians`, default 6). The game
+  picks them, because where the camera is looking from is the game's knowledge, not the renderer's.
+
+**The measurement I almost recorded wrongly.** A 200-frame `walk` capture took 4m25s, and against
+remembered timings from *`mixed`* runs I concluded skinned pedestrians had made the software
+rasterizer "about ten times slower". That comparison was invalid — two different scenarios. A
+controlled A/B on the same scenario, changing only the cap:
+
+| Skinned pedestrians | Frame p95 | Render CPU p95 | Draw calls |
+| --- | --- | --- | --- |
+| 0 | 1408.6 ms | 1392.4 ms | 30 |
+| 6 | 1417.5 ms | 1403.0 ms | 42 |
+| 12 | 1545.4 ms | 1533.8 ms | 54 |
+
+So the real cost is **about 10% at twelve and under 1% at six**, on a CPU rasterizer that was
+already spending 1.4 s per frame in this scenario before the change. The cap is still worth having —
+it bounds the cost and matches how games of this era did it — but the reason is "bounded and
+measured", not "recovering from a tenfold regression". Update CPU is unaffected (0.46 ms p95): the
+animation players are not the cost, the skinned draws are.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**; the congestion test
+gained four `IsWalking()` assertions (clear lane walks, queued stands, resumes on clearing, fleeing
+walks whatever is ahead) — the queued-stands one initially **failed against a correct
+implementation**, because "walking" then meant "moved at all" and a pedestrian creeping at
+0.02 m/s technically had; fixing the meaning rather than the test is what made the animation
+choice right too. Three controlled captures as above.
+
+**Boundaries.** No turn clip (there is none in the test rig), and a fleeing pedestrian uses the walk
+cycle at a higher speed rather than a run. The skinned pedestrians share one model, so every
+pedestrian is the same person. `maxSkinnedPedestrians: 0` restores the old box rendering, which is
+what a software-backend profiling run should use.
+
+## Campaign progress survives a save (2026-08-26)
+
+plan_24 `IG-24-049` closed; plan_29 `IG-29-007` extended. The previous entry ended by naming this as
+the next obvious task: completing the prologue and reloading lost the unlock.
+
+**What changed.** The save carries `mission_id` and one `campaign_completed.<id>=1` line per
+finished mission — additive, so a save written before campaigns existed claims *no* progress rather
+than inventing some.
+
+**The restore order is the whole difficulty**, and it is written at the call site rather than left
+to be rediscovered: campaign progress → the right mission file → that mission's state id, variables,
+and checkpoint. Restoring the state before loading the mission would apply it to whichever mission
+happened to be loaded; loading the mission afterwards would reset everything just restored, because
+`StartMission` resets. Both orderings compile and neither fails loudly, which is exactly why the
+order is a comment and not a hope.
+
+Two refusals: progress naming a mission the campaign no longer contains is dropped on restore (an
+edited campaign must not be able to inject a mission that does not exist), and a save naming a
+mission that cannot be loaded keeps the current one with a warning rather than failing the load.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestCampaignProgressSurvivesSaveLoad` covers the round trip, restored progress driving the graph so
+the unlocked mission is the one on offer, an unknown mission and a duplicate being dropped **on
+restore while the file still round-trips exactly what it was given** (the filtering belongs to the
+campaign, not the file format), and an older save claiming no progress while the rest of it still
+restores. End to end: a real `--profile-scenario mixed` run's autosave contains
+`mission_id=countryside_run` and `campaign_completed.prototype_delivery=1` after the campaign
+advanced mid-run — the fields reach the file during actual play, not only in tests.
+
+**Boundaries.** Save slots still hold one campaign each; there are no profiles. Nothing records
+*when* a mission was completed, so a campaign that branches on completion order has nothing to read.
+Two missions is still not fifteen.
+
+## A campaign, and a second mission to put in it (2026-08-26)
+
+plan_24 `IG-24-020`/`046`/`047` closed; `IG-24-021`/`048` advanced. This closes the two open threads
+at the top of the previous entry's list: nothing used `vehicle_disabled`, and no mission but the
+prologue existed to exercise checkpoints or branching.
+
+**The graph.** `CampaignDefinition` is content (missions, paths, prerequisites); `CampaignState` is
+progress (which are done, therefore which are available). Separate types on purpose — one is shipped
+data, the other belongs in a save, and merging them would put content in the save file.
+
+Validation refuses every shape that describes a campaign nobody could finish: unsupported version,
+empty or duplicate id, empty path, a prerequisite naming a mission that is not there, a mission
+requiring itself, **a dependency cycle**, and a campaign where every mission has a prerequisite and
+so can never start. The cycle error reports **the path that loops** (`a -> b -> a`) rather than
+"cycle detected", because the second tells an author nothing about which link to cut.
+
+**The second mission.** `countryside_run` is real, not a placeholder: drive out of the block, cross
+into the countryside — which required a new `current_district` fact and a real delivery trigger in
+that district, since it had only a dummy one — and pull into the farmhouse yard. Two checkpoints,
+and a failure branch on `vehicle_disabled`, which is **what finally uses the wreck fact** added two
+iterations ago. Facts also gained district-neutral `player_in_delivery_goal`/`vehicle_in_delivery_goal`
+aliases; the `..._warehouse_goal` names stay because the prologue uses them, but "warehouse" is the
+wrong word for a farmhouse yard.
+
+**Wiring.** `IronGangGame` loads the campaign, starts the first available mission, and on completion
+marks it done and starts what that unlocks. The `--profile-scenario mission` workload exits at the
+prologue's completion **before** any advance, so the measurement it has always taken is unchanged —
+verified by running both: the `mission` scenario logs the prologue only, while a `mixed` run logs
+`starting "Out of Town" (countryside_run)` after the prologue completes.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12**;
+`TestCampaignGraphUnlocksAndRejectsCycles` covers the committed campaign, unlock ordering, a
+three-mission chain needing two prerequisites, restored progress ignoring duplicates and deleted
+missions, and eleven rejection cases including two cycle shapes;
+`TestCountrysideMissionRunsAndFailsOnAWreck` drives the **committed** second mission through its
+full flow, its wreck failure with the file's own reason, and a checkpoint retry. Both new assets are
+in the registry (18 shipping assets now).
+
+**Boundaries.** **Campaign progress is not saved** (`IG-24-049`): a load restores the mission *state*
+but restarts the campaign at its first mission, so completing the prologue and reloading loses the
+unlock. That is the next obvious task, and it needs `missionId` plus the completed list in the save
+format. No chapters above missions, and two missions is not fifteen.
+
+## A status dashboard that cannot go stale, and a continuity document that fits (2026-08-26)
+
+plan_38 `IG-38-014` closed. Also fixes a defect in my own test code from the previous iteration.
+
+**A tautology I wrote, found and fixed.** `TestUserSettingsRoundTripAndFallBack` contained
+`Require(bindings.Rebind(Interact, F).has_value() || true, ...)` — an assertion that passes whatever
+happens. I had written it when the call returned no conflict (F is unused) and, instead of fixing
+the expectation, neutered the assertion. It now asserts what is actually true: rebinding onto a free
+key reports **no** conflict, and the binding applied. A suite full of assertions like the first one
+looks thorough and tests nothing.
+
+**The dashboard.** `docs/status.md` is in two halves on purpose. The prose — what you can play right
+now, what is still prototype fidelity, which gates are blocked and on what — is hand-written,
+because no script knows what "playable" means. The plan-progress table is **generated** by
+`scripts/status_report.py` and verified by a new CTest, because the counts are exactly the part that
+goes wrong silently: nobody notices that "36/76" stopped being true, and a dashboard nobody trusts
+is worse than no dashboard. `--check` fails when the committed file no longer matches the plan
+files; the generator only ever rewrites between two markers, so the prose either side survives.
+
+Current reading: **269 of 2148 tasks** (12%), up from 215 when this session started -- and closing `IG-38-014` itself made the freshly committed dashboard stale, which the new test caught immediately. That is the mechanism working on its first day.
+
+**The continuity document.** `NEXT.md` had grown to 192 KB, of which 37 KB was twenty session
+entries I had appended over two days. Its own header says it is what a resumed session reads
+*first* — at that size it defeats its own purpose. The twenty entries are now one table, one line
+each, linking the plan entries they closed, plus a consolidated list of the open threads they left
+behind. **No information was lost**: every entry's full detail is in this file under the same title,
+which is where verification evidence belongs anyway. Older history from previous sessions was left
+untouched — its detail is theirs, not mine to compress — but now sits under an explicit marker
+saying so.
+
+**Verification (no display).** Strict-warning build clean; **CTest 12/12** (the new
+`iron_gang_status_report_tests` is the twelfth); `tests/test_status_report.py` covers a write/check
+round trip, prose either side of the markers surviving regeneration, **staleness detection** (flip a
+task, `--check` fails, `--write` fixes it), a document with no markers, a missing document, an empty
+plan directory, a plan file with no heading, a plan file with no tasks, and the committed
+`docs/status.md` being current. That last case is the one that keeps the dashboard honest in CI.
+
+**Boundaries.** The prose half still has to be updated by hand, and nothing checks that it is true —
+only the counts are enforced. The dashboard reports task counts, not gate status; gates are prose in
+`plan.md` with no machine-readable form. `NEXT.md` is still 160 KB, nearly all of it pre-existing
+history.
+
+## Keys become data, with per-context conflict detection (2026-08-26)
+
+plan_28 `IG-28-007` advanced to partial (keyboard rebinding model, persistence, and full game
+usage; no rebinding screen, no gamepad).
+
+**The blocker from the entry below turned out to be a false one.** I had recorded that rebinding
+needed CNA's `Keys` enum, which `iron_gang_core` could not see. Checking how CNA builds its modules
+showed `cna_add_module` creates a `CNA::Input` alias — linking it into `iron_gang_core` takes one
+line, and a probe compile confirmed it. So the model keeps real `Keys` values *and* stays in the
+library the window-free tests can reach. It was worth two minutes of checking rather than designing
+around integer key codes.
+
+**What changed.** `InputBindings` defines sixteen actions in four groups from one table — what
+exists, where it belongs, and its shipped key — and **every rebindable key the game reads now goes
+through it**, so the keys are a table rather than literals scattered across the update loop.
+
+Conflict detection is **per group**, which is what makes it useful rather than obstructive: Space is
+the handbrake *while driving* and confirms *in a menu*, and those never conflict, because the game
+is never listening for both at once (the same contexts as `IG-28-008`). Global actions conflict with
+everything, since they are read everywhere. `Rebind` displaces the loser, **reports which action
+lost the key** so a UI can say so, and costs it only that key — a secondary binding is promoted to
+primary rather than discarded.
+
+Bindings persist in `runtime/settings.json`, written out **in full**: until a rebinding screen
+exists, the file *is* the rebinding interface, and a diff against defaults would be unreadable for
+that. An unknown action id, an unknown key name, or a malformed entry keeps that action's default
+and warns — per action, rather than costing the whole file.
+
+Driving and menu navigation **reuse** the movement bindings rather than owning a second set: a
+player who rebinds "forward" expects both to follow.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestInputBindingsDetectConflictsWithinContexts` covers the shipped defaults, both keys matching,
+the deliberate Space sharing across contexts, within-group conflicts, Global conflicting both ways,
+`FindConflict` changing nothing, displacement promoting a secondary, an action ending up unbound
+(honest rather than surprising), a conflict-free rebind, reset, and identifier/key-name round-trips
+for every shipped binding — a gap there would silently lose a player's keys. The settings test gained
+a binding round trip plus three unusable-binding cases. A full `--profile-scenario mission --smoke
+1200` run still completes, which is the check that the rewired input path did not break the
+deterministic scenarios.
+
+**Boundaries.** No rebinding screen — the model reports everything one needs, but nothing draws it,
+so a player rebinds by editing the settings file. No gamepad: there is no gamepad input path
+anywhere in the game. Debug and profiling keys are deliberately not rebindable.
+
+## Player settings become their own file (2026-08-26)
+
+plan_29 `IG-29-005` closed; plan_28 `IG-28-004` advanced (the settings half); plan_36 `IG-36-005`
+extended.
+
+**Three files, three lifetimes, three owners** — which is the whole point of the task:
+`runtime/settings.json` is what the **player** changes and must survive deleting every save;
+`runtime/iron_gang_prototype.save` is campaign progress; `assets/config/game.json` is read-only
+developer tuning shipped with the game.
+
+`UserSettings` holds a master volume and a HUD toggle. Both are on the **pause menu itself** rather
+than behind a submenu: with two settings, a submenu is a screen the player has to learn for no
+benefit. Volume cycles in five steps and wraps (a slider needs pointer input the game does not
+have); the HUD toggle hides the HUD but **never the pause menu**, because a hidden menu is how
+someone gets stuck in a paused game with no visible way out. Master volume multiplies every sound
+the game plays — engine loop, horn, footsteps — so it is one setting rather than a scatter.
+
+**A shared atomic write.** `SaveGame` had the only copy of write-to-temp, rotate-to-backup,
+rename-into-place. Settings need the same guarantee, and the second caller is where a pattern
+either becomes shared or becomes two subtly different implementations, so it moved to
+`WriteTextFileAtomically` (`include/IronGang/Core/AtomicFile.hpp`) and `SaveGame` now calls it.
+
+Settings are written the moment one changes. A missing file is normal and **silent** — saying so
+every launch would be noise, not information. Bad or unknown values warn and keep defaults; an
+unsupported version fails and leaves the caller's settings untouched; the file inherits the bounded
+JSON read from plan_36.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestUserSettingsRoundTripAndFallBack` covers the missing file being silent, a round trip, the
+backup appearing on the second write, three bad/unknown values each warning while keeping defaults,
+an unsupported version leaving the caller's settings alone, the inherited depth bound, and — via a
+read-only directory — a failed write leaving the previous file byte-for-byte intact with no
+temporary behind. A full `--profile-scenario mission --smoke 1200` run still completes.
+
+**Boundaries.** Two settings only. No key rebinding (`IG-28-007`) — that model would need CNA's
+`Keys` enum, which `iron_gang_core` cannot see (its Input module is not on the library's include
+path), so it needs either integer key codes in the settings file or a game-layer home; no
+resolution, difficulty, or accessibility options; no settings UI beyond the two menu entries.
+
+## The pause screen becomes a menu (2026-08-26)
+
+plan_28 `IG-28-003` advanced to partial (keyboard navigation done; no gamepad path exists anywhere
+in the game), `IG-28-004` advanced further (pause/save/load/restart/quit; no settings or
+confirmation).
+
+**What changed.** Last iteration's pause screen was text listing keys. It is now a real menu:
+Resume, Save, Load, Restart from checkpoint, Quit — navigated with Up/Down or W/S, activated with
+Enter or Space.
+
+`MenuModel` (`include/IronGang/UI/MenuModel.hpp`) holds items, selection, and activation with **no
+drawing and no input handling in it**, which is what makes the fiddly parts testable without a
+window:
+
+* Moving **skips disabled entries** instead of stepping onto them, and wraps at both ends.
+* A multi-step move counts *enabled* entries, not raw indices.
+* A menu with nothing enabled keeps its selection rather than spinning forever looking for one —
+  that loop is the obvious way to write this and the obvious way to hang the game.
+* Activating a disabled entry returns `MenuAction::None`, which is what stops it doing its thing
+  anyway if something manages to select it.
+
+The menu is rebuilt on every pause, because what is available changes: **Load is disabled with "no
+save yet"** until something has been written, and **Restart from checkpoint is disabled with "no
+checkpoint reached"** until the mission records one. Disabled entries stay visible with their
+reason rather than being hidden — hiding one moves every entry below it under the player's fingers
+between two frames, which is how a menu makes someone quit by accident.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestMenuModelSkipsDisabledAndWraps` covers the empty menu (no crash, no spin), skipping disabled
+entries in both directions, wrapping both ways, multi-step moves, a zero move, a menu whose first
+entry is disabled selecting the first enabled one instead, an all-disabled menu holding its
+selection and activating nothing, and disabled entries keeping their place and their reason. A full
+`--profile-scenario mission --smoke 1200` run still completes; `scripts/check-syntax.sh` and
+`git diff --check` clean.
+
+**Boundaries.** Keyboard only — there is no gamepad input anywhere in the game to navigate with. No
+settings menu, because nothing player-adjustable exists to put in one yet (`IG-29-005`); no
+restart-from-the-beginning entry distinct from the checkpoint one; no confirmation before quitting.
+The menu is drawn as HUD text lines, not a laid-out panel.
+
+## One place decides what the game is listening to, and Escape pauses (2026-08-26)
+
+plan_28 `IG-28-008` closed; `IG-28-004` advanced to partial (pause and quit done; no navigable
+menu, settings, or restart).
+
+**The duplication this removes.** The question "what is the game doing right now?" was answered
+independently at half a dozen sites, each written out as
+`!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning` — and two iterations ago I added
+a *seventh* answer, `SaveConditions`/`FindSaveBlockReason`, for saving. `InputContext`
+(`include/IronGang/Gameplay/InputContext.hpp`) now resolves one context from one signals struct in a
+documented precedence order (Paused > DistrictTransition > Cutscene > Dialogue > VehicleTransition >
+Driving > OnFoot), and `SaveBlockReasonForContext` replaces the pair I had added — a second
+independent answer to the same question is how the two come to disagree.
+
+`VehicleTransition` earned its place as a context rather than a flag: during the enter/exit clip the
+player is neither on foot nor driving, and the controls belong to the animation.
+
+**Pause.** Escape used to call `Exit()` — a debug affordance, not a pause. It now toggles a paused
+state; quitting moved behind that screen (Q). While paused, the world does not advance: physics is
+**skipped entirely rather than stepped with a zero delta**, because the world should not be advanced
+at all, not advanced by nothing. Everything world-shaped runs on a `simulationSeconds` that is zero
+while paused, while the HUD, window title, and input keep running on the real frame delta — so a
+paused game still redraws and still listens. Pausing is a **safe** save moment (the world is frozen
+and consistent), so F5/F9 keep working there, and the HUD and title both say `PAUSED`.
+
+`ContextAdvancesWorld` is false only for Paused. A cutscene, a conversation, and a district load all
+keep the simulation running, deliberately: ambient traffic and the police do not wait for a
+conversation to end.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestInputContextResolvesByPrecedence` adds each signal in turn and asserts the result never demotes,
+that only Paused stops the world, that movement and interaction are permitted exactly in OnFoot and
+Driving and locked in all five other contexts, and that every context has a unique non-empty name.
+The autosave test's block-reason section was rewritten against the context instead of the deleted
+`SaveConditions`. A full `--profile-scenario mission --smoke 1200` run still completes.
+
+**Boundaries.** The pause screen is key-driven text, not a navigable menu (`IG-28-003`); no
+settings, no restart, no confirmation on quit. Pause is not exposed to missions as a fact, and there
+is no time-scale — pause is binary.
+
+## On-foot movement gets momentum (2026-08-26)
+
+plan_16 `IG-16-005` advanced to partial (acceleration, deceleration, and turning inertia done;
+slope handling not). plan_16 stood at 1 of 80 with the note that on-foot movement "already works" —
+it did, in the sense that a keypress **was** full speed and a release **was** a dead stop. That
+reads as a cursor, not a person, and it is the most-felt half of a game where you walk to the car.
+
+**What changed.** `Locomotion` (`include/IronGang/Gameplay/Locomotion.hpp`) eases forward/strafe
+velocity and turn rate toward what the input asks for:
+
+* **Stopping is quicker than starting** (26 vs 18 m/s²), on purpose. People lean into a walk and
+  plant their feet to halt, and a character who stops faster than he starts feels responsive rather
+  than sluggish — the opposite ordering is what makes momentum feel like ice.
+* **Deceleration is chosen per axis**, so releasing forward while still strafing does not brake the
+  strafe.
+* **Diagonal input is clamped**, so moving diagonally is not faster than moving straight.
+* **A teleport drops momentum** (`Reset`/`SetPosition`), so a respawn cannot carry speed into
+  wherever the character lands.
+* `MoveToward` snaps to the target when within one step rather than overshooting — overshoot at a
+  low frame rate is exactly how a character jitters around a standstill.
+
+The model is pure arithmetic with no physics, input, or rendering in it, so the feel is unit-tested
+rather than eyeballed. `PlayerController` now asks it for a velocity and hands that to the same
+`CharacterVirtual` as before; `GetSpeed()`/`IsMoving()` are exposed for a future animation blend or
+footstep timer.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestLocomotionAcceleratesAndDecelerates` covers one frame not reaching walking pace, walking pace
+being reached in under half a second and settling exactly (no overshoot, no creep), sprint raising
+and releasing easing back without snapping, stopping measured **from a clean walk** and required to
+be quicker than starting, diagonal clamping while still using both axes, releasing forward not
+braking the strafe, turn rate easing in and reversing through the intervening rates, reverse input
+not flipping the velocity in one frame, `Stop()` and zero-length frames, and tuning being honoured.
+
+A full `--profile-scenario mission --smoke 1200` run still completes: the walk to the sedan now
+takes momentum into account and still reaches the handover radius.
+
+**A test bug worth recording:** the first version measured "frames to stop" from wherever the sprint
+assertions had left the character — roughly sprint speed — and compared it against "frames to walk
+from rest". It reported 15 vs 14 and failed. The code was right; the measurement was comparing two
+different starting speeds. Fixed by measuring the stop from a clean walk.
+
+**Boundaries.** No slope handling: `CharacterVirtual` resolves slopes as geometry, but nothing
+changes speed uphill or downhill and there is no slide threshold. No step-up/ledge/falling states
+(`IG-16-006`), no crouch, no camera work, and the locomotion constants are compile-time defaults
+rather than a tunable file.
+
+## The sedan can be wrecked (2026-08-26)
+
+plan_17 `IG-17-015` advanced to partial (impact damage and disabled states done; wheel damage has
+nothing to damage yet). This closes the gap `NEXT.md` had been carrying since gate M11: "no
+combat/damage system at all, so vehicle-loss has no real mechanic behind it".
+
+**How impacts are detected, and why.** From the vehicle's **own speed history**, not from contact
+reports: a frame in which speed drops faster than any brake could manage *is* a collision. That
+needs nothing new from the physics layer and cannot miss a contact Jolt resolved internally. The
+separation is wide on purpose — a good car brakes at about 1 g (0.17 m/s per 60 Hz frame), the
+threshold sits at about 4 g, and a 20 m/s crash stops in a frame or two — so ordinary driving can
+never scratch the paint.
+
+Integrity runs 1 to 0, accumulates across impacts, floors at 0, and scales the engine's pull down
+toward `minimumSpeedFactor` as it falls. **A wrecked sedan still steers and rolls**: being stranded
+in a wreck is a situation, being unable to move at all is a trap. Reversing into something counts
+(magnitudes are compared), changing direction through zero does not.
+
+`VehicleDamage` is pure arithmetic with no physics, input, or rendering in it, which is why the
+whole model is unit-tested. Thresholds are tunable in `sedan.vehicle.json`'s new `damage` block;
+integrity is saved (an older save loads an intact car — the friendlier of the two defaults) and
+published to missions as `vehicle_integrity`/`vehicle_disabled`, so a mission can now fail on a
+wrecked car. The HUD shows `DAMAGE n%`, then `WRECKED`.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestVehicleDamageDistinguishesCrashesFromBraking` covers a full 1.1 g braking stop leaving the car
+untouched, accelerating/holding/coasting/zero-length frames doing nothing, a wall at speed doing
+damage, a harder impact costing more than a softer one, accumulation to a wreck with integrity
+flooring at 0, a wrecked car keeping exactly its minimum speed factor and still rolling, reversing
+into a wall counting while a direction change through zero does not, repair/restore/clamping
+(including NaN falling back to undamaged rather than poisoning the model), a raised threshold
+ignoring an impact it used to count while a harder crash still registers, and the save round trip
+plus the older-save default.
+
+The end-to-end check that matters most: a full `--profile-scenario mission --smoke 900` run records
+**zero** impacts and still completes the delivery. A damage model that fired on normal driving would
+have wrecked the car before the warehouse.
+
+**Boundaries.** No wheel damage — wheels have no per-wheel state to damage. No visual damage, no
+smoke, no repair mechanic beyond a mission reset, and nothing in the committed prologue fails on a
+wrecked car yet (the fact exists; no mission uses it). A stale comment in
+`TestVehicleStatePersistsIndependentlyOfPlayer` claiming "no vehicle-destruction mechanic exists"
+was corrected rather than left to mislead.
+
+## Data files are bounded before a parser sees them (2026-08-26)
+
+plan_36 `IG-36-009` closed; `IG-36-003` and `IG-36-005` recorded as already done under plan_24 and
+plan_29; `IG-36-002`/`IG-36-006` advanced to partial. Three loaders written over the last few
+iterations — mission, game configuration, vehicle tuning — each opened a file, read all of it, and
+handed the text to a JSON parser with **no size, encoding, or depth limit**. The duplication was
+mine; so was the gap.
+
+**What changed.** `ReadBoundedJsonText` (`include/IronGang/Core/JsonDataFile.hpp`) now stands in
+front of all three, checking in this order:
+
+* **Size**, read from the filesystem — so a 900 MB file is refused *without being loaded into
+  memory*. Refusing it after allocating it would be a strange kind of protection. The limit is
+  1 MiB, roughly a hundred times the largest file the game ships.
+* **UTF-8**, rejecting stray continuation bytes, truncated sequences, overlong encodings,
+  surrogates, and anything above U+10FFFF. Overlong forms matter specifically because they are how
+  one character gets two spellings, and a validated identifier stops equalling the compared one.
+* **Nesting depth**, counted over the raw text (ignoring brackets inside strings, honouring
+  escapes), so a document deep enough to exhaust the stack is refused **before** the
+  recursive-descent parser runs. Unbalanced brackets and unterminated strings fall out of the same
+  pass.
+
+These files are hand-authored today, but the project's own scope decision (`IG-36-001`) is to treat
+generated and downloaded assets as untrusted, and "we wrote it ourselves" stops being true the first
+time a mission is produced by a tool.
+
+**An architecture point that shaped the API.** The first version exported a `JsonDataFile` struct
+holding a `JsonDocument` — which broke the test build, because sharp-runtime's `Text.Json` is a
+**private** dependency of `iron_gang_core` and that header dragged it into every consumer. The
+public header now names no JSON types at all (bounds, `IsValidUtf8`, `MeasureJsonNestingDepth`,
+`ReadBoundedJsonText`), and the document-returning half lives in `src/Core/JsonDataFileInternal.hpp`,
+outside `include/`. The compiler caught a real layering violation, and the fix is the better API.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestJsonDataFileIsBoundedBeforeParsing` covers an ordinary read, a missing file, a non-object root
+refused by a loader that needs one, an over-1-MiB file, a document nested 20 levels past the limit,
+invalid UTF-8 in a real file, eight direct `IsValidUtf8` cases (including overlong, surrogate,
+past-U+10FFFF, and truncated), seven depth-counter cases (including brackets inside strings, an
+escaped quote, and each unbalanced direction), and — the part that matters — the depth bound
+applying **through all three loaders**, not just when called directly. `scripts/check-syntax.sh`,
+`git diff --check`, and a `--smoke 60` run with zero warnings or errors.
+
+**Boundaries.** Still unbounded: CNJ/glTF model and texture data, WAV audio, and the save file, all
+read without a size check — the save at least has a checksum and a backup, the assets have nothing.
+No Unicode **normalization** anywhere (`IG-36-006`'s other half). Error messages still contain full
+local paths, which `IG-36-013` says shipping builds should not leak.
+
+## The sedan's numbers move into data (2026-08-26)
+
+plan_17 `IG-17-003` closed, `IG-17-002` recorded as already done, `IG-17-001`/`IG-17-004` given
+honest partial notes. plan_17 had 0 of 97 entries done while a Jolt raycast vehicle had been driving
+the game since gate M4 — the file was simply never updated.
+
+**What changed.** `assets/vehicles/sedan.vehicle.json` (schema version 1) now holds the chassis mass
+and half extents, wheel radius/width/positions, and the forward/reverse speed limits that
+`VehicleController.cpp` used to hard-code. `VehicleConfig`/`LoadVehicleConfig` follow the same
+failure contract as the mission, game-config, and save loaders: a missing file, an unknown key
+(named **with its section**, so `chassis.masss` is findable), a wrong type, an out-of-range value,
+or a wheel list that is not exactly four entries are warnings that keep defaults; only malformed
+JSON, a non-object root, or an unsupported version is a failure, and a failure leaves the caller's
+configuration untouched.
+
+Two validation choices worth stating: a **zero mass or zero-radius wheel can never reach the physics
+body** (those do not degrade gracefully in a solver, they explode), and **one malformed wheel entry
+defaults all four** rather than leaving three applied and one defaulted, which would be a wheelbase
+nobody designed.
+
+**A real bug found while wiring this up.** The loader was initially called after
+`vehicle_.Reset()` — which creates the physics body — so mass, chassis, and wheel geometry would
+have been baked in *before* the file was read, and the tuning would have silently applied nothing
+but the speed limits. The load now runs before `districtManager_.Initialize()`, and
+`VehicleController::Configure` logs a warning if it is called once the body exists, so the same
+mistake cannot be silent again.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestVehicleConfigLoadsValidatesAndFallsBack` covers the missing file, a full round trip of every
+field, unusable numbers keeping defaults, a short wheel list, a malformed wheel entry defaulting all
+four, an unknown key named with its section, the reverse-faster-than-forward warning, malformed JSON
+and an unsupported version failing while leaving the caller's config alone, and — the assertion that
+proves this change did not alter driving — the **committed** sedan loading with zero warnings and
+carrying exactly the values the code used to hard-code, chassis and wheel offsets included. A
+`--smoke 60` run logs no vehicle warning, confirming the real file is read at startup. Three
+allowlists needed the new `assets/vehicles` directory: the asset registry's production directories,
+the CMake install set, and `release_archive.py`'s packaged-asset list; the registry test's fixture
+and its "15 approved shipping assets" expectation were updated with it (now 16).
+
+**Boundaries.** `chassis.halfExtents` and `wheels.positions` must keep matching
+`PrototypeRenderer`'s body box and wheel offsets, and **nothing validates that** — the physics
+chassis and the drawn car are built by different code, and a mismatch shows up only as floating or
+sunken wheels. Suspension, steering response, and braking still use Jolt's defaults and are
+therefore deliberately absent from the schema: a key the game does not read would be worse than no
+key. No gears, engine curve, per-surface grip, damage, lights, or second vehicle; no runtime reload.
+
+## Pedestrians stop walking through each other (2026-08-26)
+
+plan_20 `IG-20-010` closed. This fixes a defect the entry below **introduced**: six pedestrians per
+two-point sidewalk, half of them walking each way, meant they passed straight through one another —
+invisible at a population of two, obvious at twelve.
+
+**What changed.** Stacking and clipping are different problems, so there are two mechanisms:
+
+* **Lanes.** `Pedestrian::SetLaneOffset` shifts a pedestrian off the path centreline, always to the
+  right of its own heading, so the two directions of travel occupy two lanes and pass each other.
+  The offset moves the position **everything outside sees** — rendering, witness checks, congestion
+  queries — so it is a real position, not a drawing trick.
+* **Yielding.** `Pedestrian::Update` now takes the distance to the nearest pedestrian ahead *in its
+  own lane* and slows from 2.0 m to a full stop at 0.7 m: the same shape as `TrafficVehicle`'s
+  following distance, at walking scale. A queue forms instead of a pile, and a stopped pedestrian
+  keeps facing the way it was going rather than turning into a huddle.
+
+A **fleeing** pedestrian ignores clearance on purpose — someone running from a car does not queue —
+and that is asserted, not left implicit.
+
+The lane test moved out of `IronGangGame.cpp`, where it was a private helper with the traffic lane
+width baked into it, into a shared `DistanceAheadInLane` (`include/IronGang/Gameplay/LaneClearance.hpp`)
+that traffic and pedestrians both call with their own half-width: 2.0 m for cars, 0.55 m for people,
+which is exactly what lets two pedestrians pass shoulder to shoulder without braking each other.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestLaneClearanceSeesOnlyWhatIsAhead` covers ahead/behind/co-located/inside/outside the lane, that
+height is ignored, and that the same offset blocks in a traffic lane but not a walking lane.
+`TestPedestriansDoNotWalkThroughEachOther` walks two pedestrians head-on for 400 frames and asserts
+their closest approach stays above 0.5 m, that their lane offsets land on opposite sides of the
+centreline, that a follower behind a stopped pedestrian ends up between 0.2 m and 2.5 m behind it
+(stopped short, but actually queued up rather than halting at a distance), that it resumes once the
+way clears — a yield that deadlocks would be worse than the clipping it replaced — and that a
+fleeing pedestrian moves with zero clearance.
+
+A real `--profile-scenario mixed --smoke 400` run still reports 12 pedestrians and 4 vehicles.
+
+**Cost, stated rather than hidden:** the congestion scan is O(n²) — 144 checks per ambient update at
+12 pedestrians — and `ai_cpu` maximum moved from 0.022 ms to 0.094 ms (p95 unchanged at 0.002 ms).
+That is 350× under a 33 ms frame, so it is affordable now, but it is deliberately **not** a profiler
+counter yet: adding one revises the performance report's schema and its comparator contract, which
+is more than this scan is worth today. A streamed population (`IG-20-008`) will need both a counter
+and a spatial index.
+
+**Boundaries.** Pedestrians still do not avoid traffic or each other laterally (they yield in a
+line, they do not step around); `IG-20-004` remains partial. They are still colored boxes with no
+walk animation (`IG-20-003`).
+
+## A deterministic RNG, and a city with people in it (2026-08-26)
+
+plan_04 `IG-04-011`/`012` closed; plan_20 `IG-20-001` and plan_21 `IG-21-001` closed — both P0
+gameplay tasks that had been sitting at "only 2 spawned, not 10-20" and "only 2 spawned, not 3-5"
+since gate M9.
+
+**The RNG.** `RandomSource` (`include/IronGang/Core/RandomSource.hpp`, `src/Core/RandomSource.cpp`)
+is splitmix64, hand-written rather than `<random>` **on purpose**: `std::mt19937` is specified
+exactly, but `std::uniform_int_distribution` and `std::uniform_real_distribution` are not, so the
+same seed produces different numbers on different standard libraries. "Seed 42" in a bug report, a
+save, or a profiling run has to mean the same thing everywhere, so the range mapping is written out
+here. `NextIndex` rejection-samples instead of taking a modulo — that bias is what shows up as the
+same option being picked too often. `Derive(label)` gives an independent stream **without consuming
+from the parent**, so adding a caller cannot shift an existing system's sequence out from under it.
+
+**The city.** `WarehouseBlock` now spawns 12 pedestrians (six per sidewalk path, spread along it by
+`Pedestrian::Reset`'s new start offset rather than stacking on its endpoint, speeds 1.1–2.0, both
+directions of travel represented) and 4 traffic vehicles (one per corner of the oval, cruise speeds
+5–7). The varied traffic speeds matter beyond appearance: identical speeds hold their spacing
+forever, so the following-distance braking that already exists would never actually fire.
+
+The whole population derives from a seed mixed with the district id, so a district repopulates
+**identically** every time — a retry, a load, and a profiling run all see the same city. That is not
+a detail: without it the performance scenarios would stop being comparable to each other.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestRandomSourceIsDeterministicAndUniform` replays four golden draws (so changing the generator is
+a deliberate act, not a silent one), checks that different seeds diverge, that `Derive` neither
+consumes from its parent nor collides across labels while reproducing for the same label, that every
+range holds across 2000 draws including the degenerate ones (bound 0 and 1, empty and reversed
+ranges), and smoke-tests for gross bias with 8000 draws over 8 buckets.
+`TestPedestrianSpawnOffsetSpreadsAlongPath` checks that a zero offset preserves gate M9's exact
+behaviour, that six offsets give six positions no two of which are within a metre, that an offset
+past the segment clamps rather than overshooting, and — the one that matters for how it looks — that
+a pedestrian spawned mid-segment keeps walking the way it was headed instead of turning round on its
+first step, from both endpoints.
+
+A real `--profile-scenario mixed --smoke 400` run reports exactly 12 pedestrians and 4 traffic
+vehicles, with `ai_cpu` average 0.001 ms, p95 0.002 ms, maximum 0.022 ms, at most 16 traffic
+obstacle checks, 12 pedestrian threat checks, and 16 police witness checks per update, and
+`update_cpu` p95 0.429 ms — the six-fold population increase is far below anything the budgets can
+see.
+
+**Consequence recorded rather than glossed over:** every M12 capture in
+`docs/performance-baseline.md` was taken with 2 pedestrians and 2 vehicles. A comparison that crosses
+this change is comparing two different workloads, including the comparator's `NO REGRESSION`
+verdict, so a dated note now sits at the top of that file saying a fresh baseline pair is needed
+before those numbers can be treated as current.
+
+**Boundaries.** Pedestrians are still colored boxes with no skinned model or walk animation
+(`IG-20-003`), they do not avoid each other, and there is no spawn/despawn by attention — 12 is a
+fixed population, not a streamed one. Traffic still has no signals, turning, or lane graph. The
+seed is a compile-time constant rather than a `game.json` tunable.
+
+## A simulation clock between CNA and the world (2026-08-25)
+
+plan_04 `IG-04-003`/`004`/`005`/`007` closed.
+
+**What changed.** `IronGangGame::Update` took `GameTime`'s raw elapsed value and fed it straight to
+physics, movement, AI, the mission, and the autosave scheduler. `SimulationClock`
+(`include/IronGang/Core/SimulationClock.hpp`, `src/Core/SimulationClock.cpp`) now sits in between
+and does exactly two things:
+
+* **Clamps an extreme delta** to 100 ms. A stall then costs smoothness — the world runs slower than
+  wall time — instead of costing correctness: the player teleporting through a wall, the sedan
+  skipping its trigger, a mission condition that was only briefly true being missed. The refused
+  wall time is accumulated in `GetDroppedSeconds()` rather than silently vanishing, and the game
+  logs the first clamp **once**, not on every frame after it.
+* **Stays monotonic**: elapsed simulation time is the sum of the deltas actually taken, so a
+  negative, NaN, or infinite delta from a broken or wrapped platform timer advances the world by 0
+  rather than backwards — while still counting the frame as having happened.
+
+It deliberately clamps rather than subdividing, because CNA already drives `Update()` on a fixed
+step and subdividing here would step the world twice per engine step.
+
+**Stated honestly, because reading the CNA source changed the claim:** `Game.cpp`'s fixed-step loop
+hands `Update()` a constant `TargetElapsedTime` (16.67 ms) and catches up by calling `Update()`
+repeatedly, so **this clamp never fires in the current configuration**. It is a guard, not an active
+correction — and it becomes load-bearing the moment the game runs variable-step, where CNA's own cap
+is `Game::MaxElapsedTime` = 500 ms, five times more than this game's movement and physics can absorb
+in a single step. The plan entry and the header both say so rather than implying a bug was fixed.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestSimulationClockClampsStallsAndStaysMonotonic` covers an ordinary delta passing through, a 2.5 s
+stall clamped with the refused time accounted for, elapsed time being the sum of what ran,
+negative/NaN/infinite/zero deltas each yielding 0 and leaving elapsed time untouched while counting
+the frame, a 200-frame mixed run asserting monotonicity and step bounds every frame, a configurable
+maximum, a zero/negative/NaN maximum ignored rather than freezing time, and `Reset()` clearing the
+totals while keeping the configured maximum. `scripts/check-syntax.sh` and `git diff --check` clean;
+a `--smoke 120` run logs no clamp warning, which is the expected result given the fixed step above.
+The fixed/variable-step split is now documented in `docs/architecture.md`.
+
+**Boundaries.** No interpolation between fixed steps for rendering, so the picture is only as smooth
+as the step; no pause/time-scale (a cutscene still runs the world at 1×); the clamp threshold is a
+compile-time constant rather than a `game.json` tunable, since nothing has needed to change it.
+
+## Structured logging replaces 24 ad-hoc stderr lines (2026-08-25)
+
+plan_04 `IG-04-002`/`017` closed; `IG-04-008` advanced. Every previous entry in this session added
+another hand-written `std::cerr << "[IronGang] …"` line; there were 24, with no severity, no
+category, and no way to turn any of them down.
+
+**What changed.** `IronGang::Log` (`include/IronGang/Core/Log.hpp`, `src/Core/Log.cpp`): four
+ordered severities, eight categories, `[IronGang][<category>][<severity>] <message>` on stderr.
+Every call site was migrated — which is also what turned several of them from an undifferentiated
+print into the **error** or **warning** they always were (a mission condition that cannot be
+evaluated, a failed autosave, a fact that could not be published). Gameplay text the prototype
+prints for the player (dialogue) stays on stdout and is not log output.
+
+Design points worth keeping:
+
+* **A disabled category is silent at every severity, errors included.** Turning a category off means
+  "I do not want to hear from this subsystem"; a half-off category would be more confusing than
+  either state.
+* **The sink is called outside the state mutex.** It is caller-supplied, may be slow, and must never
+  be able to deadlock the game by logging from inside itself. The mutex is there so the planned
+  background loader thread (`IG-04-014`) can log safely.
+* **The level comes from data**: `game.json`'s `logSeverity`, overridden for a single run by
+  `--log-level`, which wins because someone passing it is debugging *this* run. An unrecognized name
+  is rejected at startup with the valid list rather than silently falling back.
+* `scripts/release_archive.py`'s packaged smoke check now matches the **message text only**. Pinning
+  "the packaged build loads these assets" is the claim worth keeping; pinning the log prefix was an
+  accident of how the check was first written.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11** (including the release
+archive test, whose expectations changed); `TestLogSeverityAndCategoryFiltering` covers severity
+filtering in both directions, a disabled category swallowing an error, `IsEnabled` agreeing with
+what `Write` actually does, the exact formatted line, name/parse round-trips for every severity and
+category, unknown names rejected, and `Reset` restoring the defaults so one test cannot leave the
+next deaf. Real runs confirm the end-to-end path: a default `--smoke 60` prints the six
+`[IronGang][assets|audio][info] Loaded …` lines, `--log-level error` prints **none** of them, and
+`--log-level nonsense` exits with `--log-level must be debug, info, warning, or error`. The config
+test now also covers `logSeverity` round-tripping and an unrecognized name keeping the default.
+
+**Boundaries.** No timestamps, no log file, no rotation, no in-game console, and no per-category
+configuration key — `Log::SetCategoryEnabled` exists for code and tests, and a key can be added when
+someone actually needs to silence a subsystem from data. Command-line parsing is still a hand-written
+if/else chain with no shared option table (`IG-04-008`).
+
+## Configuration loader: game.json is finally read (2026-08-25)
+
+plan_04 `IG-04-001`/`006`/`018` closed; plan_29 `IG-29-005` advanced. `assets/config/game.json` has
+existed since the original scaffold with a `notes` field admitting it was "reserved for a future
+configuration loader" — nothing had ever read it, and the previous two entries both had to record
+"the autosave interval is a compile-time constant because nothing reads the config yet".
+
+**What changed.** `GameConfig`/`LoadGameConfig` (`include/IronGang/Core/GameConfig.hpp`,
+`src/Core/GameConfig.cpp`) read the file through sharp-runtime's `System::Text::Json`. The design
+rule is that **a broken or partial configuration costs the tuning, never the run**:
+
+* Every member's initializer *is* the default, so there is one place a default lives.
+* A missing file, an unknown key, a wrong-typed value, an out-of-range number, and an empty string
+  are all warnings that keep the default. Only malformed JSON or a non-object root fails, and a
+  failure leaves the caller's configuration untouched rather than half-applied.
+* Unknown keys are **named** in the warning. Silently ignoring `projectNmae` is how a mistuned
+  build goes unnoticed for a week.
+* Negative seconds clamp to 0 rather than being rejected: the author meant "off".
+* A minimum spacing longer than the interval loads with a warning — legal, but it means the
+  interval never fires when it says it will.
+
+The values drive the window title (`projectName`, replacing a hardcoded "Iron Gang" — which also
+serves `docs/renaming.md`), the district map header (`cityName`, `prototypeYear`), and the autosave
+scheduler's interval and spacing. The autosave defaults come from `AutosaveScheduler`'s own
+constants rather than being repeated in `GameConfig`, so the two cannot drift.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**;
+`TestGameConfigLoadsValidatesAndFallsBack` covers the missing file, a full round trip, an unknown
+key (with the correct keys still applying), three wrong-typed values, three out-of-range values, the
+spacing/interval warning, malformed JSON and a non-object root leaving the caller's config
+untouched, and — the case that keeps the shipped file honest — the **committed**
+`assets/config/game.json` loading with **zero** warnings and the expected identity. A `--smoke 120`
+run prints no configuration warnings, confirming the real file is read at startup rather than only
+in tests. `scripts/check-syntax.sh` and `git diff --check` clean; the config file's registry hash
+updated. Schema, failure table, and the procedure for adding a tunable are in
+`docs/configuration.md`.
+
+**Boundaries.** No environment-variable or command-line overrides of individual tunables
+(`IG-04-020`), no hot reload, no per-platform files. This is developer tuning only: **user**
+settings the player changes in game still have no system (plan_28's menus) and therefore nowhere to
+be stored, which is the open half of `IG-29-005`.
+
+## Autosave scheduling and refusing to save at unsafe moments (2026-08-25)
+
+plan_29 `IG-29-010`/`011`/`036`/`037` closed. Closes the "a checkpoint is only as durable as the
+player's last manual save" gap the entry below left.
+
+**What changed.**
+
+* `AutosaveScheduler` and `SaveBlockReason` (`include/IronGang/Persistence/AutosavePolicy.hpp`,
+  `src/Persistence/AutosavePolicy.cpp`) decide *when* a save may happen; the game decides what to
+  write. Triggers: a new mission checkpoint, a finished district transition, and a 180-second
+  interval as the backstop between them.
+* **A request at an unsafe moment is held, not dropped.** An autosave asked for during a cutscene
+  fires the instant the cutscene ends. **Triggers that land together produce one save**: a
+  20-second minimum spacing collapses them, deferring rather than discarding the second request.
+* Saving is refused while a cutscene is playing (the camera is not the gameplay camera), during
+  dialogue (the line index is not saved), during a district transition (the world being written is
+  the one being unloaded), and while getting in or out of the car (the player is neither on foot
+  nor driving). F5 there says `Can't save: <reason>` instead of writing a save that would come back
+  wrong or silently doing nothing.
+* Autosaves use their own slot (`runtime/iron_gang_prototype.autosave`), so they never overwrite a
+  save the player made by hand. F9 loads whichever slot is newer via the new
+  `SaveGame::ChooseMostRecent` — "load" means "resume" — and the status line says which it was.
+* `IronGangGame` gained `CaptureWorldState()`/`CaptureSnapshot()`, so the manual save, the autosave,
+  and the checkpoint world all record state through one path rather than three copies.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestAutosaveSchedulingAvoidsUnsafeMoments` covers the interval not firing early, a request held
+across 60 blocked frames and firing the instant it is safe, minimum spacing collapsing two triggers
+while deferring the second, trigger priority deciding only the reported label, a repeated request
+served once rather than queued, `Reset()` abandoning a pending request, a blocked interval, a zero
+interval disabling periodic autosaves without disabling event ones, and the full block-reason
+precedence with player-facing text asserted non-empty for every reason and trigger.
+`TestLoadChoosesTheMostRecentSave` covers no saves, one save, a newer autosave, a newer manual save,
+and a missing candidate — setting timestamps explicitly rather than trusting filesystem resolution.
+
+An end-to-end run confirms the write path: `--profile-scenario mixed --smoke 1600` (the game runs a
+fixed 60 Hz step, so that is ~26.7 s of simulated time) exited 0 having written **two** autosaves —
+`runtime/iron_gang_prototype.autosave` plus `…autosave.bak`, both 919 bytes with a current-format
+header, four minutes apart in wall-clock terms. That is the deferred `DistrictArrival` trigger and
+then a later one, and it incidentally exercises backup rotation on the autosave slot as well as the
+manual one. No `autosave failed` line appears in the run log. Note the `--profile-scenario mission`
+run does **not** produce one: it completes and exits at about 15 s of simulated time, inside the
+minimum spacing, which is the scheduler behaving as designed rather than a failure.
+
+**Boundaries.** The 180-second interval and 20-second spacing are compile-time constants;
+`assets/config/game.json` is still not read by anything (plan_04's configuration loader). One
+autosave slot, one backup generation each — no rotating history, profiles, or slots
+(`IG-29-006`/`032`). Autosaving is not asynchronous (`IG-29-012`), so the write happens on the game
+thread; at this save size that is microseconds, but it is not free.
+
+## Checkpoints record the world they were reached in (2026-08-25)
+
+plan_29 `IG-29-009`/`029`/`030`/`031` closed; `IG-29-007` advanced. Closes the gap the entry below
+left: a checkpoint carried the mission's state and variables, but not where the player and vehicle
+stood, so `RetryMission()` after loading a save fell back to a full restart.
+
+**What changed.**
+
+* `SaveSnapshot` now **derives from** a new `WorldStateSnapshot` (player position/yaw, vehicle
+  position/yaw/speed, driving flag, district). The live world and a checkpoint's world are one type
+  rather than two declarations of the same seven fields, every existing `snapshot.playerPosition`
+  still compiles, and `WorldStateSnapshot world = snapshot;` takes exactly the world half.
+* `SaveSnapshot::missionCheckpointWorld` is an `optional<WorldStateSnapshot>`, written as additive
+  `checkpoint_*` keys — **no format-version bump**, which is precisely what the previous entry's
+  versioning work made safe. It is all-or-nothing on read: a partial block is dropped rather than
+  half-applied, because putting the player somewhere and the vehicle nowhere is worse than a
+  restart.
+* `IronGangGame` keeps the world half in an `optional`, saves and restores it, and `RetryMission()`
+  now works straight after a load. `LoadPrototype()` and `RetryMission()` share one new
+  `ApplyWorldSnapshot()` instead of two copies of the same restore sequence — which also means the
+  cutscene-skip and traffic-respawn safeguards can no longer drift apart between the two paths.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; new
+`TestCheckpointWorldSurvivesSaveLoad` covers the round trip (positions, yaws, speed, driving flag,
+and a checkpoint district deliberately different from the live one, to prove the two do not bleed
+into each other), a save with no checkpoint world loading with none, and a partial world half being
+dropped while the mission half stays intact. `TestPrologueFailsAndRetriesUnderPoliceChase` remains
+the scripted-failure integration test for the mission half. `scripts/check-syntax.sh` clean,
+`git diff --check` clean, `--smoke 200` exits 0 with no errors. Checkpoint placement conventions for
+mission authors are documented in `docs/mission-scripting.md`; the new save keys in
+`docs/save-format.md`.
+
+**Boundaries.** Wanted state is still deliberately not saved, so a load (or a retry) starts with the
+police clear — a design choice from plan_22, not an oversight. Ambient traffic and pedestrians are
+respawned rather than restored. Autosave, profiles, and slots remain untouched, so a checkpoint is
+still only as durable as the player's last manual save.
+
+## Save format integrity: versioning, atomic write, backup, checksum (2026-08-25)
+
+plan_29 `IG-29-001`/`002`/`003`/`004`/`022`/`023`/`025` closed; `IG-29-015`/`016`/`024` advanced.
+Done **before** extending the save further (the checkpoint world half the entry below flagged),
+because adding fields to a format with no version, no atomicity, and no integrity check compounds
+the problem rather than closing it.
+
+**What changed.** `SaveGame` was a single `WriteAllText` of a `format=iron-gang-save-v1` document
+whose reader `at()`-ed required keys — a torn write, a truncated file, or a missing field lost the
+save or surfaced as `map::at`. Now:
+
+* **Format version 2**, with `kMinSaveFormatVersion`/`kCurrentSaveFormatVersion` and a parsed,
+  range-checked `format=iron-gang-save-v<N>` first line. A newer version is refused by name rather
+  than half-read; version 1 still loads and is converted on read (`mission_state`'s int index →
+  `mission_state_id` through the exact table the deleted enum had), with
+  `SaveReadDiagnostics::formatVersion` reporting which version the file was.
+* **Atomic write.** The document goes to `<path>.tmp`, the existing save rotates to `<path>.bak`,
+  then the temporary is renamed into place — two renames within one directory. A failure at any
+  point leaves the previous save intact where it was or as the backup, never a half-written file at
+  the save's own path. A leftover temporary from an interrupted run is ignored and replaced.
+* **One rolling backup**, with automatic fallback: if the primary file is missing, corrupt, or
+  unsupported, `Read()` uses `<path>.bak` and reports it through `SaveReadDiagnostics::usedBackup`
+  and `primaryError`. `IronGangGame::LoadPrototype` logs the reason and shows "Loaded backup save" —
+  recovering silently would hide that the player lost the progress between the two.
+* **Checksum.** Line two is `checksum=<FNV-1a 64-bit hex>` over every byte after it. Documented as
+  damage detection, not tamper protection. Missing required fields are now reported by name.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; new
+`TestSaveFormatRobustness` covers the round trip, no surviving temporary file, backup rotation and
+contents, a flipped byte falling back to the backup with the reason reported, truncation with a
+damaged backup failing cleanly, a future version refused, a version-1 file migrating, a missing
+field named, a leftover garbage temporary being replaced, and — standing in for a full disk — a
+write into a read-only directory that must fail and leave the existing save byte-for-byte intact
+(asserted only when the write really failed, so the case is skipped rather than falsely passing
+under root). `TestMissionVariablesSurviveSaveLoad`'s malformed-variable case was rewritten as a
+version-1 document, because appending junk to a version-2 save is now correctly rejected as
+corrupt — the old test was only passing because nothing checked integrity. `scripts/check-syntax.sh`
+clean, `git diff --check` clean, `--smoke 300` exits 0. Schema and rules documented in
+`docs/save-format.md`, linked from `README.md`.
+
+**Boundaries.** No migration registry (`IG-29-026`) — with two versions the conversion is one branch,
+and `docs/save-format.md` says when to add it. No profiles/slots, autosave, settings separation,
+thumbnails, or CLI inspector. The world half of a mission checkpoint is still not saved, so a retry
+straight after a load restarts the mission; that is the next task (`IG-29-009`/`029`).
+
+## Branching missions, wanted-state facts, and a real failure/retry loop (2026-08-25)
+
+plan_24 `IG-24-043` closed; `IG-24-006`/`007`/`024` advanced; plan_22 `IG-22-007` advanced. This is
+the integration scenario the previous entry deliberately left open: **nothing in the running game
+could fail**, so failure and retry had unit tests only.
+
+**What changed.**
+
+* **Branching.** A state may declare `"transitions": [{ "when": …, "next": … }, …]`, evaluated in
+  file order every frame with the first matching condition winning. `when`+`next` is now the
+  one-entry shorthand for the same list, and mixing the two spellings is a load error. At most 8
+  per state. `MissionStateDefinition::condition`/`next` were replaced by that list, so the runtime
+  has exactly one notion of where a state goes.
+* **Wanted-state facts.** `PoliceSystem::GetChaseSeconds()` is new; `police_alerted`,
+  `police_chasing`, and `police_chase_seconds` are declared facts. They are *pushed in* by the game
+  through the new `PrototypeMission::SetFact()` rather than derived from `Update()`'s arguments,
+  because `PoliceSystem` belongs to the game — that is the extension point later subsystems use.
+* **The committed prologue can now fail.** `drive_to_warehouse` is a checkpoint and branches:
+  `police_chase_seconds > 25` → `busted` (`"outcome": "failed"` with its own reason), otherwise the
+  delivery completes. The HUD shows `Mission failed: … | R: retry`.
+* **In-game retry.** `R` retries a failed mission (and still resets the whole prototype otherwise).
+  `IronGangGame::RetryMission()` restores the mission half from `PrototypeMission::Retry()` and the
+  world half — player, vehicle, district — from a snapshot `CaptureMissionCheckpointWorld()` takes
+  the moment the mission records a new checkpoint, and resets the police response, without which the
+  chase that failed the mission would fail it again within a frame.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests.
+`TestMissionBranchesOnFirstMatchingTransition` covers order-dependent branching, the
+first-match-wins rule when both conditions hold, and `SetFact` rejecting a wrong type or an
+undeclared fact. `TestPrologueFailsAndRetriesUnderPoliceChase` is the integration scenario: it
+drives the **committed** `assets/missions/prologue.mission.json` against the **real** `PoliceSystem`
+frame by frame — speed past a witness, get chased, fail on the mission's own branch with its own
+reason, retry back to the checkpoint with `cargo_secured` still set, confirm a cleared chase does
+**not** immediately re-fail the mission, and complete the delivery afterwards counting exactly one.
+Seven new rejection cases cover the transition spellings. A `--profile-scenario mission` run through
+the real game loop logs `checkpoint "drive_to_warehouse"` and still completes normally when no chase
+occurs — the new failure branch does not disturb the deterministic performance workload.
+`scripts/check-syntax.sh` and `git diff --check` clean; the prologue's registry hash updated again.
+
+**Boundaries.** The save carries the mission half of a checkpoint but not the world half, so a retry
+straight after loading a save falls back to a full restart (persisting the world half belongs with
+plan_29's checkpoint work). Branching is on world state only — no player-chosen branch exists
+(`IG-24-024`'s remaining half). Surrender and arrest are still missing from `PoliceSystem`
+(`IG-22-007`).
+
+## Mission failure reasons, checkpoints, and retry policies (2026-08-25)
+
+plan_24 `IG-24-009`/`010`/`041`/`042`/`044`/`045` closed; `IG-24-002`/`019`/`029` extended;
+`IG-24-043` left open on purpose (see Boundaries). Builds directly on the outcome states added in
+the entry below, which could mark a mission failed but gave it nowhere to go afterwards.
+
+**What changed.**
+
+* A failing state explains itself: `"reason": "The police took the shipment"` alongside
+  `"outcome": "failed"`. `PrototypeMission::GetFailureReason()` returns it, and both the on-screen
+  HUD and the window title show `Mission failed: <reason>` in place of the objective line (one
+  shared `MissionStatusLine` helper, so the two paths cannot drift). A reason on a non-failing state
+  is a load error — nothing would ever read it.
+* A state may declare `"checkpoint": true`. Entering it records its id **and the mission's variables
+  as they stand once its entry actions have run**. That ordering is the point: `Retry()` restores
+  the recorded values without re-running those actions, so a counter incremented on entry is not
+  incremented twice by a retry. A checkpoint state may not also be an outcome (a state that ends the
+  mission cannot be retried from).
+* `"retry": "checkpoint"` (default) or `"mission_start"` at the mission's top level. `Retry()`
+  honours the policy and falls back to a full restart when no checkpoint has been reached yet, so a
+  mission declaring no checkpoint behaves identically under either. Retrying does not consume the
+  checkpoint — repeated failures return to the same place. `Reset()` remains the unconditional
+  restart and discards the checkpoint.
+* The checkpoint is persisted: `mission_checkpoint_state_id` plus one
+  `mission_checkpoint_var.<name>=<type>:<value>` line per recorded variable. Restoration is
+  fail-safe — a checkpoint naming a state the loaded mission no longer defines is dropped entirely
+  (a retry that went nowhere would be worse than a restart), and a variable whose declaration or
+  type changed is dropped individually; both are reported through the same warning path the game
+  already prints for mission variables.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests —
+`TestMissionCheckpointRetryAndFailureReason` (reach a checkpoint, fail, retry, and land back on the
+checkpoint with the recorded counter rather than the declared one or a doubly-incremented one; the
+same mission under `mission_start` restarts; a checkpoint retry with no checkpoint yet restarts;
+a retry does not consume the checkpoint) and `TestMissionCheckpointSurvivesSaveLoad` (round trip,
+undefined-state checkpoint dropped with a warning, type-changed checkpoint variable dropped with a
+warning, checkpoint-free save loads as having none) — plus seven new rejection cases in
+`TestMissionValidationRejectsMalformedData` (unknown retry policy, retry/checkpoint/reason in a
+version-1 file, reason without a failed outcome, checkpoint that is also an outcome, non-boolean
+checkpoint). `--profile-scenario mission` still completes the whole mission through the real game
+loop; `scripts/check-syntax.sh` clean; `git diff --check` clean.
+
+**Boundaries.** `IG-24-043`'s integration scenario is deliberately still open: **nothing in the
+running game can fail yet**, so no `--smoke`/`--profile-scenario` run exercises failure or retry —
+only the unit tests do. The obvious way to close it is a real fail condition driven by the existing
+`PoliceSystem` chase state, which would also close part of `IG-24-006`'s wanted-state conditions.
+The prologue mission is unchanged by this entry: it declares no checkpoint and cannot fail.
+
+## Free-form mission state ids, outcomes, and save migration (2026-08-25)
+
+plan_24 `IG-24-018` closed; `IG-24-002`/`009`/`019`/`029` advanced. Follows directly from the
+expression-evaluator entry below, which left `PrototypeMission` still restricting a mission file to
+the five state ids the int-based save format encoded — so no mission with a new state could be
+authored. That restriction is gone.
+
+**What changed.**
+
+* `PrototypeMissionState` (the fixed `Introduction`…`Completed` enum) is **deleted**. The mission's
+  authoritative state is now `std::string stateId_`; the API is `GetStateId()`, `IsInState(id)`, and
+  `SetStateId(id)` — the last of which returns false, leaving the mission untouched, for an id the
+  loaded mission does not define, rather than stranding it in a state with no objective, condition,
+  or way out.
+* A state may declare `"outcome": "completed"` or `"failed"` (schema version 2). `IsCompleted()`,
+  `IsFailed()`, and `IsFinished()` read that — no engine code keys off a particular state id any
+  more, and a mission can now *fail*, which is the groundwork `IG-24-009`/`010` needed. An outcome
+  state must be terminal, and a mission with no state that can end it is a load error. A file that
+  declares no outcome at all falls back to the pre-`outcome` rule (a terminal state named
+  `completed` counts as success), so every version-1 file still loads.
+* The save writes `mission_state_id=<id>`. A save in the earlier format (a 0-4 index into the
+  deleted enum) is migrated on read through that enum's exact mapping; an out-of-range index, or a
+  save with neither field, is rejected rather than silently clamped to state 0. This is `IG-24-018`'s
+  persisted-state half.
+* `IronGangGame`'s one remaining enum comparison became `mission_.IsInState("enter_vehicle")` (the
+  deterministic mission profiling scenario), and its load path reports a save state the loaded
+  mission does not define.
+
+**Verification (no display).** Strict-warning build clean; **CTest 11/11**; two new core tests —
+`TestMissionStateIdsAreNotAFixedSet` (a mission whose states are `briefing`/`stakeout`/`escaped`/
+`caught` loads, transitions, reports `completed` then `failed` outcomes, refuses an undefined state
+id, and round-trips its free-form id through the save) and `TestSaveMigratesLegacyMissionState`
+(legacy index 3 → `drive_to_warehouse`, index 0 → `introduction`, out-of-range rejected, no-state
+rejected, `mission_state_id` wins over a legacy index) — plus four new rejection cases in
+`TestMissionValidationRejectsMalformedData` (unknown outcome, outcome with a `next`, outcome in a
+version-1 file, a mission nothing can end). The `--profile-scenario mission` run still completes the
+whole mission through the real game loop. `scripts/check-syntax.sh` clean; asset-registry notice
+verified after the prologue mission's hash changed again (it now declares `"outcome": "completed"`
+explicitly rather than relying on the compatibility rule).
+
+**Boundaries.** A failure *reason*, a retry policy, and checkpoints distinct from a plain save are
+still open (`IG-24-009`/`010`/`041`-`045`), and nothing in the prologue mission can fail yet, so the
+failure path is exercised by tests rather than by gameplay.
+
+## Mission variables and the condition/action expression evaluator (2026-08-25)
+
+plan_24 `IG-24-013`/`014`/`016`/`029`/`030`/`031`/`032`/`033`/`035` closed; `IG-24-002`/`005`/`006`/
+`007`/`018`/`019`/`034` advanced to partial with itemized remainders. Nothing about gates M12 or M14
+changed.
+
+**What was added.** Mission conditions are no longer one fixed engine signal named by string. Four
+new translation units under `src/Missions/` (`MissionValue`, `MissionContext`, `MissionExpression`,
+plus the rewritten `MissionDefinition`) give a mission file typed variables and a real, engine-
+evaluated expression language:
+
+* `MissionValue` — a four-type value (`bool`/`int`/`float`/`string`) whose `ToText()`/`Parse()`
+  round-trip exactly, which is what the plain-text save file relies on (float uses the shortest
+  round-trip form via `std::to_chars`).
+* `MissionContext` — one symbol table holding read-only engine *facts* and mission-owned
+  *variables*, each declared with an initial value that fixes its type. A wrong-typed assignment,
+  a duplicate/shadowing declaration, writing a fact from a mission, or exceeding the 64-variable
+  cap are all rejected rather than coerced.
+* `MissionExpression` — tokenizer, recursive-descent parser, **static type check**, and evaluator
+  over a flat node array. `|| && ! == != < <= > >= + - * /`, unary minus, parentheses, literals
+  (strings single-quoted so they need no escaping inside JSON), and identifiers bound to declared
+  symbols. Chained comparison is rejected; `&&`/`||` short-circuit; int/float mixing promotes to
+  float; division by zero is an evaluation error, not an infinity. Limits: 512 source characters,
+  128 tokens, 96 operations, depth 16, 256 evaluation steps — recursion is impossible because the
+  grammar has no calls.
+* `MissionDefinition` — schema version 2 (`variables`, `when`, `onEnter`), with version 1 still
+  loading unchanged because every gate-M7 condition name is still a declared bool fact. Entry
+  actions are `set` (type-checked assignment) and `log`.
+* `PrototypeMission` — declares the seven prototype facts (`dialogue_finished`, `player_driving`,
+  `player_vehicle_distance`, `player_near_vehicle`, `player_in_warehouse_goal`,
+  `vehicle_in_warehouse_goal`, `player_driving_in_warehouse_goal`), refreshes them every `Update()`,
+  runs entry actions exactly once per entry, and logs every transition with the condition that fired
+  it. `Reset()` is a retry (restores declared values, re-runs the initial state's actions);
+  `SetState()` is a save restore (does not).
+* `SaveGame` — additive `mission_var.<name>=<type>:<value>` lines, one per variable, so a string
+  value may contain any character but a newline. A saved variable the mission no longer declares, a
+  changed type, or a malformed line is skipped and reported instead of failing the load.
+
+The committed `assets/missions/prologue.mission.json` moved to version 2 and now declares four
+variables and uses expressions: `player_vehicle_distance <= handover_radius` puts the handover
+threshold in the mission file instead of the engine (it was a hardcoded `9.0F` squared-distance
+literal), and `player_driving && vehicle_in_warehouse_goal && cargo_secured` replaces the fused
+`player_driving_in_warehouse_goal` signal. Its registry hash in
+`assets/licenses/asset-registry.csv` was updated to `388fa781…8b60`.
+
+**Verification (all no-display, offscreen SDL).**
+
+* `cmake --build --preset compile-software` — clean, no warnings under the project's strict flags.
+* `ctest --preset compile-software` — **11/11 passed**, including `iron_gang_asset_registry_tests`
+  after the mission-file hash update (it failed first, exactly as designed, on the stale hash).
+* `iron_gang_core_tests` — 5 new cases pass alongside the existing 27:
+  `TestMissionExpressionEvaluatesTypedOperations` (operators, precedence, promotion, string
+  comparison, short-circuiting, live re-evaluation, `ResetVariables`),
+  `TestMissionExpressionRejectsMalformedInput` (20 malformed sources plus the length/depth/token
+  limits, divide-by-zero at evaluation, `EvaluateBool` refusing a non-bool, and the empty-expression
+  case), `TestMissionVariablesEnforceTypes` (declaration/assignment/capture rules and
+  `ToText()`/`Parse()` round trips for all four types), `TestMissionEntryActionsRunOncePerEntry`
+  (actions run once per entry, not per frame; a condition reading a mission variable fires; `Reset`
+  behaves as a retry), and `TestMissionVariablesSurviveSaveLoad` (save round trip, order preserved,
+  unknown-name and changed-type warnings, malformed-line tolerance).
+  `TestMissionValidationRejectsMalformedData` grew from 6 to 17 rejection cases.
+* `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./cmake-build-compile-software/iron_gang --smoke
+  4000 --profile … --profile-scenario mission` — the mission completes through the **real game
+  loop** on the new evaluator, logging all four transitions and the completion action:
+  `introduction -> reach_vehicle (dialogue_finished)`,
+  `reach_vehicle -> enter_vehicle (player_vehicle_distance <= handover_radius)`,
+  `enter_vehicle -> drive_to_warehouse (player_driving)`,
+  `drive_to_warehouse -> completed (player_driving && vehicle_in_warehouse_goal && cargo_secured)`,
+  `delivery complete`. A plain `--smoke 600` run shows no fallback message, confirming the
+  version-2 file loads rather than silently falling back to the built-in mission.
+* `scripts/build-web.sh`'s configure/build (Emscripten 6.0.3, WEBGL2) — links
+  `web/build/iron_gang.{js,wasm,data}` with only a pre-existing CNA warning, confirming that the
+  new `std::to_chars`/`std::from_chars` float paths compile and link under Emscripten's libc++ as
+  well as the host toolchain. It needed both `IRON_GANG_CNA_DIR` and `IRON_GANG_SHARP_RUNTIME_DIR`
+  passed explicitly, because the checkout has moved a directory deeper than the preset defaults
+  assume — see `NEXT.md`.
+* `scripts/check-syntax.sh` — clean over every `.cpp`.
+* `scripts/asset_registry.py --check-notice THIRD_PARTY_ASSETS.md` — 15 approved shipping assets,
+  4 external, notice verified.
+
+A condition that faults at runtime (a divide by zero, say) faults on every frame, so the failure is
+logged once per state entry rather than once per frame; `EnterState`/`SetState` clear the guard.
+
+**Boundaries.** Per-campaign variable scope, failure/retry states, checkpoints distinct from a plain
+save, and the remaining `IG-24-006`/`IG-24-007` conditions and actions are still open — see each
+entry's own note in `plan/plan_24-mission-framework-and-scripting.md`. `PrototypeMission` still
+restricts a mission file to the five state ids its int-based save format encodes, so a mission with
+a new state cannot be authored yet. Nothing here was visually verified: this environment has no
+display.
+
+## Gate M1's reset and quit, and the last of the M1 executable cluster (2026-08-26)
+
+plan_39 `IG-39-024` closed. Gates M12 and M14 untouched.
+
+**Both are one keypress, which is exactly why they are worth measuring.** A reset that reloads the
+district but leaves the mission mid-flight, and a quit that closes the window without ending the
+process, both look fine from outside.
+
+**Reset.** `reset_prototype.inputscript.json`: the player is driving at z = -17.3 in
+`drive_to_warehouse`, presses Restart, and is back **on foot at the authored spawn (0, 20)** with the
+mission at `introduction` and the district back to `warehouse_block`. The state still holds 100
+updates later -- a reset immediately undone by the still-running input would be worse than none.
+
+The test asserts there was **something to reset** first: driving, more than 20 m from the spawn, and
+past the first mission state. Without that, a reset that did nothing would pass every other assertion
+on a run that had never left the spawn.
+
+**Quit.** `pause_and_quit.inputscript.json`: Escape opens the pause menu, one up-press wraps the
+selection to Quit (`MenuModel` wraps and skips disabled entries, so this needs no knowledge of how
+many entries are enabled), Confirm activates it. The process ends at update ~420 while the script
+runs to 600.
+
+That "stopped early" is the evidence, and it needs one more assertion to be worth anything: a script
+running out and a Quit **both exit 0**, so the test additionally requires the script-finished log
+line (`input script "..." finished; exiting`) to be **absent**. Without it the test could not tell a
+quit from a run that simply played out.
+
+**Verified.** 22 CTest targets, all passing; `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked, after two that silently did nothing.** The first attempt patched
+`mission_.Reset();` and the `MenuAction::Quit` block by string match, and both substitutions failed
+to apply -- so both "mutations" reported zero failures, which reads exactly like a test that does
+not work. Locating the real lines first (`ResetPrototype`'s `mission_.Reset()` at line 1518, and
+`Exit()` in `ApplyMenuAction`) and mutating those makes each fail 5 assertions. A mutation that does
+not apply is indistinguishable from a mutation the tests miss, and the difference matters.
+
+**Not verified.** Reset is only exercised from the un-failed path -- pressing Restart with a failed
+mission retries from the checkpoint instead, and that branch has unit tests but no gate run. Quit is
+exercised from the pause menu only, not from a window-close event, which this environment cannot
+send. And nothing here checks that the process released its resources, only that it returned 0.
+
+**The M1 executable cluster is now closed**: configure and build (`IG-39-017`/`018`) were already
+recorded, a visible window (`019`) was demonstrated on EasyGL this morning, and on-foot controls
+(`020`), vehicle controls (`021`), dialogue and mission (`022`), save and load (`023`) and reset and
+quit (`024`) are each measured by a committed script. What remains of gate M1 itself (`IG-39-002`) is
+the summary entry over them.
+
+## Gate M1's dialogue, mission and save/load, measured (2026-08-26)
+
+plan_39 `IG-39-022` and `IG-39-023` closed. Gates M12 and M14 untouched.
+
+**Both were plausibly true already** -- the owner played the game this morning and the log showed
+the mission transitions. But a log line is not a measurement: it says the mission changed state, not
+that the conversation was read through first, and certainly not that loading put the player back
+where they saved.
+
+**`IG-39-022`, dialogue and mission.** `mission_completion.inputscript.json` plays the prologue end
+to end, and it completed on the first attempt -- unlike the vehicle gate, which took four scripts.
+Asserted from the trace:
+
+- All three lines shown, **in the order the conversation authors them**, not merely all present.
+- The dialogue **finished before** the mission left `introduction`. That is the prologue's own
+  `dialogue_finished` gate, and asserting it is the difference between "the mission advanced" and
+  "the mission advanced for the right reason".
+- The mission ran `introduction -> reach_vehicle -> enter_vehicle -> drive_to_warehouse` in order.
+- The campaign handed over to `countryside_run`. That handover *is* completion: the prologue never
+  appears as `completed` in a trace, because the next mission starts on the same update.
+
+**`IG-39-023`, save and load.** Drive, quick-save, drive on, quick-load:
+
+```
+u=760   z = -11.83   speed 11.2 km/h   warehouse_block   <- saved here
+u=1140  z =  34.97   speed  0.3 km/h   countryside       <- drove on, crossed a district boundary
+u=1150  z = -12.33   speed 10.8 km/h   warehouse_block   <- one update after the load
+```
+
+Loading restores the position, the district, the driving flag **and the vehicle's speed**. The
+middle row is asserted too: without a check that the run actually went somewhere first, a load that
+restored nothing would satisfy every other assertion in the test.
+
+**Verified.** 21 CTest targets, all passing; `./scripts/check-syntax.sh` clean. Mutation-checked:
+skipping `vehicle_.Restore(...)` on load fails 3 assertions, and disabling quick-save entirely fails
+5.
+
+**Not verified.** The trace records what the game *is*, not what the player *sees*, so nothing here
+says the subtitle was legible or the camera framed the handover. Save/load is checked on one
+quick-save; the autosave path, the rolling backup and the v1 migration all have their own unit tests
+but no gate run. And the prologue is the only mission with a gate script -- `countryside_run` is
+entered but never driven to its own completion.
+
+## Gate M1's vehicle controls, and two defects the measurement found (2026-08-26)
+
+plan_39 `IG-39-021` closed. Gates M12 and M14 untouched.
+
+**Measured, not looked at.** `tests/input-scripts/vehicle_controls.inputscript.json` drives each
+control and `iron_gang_gate_vehicle_tests` checks the trace:
+
+| Control | Measured |
+| --- | --- |
+| gets into the car | driving by update 340 |
+| throttle | 0.8 -> 20.8 km/h |
+| handbrake | -8.3 km/h in 60 updates, against -1.4 km/h coasting over the same window |
+| steering | yaw 0 -> -0.296 (left) -> +0.176 (right) |
+| reverse | reaches -9.4 km/h |
+
+The first assertion is that the player actually gets into the car, because every other assertion
+would otherwise be measuring a pedestrian -- and most of them would still pass.
+
+**Defect one: releasing the throttle does not brake.** The car keeps accelerating for about a
+second after the input is released -- 17.8 km/h at release, 27.8 km/h a second later -- on Jolt's
+default vehicle tuning, which `NEXT.md` has listed as unverified since the physics landed. Coasting
+then decelerates at roughly 1.4 km/h per second, so the car effectively has no engine braking.
+
+The test **pins this as it is** rather than hiding it: `test_releasing_the_throttle_does_not_brake`
+asserts the car is faster a second after release, and says in its own message that if this ever
+fails the tuning was fixed and this note must be updated. A defect nobody has written down is a
+defect that gets rediscovered; a defect asserted only as "TODO" is one that silently changes.
+
+**Defect two: nothing stops the player driving off the world.** An earlier version of this script
+drove straight off the district's 100x100 ground plane and the car simply fell -- y reached **-814**
+and was still dropping when the run ended. There is no world bound, no kill plane and no respawn.
+The script now stays on the road, and `test_the_car_never_leaves_the_ground` asserts the car never
+drops below y = -1, so a future script that wanders off is reported rather than quietly measuring a
+falling car.
+
+**Four scripts it took to get an honest measurement**, each failure worth recording because none
+would have been visible in a screenshot:
+
+1. The first run drove 180 m off the map (defect two).
+2. The second got stuck on the kerb at x = -7.79; the steering-right and handbrake segments were
+   measuring a stationary car and still "passed" a naive eyeball check.
+3. The third crossed the district exit at z = -47, so the later segments were measured in the
+   countryside -- the trace's `district` field is what revealed it.
+4. The fourth's reverse window was too short: the car was still braking at +7.9 km/h when the
+   segment ended, so "reverse" had never been demonstrated.
+
+**Mutation-checked.** Forcing `handBrake = 0` fails 3 assertions; forcing `steer = 0` fails 3.
+20 CTest targets, all passing; `./scripts/check-syntax.sh` clean.
+
+**Not verified.** The handbrake is compared against coasting, not against a brake pedal -- there is
+no separate brake input to test. Steering is measured as yaw change, not as a turning radius, so
+nothing here says the car turns *correctly*, only that it turns. And the two defects above are
+recorded, not fixed.
+
+## Verifying a gate by measurement, and walking into a lamp post (2026-08-26)
+
+plan_39 `IG-39-020` closed; plan_14 `IG-14-012`'s missing evidence supplied. Gates M12 and M14
+untouched.
+
+**Why a new mechanism was needed.** The vertical-slice gates ask for controls, missions and
+save/load to be *verified*. Until now a run's only observable outputs were log lines and
+screenshots. A log line says a mission changed state; it does not say the player moved when a key
+was held. A screenshot says what one frame looked like; it does not say the player stopped **at** a
+lamp post rather than beside one. So `--trace-state <path>` records what the game is doing --
+position, yaw, driving, speed, district, mission state, the showing dialogue line -- as JSON Lines,
+every N updates. It adds no game state and nothing reads it back; it is a diagnostic that, failing,
+logs once and disables itself rather than taking the run down.
+
+**`IG-39-020`, measured.** `tests/input-scripts/on_foot_controls.inputscript.json` drives each
+control in turn and `iron_gang_gate_on_foot_tests` checks the trace:
+
+| Control | Measured |
+| --- | --- |
+| forward / back | z 20.00 -> 14.23 / 13.85 -> 19.63 (the spawn faces -Z) |
+| strafe right / left | x 0.00 -> 3.68 / 4.05 -> 2.48, **yaw unchanged** |
+| turn left / right | yaw 0.00 -> -2.84 / -3.00 -> -0.16, **position unchanged** |
+| walk vs sprint | 3.67 m vs 5.54 m over the same 60 updates (1.51x) |
+
+The run is also asserted to stay on foot throughout -- otherwise every other assertion would be
+measuring the sedan.
+
+**Two segments the first attempt got wrong, both found by the trace rather than by review.** The
+original script measured forward travel from the spawn, where the player walks 6.5 m and stops dead
+at z = 13.47: the parked sedan sits at z = 11. The sprint segment then measured 0.04 m of travel,
+because the player was already against the car. The walk/sprint comparison moved to a clear stretch
+of road. A screenshot would not have shown either problem.
+
+**`IG-14-012`'s missing evidence.** The previous entry ended "nobody has walked into a bench" -- the
+proxies were asserted to exist, to be the right boxes, and to reach the collider list, but that Jolt
+then stops the player was *inferred*. `lamp_collision.inputscript.json` walks the player into the
+lamp at (-9, 22), which stands one metre in front of the hotel wall, and the same script runs twice
+against asset trees differing only in whether the collision sidecar is present:
+
+```
+with proxies:    final x = -8.386   (against the lamp post)
+without proxies: final x = -9.630   (through it, against the building)
+```
+
+Both runs end at the same z (22.160), so they are comparable. A 1.24 m difference, from data alone.
+
+**A test bug worth recording, because it produced a plausible answer.** The first version of that
+A/B reported identical values for both runs. `--trace-state` **appends**, both runs shared one trace
+path, and "the final record" was resolved with a `min`-based lookup that returned the *first* run's
+row from the concatenated file. The fix is a distinct file per run plus `max` on the update. Had the
+numbers happened to look different, this would have shipped as evidence of nothing.
+
+**Verified.** Six gate assertions above, plus `TestStateTraceRecordFormat` (one JSON object on one
+line; booleans as JSON booleans; mission state and dialogue line recorded; **positions keeping
+centimetre precision**, since a collision check compares positions a few centimetres apart and a
+record that rounds cannot answer the question it exists for; a quote in a value escaped; and
+appending twice producing two lines). 19 CTest targets, all passing;
+`./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Forcing `input.sprint = false` fails 3 assertions; not pushing the proxies into
+`colliders_` also fails 3 -- including the lamp A/B, which is the one that matters.
+
+**Not verified.** This is one gate of the M1 cluster. Vehicle controls (`IG-39-021`), dialogue and
+mission completion (`IG-39-022`), save and load (`IG-39-023`) and reset and quit (`IG-39-024`) are
+all still open, and all are now measurable the same way. The trace records the player's position but
+nothing about what the player can *see*, so nothing here says the camera followed correctly.
+
+## Collision proxies: the props stop being walk-through (2026-08-26)
+
+plan_14 `IG-14-011` and `IG-14-012` closed. Gates M12 and M14 untouched.
+
+**The gap the previous entry named.** The collision role reached the generated glTF as
+`node.extras.collision` and **nothing read it back**. Benches and bins were walk-through, and lamp
+posts collided with nothing -- `PrototypeWorld`'s placeholder lamp boxes are authored
+`collidable=false`, so those lamps had never had collision at all.
+
+**The convention (`IG-14-011`).** Proxies are whatever carries a blocking role. A detailed render
+mesh is authored `collision="none"` and paired with simple boxes marked `collision="static"` **in
+the same MC3 file**, so the pair cannot drift apart or ship half-updated; for the box props this
+game has today, the render box is already simple enough to be its own proxy. `trigger` is
+deliberately *not* a proxy role: registering a trigger as a static body would wall off the very
+volume it exists to watch, and there is a test asserting it never becomes one.
+
+**The pipeline (`IG-14-012`).** `scripts/extract_collision.py` walks the generated glTF's scene
+graph, accumulates each node's transform, and writes one world-space box per blocking node into
+`generated/models/collision/<name>.collision.json`. `build-assets.sh` runs it after the CNJ step.
+`CollisionProxySet` loads it, and `PrototypeWorld` pushes each box straight into `colliders_` --
+**not** into `boxes_`, because a proxy is collision, not something to draw -- so
+`BuildPhysicsStaticBodies()` registers them like any other static geometry.
+
+Separate from the `.cnj` on purpose, and that is the substance of the entry: the proxies register
+even if the render model never loads, and they do not change when someone re-tessellates the
+geometry that produced them. A physics world reconstructed by walking render meshes is a physics
+world that moves whenever an artist smooths a wall.
+
+Rotation is handled by transforming the local bounding box's eight corners and taking their extent
+-- exact for the quarter-turns props are actually placed at, and conservative (never smaller than
+the geometry) for anything else.
+
+**What actually imported.** 51 boxes from the street prop set: 14 lamp bases, 14 posts, 5 benches x
+4 parts, 3 bin bodies. Exactly the blocking parts -- the lamp arms and heads and the bin lids are
+`collision="none"` and are absent, which the test checks by name.
+
+**Verified.** `TestCollisionProxiesLoadAndRegister` (round trip; unsupported version; missing
+`proxies`; a **zero half-extent rejected with the proxy named**, because a zero-thickness collider is
+one objects tunnel straight through and is worse than none since it looks present; a two-number
+centre; an unknown field; a missing file). `TestDistrictRegistersItsCollisionProxies` checks the real
+district: the sidecar loads, at least 40 proxies import, `colliders_` grows by exactly that many, no
+non-blocking part became a collider, and a lamp-post proxy stands at the district's own authored
+lamp position (-9, -33). Because `assets/generated` is not committed, it takes the honest branch when
+the sidecar is absent -- asserting the district degrades to the built-in collider list rather than
+skipping silently. `tests/test_extract_collision.py` covers role filtering, a trigger never
+blocking, transform accumulation through a hierarchy, a role inherited from a group, a child
+overriding it, a quarter-turn swapping a non-cube's extents exactly, scale, a mesh without accessor
+bounds refused, and a node without a mesh. 18 CTest targets, all passing.
+
+**Mutation-checked, three ways.** Ignoring the role (every mesh becomes a collider) fails 5
+assertions; dropping the parent transform (every proxy at its local origin) fails 3; and not pushing
+the proxies into `colliders_` fails with `every imported proxy must reach the collider list`.
+
+**Not verified.** Nobody has walked into a bench. The proxies are asserted to exist, to be the right
+boxes, and to reach the collider list; that Jolt then stops the player is inferred from
+`BuildPhysicsStaticBodies()` treating them identically to every other collider, not observed. The
+proxies are axis-aligned boxes only -- a rotated bench's proxy is its conservative AABB, which is
+slightly larger than the bench. And nothing imports proxies for the warehouse or the sedan, whose
+collision still comes from `PrototypeWorld`'s own boxes.
+
+## Closing what the MC3 schema leaves open (2026-08-26)
+
+plan_09 `IG-09-007` closed. Gates M12 and M14 untouched.
+
+**The finding.** Mesh Craft's XSD types `collision` as `xs:string` with a default of `"none"`, so
+**any spelling validates**. Iron Gang had been writing `collision="static"` (12 objects) and
+`collision="trigger"` (1) across six files -- values that are **not** in MC3's own documented
+vocabulary (`none / box / sphere / capsule / mesh / convex`) -- and nothing had ever checked them.
+
+**The resolution, which is a decision rather than a fix.** The two vocabularies mean different
+things: MC3's describes the collider's **shape**, Iron Gang's describes its **role**. Every collider
+in this game is an axis-aligned box (`PrototypeWorld`'s `Aabb`), so shape carries no information at
+all, while "is this a wall, a trigger volume, or decoration?" carries all of it. So Iron Gang keeps
+its role vocabulary, and `docs/mc3-conventions.md` writes down *why*, along with the cost: Mesh
+Craft's own Walk Mode reads the shape vocabulary and will not understand `static`. A file authored
+to be walked in the editor as well as shipped would need revisiting.
+
+The values are not lost on export -- they reach the glTF verbatim as `node.extras.collision`, 51
+nodes' worth in `warehouse_block_props.glb` -- so a future importer reads the role directly rather
+than guessing it back from geometry.
+
+**Required metadata.** Every geometry object must **state** its collision rather than inherit the
+schema default: silence and a deliberate `none` are otherwise indistinguishable, and only one of
+them is an authoring decision. The rule applies inside `<definition>`s and `<group>`s too, because a
+rule that stopped at the top level would be avoided by wrapping. Every document must declare a
+`model` name, `unit="meter"` and `coordinate_system="right_handed_y_up"`, so nothing rescales on
+import.
+
+`scripts/check_mc3_conventions.py` enforces all of it, from `ctest` and from inside
+`build-assets.sh`. The whole tree already conformed; this makes that a property rather than a habit.
+
+**Verified.** `tests/test_mc3_conventions.py` breaks each rule against its own fixture: an unstated
+collision; a value outside the allowed set (using `"box"` -- MC3's *shape* vocabulary, which is
+exactly the confusion the rule exists to stop); every allowed value accepted; geometry hidden inside
+a `<definition>`; geometry inside a `<group>`; a definition without an id; wrong units; wrong axes;
+a missing model name. Plus the two vacuous-pass guards -- a document with no geometry, and an empty
+source list -- both of which raise rather than reporting success. 17 CTest targets, all passing.
+
+**Mutation-checked, three ways.** Not recursing into containers fails 5 assertions; widening the
+allowed set to include MC3's shape values fails 5; misspelling one entry of the geometry tag list
+(`"box"` -> `"bx"`) fails 13, because the checker then examines almost nothing and the vacuous-pass
+guard fires. That last one is the property that matters: the checker cannot quietly stop policing.
+
+**Not verified, and it is the interesting part.** `collision` reaches the glTF and **nothing reads
+it back into the physics world**. The benches and bins authored this morning are walk-through, and
+the lamp posts collide only because `PrototypeWorld` still authors placeholder boxes at their
+positions. Importing collision proxies is plan_14 `IG-14-011`/`IG-14-012`, and this prop set is now
+the content that will exercise it. `IG-09-006`'s naming and pivot conventions are only partly closed
+-- units, axes and the model name are enforced; naming and pivots are not.
+
+## A prop set authored once and instanced (2026-08-26)
+
+plan_09 `IG-09-008` closed; `IG-09-005` re-closed against a real *set* rather than the single prop
+it first shipped with. Gates M12 and M14 untouched.
+
+**The convention is MC3's own, not an Iron Gang invention.** MC3 already has `<definitions>` and
+`<instance>`: a prop is authored once as `<definition id="street_lamp">` and placed with
+`<instance definition="street_lamp" position="-9 0 -33"/>`. The XSD requires a definition's single
+child to be one element, so a multi-part prop wraps its boxes in a `<group>` -- which the validator
+built this morning reported as `warehouse_block_props.mc3.xml:21: element box: This element is not
+expected`, file and line, exactly as `IG-09-003` promised.
+
+**What was authored.** `assets/source/mc3/warehouse_block_props.mc3.xml`: three definitions -- street
+lamp, bench, waste bin -- instanced 22 times. 984 triangles, three materials, one of them an
+emissive lamp glass. It generates to `cnjVersion 2` with 82 mesh parts, each a `PbrEffect` carrying
+the material its MC3 declares.
+
+**Placement became content rather than code.** The previous iteration drew the lamp per position by
+matching box names in the renderer and mirroring east-side lamps in C++. Now `PrototypeRenderer`
+draws the whole set with **one `DrawModel` at the origin** and neither knows nor needs to know where
+the benches are; the mirroring is a `rotation="0 180 0"` on the instance. The placeholder lamp boxes
+are dropped only for the district the set was authored for.
+
+**Instancing pays in the asset, too.** 22 instances flatten to 82 mesh parts, but `mc3togltf` shares
+one glTF mesh per definition -- roughly 108 triangles of *unique* geometry rather than 984, with
+identical bench legs deduplicating further.
+
+**A content change I made by accident and then undid.** The first version placed lamps at
+`z = -30, -15, 0, 15, 30` -- round numbers I picked -- while the district authors them at
+`z = i * 11` for i in [-3, 3]. That silently moved and thinned fourteen lamps to ten. The whole
+argument for this substitution is that the district's boxes say where a lamp stands, so the
+instances now reproduce those positions exactly. A like-for-like capture at the same scripted update
+confirms it pixel for pixel: **1752 px of lamp glass before and after**, with 1964 px of bench and
+bin that were not there. Re-spacing the street furniture may well be worth doing, but as a decision,
+not as a side effect of picking round numbers.
+
+**The single-prop file was removed.** `street_lamp.mc3.xml`, committed an hour earlier, is
+superseded: its geometry is now a definition inside the set. Two copies of the same lamp is exactly
+the drift `IG-09-008` exists to prevent.
+
+**Two gaps in the guards, both found by mutation.** `content_budget.py` refused `<instance>` outright
+rather than guess a triangle count -- correct, and it meant the convention could not be budgeted
+until the tool learned it. It now expands definitions and refuses a definition that instances itself.
+Then a stubbed-out expansion (`triangles += 0`) still **passed every budget**, because a budget only
+asserts measured <= limit: a counter that stops counting reports zero and looks fine. Budgets are now
+two-sided -- measured triangles and materials must equal the recorded baseline, which also forces a
+content edit to update the number it claims. The same mutation now fails five assertions, and the
+self-instancing guard has its own fixture (two more).
+
+16 CTest targets pass, `./scripts/check-syntax.sh` clean.
+
+**Not verified.** The props are static geometry only: benches cannot be sat on, bins cannot be
+knocked over, and none of them collide -- the MC3 `collision="static"` metadata reaches the file and
+nothing reads it back into the physics world. `IG-09-007`'s allowed-collision-value convention is
+still open, and this set is the content that would exercise it. Only the warehouse block has a prop
+set; the countryside has none. And this has been seen as stills and pixel counts, not in motion.
+
+## The first prop authored through the working MC3 pipeline (2026-08-26)
+
+plan_09 `IG-09-005` closed. Gates M12 and M14 untouched.
+
+**What was authored.** `assets/source/mc3/street_lamp.mc3.xml` -- a base, a post, an arm and a head,
+with two materials: `iron` (roughness 0.72, metallic 0.65) and `lamp_glass`, which carries an
+`<emissive_color>`. 48 triangles.
+
+This is the first content written **and generated** here rather than inherited. The pipeline that
+had never run in this environment until this morning produced `cnjVersion 2` with four mesh parts,
+each on its own bone, each a `PbrEffect` carrying its own `diffuseColor`, `metallicFactor`,
+`roughnessFactor` and `emissiveFactor` -- including the head's emissive, which the MC3 declares and
+nothing in Iron Gang had to restate.
+
+**How it is placed, and what deliberately did not move.** `PrototypeRenderer` substitutes the model
+wherever the district authored a `lamp_west`/`lamp_east` box -- the same substitution the warehouse
+already uses. The box remains what the district **means** by "a lamp stands here"; the model is only
+how it looks. Placement, collision, the district map and the lightmap builder are untouched, and a
+workspace without generated assets still gets the procedural boxes. The `lamp_glow_*` boxes are
+dropped when the model loads, because the head carries its own emissive material rather than needing
+a separate glowing cube. East-side lamps are drawn with a 180 degree yaw so the arm reaches the road
+from both pavements.
+
+**Verified by colour, not by eye.** A like-for-like capture at the same scripted update shows the
+procedural glow's two tones -- (190,164,97) x1404 and (203,175,103) x471 -- replaced by a single
+(203,175,104) x1752. That is exactly the authored glass colour (1, 0.86, 0.51) times the shared sun
+brightness, which is stronger evidence than "it looks about right": the head is rendering, with the
+material the MC3 file declares, shaded by the same sun as everything else.
+
+The lamp is registered in `assets/licenses/asset-registry.csv`, budgeted in
+`assets/content-budgets.json` (48/192 triangles, 2/8 materials, 0/4 textures), and validated against
+Mesh Craft's XSD by the test added earlier today -- which globs the MC3 directory, so it picked the
+new file up without being told.
+
+**A gap the lamp exposed in the guards.** `content_budget.py` only checks the group containing a
+source it is *given*, and `build-assets.sh` only gives it the file being built -- so an MC3 file
+nobody has built yet is unbudgeted and nothing says so. That is exactly how this lamp arrived.
+`test_content_budget.py` now requires **every** shipped MC3 source to have a budget entry.
+Mutation-checked: deleting the lamp's entry fails three assertions.
+
+16 CTest targets pass, `./scripts/check-syntax.sh` clean.
+
+**Not verified.** One prop is not a "prop set": there is no bench, sign or bin, and `IG-09-008`'s
+definition/instance convention (author once, place many) does not exist -- the lamp is re-drawn per
+position rather than instanced. `metallic` and the emissive reach the effect and the software backend
+does nothing with them, so the head is bright because its base colour is bright, not because it
+emits. And the lamp has only been seen in a still, not in motion on the real display.
+
+## Deleting the workaround the stale diagnosis produced (2026-08-26)
+
+plan_08 `IG-08-014` stays partial, but for a smaller reason than before. Gates M12 and M14
+untouched.
+
+**What this removes.** `assets/models/model-materials.json`, `ModelMaterialTable`
+(`include/`/`src/Graphics/ModelMaterials.*`), `PrototypeRenderer::ShadedBaseColor()`, its loader in
+`IronGangGame::Initialize()`, the `iron_gang_model_materials_tests` CTest target, two C++ tests, the
+registry row, the `models` production directory, and its entries in the install list and the release
+archive's required files.
+
+All of it existed to work around "the CNJ pipeline drops material data" — a conclusion drawn from a
+`.cnj` that was months out of date. Keeping a second copy of numbers the asset already carries, with
+a test enforcing that the copy matches its source, is precisely the drift the pipeline exists to
+avoid.
+
+**What replaces it.** `PrototypeRenderer` captures each imported model's diffuse colour **once at
+load** (`CaptureModelDiffuseColors`) and multiplies it by the shared sun brightness each frame
+(`ApplyModelDiffuseColors`). Capturing once is the whole design: reading the colour back and
+multiplying in place would compound — 0.42 × 0.8, then × 0.8 again — and fade every model to black
+over a few seconds.
+
+**A diagnostic instead of a silent regression.** Removing the override means a workspace whose
+`assets/generated` predates CNA's material work would render white again, which is exactly the
+symptom that started this. `ModelPredatesMaterials()` detects a model whose meshes all use a
+pre-PBR effect and logs the fix by name:
+
+```
+[IronGang][assets][warning] warehouse.cnj carries no material (a pre-PBR asset) and will render
+white -- regenerate it with scripts/build-assets.sh
+```
+
+**Verified.** A scripted run at the same update as the previous iteration's capture renders a
+**byte-identical frame** — `ImageChops.difference` returns no bounding box — which is the strongest
+available evidence that the asset's own material produces exactly what the hand-maintained table
+did, and therefore that the table was redundant rather than load-bearing. The warning path was
+exercised directly: a copy of the asset tree with `warehouse.cnj` rewritten back to `cnjVersion 1`
+/ `BasicEffect` and its material fields stripped produces the warning above. 16 CTest targets pass
+(down from 17 — one target was deleted with the thing it tested), `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Replacing `ApplyModelDiffuseColors(...)` with the old
+`SetModelDiffuseColor(model, sunTint)` — overwrite instead of shade — changes the rendered frame in
+the region where the warehouse is (bounding box `(769, 0, 1280, 21)`). The distinction between
+shading a material and replacing it is therefore visible, not notional.
+
+**Not verified.** The compounding failure the capture-once design prevents is argued, not
+demonstrated: no test drives many frames and asserts the colour is stable, because that needs a
+graphics device. `metallicFactor`, `roughnessFactor` and `emissiveFactor` now reach the effect from
+the asset but the software backend does nothing with them — they are correct in the pipeline and
+inert in the renderer. Per-face baked lighting for imported geometry (`IG-08-014`'s remaining half)
+still has nowhere to bake into.
+
+## The MC3 pipeline actually runs here, and a diagnosis I got wrong (2026-08-26)
+
+plan_09 `IG-09-002` and `IG-09-003` closed. Gates M12 and M14 untouched. This entry also **corrects
+a finding published earlier the same day**.
+
+**The correction, first.** "Why every imported model was white" concluded that *the MC3 -> glTF ->
+CNJ pipeline drops material data entirely*, on the evidence of a generated `warehouse.cnj` that held
+only vertices, indices, a stride and an effect name. The owner said CNA's glTF/GLB handling had been
+substantially fixed recently and the claim was probably stale. It was.
+
+Building `mc3togltf` and running the pipeline end to end produces:
+
+```json
+{ "cnjVersion": 2, "type": "Model",
+  "bones": [ ... ],
+  "meshes": [ { "name": "Warehouse", "vertexStride": 48, "effect": "PbrEffect",
+                "metallicFactor": 0.05, "roughnessFactor": 0.84, "emissiveFactor": [0, 0, 0],
+                "diffuseColor": [0.42, 0.36, 0.31], "alpha": 1 } ] }
+```
+
+against the `cnjVersion 1` file I inspected, which had `"vertexStride": 32, "effect": "BasicEffect"`
+and no material at all. The tool's own source says the MVP material scope cuts are closed and warns
+that "keeping another loose copy here was exactly how four fields fell out of the .cnj path" -- they
+fixed precisely this. **The assets in `assets/generated` were months old**, that directory is
+git-ignored so nothing regenerated them, and I diagnosed the pipeline from its output without
+checking whether the output was current.
+
+The consequence: `assets/models/model-materials.json` and `PrototypeRenderer::ShadedBaseColor()`,
+added to work around a bug that no longer exists, are now redundant. They are **not** removed in
+this commit -- the shipped colours match the MC3 ones exactly (a test enforces it), so rendering is
+unchanged, and replacing an override with "read the material the loader already set, multiply by sun
+brightness" is its own change with its own before/after. Recorded as the next step rather than
+bundled in here.
+
+**What this unlocked.** `mc3togltf` had never been built in this environment, so `build-assets.sh`
+had never run and the MC3 half of the pipeline was untested here. It is built now (mesh-craft's own
+`build/`, Release, ccache), and all five shipped MC3 sources regenerate cleanly. A scripted game run
+with the regenerated PBR assets exits 0 with no warnings and renders correctly.
+
+**`IG-09-002`/`IG-09-003`, and why they were open.** `scripts/validate-mc3.sh` has existed since the
+pipeline was written and `build-assets.sh` already called it. Two things were wrong:
+
+- **It could not find the schema here.** The default was `$project_root/../mesh-craft/mc3/mc3.xsd`,
+  and this repository sits a directory deeper than that assumes, so every asset build died on "MC3
+  schema not found". A validator that cannot find its schema fails open in the worst way: the build
+  stops and the obvious workaround is to skip validation. The path is now searched across
+  `MC3_SCHEMA`, `MESH_CRAFT_SOURCE_DIR`, `MESH_CRAFT_BUILD_DIR`, `IRON_GANG_CNA_DIR`'s sibling, and
+  both plausible checkout depths.
+- **Nothing checked that it rejects anything.** `xmllint --noout --schema` already emits exactly
+  what `IG-09-003` asks for -- `broken.mc3.xml:12: element sphere: Schemas validity error : ...` --
+  and `set -euo pipefail` stops the build on it. That was true and unverified.
+
+**Verified.** `iron_gang_validate_mc3_tests` validates all five shipped MC3 sources; rejects a
+deliberately broken one requiring **both** the file name and the exact offending line number
+computed from the fixture rather than hard-coded; reports a missing input; falls through a bogus
+`MC3_SCHEMA` to a real one rather than breaking a working workspace; and finds the schema with
+**every** hint variable cleared. 17 CTest targets, all passing, up from 16.
+
+**Mutation-checked -- and the first version of one test was hollow.** Swallowing xmllint's exit code
+fails three assertions. Removing the deeper checkout candidate from the schema search initially
+failed **nothing**: the test cleared `MC3_SCHEMA` and `MESH_CRAFT_SOURCE_DIR` but not
+`IRON_GANG_CNA_DIR`, which happens to point one directory above the Mesh Craft checkout, so the
+"found with no environment set" test passed while proving nothing about the bare-workspace path it
+is named for. With every hint variable cleared, the same mutation now fails 19 assertions.
+
+**Not verified.** Only the five single-object MC3 sources are regenerated;
+`prototype_city_block.mc3.xml` still is not used at runtime -- the city is procedural boxes. The
+schema check is XSD only: it says the XML is well-formed against the grammar, not that the geometry
+is sane, which is what `content_budget.py` and `IG-09-006`'s naming/units/pivot conventions are
+for. And the regenerated assets are not committed, because `assets/generated` is git-ignored.
+
+## Making the module boundaries a property rather than a habit (2026-08-26)
+
+plan_03 `IG-03-006` closed; `IG-03-005` audited and left open with its finding recorded. Gates M12
+and M14 untouched.
+
+**Why this was worth doing even though nothing was broken.** `docs/architecture.md` has stated the
+dependency direction since the first milestone, and the tree obeys it. But it is a rule nothing
+checked, and it has already been broken once: a public header exposed sharp-runtime's
+`JsonDocument`, which compiled for the library and broke the *test* build, because `Text.Json` is a
+**private** dependency of `iron_gang_core`. That cost an iteration to find. A convention holds until
+someone is in a hurry.
+
+**What was added.** `scripts/check_layering.py`, run by `iron_gang_layering_tests` on every `ctest`,
+enforcing three rules:
+
+| Rule | Why |
+| --- | --- |
+| A public header must not include `System/…` or `CNA/Internal/…` | Both are private dependencies; a public header naming their types forces every consumer to find them. |
+| A public header must not reach into `src/` with a relative include | Private headers live there precisely so they are not part of the surface. |
+| Only the executable may include CNA::Runtime, and no `iron_gang_core` source may | The library links `CNA::GraphicsCore` only; a library source including `Game.hpp` ends the split. |
+
+Two design decisions in the checker are the substance:
+
+- **Module membership is read from `CMakeLists.txt`**, not hard-coded. The rule "only the executable
+  may use CNA::Runtime" is meaningless if the checker keeps its own idea of which sources are the
+  executable's, because the two lists drift and the checker starts policing a fiction. Moving a
+  source between targets is now checked against the file that decides it.
+- **It refuses to pass vacuously.** No public headers found, or a library with no sources, raises
+  rather than reporting success. That is the failure mode where somebody moves a directory and the
+  whole check quietly becomes a no-op that reports "boundaries hold" forever.
+
+**Verified.** `tests/test_layering.py` runs the checker against fixtures that break each rule
+individually -- sharp-runtime in a public header, a CNA internal in a public header, a `../` reach
+into `src/`, `Game.hpp` in a public header, `Game.hpp` in a core source -- and against the two cases
+that must *not* be flagged: the executable's own `include/IronGang/Application` header using
+`Game.hpp`, and a core **source** freely using `System/` and `CNA/Internal/` (which is the entire
+point of the split -- the library uses them, its headers just must not say so). It also asserts the
+real repository passes, and that both vacuous-pass guards raise. 16 CTest targets, all passing, up
+from 15.
+
+**Mutation-checked, both directions.** Adding a real violation -- `#include
+"System/Text/Json/JsonElement.hpp"` at the top of `GameConfig.hpp` -- fails
+`test_the_real_repository_passes`, naming the file and the rule. Typing the rule's own prefix wrong
+(`"Sytem/"`) fails **five** fixture tests, which is the property that matters: the checker cannot
+silently stop checking.
+
+**The global-state audit (`IG-03-005`), and why it is not enforced.** Exactly one piece of
+namespace-scope mutable state exists in the whole tree: `Log`'s mutex-guarded `LogState`. That is
+the deliberate exception -- a logger is the one service a game legitimately reaches for from
+anywhere -- and everything else is constructed and owned by `IronGangGame` and passed by reference.
+The entry stays **open** rather than being marked done on the strength of an audit: telling a static
+member function from a global variable by regular expression is unreliable, and a check with false
+positives on every `static void Foo();` would be worse than none. The finding is recorded in
+`docs/architecture.md` so the next person does not have to redo it.
+
+**Not verified.** The checker reads includes with a regular expression, so it does not understand
+conditional compilation: a `System/` include inside an `#if 0` would be flagged, and one reached
+through a chain of otherwise-clean public headers would not. It checks *direct* includes only.
+`IG-03-002` ("keep game-specific systems out of CNA/sharp-runtime") is not checkable from inside
+this repository at all -- it is a rule about what does **not** get written into the dependency
+trees.
+
+## Pedestrians with somewhere to be (2026-08-26)
+
+plan_20 `IG-20-002` completed (it had shipped partial); `IG-20-005` advanced to partial with its
+remainder named. Gates M12 and M14 untouched.
+
+**The gap this closes is one the previous entry named.** The sidewalk router landed and nothing
+used it: every ambient pedestrian still paced one fixed stretch of pavement forever, and the
+crossings and doorways the graph carries had nobody walking through them.
+
+**What was added.** `PedestrianItinerary` and `ChoosePedestrianDestination()`
+(`include/`/`src/Gameplay/PedestrianItinerary.hpp/.cpp`), plus `Pedestrian::HasArrived()` and
+`Pedestrian::GetTargetPoint()`. An ambient pedestrian now picks a node anywhere on the district's
+sidewalk graph, routes to it, walks there, stands about for 2-8 seconds, and picks again.
+
+An "idle point" (`IG-20-002`) turned out not to need a schema at all: it is what a pedestrian does
+when it arrives somewhere, not a separate kind of node.
+
+**This removed two special-case populations rather than adding a third.** The game previously
+spawned six pedestrians per pavement route *and* two shuttling each crossing. Both are gone: a
+pedestrian free to route anywhere already walks pavements and already uses crossings, and does so
+because it is going somewhere. One population, twelve people, inside plan_20's 10-20 band.
+
+**A rule that had to become more precise because the population changed.** Crossing hold was keyed
+on position alone -- "within a metre of a kerb". That was fine when only the crossing shuttles
+existed, because the only pedestrians near a kerb were the ones about to cross. Once everyone routes
+freely, people walk *along* the pavement past that kerb constantly, and the old rule would have
+stopped them dead every time the light was green -- jamming the pavement rather than the crossing.
+`PedestrianCrossingClearance()` now requires **both** that the pedestrian is at one kerb **and**
+that the waypoint they are walking toward is the other one. There is a test for exactly that case,
+and the mutation that ignores the target fails it.
+
+**Verified.** `TestPedestrianItineraryWalkAndWait` (a fresh itinerary wanting a destination
+immediately rather than standing forever; a walk not being re-routed every frame; the wait counting
+down, not going negative, and a negative wait clamping).
+`TestPedestrianDestinationChoice` (never choosing where the pedestrian already stands -- otherwise
+it routes to itself, arrives instantly and the population stutters in place; every other node
+reachable as a choice, so people do not only ever visit half the city; determinism from a seed,
+which is what makes an ambient population reproducible between runs; and empty/only-yourself
+candidate sets returning nowhere rather than crashing).
+`TestPedestrianWandersTheDistrict` runs the whole loop against the shipped graph for ten simulated
+minutes and requires at least five distinct places visited **and** that a wanderer starting on the
+west pavement reaches the east side -- which is only possible through the crossing.
+15 CTest targets pass, `./scripts/check-syntax.sh` clean, and a scripted game run exits 0 with no
+warnings.
+
+**Mutation-checked.** Ignoring the target waypoint in the crossing rule fails with `a pedestrian
+standing at the kerb but walking on past must not be held`; letting a pedestrian choose its own
+current node fails with `a pedestrian must never be sent to where it already is`.
+
+**Not verified.** Destination choice is uniform over every node -- nobody prefers a doorway, a shop
+front or the direction they were already walking, so the population wanders rather than commutes.
+No talk, browse or explicit recover behaviour (`IG-20-005`'s remainder): talk and browse need
+content to talk and browse *at*, and recover means nothing until there is a state to recover from
+beyond fleeing. The pavement lane offset is still a per-pedestrian constant rather than being taken
+from the walkway width the schema carries. And none of this has been watched in motion on the real
+display -- only asserted, and captured as a still.
+
+## Routing on the pavement graph, and the disconnected district it found (2026-08-26)
+
+plan_19 `IG-19-004` and `IG-19-022` closed. Gates M12 and M14 untouched.
+
+**What was added.** `SidewalkGraph::FindWalkingRoute()` (Dijkstra over nodes, with walkways **and**
+crossings as bidirectional edges weighted by distance), `BuildRoutePath()`, and
+`FindUnreachableNodes()`. Dijkstra rather than A*: a district has a handful of nodes, so the
+simplest correct thing is also the right thing and a heuristic would buy nothing.
+
+A crossing is an ordinary edge to the router. What makes a crossing special -- that a pedestrian has
+to wait at it -- is `Pedestrian`'s problem, not the router's.
+
+**The connectivity rule found a real bug in content I shipped the previous iteration.** Loading now
+refuses a graph with any node unreachable from the first, naming one, and the very first run said:
+
+```
+sidewalk graph is disconnected: "east_south" cannot be walked to from "west_south"
+(6 unreachable node(s))
+```
+
+The warehouse block's crossing nodes and door nodes had never been joined to the pavements. Six of
+its eight nodes were stranded, the district loaded happily, and nothing noticed -- because nothing
+had yet tried to walk between two of them. That is exactly the failure `IG-19-004` exists to catch,
+and it caught it on its own author.
+
+**The content fix, and the schema growth it forced.**
+`assets/districts/warehouse_block.sidewalks.json` is now a connected graph: each pavement split at
+its crossing and its doorway (`west_north -> west_crossing -> west_hotel -> west_south`), with short
+spurs to the two doors. But splitting means "the west pavement" is no longer one walkway, so *which*
+end-to-end walk an ambient pedestrian patrols became an authoring decision -- and belongs in data,
+not as node ids compiled into the game. Hence a `routes` section: named from/to pairs, validated
+like everything else (missing node, same node at both ends, duplicate id). `BuildWalkingPaths()`
+returns one looping path per route, falling back to one per walkway for a graph that declares none.
+
+**A test that had to get stronger rather than be relaxed.** The equivalence test compared the
+data-driven pavements to the hand-authored two-point paths *exactly*. A route has intermediate
+waypoints, so that comparison could no longer hold. Rather than loosen it to "roughly similar", it
+now asserts what actually matters: the same endpoints, every intermediate point between them along
+the span, and every point within 1 mm of the straight line joining them. The walked line is
+provably unchanged; only its waypoint count is not.
+
+**Verified.** `TestSidewalkRoutingAcrossTheDistrict`: the hotel-door-to-apartments-door route exists,
+starts and ends where asked, and **must contain both crossing nodes** -- the only way to the other
+pavement -- then a `Pedestrian` walks the built path at a fixed 60 Hz step and must arrive within a
+metre of the far door (`IG-19-022`'s end-to-end case). Plus symmetry, a route to oneself, a route to
+a nonexistent node, adjacent nodes routing directly rather than the long way round, and nothing in
+the shipped district stranded. `TestSidewalkGraphRejectsADisconnectedDistrict` rebuilds the exact
+bug -- two pavements with nothing between them -- requires rejection with the offending node named,
+then adds a crossing and requires the same graph to load *and* route `b -> a -> c -> d`. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean, and the game loads the rewritten district with no
+warning at all.
+
+**Mutation-checked.** Disabling the connectivity rule fails with `a disconnected sidewalk graph must
+be rejected`; dropping crossings from the router's edge set fails with `the shipped sidewalk graph
+must load` -- because without them the shipped district *is* disconnected, which is a neat
+demonstration that the crossing is load-bearing rather than decorative.
+
+**Not verified.** Ambient pedestrians patrol routes; they still do not *choose* a destination and
+route to it, so nobody yet walks from the hotel door to the apartments door in the running game --
+the machinery is there and only the ambient AI's goal selection is missing. No path smoothing
+(`IG-19-010`), no async requests (`IG-19-008`), and no local avoidance beyond the existing lane
+clearance (`IG-19-015`). The countryside still has no sidewalk file, so it exercises the fallback.
+
+## Iron Gang, played (2026-08-26)
+
+**This entry corrects a claim repeated throughout this file.** Almost every milestone above ends
+with some form of "this environment has no display, so nothing was verified visually". That was
+wrong. The session has `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, an X11 socket, and `easy-gl`
+checked out beside `cnanext`. Configuring the `dev-easygl` preset and running the game put a window
+on a real screen:
+
+```
+EasyGLRenderer initialized with OpenGL OpenGL ES 3.2 Mesa 25.0.7-2+deb13u1
+CNA: EasyGL capabilities -- MSAA up to 8x; MRT up to 4 targets; anisotropic filtering up to 16x
+CNA: graphics renderer: OPENGLES3
+```
+
+The owner then **played it**, and the log records the whole campaign chain working under a human's
+hands rather than a script: the prologue's dialogue, walking to the sedan, entering it, driving into
+the warehouse marker, `prototype_delivery` completing, `countryside_run` starting, two vehicle
+impacts (`integrity now 0.794390`, then `0.778740`), a `retry from checkpoint
+"drive_to_countryside"`, the district transition, and the `reach_farmhouse` checkpoint. Every one of
+those systems had until now only ever been exercised by assertions, headless smoke runs and input
+scripts.
+
+It also surfaced two real warnings a human saw and no test would have:
+`countryside.roads.json` and `countryside.sidewalks.json` do not exist, so the countryside falls
+back to its built-in layout. That is the documented fallback working, and it is also the concrete
+form of "there is only one district's worth of data".
+
+Earlier entries' "not verified visually" clauses should be read as *were* not verified at the time,
+not as *cannot be*. Anything claimed unverifiable for want of a display is now verifiable.
+
+## Pedestrians wait at the crossing (2026-08-26)
+
+plan_20 `IG-20-012` closed. Gates M12 and M14 untouched.
+
+**What was added.** `PedestrianMayCross()` and `PedestrianCrossingClearance()`
+(`include/`/`src/Gameplay/PedestrianCrossing.hpp/.cpp`), plus
+`SidewalkGraph::BuildCrossingPaths()`/`GetCrossingKerbs()`. Two pedestrians per crossing shuttle
+kerb to kerb, and are **held at the kerb as an obstacle** while the traffic they would step in front
+of still has green.
+
+That reuse is the design. `Pedestrian::Update()` already slows and stops for
+`clearanceAheadMetres`, which is how the pedestrian queue works (`IG-20-010`) and how traffic
+vehicles treat a red light (plan_21 `IG-21-007`). A pedestrian who may not step off the kerb is a
+pedestrian with an obstacle right in front of them -- one idea used three times, rather than a third
+state machine that would then have to be reconciled with the other two.
+
+Three rules are worth stating because each is a decision rather than an omission:
+
+- **Amber does not permit crossing**, even though `TrafficSignal::RequiresStop()` makes vehicles
+  stop for it. A car already committed to the junction is still coming through.
+- **Someone already out in the road is never held.** Holding applies only within
+  `kKerbHoldRadiusMetres` (1 m) of a kerb, so a signal changing mid-crossing cannot freeze a
+  pedestrian in a live lane.
+- **An unsignalled crossing never holds anyone.** Giving way is the driver's job; waiting there
+  would leave people standing at an empty road forever. A fleeing pedestrian likewise ignores the
+  signal.
+
+**Verified.** `TestPedestrianCrossingRespectsTheSignal`: red permits, green and **amber** do not, an
+unsignalled crossing always permits; a pedestrian on either kerb is stopped, one in the middle of
+the road is not, one just inside the hold radius is; an empty kerb list holds nobody. Then an
+end-to-end run against a real `TrafficSignal` cycle: a held pedestrian must actually get across
+within a minute -- *a signal that never lets them is a wall, not a wait* -- and the test also
+requires that they were held at some point, so it cannot pass by never blocking at all. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Letting amber permit crossing fails with `amber is not a moment to start
+walking`; holding pedestrians who are already in the road fails with `a pedestrian already in the
+road must be allowed to finish crossing`.
+
+**Not verified.** Pedestrians do not *route onto* a crossing from a pavement: the crossing shuttles
+are their own small population, so nobody yet walks up the pavement, crosses, and continues on the
+other side. That needs pathfinding across the sidewalk graph rather than two-point paths, and it is
+the honest remaining half of "pedestrian crossing behaviour". The behaviour has not been watched in
+motion on the real display either -- only captured as a still and asserted in tests.
+
+## Pavements as their own graph (2026-08-26)
+
+plan_14 `IG-14-007` and `IG-14-008` closed. Gates M12 and M14 untouched.
+
+**What was added.** `assets/districts/warehouse_block.sidewalks.json` (v1) and `SidewalkGraph`
+(`include/`/`src/World/SidewalkGraph.hpp/.cpp`): `nodes`, **bidirectional** `walkways` with a width,
+`crossings` (two nodes, the road segment being crossed, and whether a signal governs it), and
+`entrances` (a pavement node paired with the building it leads into).
+
+**Why it is a separate graph, which the plan entry asks for and is worth stating.** A pavement is
+not a road with different numbers. It is two-way where a road segment is directed; it has no traffic
+lanes; it connects to doors; and it crosses roads at marked places rather than merging with them.
+One type for both would leave every field meaningful for one kind and inert for the other.
+
+Entrances and crossings are validated against the district's **own** building and road-segment ids
+-- the same stale-reference rule dialogue ids and cutscene cues already use. A door into a building
+the district does not contain leads nowhere, and a crossing over a road that is not there is a
+layout that loads and then means nothing. Passing an empty known-set means "do not check", so a
+district with no road graph still loads its pavements.
+
+**A helper extraction, not a copy.** `RoadGraph` had grown four small JSON readers
+(`ReadVector3`/`OnlyFields`/`ReadString`/`ReadNumber`) in an anonymous namespace.
+`src/Core/JsonReadHelpers.hpp` now holds them, shared by both loaders: a second copy is how two
+subtly different implementations of "reject unknown fields" get written, and unknown-field rejection
+is only worth anything if every loader does it the same way.
+
+**The wiring.** Loaded by `PrototypeWorld` from the same optional asset root as the road graph and
+**after** it, so a crossing can be checked against the segment it claims to cross.
+`ApplySidewalkGraph()` replaces the hand-authored `sidewalkPaths_` with one back-and-forth path per
+walkway; pedestrian navigation reads it through the existing `GetSidewalkPaths()`, so nothing
+downstream changed. A missing or invalid file logs a warning and keeps the built-in pavements.
+
+**Verified.** `TestSidewalkGraphReplacesTheHandAuthoredLayoutExactly` builds the district twice --
+built-in literals and shipped data -- and requires every pavement's loop flag, point count and point
+positions to match, while also asserting the graph is non-empty so a silent fallback cannot make the
+comparison compare the built-in layout with itself. It then checks the two things the road graph
+deliberately does not carry: the crossing (signalled, naming `main_northbound`) and both entrances
+resolving to real pavement nodes. `TestSidewalkGraphRejectsUnusableData` covers fourteen rejection
+cases including both directions of the stale-reference rule, a non-boolean `signalControlled`, and
+the empty-known-set case that must still load. 15 CTest targets pass.
+
+**Mutation-checked.** Moving a shipped pavement node one metre fails with `pavement 0 point 1 must
+match the hand-authored one`; removing the building stale-reference check fails with `an entrance
+into a building the district lacks must be rejected`. A scripted run logs **no fallback warning**
+and renders a frame byte-identical to the previous iteration's -- and pedestrians are in that frame,
+so that is independent evidence the data reproduces the old layout.
+
+**Not verified.** Crossings and entrances are carried and validated but **not yet walked**: no
+pedestrian uses a crossing or a door. Crossing behaviour is plan_20 `IG-20-012`, which now has
+somewhere to read a crossing from. Walkway width is stored and unused -- lane offsetting still comes
+from `Pedestrian::SetLaneOffset` at the call site. The countryside district has no pavement file, so
+it exercises the fallback rather than the loader.
+
+## The road layout stops being C++ (2026-08-26)
+
+plan_14 `IG-14-001` and `IG-14-002` closed. Gates M12 and M14 untouched.
+
+**The gap.** The warehouse block's traffic loop, its lane offsets, its speed limit and its two
+signalled stop lines were literals inside `PrototypeWorld::BuildWarehouseBlock()`. That is fine for
+exactly one district and stops being fine at two: every new road means recompiling, and nothing can
+validate a layout that only exists as statements.
+
+**The schema.** `assets/districts/warehouse_block.roads.json` (v1), loaded by `RoadGraph`
+(`include/`/`src/World/RoadGraph.hpp/.cpp`): `nodes` (junctions and road ends), directed `segments`
+with `laneCount` / `laneWidth` / `speedLimitKph`, `turns`, and `stopLines` (a segment, a distance
+along it, the signal's position, and which of a crossing's two phases it reads).
+
+Deliberately a **graph**, not a list of polylines. A polyline answers "what is the next point on my
+loop"; a graph answers "where does this road go", which is the question turning, routing and lane
+changes all need. A lane is an offset from the segment's centreline, so lane 0 of each direction
+lands either side of the paint rather than both on top of it -- the reason the two directions of the
+main road come out at x=+3 and x=-3 from one shared centreline at x=0.
+
+Turn links are defined and validated but unused: this district is a straight there-and-back, and
+inventing turns for it would be schema that no content exercises.
+
+**The wiring.** `PrototypeWorld` takes an optional asset root and loads
+`assets/districts/<district>.roads.json` at construction; `DistrictManager` threads it through so a
+district swap loads the target's graph too. `ApplyRoadGraph()` then replaces `trafficLoop_` and
+`trafficStopLines_`, and each stop line's **approach yaw is derived from its own segment** rather
+than authored beside it -- a yaw written by hand next to the road it belongs to is a number that
+drifts the first time the road moves. Traffic reads it all through the existing
+`GetTrafficLoop()`/`GetTrafficStopLines()`, so nothing downstream changed. A missing or invalid file
+logs a warning and keeps the built-in layout, the same fallback convention every other asset uses.
+
+**Verified.** `TestRoadGraphReplacesTheHandAuthoredLayoutExactly` is the test that matters: it
+builds the district twice -- once with no asset root (built-in literals) and once with the shipped
+data -- and requires the traffic loop points, the stop-line positions, their signal positions, their
+derived approach yaws and their phases to match. It also asserts the graph is **non-empty** in the
+data-driven case, because a silent fallback would otherwise make the whole comparison compare the
+built-in layout with itself. Lane geometry is checked directly (northbound lane 0 at x=+3,
+southbound at x=-3 -- travelling the other way, right is the other side), along with an unknown lane
+and an unknown segment failing to resolve. `TestRoadGraphRejectsUnusableData` covers fourteen
+rejection cases: unsupported version, no segments, dangling node reference, zero-length segment,
+duplicate segment and node ids, non-positive lane count / width / speed limit, a turn to a missing
+segment, a stop line on a missing segment, a stop line past the end of its own segment, an unknown
+top-level field, and a missing file. 15 CTest targets pass; `assets/districts` was added to the
+registry, the install list and the release archive's required files.
+
+**Mutation-checked, three ways.** Changing the shipped lane width to 4 fails with `traffic loop
+point 0 must match the hand-authored one`; moving a stop line 5 m fails with `stop line 0 must be in
+the same place`; and hard-coding the derived approach yaw to 0 fails with `stop line 1's approach
+yaw must match`. A scripted run also renders a **byte-identical frame** to the previous iteration's,
+which -- since traffic vehicles are in the frame -- is independent evidence the data reproduces the
+old layout rather than merely something plausible.
+
+**Not verified.** Nothing yet reads `speedLimitKph` or the turn links; both are carried, validated
+and unused, which the plan entry says. Pedestrian sidewalk paths are still hand-authored -- that is
+`IG-14-007`/`IG-14-008`'s own schema, deliberately separate from the road graph. The countryside
+district has no road file, so it exercises the fallback rather than the loader. And there is still
+only one district's worth of data, so "every new road means recompiling" is fixed in principle and
+not yet demonstrated at two.
+
+## Sounds that know where they are (2026-08-26)
+
+plan_27 `IG-27-003` and `IG-27-007` closed; `IG-27-002` narrowed. Gates M12 and M14 untouched.
+
+**The gap.** Every sound played at full volume, dead centre, regardless of where its source was.
+The horn was as loud from across the district as from inside the car, and nothing had a side.
+
+**What was added.** `AudioListener` and `ComputeSpatialGain()`
+(`include/`/`src/Audio/AudioListener.hpp/.cpp`) return the two things CNA's
+`SoundEffect::Play(volume, pitch, pan)` actually takes -- not an HRTF, not doppler.
+
+- **Attenuation**: full volume inside a reference distance, linear rolloff to silence at a maximum.
+  Deliberately not inverse-square: at the volumes a game mixes at, a physically correct curve is
+  either deafening up close or inaudible three metres away.
+- **Pan is computed in XZ only**, while distance is 3D. A source directly overhead has no left or
+  right, and treating the vertical component as lateral makes sounds swing across the stereo field
+  whenever the camera pitches.
+- **Four presets** (`Voice` 6/35 m, `Vehicle` 12/90 m, `Effect` 8/45 m, `Ambience` 20/140 m), so
+  sounds of one kind share one distance instead of every call site inventing its own. The vehicle
+  preset's reference distance has to cover the camera boom, or the player's own engine attenuates
+  behind them -- there is a test for exactly that.
+
+**The listener is the active camera** (`IG-27-003`), which is what XNA's AudioListener means and the
+right answer for a third-person game: the player hears what the shot shows. To get that,
+`ComputeCameraPose()` was **extracted from `Draw()`**, so the view matrix and the audio listener now
+come from one function and cannot disagree about where the player is watching and listening from. On
+foot, driving and cutscene modes are covered by construction rather than by three parallel branches
+that would each have to remember audio exists. The camera-obstruction pull-in moves the listener
+with it, deliberately: the listener is attached to the camera, not to a second idea of where the
+camera should be.
+
+**Two duplicated decisions removed while wiring it.** The engine loop's level was being set in three
+places -- the driving branch, the volume menu, and (from the previous iteration) the per-update duck
+re-apply. The driving branch now only records the *requested* level, and the single per-update path
+applies bus, duck and spatialisation. The menu no longer re-levels the engine at all: it feeds the
+Master bus, and the per-update path reads it.
+
+**Verified.** `TestSpatialAudioAttenuationAndPan`: full volume inside the reference distance; silent
+at and beyond the maximum; exactly half at the midpoint; attenuation never rising with distance
+across a sweep; right/left panning with the correct sign; a source directly behind centred; the same
+world position panning right once the listener turns to face +X; a source overhead centred but still
+attenuated by its height; an emitter exactly on the listener returning full volume and centre rather
+than dividing by zero; the preset ordering (a voice not carrying as far as a car, ambience
+outreaching a car, the vehicle reference covering the camera boom, every preset with a positive
+reference inside its maximum); and an inverted falloff still yielding a gain in [0,1]. 15 CTest
+targets pass, `./scripts/check-syntax.sh` clean.
+
+**Mutation-checked.** Letting height leak into the pan calculation fails with `a source overhead
+must be centred`; removing the rolloff fails with `the rolloff must be linear between reference and
+maximum, got 1.000000`. A scripted run renders a byte-identical frame to the previous iteration's,
+confirming the camera-pose extraction did not move the camera.
+
+**Not verified.** *Nothing was listened to* -- the audio driver here is a dummy, so this is about
+computed gain and pan values, not sound. `IG-27-002` stays partial: the vehicle sound is now
+genuinely spatial, but there is no ambience asset in `assets/audio/` to place as the spatial ambient
+emitter it also asks for, and adding one is sourcing and licensing work rather than engine work. No
+occlusion (`IG-27-008`): a wall between listener and source changes nothing yet, even though
+`HasLineOfSight()` already exists and would answer it.
+
+## An audio mix with categories in it (2026-08-26)
+
+plan_27 `IG-27-001`, `IG-27-004`, `IG-27-026` and `IG-27-027` closed. Gates M12 and M14 untouched.
+
+**The gap.** There was one number -- `masterVolume` -- multiplied into every `Play()` call by
+`EffectiveVolume()`. That cannot express "quieten the engine while someone is talking", or "mute the
+music but not the sirens", or any per-category setting at all, because there were no categories.
+
+**What was added.** `AudioBus` and `AudioBusGraph` (`include/`/`src/Audio/AudioBuses.hpp/.cpp`, in
+`iron_gang_core`): the seven buses the plan names, per-bus volume and mute, and
+`GetEffectiveVolume(bus, requested)` = requested x bus x Master x duck.
+
+The graph is deliberately **one level** -- every bus routes to Master, and the enum is the graph.
+A tree of arbitrary sub-buses is a mixing-desk feature; this game has seven categories and one
+output, and the header records that as an explicit non-goal along with DSP effects and per-voice
+routing. Buses carry stable string ids so a saved mix survives renaming the enum, the same
+convention `GameActionId` uses.
+
+`IronGangGame` now routes the engine loop and horn to `Vehicle` and footsteps to `Effects`, and
+feeds `settings_.masterVolume` into the Master bus once per update rather than into every call site.
+
+**Ducking (`IG-27-004`).** While a dialogue line is showing, every bus except Dialogue, UI and
+Master drops to `kDialogueDuckGain` (0.35) over a ramp: 0.15 s down, 0.40 s back. The asymmetry is
+the point -- the drop has to be in place before the first syllable, and coming back as fast as it
+left is what makes a run of short lines pump the whole mix. The UI bus is exempt because a menu
+click going quiet because someone is talking is a bug, not a mix.
+
+**"Subtitle synchronization" is met by construction**: the duck is driven by exactly the condition
+the subtitle is drawn from -- `dialogue_.GetCurrentLine() != nullptr` -- so the two cannot disagree
+about when dialogue is playing.
+
+**A wiring fault the design forced into the open.** The engine loop's volume is recomputed only
+inside `if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)`, so the duck would
+never have reached the engine **during dialogue** -- the one situation ducking exists for. The
+instance's volume is now re-applied from a stored pre-bus level (`engineRequestedVolume_`) every
+update, outside that gate.
+
+**Verified.** `TestAudioBusGraphMixing` (a fresh graph transparent; Master scaling every other bus
+and scaling itself exactly once rather than twice; a bus scaling only itself; clamping above 1,
+below 0, and on the requested volume; muting a bus silencing it and nothing else; muting Master
+silencing everything; every id round-tripping through `ParseAudioBusId`; an unknown id rejected).
+`TestDialogueDucking` (the duck starting immediately but nowhere near target after one 60 Hz update;
+reaching the target and stopping there; the vehicle bus ducked while Dialogue and UI are not; the
+release taking more updates than the attack; a zero or negative delta leaving the ramp untouched;
+and two graphs given the same delta sequence agreeing exactly, so the ramp is a pure function of its
+input). 15 CTest targets pass.
+
+**Mutation-checked.** Making the duck snap instead of ramp fails with `the duck must ramp, not snap
+-- one 60 Hz update reached 0.350000`. Ducking Dialogue and UI along with everything else fails with
+`the dialogue bus must never duck itself`.
+
+**Not verified.** *Nothing here was listened to* -- this environment has a dummy audio driver, so
+every claim is about the gain values computed, not about what comes out of a speaker. `UserSettings`
+still stores only a master volume, so per-bus levels are runtime-only and do not survive a restart.
+No Music or Ambience source exists yet to route through those buses; they are defined and unused.
+Audio **event** definitions separate from raw file paths (`IG-27-005`), voice limits and stealing
+(`IG-27-006`), and listener updates (`IG-27-003`) all remain open.
+
+## Telling the player what a spot affords (2026-08-26)
+
+plan_16 `IG-16-004` closed. Gates M12 and M14 untouched.
+
+**The gap.** The only hint that the sedan could be entered was the mission objective line, and the
+only feedback for being too far away was a status message that appeared **after** pressing a key
+that did nothing. An objective says what the mission wants; a prompt says what *this spot* affords,
+and disappears when it stops affording it.
+
+**What was added.** `InteractionPromptSelector`
+(`include/`/`src/UI/InteractionPrompt.hpp/.cpp`, in `iron_gang_core`) picks the nearest available
+target within range and formats `[E] Enter the sedan`. Three details are the substance:
+
+- **The key comes from `InputBindings`**, not from content, so rebinding Interact changes every
+  prompt in the game. An action with no key bound reads `unbound` rather than showing `[]` -- the
+  affordance is still real, it just cannot be taken.
+- **Distance is measured in XZ.** A target on a balcony overhead is not nearer than one at your feet
+  because the straight-line distance says so.
+- **Hysteresis (1.35x radius).** The target already being offered keeps the prompt out to an
+  enlarged radius. Without it, standing on the boundary between two interactables makes the prompt
+  flicker between them every frame -- each frame individually correct, and the result reads as a bug.
+
+`IronGangGame::CurrentInteractionPrompt()` offers `Enter the sedan` on foot within the same 3 m
+`HandleInteraction()` itself uses -- a prompt that lies about its own range is the same failure in
+miniature -- and `Leave the sedan` while driving. Every other input context clears the sticky
+target, so a prompt cannot resume on a stale one after a cutscene. It is drawn centred on a dimmed
+pill, above the subtitle when one is showing so the two never overlap.
+
+**Mission objects are deliberately excluded, and that is the honest scope.** The district exit and
+the warehouse goal are walk-/drive-into triggers, not press-E objects. Offering a key for them would
+be a prompt for an action that does not exist. The entry title says "the car and mission objects";
+the car is done and the mission objects have no press-E interaction to prompt for yet.
+
+**Verified.** `TestInteractionPromptSelection`: nothing in range offering nothing and clearing the
+sticky target; the in-range target offered with the bound key in the text; the text following a
+rebind; `unbound` for an unbound action; height ignored; unavailable targets skipped; the nearer of
+two winning; the hysteresis case; the sticky target released once outside its enlarged radius; a
+sticky target that becomes unavailable dropped at once rather than held; `Clear()`; an empty target
+list; and a zero-radius target never offered. 15 CTest targets pass. Screenshots at scripted updates
+300 and 480 show `[E] Enter the sedan` beside the car and `[E] Leave the sedan` from the driving
+camera.
+
+**A test that let a mutation through, and the fix.** Removing the hysteresis entirely **passed** the
+first version of the test. The case used a position where the sticky target was still inside its
+*plain* radius, so the enlargement never mattered. Moved to a position where the offered target is
+3.5 m away -- outside its 3 m radius, inside the 4.05 m enlarged one -- while a different target is
+0.5 m away. The same mutation now fails with `got sedan`. Removing the availability check fails with
+`an unavailable target must not be offered`.
+
+**Not verified.** No world-space anchoring: the prompt is centred on screen rather than drawn at the
+object, which is fine with one interactable in view and will not be with several. No fade in or out,
+so the prompt pops. Nothing here changes what `HandleInteraction()` does -- only what the player is
+told about it beforehand.
+
+## Keeping the camera out of the walls (2026-08-26)
+
+plan_16 `IG-16-003` closed. Gates M12 and M14 untouched.
+
+**The gap.** The follow camera is placed a fixed 7.5 m behind the player (10.5 m behind the
+vehicle). Standing with a building at your back puts that fixed point inside the building, and the
+camera then renders from inside geometry.
+
+**What was added.** `ResolveCameraObstruction()`
+(`include/`/`src/Gameplay/CameraCollision.hpp/.cpp`) treats the line from the look-at target to the
+desired camera position as a segment, tests it against the district's collidable `WorldBox`es, and
+pulls the camera in to the first hit minus a 0.35 m skin -- a camera exactly on a surface still
+clips through it, because the near plane has depth. `SegmentIntersectsBox()` gained an overload that
+reports the entry fraction; the slab method already computed it and threw it away.
+
+Deliberately a segment test against the district's own boxes rather than a swept sphere through the
+physics world: the boxes are already there and already tested, and a sphere cast would make the
+camera a physics body to solve something a segment solves. Non-collidable boxes are ignored, the
+same rule `HasLineOfSight()` uses -- pulling the camera in to a lane marking would break the camera
+everywhere the player walks on a road. Cutscenes are excluded: their keyframes are authored shots,
+and silently moving an authored camera is worse than the wall it would have gone through.
+
+**A design error the real-district test caught, not review.** The minimum standoff was first written
+as a *fraction* of the boom (0.18). At 7.5 m that is 1.35 m, so standing a metre in front of a wall
+the clamp pushed the camera **back through the wall it had just been pulled in from** -- the test
+against the actual apartments block failed with `got x=9.350000` against a west face at x=9.0. It is
+now a distance (0.6 m), and when the obstruction is nearer than that the wall wins and the camera
+sits on its surface: there is no good answer at that range, and a camera inside the player's own
+model is the worse one.
+
+**Verified.** `TestCameraObstructionPullsIn` (a wall detected and the camera stopped exactly one
+skin width in front of it; an unobstructed camera left *exactly* where it was asked, since a
+collision system that nudges a clear camera is worse than none; a non-collidable box ignored; the
+nearest of several obstructions winning; the target itself inside geometry holding the minimum
+standoff rather than collapsing onto the player's head; a zero-length segment; and the
+wall-one-metre-behind case that forced the distance-based minimum).
+`TestCameraObstructionAgainstRealDistrict` runs the same code against `PrototypeWorld`'s actual
+warehouse block: standing against the apartments with your back to them must put the camera outside
+their west face, and the spawn-point camera must be unobstructed -- so a rule that pulled the camera
+in on the road would fail the suite. 15 CTest targets pass.
+
+**Mutation-checked.** Disabling the intersection test fails with `a wall between the target and the
+camera must be detected`; removing the non-collidable skip fails with `a non-collidable box must be
+ignored`.
+
+**Not verified, and this one is worth stating plainly.** *No screenshot demonstrates the fix.* Three
+scripted attempts to walk the player into a position where the camera enters a wall did not produce
+one: a controlled A/B of the same scripted update with the resolver on and off was **byte-identical**
+(`ImageChops.difference` returned no bounding box), which means that moment was never obstructed. The
+call site was proven live separately -- replacing the resolver with a fixed 50 % pull-in changed the
+frame -- so the wiring is real, but the *behaviour* is evidenced by the unit tests, including the one
+against real district geometry, and not by a picture. The attempted repro script was deleted rather
+than committed: a repro that does not reproduce is worse than none.
+
+Also not done: no easing, so the camera snaps to the resolved position rather than gliding; no
+occlusion fade for thin geometry; and a segment is not a swept sphere, so a corner can still clip
+the near plane.
+
+## A subtitle instead of a HUD line (2026-08-26)
+
+plan_25 `IG-25-003` closed. Gates M12 and M14 untouched.
+
+**The gap.** Dialogue was drawn as one unwrapped `DrawString` at the top-left corner. The first
+screenshots caught it running off the right edge mid-word -- "...before the river shift change" with
+the rest of the sentence simply gone. A line of dialogue nobody can finish reading is a line that
+was not delivered.
+
+**What was added.** `WrapSubtitleText()` and `ComputeSubtitleLayout()`
+(`include/`/`src/UI/Subtitle.hpp/.cpp`, in `iron_gang_core`) compute the whole thing as arithmetic
+over a fixed-width font, so it is unit-tested without a graphics device -- the same split
+`ScreenshotSummary` and `PedestrianAnimation` use. `IronGangGame::DrawSubtitle()` draws it: a
+bottom-centred panel sized to its own content (a short line does not sit in the middle of a
+full-width bar), the speaker's name above the text in amber, the body in white, and the continue
+prompt beneath the panel in a dimmer, smaller face. It is drawn after the rest of the HUD so it sits
+over it rather than under it.
+
+An over-long word is **hard-split** rather than allowed to overflow: losing a hyphen is better than
+losing the end of a sentence off the edge of the screen.
+
+**Two rendering faults the work exposed, both caught by looking at the frame:**
+
+- **Every space drew as a visible bar.** The HUD batch used the default `LinearClamp` sampler, and
+  filtering an 8x8 bitmap atlas bleeds neighbouring glyph cells into each other -- invisible at 1:1,
+  obvious at the subtitle's 2x scale. The batch now begins with `SamplerState::PointClamp`, which is
+  the correct sampler for a bitmap font at any scale.
+- **The line ran past the panel it was wrapped for.** The layout was given
+  `kFont8x8GlyphSize` (8) as the advance, but the font's advance is the cell **plus its spacing**
+  (9). `DrawSubtitle()` now measures it -- `MeasureString("MM").X - MeasureString("M").X` -- which
+  is exact whatever the spacing is. `kFont8x8Spacing`/`kFont8x8Advance` were added next to
+  `kFont8x8GlyphSize` and `BitmapFont.cpp` now builds the font from them, so the constant the
+  subtitle wraps on and the constant the font is built with cannot drift apart.
+
+**Verified.** `TestSubtitleWrapping` (a fitting line unchanged; a long line wrapping with every line
+within the limit, non-empty, and not starting or ending with a space; rejoining the lines
+reproducing the original word for word; exact-fit and one-over-the-limit; an over-long word split
+without losing a character; empty, whitespace-only, collapsing space runs, and a zero-width limit
+returning nothing rather than looping). `TestSubtitleLayoutStaysOnScreen` (four resolutions from
+320x240 to 1920x1080: the panel on screen in both axes, every line inside the panel, every line
+inside the screen, every line within the allowed width fraction, the last line inside the panel, and
+scale never below 1; degenerate inputs -- empty text, zero-width screen, zero-width glyph --
+producing no subtitle rather than a panel of nonsense; and a short line producing a narrower panel
+than a long one). `TestShippedDialogueFitsTheSubtitle` checks every shipped line lays out in at most
+three lines at 1280x720, so a line nobody can read in one glance fails the suite rather than getting
+a taller panel. 15 CTest targets pass.
+
+**Mutation-checked, including one that got away first.** Removing the hard-split fails with
+`an over-long word must be split, not allowed to overflow`. Widening the wrap limit by two
+characters **passed everything at first**: the panel is sized from the longest line, so "the text
+fits the panel" cannot see a wrap that is simply too wide -- both grow together. The rule that
+actually bounds it (a line may not exceed `kSubtitleWidthFraction` of the screen) was added, and the
+same mutation now fails with `"Iron City is quiet tonight. That usually means trouble" is wider than
+a subtitle is allowed to be at 1280`.
+
+Screenshots at scripted updates 20 and 75 show the two-line wrap of the longest shipped line and the
+single-line case, both inside the panel with even padding, both legible.
+
+**Not verified.** No per-line timing, fade in/out, speaker portraits, or accessibility size and
+background options -- all `plan_28` scope. The subtitle is drawn for whatever line the conversation
+is on; nothing here changes when a line advances. Only the built-in fixed-width font is handled:
+`WrapSubtitleText` counts characters, which is exactly wrong for a proportional font, and the
+header says so.
+
+## Why every imported model was white (2026-08-26)
+
+plan_08 `IG-08-014` advanced from open to partial. Gates M12 and M14 untouched.
+
+**The finding.** The warehouse rendered as a flat pure-white slab. `warehouse.mc3.xml` declares
+`<base_color>0.42 0.36 0.31</base_color>` -- a warm brown-grey -- so the colour was being lost. It
+was not only the warehouse: the sedan, authored `0.455 0.102 0.118` (dark red) in
+`vehicle_body.mc3.xml`, rendered pale grey.
+
+**The cause.** A generated `.cnj` carries no material data at all:
+
+```json
+{ "cnjVersion": 1, "type": "Model",
+  "meshes": [ { "vertices": "...", "indices": "...", "vertexStride": 32, "effect": "BasicEffect" } ] }
+```
+
+Vertex stride 32 is position + normal + uv -- **no colour channel**. So the MC3 -> glTF -> CNJ
+pipeline drops material entirely, and there is nowhere in the vertex data to put it either. Every
+MC3-sourced model draws white unless the game says otherwise. Only the character escaped notice
+because it has a texture rather than a base colour.
+
+That also explains why the earlier "left the warehouse untinted, it is simplest to leave it at full
+brightness" decision looked harmless when it was written and looked wrong the moment anyone could
+see a frame: with no material, full brightness *is* white.
+
+**What was built.** `ModelMaterialTable` (`include/`/`src/Graphics/ModelMaterials.hpp/.cpp`, in
+`iron_gang_core`) loads `assets/models/model-materials.json` -- a versioned table of base colours
+mirroring the MC3 sources -- and `PrototypeRenderer::ShadedBaseColor()` multiplies a model's base
+colour by the shared `SunLight` brightness the rest of the scene already uses. The warehouse is now
+shaded like everything else, and each sedan part draws in its own authored colour.
+
+Failure is deliberately soft: an unknown model returns white, and a file that fails to load leaves
+the table empty and logs a warning, so every model renders exactly as it did before this data
+existed rather than turning black.
+
+**Verified.** Before/after screenshots at the same scripted moment
+(`--play-input tests/input-scripts/prologue_opening.inputscript.json --screenshot-update 480`) show
+the white slab become a brown-grey building, and the featureless white block become a dark red sedan
+with a blue-grey windshield and black wheels. `TestModelMaterialsLoadAndDefault` (an unloaded table
+returns white rather than black -- a failed load must not blank the screen; the shipped file loads
+and covers all five imported models; the warehouse carries exactly the colour its MC3 declares; the
+sedan body is a dark red rather than a neutral grey) and `TestModelMaterialsRejectUnusableData`
+(thirteen rejection cases: unsupported and missing version, missing `models`, duplicate and empty
+model id, two- and four-component colours, components above 1 and below 0, missing `baseColor`,
+unknown top-level and per-model fields, missing file -- and a rejected file leaving the table empty
+rather than half-applied).
+
+New CTest `iron_gang_model_materials_tests` guards the copy against its source of truth: the shipped
+JSON is a *copy* of numbers authored in `assets/source/mc3/`, and a copy nothing checks is a copy
+that drifts. It compares every single-material imported model against its MC3 file, refuses entries
+with no MC3 source behind them, and checks the file's shape. Mutation-checked: changing the shipped
+warehouse colour to `[0.9, 0.9, 0.9]` fails with
+`warehouse channel 0: MC3 says 0.42, shipped table says 0.9`. 15 CTest targets, all passing, up from
+14. The asset registry gained a `models` production directory and the new file; it failed the suite
+until both were added. Two packaging paths also needed it and would not have failed any test:
+`CMakeLists.txt`'s `install(DIRECTORY ...)` list and `release_archive.py`'s `REQUIRED_ASSETS` --
+without both, an installed or archived build ships without the table and every imported model goes
+back to white.
+
+**Not verified, and explicitly still open.** This is *uniform* brightness per model, not baked
+per-face lighting -- `IG-08-014` stays partial for exactly that reason, and closing it needs a
+colour channel to bake into, which means either a pipeline change or a rebuilt vertex buffer. The
+`prototype_city_block` MC3 has five materials and is deliberately absent from the table: it is not
+drawn as an imported model. Nothing here touches textures, roughness, metallic, or emissive, all of
+which the MC3 sources declare and the pipeline also drops.
+
+## Diagnosing the first screenshot review's own findings (2026-08-26)
+
+plan_20 `IG-20-003` closed. This entry also **corrects a wrong finding** published in "The first
+frames anyone has looked at" earlier the same day.
+
+**The correction.** That entry claimed pedestrians rendered as "a pair of red legs with no torso or
+head" while "the player character in the same frame draws correctly (white torso and arms, red
+shirt, dark legs)". Both halves are wrong, for one reason: **the large white object beside the
+player is the sedan, not the player.** Having misidentified it, everything else followed.
+
+Two probes settled it, in this order:
+
+1. Drawing pedestrians with the *player's* bone palette instead of their own changed nothing. So
+   the pedestrian animation state was not the cause.
+2. Every animation clip in `gen_test_character_gltf.py` has channels only for nodes 1 and 2 (the
+   legs) and none for node 0 (Root), to which the torso+head box is rigid -- a promising cause.
+   Adding an identity Root channel to `Idle`, regenerating the glTF, converting it with
+   `cna_tool_gltf_to_cnj`, and swapping the CNJ in changed nothing either.
+
+A closer crop then showed the figures whole: `test_character` is a deliberate placeholder -- one red
+box for torso and head together, plus two red leg boxes -- and player and pedestrians render it
+identically and correctly. It reads oddly at a distance because the whole figure is one flat red.
+That is placeholder art, not a rendering fault. Both probes were reverted; the negative results are
+worth as much as the positive one and are recorded rather than discarded.
+
+**The other finding, confirmed and localised.** The white quad **is** the warehouse model. With
+`DrawModel(*warehouseModel_, ...)` skipped, the quad disappears and the street lamps and trees
+behind it become visible. `PrototypeRenderer::Draw()` deliberately leaves the warehouse untinted
+("simplest to leave it at full brightness rather than half-applying either lighting model to it"),
+which on an untextured white material means a slab brighter than anything else in the scene. Left
+open under plan_08 `IG-08-014`: reversing that decision deserves its own before/after evidence.
+
+**What was actually built: pedestrian turning (`IG-20-003`).** A pedestrian reaching the end of a
+two-point pavement reversed 180 degrees in a single frame, because `AdvanceAlongPath()` returns the
+exact heading of the current segment and that heading was applied directly. It now rotates toward
+that heading at `kPedestrianTurnRate` (3.5 rad/s, so a reversal takes about 0.73 s) and **stands
+still** while the heading error exceeds `kPedestrianTurnInPlaceThreshold` (0.6 rad) -- a person at
+the end of a pavement turns round before walking back, rather than walking backwards while pivoting.
+
+Clip selection moved out of the renderer into `SelectPedestrianAnimation()`
+(`include/IronGang/Gameplay/PedestrianAnimation.hpp`), a pure function of walking / turning /
+fleeing that needs no graphics device to test. A `Turn` clip -- short, fast alternating steps, a
+shuffle rather than a stride -- was added to `assets/source/gltf/gen_test_character_gltf.py`, the
+glTF regenerated, and the CNJ rebuilt with `cna_tool_gltf_to_cnj` (6 clips, up from 5); the game
+logs `Loading asset: test_character_Turn.cnj`. Because `assets/generated` is not committed,
+`CharacterAnimationState::Update()` gained a fallback clip, so a checkout whose asset build predates
+`Turn` plays `Walk` rather than freezing on whatever pose it last held.
+
+`Pedestrian::Reset()` now faces a pedestrian along its path even with no start offset. That was
+invisible while turning was instantaneous; with a rate limit it would have made every pedestrian
+pivot on the spot the moment it spawned. Fleeing deliberately still snaps -- panic is not a
+considered pivot -- and the existing flee test pins that.
+
+**Verified.** `TestPedestrianAnimationSelection` (the full truth table, including fleeing
+outranking both turning and standing still, and the Turn-to-Walk fallback) and
+`TestPedestrianTurnsInPlaceInsteadOfSnapping` (the pedestrian reaches the end of a 4 m pavement and
+starts turning; reports not-walking while pivoting; never exceeds the rate limit on any update, by
+either the yaw delta or the reported `GetTurnRate()`; does not travel on any update that is still
+turning afterwards; takes more than 30 updates rather than one; ends up more than 1.5 rad round; and
+walks back the way it came). 14 CTest targets pass. The asset registry hash for
+`test_character.gltf` was refreshed, and failed the suite until it was.
+
+**Mutation-checked.** Restoring the old snap (`yaw_ = desiredYaw`) fails with
+`the reversal must take many updates, not snap in one (took 1)`.
+
+**A test that was wrong before the code was.** The first version asserted the pedestrian does not
+travel *at all* between the start and end of the turn. It failed: the update that *ends* the turn
+legitimately walks. The assertion now applies per update, only to updates still turning afterwards.
+
+**Not verified.** How the pivot looks in motion -- a still frame cannot show an animation, and the
+`Turn` clip has only been confirmed to load and be selected, not watched. No left/right distinction:
+`GetTurnRate()` is exposed signed for when the model has separate clips, but one clip serves both
+directions today. The regenerated CNJ is not committed (`assets/generated` is ignored), so anyone
+without a local asset build gets the documented Walk fallback.
+
+## The first automated run that presses a key (2026-08-26)
+
+plan_30 `IG-30-012` closed. Gates M12 and M14 untouched. `docs/input-scripts.md` is the how-to.
+
+**The gap.** No automated run in this repository had ever pressed a key. `--smoke` renders frames
+and ticks the world, but every input-driven path -- advancing dialogue, skipping a cutscene,
+pressing E to enter the sedan -- was reachable only by unit tests calling the systems directly.
+This file has said so under "Not verified" every time one of those paths shipped.
+
+**What was added.** `InputScript`/`InputScriptRecorder` (`include/IronGang/Input/InputScript.hpp`,
+`src/Input/InputScript.cpp`) plus `--play-input`, `--record-input`, `--record-input-id`, and
+`--screenshot-update`. Three design decisions carry the whole thing:
+
+- **Steps name actions, not keys** (`"confirm"`, not `"Enter"`), using the same ids the settings
+  file already uses. Rebinding a key would otherwise silently turn every recorded repro into a
+  different one; an id that no longer exists now fails the load instead.
+- **Steps are keyed on the simulation update, not the draw frame.** The fixed 60 Hz step is
+  identical everywhere; how many frames a run draws is not -- roughly six a second with the
+  software renderer, hundreds with a GPU. `--screenshot-update <n>` was added for the same reason,
+  so a capture can be pinned to a scripted moment rather than to whatever frame N happened to be.
+- **Playback replaces the keyboard rather than merging with it.** A repro a stray keypress could
+  alter is not a repro. Injection is at `IronGangGame::IsDown`/`WasPressed`, the two functions every
+  input path already went through, so nothing had to be restructured.
+
+Recording is sparse -- one step per change -- so an input-free run records one step, not one per
+update. With no `--smoke` bound, playback ends the run when the script does, which is what makes a
+repro's length reproducible.
+
+**A defect the work exposed in itself.** The first end-to-end run logged
+`input script "prologue_opening" finished; exiting` **ten times**. `Exit()` only asks CNA to stop,
+so the updates already in flight re-requested it every update. Guarded with
+`inputScriptExitRequested_`, and the test now asserts the count is exactly one rather than merely
+that the line appears -- the weaker assertion passed the whole time the bug existed.
+
+**Verified.** `TestInputScriptRecordsSparselyAndReplaysExactly` (seven updates recorded as four
+sparse steps; a full round trip through the file compared update by update against what was fed in;
+an action held across three updates reading as pressed exactly once, on the update it goes down; an
+empty recorder refusing to write), `TestInputScriptRejectsUnusableRepros` (eleven rejection cases --
+unsupported version, no steps, empty id, descending and duplicate update order, negative index,
+unknown action id with the id named in the error, missing `update`, missing `held`, unknown
+top-level field, missing file), and `TestCommittedPrologueReproScriptIsUsable` (the committed repro
+must keep pressing Confirm three times and Interact once, or it stops being the repro it claims to
+be).
+
+New CTest `iron_gang_input_script_tests` runs the real binary four ways: the committed repro, which
+must reach all three dialogue lines and the transitions `introduction -> reach_vehicle ->
+enter_vehicle -> drive_to_warehouse`; a screenshot pinned to update 480, which must land after the
+player is driving; a record-then-play round trip through the binary's own output; and seven
+malformed argument combinations. 14 CTest targets, all passing, up from 13. The suite takes 77 s.
+
+**Mutation-checked.** Making playback ignore scripted presses (`WasPressed` falling through to the
+real keyboard) fails with `'enter_vehicle -> drive_to_warehouse' not found` and
+`the repro never reached the line 'No heroics'`.
+
+**What this finally verified.** The Confirm-skips-the-cutscene path, listed as unverified since the
+cutscene was written, now runs end to end in CI. Two screenshots pinned to scripted updates show the
+on-foot HUD reading `Objective: Press E to enter the sedan` beside the sedan (update 250) and the
+driving HUD reading `Driving | Objective: Drive into the green warehouse marker`, `0 km/h`,
+`Entering sedan` from the vehicle camera (update 480) -- the input context switch, the objective
+text, the enter-vehicle transition, and the driving camera, none of which had ever been seen.
+
+**Not verified.** No mouse or gamepad input is recorded, because the game has no such input path.
+Playback is deterministic in *what happens at update N*, not in how many updates a wall-clock second
+contains -- a run that stalls does fewer updates, not different ones. Nothing here says the sequence
+looks right in motion; the two screenshots are stills.
+
+## The first frames anyone has looked at (2026-08-26)
+
+plan_30 `IG-30-013` closed. Gates M12 and M14 untouched. The full record of what the captured
+frames show is in `docs/screenshots.md`; this entry is the evidence for the mechanism.
+
+**Why this is worth a whole entry.** Every visual claim in this file has a "Not verified" clause
+saying nobody has seen the game, because the environment it is built in has no display. That was
+never actually true of the *renderer* -- the `compile-software` preset uses CNA's software renderer,
+which needs no GPU, no display server, and no driver, and whose `ReadBackbuffer` returns real
+pixels. The gap was that nothing asked it for them.
+
+**What was added.** `--screenshot <path>` and `--screenshot-frame <n>` capture one draw frame as an
+RGBA PNG, plus a `<path>.summary.json` sidecar. The read-back happens after the frame's last draw
+call and before `Present()` (reading a presented back buffer is renderer-dependent), via
+`GraphicsDevice::GetBackBufferData` and `CNA::Internal::Graphics::ImageLoader::SavePng`.
+
+Split along the same line as `PrototypeRenderer`: the part needing a `GraphicsDevice`
+(`src/Graphics/ScreenshotCapture.*`) is in the executable, and the part worth unit-testing
+(`ScreenshotSummary`, `SummarizeScreenshot`, `ScreenshotLooksRendered`, `WriteScreenshotSummary`) is
+a pure function on a byte buffer in `iron_gang_core`. Two smaller consequences: the sky clear colour
+is now a named constant (`kSkyClearRed/Green/Blue`) used both by `Draw()`'s `Clear()` and by the
+"is this pixel geometry" test, rather than a literal in one place and a guess in the other; and
+`LogCategory` gained `Rendering`, which it had never had.
+
+**No golden image, on purpose.** `--smoke N` is not frame-deterministic -- CNA drives `Update()`
+from the wall clock and catches up by calling it repeatedly -- so which moment frame N lands on
+varies between runs and machines. A pixel hash would fail everywhere for reasons unrelated to
+rendering. What is stable is whether the frame is a rendered scene at all, which is what
+`ScreenshotLooksRendered()` checks: not empty, not nothing-but-sky, not a one-or-two-colour fill.
+
+**A predicate that was wrong on its first real input.** The first version also rejected a frame with
+no sky in it, reasoning that it meant the camera was inside geometry. The very first capture -- the
+intro cutscene's high establishing shot, looking down at the street -- is 99.7 % non-sky and
+completely correct, and the game logged it as suspect. The rule was removed rather than tuned: a
+camera angle is not a rendering fault, and there is a test asserting that exact frame shape passes,
+so it cannot come back.
+
+**Verified.** `TestScreenshotSummaryDescribesAFrame` (sky-only rejected with the reason naming it;
+near-sky pixels within tolerance not counted as geometry while a pixel well away from it is; a
+half-painted frame reading as half non-sky and passing; a no-sky frame passing; a two-colour frame
+rejected as a flat fill; a buffer whose size contradicts the dimensions yielding an empty summary
+rather than reading out of bounds) and `TestScreenshotSummaryDigestAndSidecar` (the digest stable
+for identical pixels and changed by one byte; the sidecar containing width, the fraction, and the
+digest written as a string because it does not fit a JSON double). New CTest
+`iron_gang_screenshot_capture_tests` runs the real binary headless three ways: a capture whose PNG
+signature, IHDR (8-bit, colour type 6 RGBA) and IEND chunk are all checked and whose sidecar must
+agree with the PNG's own dimensions; a `--screenshot-frame` past the end of the run, which must
+produce no file and still exit 0; and four malformed argument combinations, each of which must be
+rejected. 13 CTest targets, all passing, up from 12.
+
+**Mutation-checked.** Making `Draw()` return immediately after `Clear()` -- the exact "the renderer
+drew nothing" regression this exists to catch -- fails the end-to-end test with
+`0.0 not greater than 0.01 : the frame is nothing but the clear colour`. A capture run takes about
+3.7 s.
+
+**What the frames showed.** Three frames were captured and actually looked at (see
+`docs/screenshots.md` for the full write-up). The follow camera, the cutscene hand-off framing, the
+HUD, the dialogue subtitle, road markings, sidewalks, foliage, buildings, traffic vehicles and the
+parked sedan are all confirmed visually correct for the first time -- including, end to end, the
+dialogue cue added earlier the same day. Two defects were found that no assertion could have
+caught: **pedestrians render as a pair of red legs with no torso or head** [**corrected 2026-08-26:
+this finding was wrong -- see "Diagnosing the first screenshot review's own findings" below**]; and
+**a large flat pure-white quad fills the upper right** of both gameplay frames with a hard edge and
+no shading. Neither is diagnosed -- finding them is what a screenshot is for.
+
+**Not verified.** Anything about a real backend: this is CNA's software renderer, and EasyGL or a
+GPU path could differ (`ReadBackbuffer` is implemented per renderer). Colour accuracy, gamma, and
+any timing-dependent visual (animation blending, the loading screen's minimum display time) are
+outside what a single still frame can show. The capture is a still: nothing here says the game looks
+right in motion.
+
+## Cutscene dialogue track and cross-content stale-reference checking (2026-08-26)
+
+plan_26 `IG-26-010` and plan_34 `IG-34-015` closed; plan_26 `IG-26-002` advanced (two of its six
+tracks now exist). Gates M12 and M14 untouched.
+
+**What was added.** A cutscene can now say something. `CutsceneSequence` gained an optional
+`dialogue` track -- an array of `{time, lineId}` cues -- and `CutscenePlayer::GetActiveCueLineId()`
+returns the last cue at or before the current time (empty before the first cue). Cues name lines by
+the **stable dialogue id** plan_25 introduced, never by text, so editing a line's wording cannot
+silently change what the cutscene says.
+
+The binding is deliberately split three ways rather than making the player know about dialogue:
+`CutscenePlayer` only names a line, `DialogueSystem::SelectLine(lineId)` moves the conversation to
+a line by id (returning false, and changing nothing, for an id it does not have), and
+`IronGangGame::ApplyCutsceneDialogueCue()` joins them, applying each cue at most once so a player's
+own `Advance()` after the cutscene hands back control is never undone.
+
+Two behaviours fell out of this and were fixed rather than left inconsistent:
+
+- **Confirm during a cutscene now skips the cutscene** instead of advancing the conversation
+  underneath the track and being pulled back by the next cue. This is the precedence `InputContext`
+  already declares (Cutscene outranks Dialogue); the previous ordering quietly inverted it.
+- **`Skip()` is terminal for the dialogue track too.** `GetActiveCueLineId()` is computed from
+  elapsed time, so a skip lands on the last cue -- the line a full play-through would have reached.
+  `IG-26-004`'s "skip applies the required terminal state" now covers dialogue, not just camera.
+
+**The stale-reference half.** `LoadCutsceneSequence` takes the conversation's line ids and **fails
+the load** for a cue naming anything else, with the offending id in the error. That is the point of
+stable ids: the alternative is a cutscene that plays in silence at the spot where a line used to be,
+months after someone renamed it. This is what finally made `IG-34-015` testable -- until a cutscene
+referenced dialogue, no content referenced a line at all, so there was no stale reference to catch.
+
+**Content.** `assets/cutscenes/prologue_intro.cutscene.json` was re-timed from 2.5s to 5.0s and
+carries two cues (`prologue.mara.quiet_tonight` at 0.0s, `prologue.elias.take_the_sedan` at 2.4s);
+the player advances into the third line themselves. A third camera keyframe at 2.4s was inserted at
+exactly the midpoint of the original two -- `(12.5, 8.325, -3.25)` looking at `(0, 1.625, -7)` -- so
+the camera path through space is unchanged and only its timing differs, with a beat where the second
+line starts. The registry hash for the file was refreshed.
+
+`IronGangGame::Initialize()` no longer prints the opening dialogue line itself. It did, and the cue
+at 0.0s printed it again: a smoke run showed "Mara: Iron City is quiet tonight" twice in a row. The
+print now happens only if the started sequence has no cue at time 0 (i.e. the built-in fallback
+cutscene meeting a conversation whose ids it cannot name).
+
+**Verified.** Three new tests in `tests/CoreTests.cpp`, all passing:
+`TestCutsceneDialogueTrackSelectsLinesOverTime` (no cue before the first, a cue active exactly on
+its time, holding until the next comes due, a finished sequence keeping its last cue, and a skip
+from before any cue landing on the last one), `TestCutsceneRejectsStaleDialogueReference` (the same
+cue file loaded against a conversation that has the lines and against one that renamed a line --
+second must fail with the stale id in the message -- plus empty-conversation, out-of-order,
+past-duration, and missing-time cases), and
+`TestShippedCutsceneCuesResolveAgainstShippedDialogue` (the shipped intro against the shipped
+conversation, then every cue actually resolving through `SelectLine` to a line with text).
+
+Both new mechanisms were **mutation-checked**, not just asserted: making `GetActiveCueLineId()`
+stop at the first cue fails with "the second cue must take over", and deleting the stale-reference
+check fails with "a cue naming a line the conversation no longer contains must be rejected". Full
+`compile-software` build clean, all 12 `ctest` targets pass, `./scripts/check-syntax.sh` clean. A
+headless `--smoke 60` run prints the two cued lines exactly once each, in order, with no fallback
+warning. A headless `--smoke 900 --profile-scenario mission` run still drives the whole mission arc
+`introduction -> reach_vehicle -> enter_vehicle -> drive_to_warehouse -> completed` and exits 0 --
+the scenario's one-line-per-second dialogue advance was gated on `!cutscene_.IsActive()` so the
+cutscene still plays in full rather than being skipped at its first tick.
+
+**Not verified.** How the re-timed 5s pan and the subtitle timing actually look: this environment
+has no display, so the cue times are authored numbers, not something anyone has watched. The
+Confirm-skips-the-cutscene path is covered only by the unit tests' `Skip()` calls -- smoke mode
+presses no keys. Only the dialogue track was added; animation, audio, event, and fade tracks
+(`IG-26-002`) remain entirely open, and cues carry no duration, so a line stays on screen until the
+next cue or the end of the sequence.
+
+## M14 Linux release-archive slice (2026-08-25)
+
+A prior session implemented and did a first verification pass of a Linux EasyGL release
+archive, then stopped for an urgent handoff before documentation, a final post-edit
+verification pass, and a commit (see the "URGENT HANDOFF" entry that was in `NEXT.md`). This
+entry closes that out: documentation was added, and every verification step below was
+re-run against the final, documented state of the change.
+
+`CMakeLists.txt` now records the target OS/architecture in the CMake cache, sets
+`CNA_ENABLE_VIDEO=OFF` (this game does not use CNA's video playback; `AUTO` was pulling in
+four direct FFmpeg shared-library edges from a development machine that happened to have it
+installed), disables Jolt's own `install()` rules (which would otherwise ship its static
+archive, headers, and CMake package), switches to GNU install directory conventions, and gives
+the Linux executable a relative `$ORIGIN/../lib/iron-gang` install RPATH. The install set is
+runtime-only (audio/config/cutscene/dialogue/mission data and generated CNJ models, license
+notices, and a private copy of CNA's SDL3/SDL3_mixer shared libraries); ten dependency license
+texts are installed under `share/iron-gang/licenses/` (two of them, `stb.txt` and
+`nlohmann-json.txt`, are new repository-owned copies under `third_party/licenses/`). Windows
+DLL install rules exist but are untested. `src/main.cpp` no longer bakes the source checkout's
+absolute asset path into the executable; native builds resolve assets relative to the
+executable (installed `../share/iron-gang/assets`, then build-tree `../assets`, then `assets`),
+Emscripten keeps its virtual `assets` path, and the platform-specific executable-path lookup is
+compiled out entirely on Emscripten.
+
+New `scripts/release_archive.py` stages the package via `cmake --install`, validates the exact
+Linux Release/OPENGLES3/video-off identity and runtime-only layout, uses `readelf`/`ldd` to
+reject FFmpeg, unresolved or wrong-source SDL linkage, absolute workspace RPATHs, and a missing
+relative RPATH, runs an offscreen/dummy-audio five-frame smoke expecting every shipped CNJ model
+and WAV to load, then creates a sorted/normalized/reproducible `.tar.gz`, safely re-extracts it
+(rejecting path traversal), re-validates and re-smokes the extracted copy, and atomically writes
+a `.sha256` file. New `scripts/build-release.sh` runs preflight and asset-notice validation,
+configures/builds the `release-easygl` preset, and creates the archive, with ccache defaulting
+inside the build tree. New `docs/release-packaging.md` documents prerequisites, the build
+command, output paths, every validation stage, a failure-mode table, and the Linux-only/
+unsigned/single-machine boundary; it is itself installed and required by the archive validator.
+New `tests/test_release_archive.py` covers layout policy (valid/missing-license/development-
+pollution), deterministic archive creation plus a symlink round trip, path-traversal rejection,
+and locked package-identity policy; CMake registers it as the `iron_gang_release_archive_tests`
+CTest case.
+
+Full verification, all in this environment with no visible display or physical-window launch
+(`SDL_VIDEODRIVER=offscreen`, dummy audio, `DISPLAY`/`WAYLAND_DISPLAY` unset for every smoke
+run):
+
+- `python3 -m py_compile scripts/release_archive.py tests/test_release_archive.py` passes.
+- The focused suite passes 4/4: `python3 tests/test_release_archive.py scripts/release_archive.py`.
+- `bash -n scripts/build-release.sh` and `git diff --check` are both clean.
+- The reconfigured `compile-software` preset builds, and its no-display CTest passes 11/11
+  (including `iron_gang_release_archive_tests`).
+- `./scripts/check-syntax.sh` passes for all 27 tracked translation units.
+- `./scripts/build-web.sh` succeeds; the only warning is CNA's pre-existing `Song.hpp`
+  `GetHashCode` override warning, unrelated to this change, confirming the new
+  Emscripten-only `GetExecutablePath` compile-out guard is warning-free.
+- `./scripts/build-release.sh` was run twice end to end (preflight, asset-notice check,
+  `release-easygl` configure/build, archive). Both runs produced the byte-identical archive
+  `iron-gang-0.1.0-linux-x86_64.tar.gz` (25,312,754 bytes) with SHA-256
+  `bfcf9cea58d014f0644bbaddef95bbf5f0a7c4b24ed9e84fad35b08fa52a48d8`. This hash differs from
+  the pre-documentation hash recorded during the earlier interrupted session, as that session's
+  own note anticipated: `docs/release-packaging.md` is now part of the installed/archived
+  notice set, which legitimately changes package contents. The archive's internal validation
+  (layout, `readelf`/`ldd` linkage policy, and the offscreen/dummy-audio smoke run) passed
+  against both the freshly staged install and the re-extracted archive on every run.
+
+This closes the Linux EasyGL slice of gate M14 (`plan/plan_39-vertical-slice-gates.md`
+`IG-39-070`) and the license-notice/archive-builder tasks in `plan/plan_37-platforms-packaging-
+release-and-operations.md` (`IG-37-004`, `IG-37-063`-`IG-37-068`). It does not close the whole
+of M14 (`IG-39-015`): no external machine has built this from a clean checkout using only the
+documented steps, there is no full interactive playthrough of the packaged build, Windows
+packaging is untested, and the archive is unsigned and unpublished. It also does not touch M12,
+which remains open solely for controlled physical-display qualification.
+
+## M13 asset provenance and notice gate
+
+The current first-district production set is now enforced by `scripts/asset_registry.py`, not a
+manual CSV convention. The exact version-1 registry contains 15 approved shipping rows (11 original,
+4 external) and now includes the previously omitted runtime `assets/config/game.json`. Each row
+binds both content and local license evidence by SHA-256 and records source/acquisition where
+external, allow-listed license, modification/attribution/commercial/redistribution/AI review,
+reviewer, approval, shipping state, and notes. Recursive coverage includes runtime audio/config/
+cutscene/dialogue/mission content, MC3/glTF production sources, and the code-embedded bitmap font;
+generated GLB/CNJ files inherit source/converter provenance.
+
+Primary evidence was refreshed from the authors' own sources on 2026-08-24. The font8x8 README and
+`font8x8_basic.h` identify the data as Public Domain; the Nox Sound Design product page identifies
+all sounds as CC0, allows commercial use without attribution/restrictions, and reports no generative
+AI. Review records preserve the observed upstream SHA-256/source facts under
+`assets/licenses/evidence/`, and registry rows bind those local files by a second hash.
+
+`THIRD_PARTY_ASSETS.md` is generated atomically and deterministically with per-file source/license/
+content hash and evidence/reviewer tables. `THIRD_PARTY.md` links it, CMake installs both notices,
+and `build-assets.sh` refuses conversion when the registry or notice is stale. Seven focused tests
+cover the real registry, deterministic generation, unknown-file coverage, asset/evidence tamper,
+license/rights/approval policy, duplicate/case collision, stale output, and input-overwrite refusal.
+The complete virtual-display-free CTest passes 10/10. A clean install to
+`/tmp/iron-gang-m13-install-20260824` includes a byte-identical generated notice. This closes M13
+asset provenance/notices; actual dependency-license copies and clean runnable packaging remain M14.
+
+## Full CNA-linked build status
+
+A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Both compile-software and Release EasyGL are exercised here; Vulkan remains unverified in this environment.
+
+## Reproduction
+
+```bash
+./scripts/preflight.sh compile-software
+./scripts/check-syntax.sh
+MESH_CRAFT_SOURCE_DIR=../mesh-craft ./scripts/validate-mc3.sh
+```
+
+After dependencies are complete:
+
+```bash
+./scripts/configure.sh dev-easygl
+./scripts/build.sh dev-easygl
+./scripts/test.sh dev-easygl
+./scripts/run.sh dev-easygl --smoke 120
+```
+
+## Gate M1, measured as one session (plan_39 `IG-39-002`)
+
+Every earlier M1 sub-gate ran in its own process. `tests/test_gate_m1.py` runs the whole claim as a
+single session driven by `tests/input-scripts/gate_m1.inputscript.json`, traced with `--trace-state`:
+
+| Update | What the trace shows |
+| --- | --- |
+| 0-330 | the three prologue lines play in order, then `prototype_delivery` leaves `introduction` |
+| 330-700 | `reach_vehicle` -> `enter_vehicle` -> `drive_to_warehouse` -> `completed` |
+| 700-900 | the campaign starts `countryside_run`; the drive crosses into the `countryside` district |
+| 1020 | quick-save, **after** the first mission completed -- a case no isolated save/load gate reaches |
+| 1410 | quick-load returns z=8.26 -> z=34.60, back within 5 m of the save point |
+| 1590 | restart returns the player on foot to the warehouse-block spawn and replays the opening |
+
+Two findings came out of composing the gates, neither visible while they ran separately:
+
+- **A refused save left no trace.** The first attempt saved at update 890, mid district-transition.
+  `CurrentSaveBlockReason()` correctly refused it ("the district is still loading"), but the reason
+  reached only `transientStatus_` -- three seconds of on-screen text. Headless, the run simply had
+  no save file and no explanation. `SavePrototype()` and `LoadPrototype()` now log the refusal, the
+  successful write, and a failed read, so a script, a bug report, or a log can tell them apart.
+- **The countryside ships with no authored data** -- no roads, no pavements, no prop collision; it
+  falls back to built-in layouts. M1 is the warehouse block, so this does not fail the gate, but
+  `test_the_only_missing_district_data_is_the_countryside` pins the three missing files by name.
+
+Mutation-checked 3/3, each by the assertion that should catch it:
+
+| Mutation | Caught by |
+| --- | --- |
+| `LoadPrototype()` returns before restoring | `test_loading_returns_to_the_save_point` (27.1 m off) |
+| `SavePrototype()` returns immediately | `test_saving_writes_a_file_after_the_campaign_has_moved_on`, and the load test -- with no `.save` the load correctly fell back to the autosave |
+| reset reloads the current district instead of the first | `test_resetting_returns_to_the_spawn_in_the_first_district` (z=40, not 20) |
+
+Confirmed by hand outside the harness: the `dev-easygl` build on **OpenGL ES 3.2 (Mesa 25.0.7)** on
+the real display played through to `campaign complete` with no error, the only warnings being the
+countryside gap above.

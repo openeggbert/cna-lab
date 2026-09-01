@@ -1,0 +1,527 @@
+cmake_minimum_required(VERSION 3.24)
+
+project(IronGang
+    VERSION 0.1.0
+    DESCRIPTION "Original open-city action-adventure prototype built on CNA and sharp-runtime"
+    LANGUAGES CXX)
+
+include(GNUInstallDirs)
+
+# Persist the target identity for the release-archive validator. CMake's built-in system variables
+# are not guaranteed to be serialized into CMakeCache.txt.
+set(IRON_GANG_PACKAGE_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}" CACHE INTERNAL
+    "Target system name recorded for Iron Gang packages")
+set(IRON_GANG_PACKAGE_SYSTEM_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL
+    "Target architecture recorded for Iron Gang packages")
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(IRON_GANG_BUILD_TESTS "Build Iron Gang core tests" ON)
+option(IRON_GANG_WARNINGS_AS_ERRORS "Treat Iron Gang warnings as errors" OFF)
+option(IRON_GANG_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+set(IRON_GANG_CNA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext" CACHE PATH
+    "Path to the modular CNA source tree.")
+
+if(NOT EXISTS "${IRON_GANG_CNA_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Iron Gang: modular CNA was not found at '${IRON_GANG_CNA_DIR}'.\n"
+        "Recommended workspace layout:\n"
+        "  workspace/cnanext\n"
+        "  workspace/sharp-runtime\n"
+        "  workspace/easy-gl       # for OPENGLES3\n"
+        "  workspace/iron-gang\n"
+        "Override with -DIRON_GANG_CNA_DIR=/absolute/path/to/cnanext")
+endif()
+
+get_filename_component(IRON_GANG_DEPENDENCY_ROOT "${IRON_GANG_CNA_DIR}/.." ABSOLUTE)
+set(IRON_GANG_SHARP_RUNTIME_DIR "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtimenext" CACHE PATH
+    "Path to the sharp-runtime checkout consumed by CNA")
+if(NOT EXISTS "${IRON_GANG_SHARP_RUNTIME_DIR}/CMakeLists.txt")
+    set(_iron_gang_legacy_sharp_runtime "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime")
+    if(EXISTS "${_iron_gang_legacy_sharp_runtime}/CMakeLists.txt")
+        set(IRON_GANG_SHARP_RUNTIME_DIR "${_iron_gang_legacy_sharp_runtime}" CACHE PATH
+            "Path to the sharp-runtime checkout consumed by CNA" FORCE)
+    endif()
+endif()
+if(NOT EXISTS "${IRON_GANG_SHARP_RUNTIME_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Iron Gang: sharp-runtime was not found at '${IRON_GANG_SHARP_RUNTIME_DIR}'.\n"
+        "Override with -DIRON_GANG_SHARP_RUNTIME_DIR=/absolute/path/to/sharp-runtimenext")
+endif()
+
+# Jolt Physics (selected in plan_15-physics-integration.md IG-15-003): a shared checkout under
+# ~/deps/jolt per CLAUDE.md's dependency-reuse convention, not a per-project clone.
+set(IRON_GANG_JOLT_DIR "$ENV{HOME}/deps/jolt" CACHE PATH
+    "Path to a Jolt Physics checkout (pinned to v5.6.0; see ~/deps/<name> convention in CLAUDE.md).")
+
+if(NOT EXISTS "${IRON_GANG_JOLT_DIR}/Build/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Iron Gang: Jolt Physics was not found at '${IRON_GANG_JOLT_DIR}'.\n"
+        "Clone it once into the shared deps cache:\n"
+        "  git clone --branch v5.6.0 --depth 1 https://github.com/jrouwe/JoltPhysics.git ~/deps/jolt\n"
+        "Override with -DIRON_GANG_JOLT_DIR=/absolute/path/to/JoltPhysics")
+endif()
+
+# Consumer-side choices. The project does not build dependency tests/examples by default.
+set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CNA_ENABLE_NET OFF CACHE BOOL "" FORCE)
+# Iron Gang does not play video. Leaving CNA's AUTO default enabled on a development machine with
+# FFmpeg installed adds four direct shared-library edges and a very large system codec closure to
+# an otherwise small game package.
+set(CNA_ENABLE_VIDEO OFF CACHE STRING "" FORCE)
+set(CNA_DEVICES OFF CACHE BOOL "" FORCE)
+set(CNA_CNAEXT OFF CACHE BOOL "" FORCE)
+set(CNA_ENABLE_DRACO OFF CACHE BOOL "" FORCE)
+set(SHARP_RUNTIME_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SHARP_RUNTIME_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+# CNA's modules name their own narrow Sharp Runtime dependencies. Its renderer target currently
+# consumes CNA's documented framework closure; Iron Gang adds only Text.Json for mission and
+# cutscene data. Setting the selection before adding CNA prevents sharp-runtime's `All` umbrella
+# from instantiating unrelated networking, diagnostics, XML, compression, and process modules.
+set(SHARP_RUNTIME_COMPONENTS
+    "Core.Base;IO;Collections.Core;Collections.ObjectModel;Runtime;Threading;Text;Text.Json;Globalization;Storage;Security.Cryptography"
+    CACHE STRING "Sharp Runtime components required by modular CNA and Iron Gang" FORCE)
+set(CNA_SHARP_RUNTIME_ROOT "${IRON_GANG_SHARP_RUNTIME_DIR}" CACHE PATH
+    "Path to the sharp-runtime checkout consumed by CNA" FORCE)
+# Jolt defaults INTERPROCEDURAL_OPTIMIZATION ON and expects the *consuming* project to also opt
+# in via CMAKE_INTERPROCEDURAL_OPTIMIZATION; since Iron Gang does not, disable it for Jolt
+# rather than risk an LTO link mismatch (Jolt's own CMakeLists.txt documents this exact pitfall).
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
+# GPU-compute shader paths (optional hair/cloth demos) are irrelevant to Iron Gang's CPU rigid-
+# body/character/vehicle use and require dxc/glslc toolchains this workspace does not have.
+set(JPH_USE_DX12 OFF CACHE BOOL "" FORCE)
+set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
+set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
+set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
+# Jolt is linked into the game as a private static dependency. Its default install rules would
+# otherwise place the complete Jolt SDK (archive, headers, and CMake package) in the game runtime.
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+
+# OPENGLES3 uses CNA's EasyGL implementation and remains the recommended prototype renderer.
+# Override with VULKAN where available.
+if(NOT DEFINED CNA_GRAPHICS_RENDERER)
+    set(CNA_GRAPHICS_RENDERER "OPENGLES3" CACHE STRING "CNA graphics renderer")
+endif()
+
+# Keep CNA's module targets available, but do not make every module/tool part of Iron Gang's
+# default `all` target. Only the module closure reached from CNA::GraphicsCore/CNA::Runtime below
+# is built; optional Devices, GraphicsExt, C API, tools, and descriptor gates remain opt-in.
+add_subdirectory("${IRON_GANG_CNA_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna" EXCLUDE_FROM_ALL)
+
+add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
+
+include(cmake/CompilerWarnings.cmake)
+
+add_library(iron_gang_core STATIC
+    src/Audio/AudioBuses.cpp
+    src/Audio/AudioListener.cpp
+    src/Core/AtomicFile.cpp
+    src/Core/GameConfig.cpp
+    src/Core/JsonDataFile.cpp
+    src/Core/Log.cpp
+    src/Core/PerformanceProfiler.cpp
+    src/Core/RandomSource.cpp
+    src/Core/StateTrace.cpp
+    src/Core/SimulationClock.cpp
+    src/Cutscenes/CutscenePlayer.cpp
+    src/Cutscenes/CutsceneSequence.cpp
+    src/Dialogue/DialogueSystem.cpp
+    src/Gameplay/CameraCollision.cpp
+    src/Gameplay/InputContext.cpp
+    src/Input/InputBindings.cpp
+    src/Input/InputScript.cpp
+    src/Gameplay/LaneClearance.cpp
+    src/Gameplay/Locomotion.cpp
+    src/Gameplay/Pedestrian.cpp
+    src/Gameplay/PedestrianCrossing.cpp
+    src/Gameplay/PedestrianItinerary.cpp
+    src/Gameplay/PedestrianAnimation.cpp
+    src/Gameplay/PlayerController.cpp
+    src/Gameplay/PoliceSystem.cpp
+    src/Gameplay/TrafficSignal.cpp
+    src/Gameplay/Visibility.cpp
+    src/Gameplay/TrafficVehicle.cpp
+    src/Gameplay/VehicleConfig.cpp
+    src/Gameplay/VehicleDamage.cpp
+    src/Gameplay/VehicleController.cpp
+    src/Graphics/LightmapMesh.cpp
+    src/Graphics/ScreenshotSummary.cpp
+    src/Graphics/VideoMemoryAccounting.cpp
+    src/Missions/CampaignDefinition.cpp
+    src/Missions/MissionContext.cpp
+    src/Missions/MissionDefinition.cpp
+    src/Missions/MissionExpression.cpp
+    src/Missions/MissionValue.cpp
+    src/Missions/PrototypeMission.cpp
+    src/Persistence/AutosavePolicy.cpp
+    src/Persistence/SaveGame.cpp
+    src/Persistence/UserSettings.cpp
+    src/Physics/PhysicsWorld.cpp
+    src/UI/BitmapFont.cpp
+    src/UI/InteractionPrompt.cpp
+    src/UI/MenuModel.cpp
+    src/UI/Subtitle.cpp
+    src/UI/DistrictMap.cpp
+    src/World/DistrictManager.cpp
+    src/World/CollisionProxies.cpp
+    src/World/RoadGraph.cpp
+    src/World/SidewalkGraph.cpp
+    src/World/PrototypeWorld.cpp
+    src/World/WaypointPath.cpp)
+
+add_library(IronGang::Core ALIAS iron_gang_core)
+
+target_include_directories(iron_gang_core
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(iron_gang_core
+    PUBLIC
+        CNA::GraphicsCore
+        # plan_28 IG-28-007: the key-binding model names real Keys values, so the library that
+        # owns them has to be visible here -- otherwise bindings would have to live in the
+        # executable, where the window-free tests cannot reach them.
+        CNA::Input
+    PRIVATE
+        SharpRuntime::IO
+        SharpRuntime::Text.Json
+        Jolt)
+
+# Jolt's own headers are not warning-clean under this project's strict flags; treat them as
+# system headers (matching sharp-runtime/vendor's existing -isystem treatment) so only Iron
+# Gang's own code in PhysicsWorld.cpp is held to iron_gang_apply_warnings() below.
+get_target_property(IRON_GANG_JOLT_INCLUDE_DIRS Jolt INTERFACE_INCLUDE_DIRECTORIES)
+if(IRON_GANG_JOLT_INCLUDE_DIRS)
+    target_include_directories(iron_gang_core SYSTEM PRIVATE ${IRON_GANG_JOLT_INCLUDE_DIRS})
+endif()
+
+iron_gang_apply_warnings(iron_gang_core)
+
+add_executable(iron_gang
+    src/Application/IronGangGame.cpp
+    src/Graphics/GpuFrameTimer.cpp
+    src/Graphics/PrimitiveMesh.cpp
+    src/Graphics/PrototypeRenderer.cpp
+    src/Graphics/ScreenshotCapture.cpp
+    src/main.cpp)
+
+add_executable(IronGang::Game ALIAS iron_gang)
+
+target_include_directories(iron_gang
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_compile_definitions(iron_gang PRIVATE
+    IRON_GANG_VERSION="${PROJECT_VERSION}"
+    IRON_GANG_DEFAULT_ASSET_DIR="assets"
+    IRON_GANG_GRAPHICS_BACKEND="${CNA_GRAPHICS_RENDERER}"
+    IRON_GANG_BUILD_CONFIGURATION="${CMAKE_BUILD_TYPE}")
+
+target_link_libraries(iron_gang PRIVATE
+    iron_gang_core
+    CNA::Runtime)
+# GpuFrameTimer uses CNA's renderer timer contract, whose broad interface supplies many default
+# no-op methods with intentionally unnamed-at-call-site parameters. Game.hpp also reaches
+# sharp-runtime's Decimal.hpp through CNA's public content headers. Mark both dependency roots as
+# external for Iron Gang so strict warnings diagnose our sources rather than dependency internals.
+target_include_directories(iron_gang SYSTEM PRIVATE
+    "${IRON_GANG_CNA_DIR}/modules/graphics/include"
+    "${IRON_GANG_SHARP_RUNTIME_DIR}/modules/core/include")
+iron_gang_apply_warnings(iron_gang)
+
+if(TARGET SDL3::SDL3main)
+    target_link_libraries(iron_gang PRIVATE SDL3::SDL3main)
+endif()
+
+if(EMSCRIPTEN)
+    # CNA's browser path uses SDL3 + WebGL2. Keep the game's data beside the generated
+    # launcher so the same relative assetRoot ("assets") works in the browser filesystem.
+    target_link_options(iron_gang PRIVATE
+        "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/assets@assets"
+        "-sUSE_WEBGL2=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sINITIAL_MEMORY=268435456"
+        "-sNO_EXIT_RUNTIME=1")
+    set_target_properties(iron_gang PROPERTIES
+        SUFFIX ".js"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/web/build")
+endif()
+
+if(WIN32)
+    set_target_properties(iron_gang PROPERTIES WIN32_EXECUTABLE TRUE)
+    if(COMMAND cna_copy_sdl_runtime)
+        cna_copy_sdl_runtime(iron_gang)
+    endif()
+endif()
+
+set_target_properties(iron_gang PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+if(IRON_GANG_ENABLE_SANITIZERS AND NOT MSVC)
+    foreach(target iron_gang_core iron_gang)
+        target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+    endforeach()
+endif()
+
+if(IRON_GANG_BUILD_TESTS)
+    enable_testing()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    add_test(NAME iron_gang_performance_report_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_report.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/vram_evidence.py")
+    add_test(NAME iron_gang_performance_compare_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_compare.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_compare.py")
+    add_test(NAME iron_gang_vram_evidence_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_vram_evidence.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/vram_evidence.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_compare.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/drm_vram_capture.py")
+    add_test(NAME iron_gang_m12_capture_pair_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_m12_capture_pair.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/m12_capture_pair.py")
+    add_test(NAME iron_gang_asset_registry_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_asset_registry.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/asset_registry.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME iron_gang_release_archive_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_release_archive.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/release_archive.py")
+    add_test(NAME iron_gang_content_budget_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/content_budget.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    # plan_38 IG-38-014: fails when docs/status.md's generated counts no longer match the plan
+    # files, which is the only way a status dashboard stays worth reading.
+    add_test(NAME iron_gang_status_report_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_status_report.py")
+
+    add_executable(iron_gang_core_tests tests/CoreTests.cpp)
+    target_include_directories(iron_gang_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    # Gate M7: lets TestMissionLoadsCommittedFile() validate the real, committed
+    # assets/missions/prologue.mission.json (not just a hand-written test fixture), matching
+    # iron_gang's own IRON_GANG_DEFAULT_ASSET_DIR convention.
+    target_compile_definitions(iron_gang_core_tests PRIVATE
+        IRON_GANG_SOURCE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        # plan_30 IG-30-012: QA repro scripts are test fixtures, not shipped content, so they live
+        # under tests/ rather than assets/ and need the source root rather than the asset root.
+        IRON_GANG_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(iron_gang_core_tests PRIVATE iron_gang_core)
+    iron_gang_apply_warnings(iron_gang_core_tests)
+    add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
+    set_tests_properties(iron_gang_core_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # plan_39 IG-39-020: gate M1's on-foot controls, verified by measurement rather than by
+    # looking at a screenshot, plus the walk-into-a-lamp-post evidence IG-14-012 was missing.
+    add_test(NAME iron_gang_gate_on_foot_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_on_foot.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_on_foot_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
+    # plan_39 IG-39-002: gate M1 as one session -- the sub-gates each ran in their own process,
+    # and the gate's claim is that they compose.
+    add_test(NAME iron_gang_gate_m1_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_m1.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_m1_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
+    # plan_39 IG-39-024: gate M1's reset and quit. Both are one keypress, which is why they are
+    # worth measuring: a reset that leaves the mission mid-flight looks fine from outside.
+    add_test(NAME iron_gang_gate_reset_quit_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_reset_quit.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_reset_quit_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
+    # plan_39 IG-39-022/023: gate M1's dialogue, mission completion, and save/load.
+    add_test(NAME iron_gang_gate_mission_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_mission.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_mission_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
+    # plan_39 IG-39-021: gate M1's vehicle controls, measured from a state trace.
+    add_test(NAME iron_gang_gate_vehicle_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gate_vehicle.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_gate_vehicle_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" TIMEOUT 900)
+
+    # plan_14 IG-14-011/012: a proxy in the wrong place is worse than no proxy.
+    add_test(NAME iron_gang_extract_collision_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_extract_collision.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_collision.py")
+
+    # plan_09 IG-09-006/007: Mesh Craft's XSD leaves collision and units open; these are Iron
+    # Gang's own closures of them, and a convention nothing checks is not a convention.
+    add_test(NAME iron_gang_mc3_conventions_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mc3_conventions.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_mc3_conventions.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    # plan_09 IG-09-002/003: invalid MC3 must fail the asset build, with file and line. The
+    # validator existed and was called; nothing ever checked that it rejects anything.
+    add_test(NAME iron_gang_validate_mc3_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validate_mc3.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    # plan_03 IG-03-006: the module boundaries docs/architecture.md states are rules, and a rule
+    # nothing checks is a convention that holds until someone is in a hurry.
+    add_test(NAME iron_gang_layering_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_layering.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_layering.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    # plan_30 IG-30-012: the first test in this repository that presses a key. Runs the committed
+    # QA repro script through the real binary.
+    add_test(NAME iron_gang_input_script_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_input_script.py"
+            "$<TARGET_FILE:iron_gang>"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(iron_gang_input_script_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        TIMEOUT 900)
+
+    # plan_30 IG-30-013: the first test in this repository that looks at a rendered frame. The
+    # software renderer needs no display, so this runs anywhere the game builds.
+    add_test(NAME iron_gang_screenshot_capture_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_screenshot_capture.py"
+            "$<TARGET_FILE:iron_gang>")
+    set_tests_properties(iron_gang_screenshot_capture_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        TIMEOUT 600)
+
+    # IG-39-035: the game must fall back to the procedural warehouse box, not crash, when
+    # scripts/build-assets.sh has not produced assets/generated/warehouse/cnj/warehouse.cnj.
+    add_test(NAME iron_gang_missing_asset_fallback
+        COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-missing-asset-fallback.sh" "$<TARGET_FILE:iron_gang>")
+    set_tests_properties(iron_gang_missing_asset_fallback PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        # A regression test must not depend on the host's PulseAudio/PipeWire permissions. CNA's
+        # SDL3 audio path is still exercised, through SDL's deterministic no-hardware driver.
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
+
+    # Gate M4 (IG-39-005): character, trigger, raycast, and vehicle prototypes behind PhysicsWorld.
+    add_executable(iron_gang_physics_tests tests/PhysicsTests.cpp)
+    target_include_directories(iron_gang_physics_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(iron_gang_physics_tests PRIVATE iron_gang_core)
+    iron_gang_apply_warnings(iron_gang_physics_tests)
+    add_test(NAME iron_gang_physics_tests COMMAND iron_gang_physics_tests)
+    set_tests_properties(iron_gang_physics_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # Gate M12 / IG-35-051: bounded no-window lifecycle soak for district, mission, and save/load.
+    add_executable(iron_gang_memory_soak_tests tests/MemorySoakTests.cpp)
+    target_include_directories(iron_gang_memory_soak_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(iron_gang_memory_soak_tests PRIVATE iron_gang_core)
+    iron_gang_apply_warnings(iron_gang_memory_soak_tests)
+    add_test(NAME iron_gang_memory_soak_tests COMMAND iron_gang_memory_soak_tests --cycles 200)
+    set_tests_properties(iron_gang_memory_soak_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        LABELS "soak;performance"
+        TIMEOUT 60)
+endif()
+
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    # The Linux package places CNA's two actual SDL runtime dependencies in a private directory.
+    # A relative install RPATH keeps the extracted archive independent of this build workspace.
+    set_target_properties(iron_gang PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/iron-gang")
+endif()
+
+install(TARGETS iron_gang RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Ship only runtime content. Authoring sources, registry inputs, and build policy remain available
+# in the source repository; the generated notices below preserve package provenance.
+foreach(runtime_asset_directory IN ITEMS audio config cutscenes dialogues districts missions vehicles)
+    install(DIRECTORY "assets/${runtime_asset_directory}"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets")
+endforeach()
+install(DIRECTORY "assets/generated/models/cnj"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang/assets/generated/models")
+install(FILES README.md LICENSE THIRD_PARTY.md THIRD_PARTY_ASSETS.md docs/release-packaging.md
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/iron-gang")
+
+set(_iron_gang_dependency_license_dir "${CMAKE_INSTALL_DATADIR}/iron-gang/licenses")
+function(iron_gang_install_dependency_license source destination_name)
+    if(NOT EXISTS "${source}")
+        message(FATAL_ERROR
+            "Iron Gang: required dependency license is missing: ${source}")
+    endif()
+    install(FILES "${source}"
+        DESTINATION "${_iron_gang_dependency_license_dir}"
+        RENAME "${destination_name}")
+endfunction()
+
+iron_gang_install_dependency_license("${IRON_GANG_CNA_DIR}/LICENSE" "CNA.txt")
+iron_gang_install_dependency_license("${IRON_GANG_SHARP_RUNTIME_DIR}/LICENSE" "sharp-runtime.txt")
+iron_gang_install_dependency_license("${IRON_GANG_JOLT_DIR}/LICENSE" "Jolt-Physics.txt")
+iron_gang_install_dependency_license("${IRON_GANG_CNA_DIR}/third_party/cgltf/LICENSE" "cgltf.txt")
+iron_gang_install_dependency_license(
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/licenses/stb.txt" "stb.txt")
+iron_gang_install_dependency_license(
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/licenses/nlohmann-json.txt" "nlohmann-json.txt")
+
+if(CNA_GRAPHICS_RENDERER STREQUAL "OPENGLES3" OR CNA_GRAPHICS_RENDERER STREQUAL "WEBGL2")
+    iron_gang_install_dependency_license(
+        "${IRON_GANG_DEPENDENCY_ROOT}/easy-gl/LICENSE" "easy-gl.txt")
+    iron_gang_install_dependency_license(
+        "${IRON_GANG_DEPENDENCY_ROOT}/meta-gl/LICENSE" "meta-gl.txt")
+endif()
+
+set(_iron_gang_sdl_license_root "${CNA_SDL_PREBUILT_ROOT}/install/share/licenses")
+iron_gang_install_dependency_license(
+    "${_iron_gang_sdl_license_root}/SDL3/LICENSE.txt" "SDL3.txt")
+iron_gang_install_dependency_license(
+    "${_iron_gang_sdl_license_root}/SDL3_mixer/LICENSE.txt" "SDL3_mixer.txt")
+
+if(WIN32 AND NOT EMSCRIPTEN)
+    install(FILES $<TARGET_FILE:SDL3::SDL3> $<TARGET_FILE:SDL3_mixer::SDL3_mixer>
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
+elseif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    file(GLOB _iron_gang_sdl_runtime_libraries CONFIGURE_DEPENDS
+        "${CNA_SDL_PREBUILT_ROOT}/install/lib/libSDL3.so*"
+        "${CNA_SDL_PREBUILT_ROOT}/install/lib/libSDL3_mixer.so*")
+    if(NOT _iron_gang_sdl_runtime_libraries)
+        message(FATAL_ERROR
+            "Iron Gang: CNA's Linux SDL runtime libraries were not found under "
+            "${CNA_SDL_PREBUILT_ROOT}/install/lib")
+    endif()
+    install(FILES ${_iron_gang_sdl_runtime_libraries}
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/iron-gang")
+endif()

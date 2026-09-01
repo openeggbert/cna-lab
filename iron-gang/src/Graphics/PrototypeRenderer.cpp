@@ -1,0 +1,844 @@
+#include "IronGang/Graphics/PrototypeRenderer.hpp"
+
+#include "IronGang/Core/Log.hpp"
+
+#include <numbers>
+
+#include "IronGang/Gameplay/PedestrianAnimation.hpp"
+
+#include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/World/PrototypeWorld.hpp"
+
+#include "Microsoft/Xna/Framework/Graphics/AnimationPlayer.hpp"
+#include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Effect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/EffectTechnique.hpp"
+#include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ModelMesh.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ModelMeshPart.hpp"
+#include "Microsoft/Xna/Framework/Graphics/PbrEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/PrimitiveType.hpp"
+#include "Microsoft/Xna/Framework/Graphics/RasterizerState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SkinnedEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SkinnedPbrEffect.hpp"
+#include "System/TimeSpan.hpp"
+
+#include <algorithm>
+#include <utility>
+
+namespace IronGang
+{
+    using namespace Microsoft::Xna::Framework;
+    using namespace Microsoft::Xna::Framework::Graphics;
+
+    struct CharacterAnimationState
+    {
+        explicit CharacterAnimationState(const SkinningData& data)
+            : skinningData(&data), player(data), blendedSkinTransforms(player.GetSkinTransforms())
+        {
+        }
+
+        void Update(float deltaSeconds, const std::string& requestedClip,
+                    const std::string& fallbackClip = std::string())
+        {
+            auto clipIt = skinningData->AnimationClips.find(requestedClip);
+            if (clipIt == skinningData->AnimationClips.end() && !fallbackClip.empty())
+            {
+                // assets/generated is not committed, so a checkout whose asset build predates a
+                // clip must still animate rather than freeze on whatever pose it last held.
+                clipIt = skinningData->AnimationClips.find(fallbackClip);
+            }
+            if (clipIt == skinningData->AnimationClips.end())
+            {
+                return;
+            }
+
+            const AnimationClip* playingClip = player.getCurrentClipProperty();
+            if (playingClip != &clipIt->second)
+            {
+                if (playingClip != nullptr && blendDuration > 0.0F)
+                {
+                    blendFromSkinTransforms = player.GetSkinTransforms();
+                    blendElapsed = 0.0F;
+                }
+                else
+                {
+                    blendFromSkinTransforms.clear();
+                }
+                player.StartClip(clipIt->second);
+            }
+
+            player.Update(System::TimeSpan::FromSeconds(deltaSeconds), true, true);
+            const auto& target = player.GetSkinTransforms();
+            if (blendFromSkinTransforms.empty())
+            {
+                blendedSkinTransforms = target;
+                return;
+            }
+
+            blendElapsed += deltaSeconds;
+            const float amount = std::clamp(blendElapsed / blendDuration, 0.0F, 1.0F);
+            const std::size_t boneCount = std::min(blendFromSkinTransforms.size(), target.size());
+            blendedSkinTransforms.resize(boneCount);
+            for (std::size_t i = 0; i < boneCount; ++i)
+            {
+                blendedSkinTransforms[i] = Matrix::Lerp(blendFromSkinTransforms[i], target[i], amount);
+            }
+            if (amount >= 1.0F)
+            {
+                blendFromSkinTransforms.clear();
+            }
+        }
+
+        const SkinningData* skinningData;
+        AnimationPlayer player;
+        float blendDuration{0.25F};
+        float blendElapsed{0.0F};
+        std::vector<Matrix> blendFromSkinTransforms;
+        std::vector<Matrix> blendedSkinTransforms;
+    };
+
+    namespace
+    {
+        // Gate M10: applies the same CPU-computed sun-brightness tint (SunLight.hpp) to every
+        // BasicEffect/PbrEffect/SkinnedEffect/SkinnedPbrEffect a CNJ Model's meshes use -- the
+        // real-content equivalent of DrawMesh()'s `tint` parameter for the procedural boxes.
+        // plan_08 IG-08-014: the diffuse colour the **asset** carries, captured once so the
+        // per-frame sun tint multiplies it instead of overwriting it. Reading it back every frame
+        // and multiplying in place would compound: 0.42 x 0.8, then x 0.8 again, and the model
+        // fades to black over a few seconds.
+        [[nodiscard]] std::vector<Vector3> CaptureModelDiffuseColors(const Model& model)
+        {
+            std::vector<Vector3> colors;
+            for (const ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (const Effect* effect : mesh->getEffectsProperty())
+                {
+                    if (const auto* basicEffect = dynamic_cast<const BasicEffect*>(effect))
+                    {
+                        colors.push_back(basicEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* pbrEffect = dynamic_cast<const PbrEffect*>(effect))
+                    {
+                        colors.push_back(pbrEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* skinnedEffect = dynamic_cast<const SkinnedEffect*>(effect))
+                    {
+                        colors.push_back(skinnedEffect->getDiffuseColorProperty());
+                    }
+                    else if (const auto* skinnedPbr = dynamic_cast<const SkinnedPbrEffect*>(effect))
+                    {
+                        colors.push_back(skinnedPbr->getDiffuseColorProperty());
+                    }
+                    else
+                    {
+                        colors.push_back(Vector3(1.0F, 1.0F, 1.0F));
+                    }
+                }
+            }
+            return colors;
+        }
+
+        // Whether every mesh of a model uses a pre-PBR effect, which is what a `.cnj` generated
+        // before CNA's material work looks like. Such an asset carries no material at all, so its
+        // captured colour is white and the model renders as a flat slab -- worth saying out loud
+        // rather than leaving someone to wonder why their warehouse is white.
+        [[nodiscard]] bool ModelPredatesMaterials(const Model& model)
+        {
+            bool sawEffect = false;
+            for (const ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (const Effect* effect : mesh->getEffectsProperty())
+                {
+                    sawEffect = true;
+                    if (dynamic_cast<const PbrEffect*>(effect) != nullptr ||
+                        dynamic_cast<const SkinnedPbrEffect*>(effect) != nullptr)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return sawEffect;
+        }
+
+        // Applies `captured x tint` to every effect, in the order CaptureModelDiffuseColors()
+        // visited them.
+        void ApplyModelDiffuseColors(Model& model, const std::vector<Vector3>& captured,
+                                     const Vector3& tint)
+        {
+            std::size_t index = 0;
+            for (ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (Effect* effect : mesh->getEffectsPropertyMutable())
+                {
+                    const Vector3 base = index < captured.size() ? captured[index]
+                                                                 : Vector3(1.0F, 1.0F, 1.0F);
+                    ++index;
+                    const Vector3 shaded(base.X * tint.X, base.Y * tint.Y, base.Z * tint.Z);
+                    if (auto* basicEffect = dynamic_cast<BasicEffect*>(effect))
+                    {
+                        basicEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* pbrEffect = dynamic_cast<PbrEffect*>(effect))
+                    {
+                        pbrEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                    {
+                        skinnedEffect->setDiffuseColorProperty(shaded);
+                    }
+                    else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                    {
+                        skinnedPbrEffect->setDiffuseColorProperty(shaded);
+                    }
+                }
+            }
+        }
+
+    }
+
+    PrototypeRenderer::PrototypeRenderer() = default;
+    PrototypeRenderer::~PrototypeRenderer() = default;
+
+    void PrototypeRenderer::Initialize(GraphicsDevice& device,
+                                       const PrototypeWorld& world,
+                                       std::optional<Model> warehouseModel,
+                                       std::optional<VehicleModelSet> vehicleModels,
+                                       std::optional<Model> characterModel,
+                                       std::optional<Model> streetPropsModel)
+    {
+        warehouseModel_ = std::move(warehouseModel);
+        vehicleModels_ = std::move(vehicleModels);
+        characterModel_ = std::move(characterModel);
+        streetPropsModel_ = std::move(streetPropsModel);
+
+        // plan_08 IG-08-014: capture what the assets say their colours are, once. Since CNA's
+        // glTF->CNJ work landed, a generated .cnj carries diffuseColor/metallic/roughness and the
+        // loader applies them -- so the game's job is to shade that colour, not to replace it.
+        if (warehouseModel_)
+        {
+            warehouseBaseColors_ = CaptureModelDiffuseColors(*warehouseModel_);
+            if (ModelPredatesMaterials(*warehouseModel_))
+            {
+                Log::Warning(LogCategory::Assets,
+                             "warehouse.cnj carries no material (a pre-PBR asset) and will render "
+                             "white -- regenerate it with scripts/build-assets.sh");
+            }
+        }
+        if (streetPropsModel_)
+        {
+            streetPropsBaseColors_ = CaptureModelDiffuseColors(*streetPropsModel_);
+        }
+        if (vehicleModels_)
+        {
+            vehicleBodyBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->body);
+            vehicleCabinBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->cabin);
+            vehicleWindshieldBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->windshield);
+            vehicleWheelBaseColors_ = CaptureModelDiffuseColors(vehicleModels_->wheel);
+            if (ModelPredatesMaterials(vehicleModels_->body))
+            {
+                Log::Warning(LogCategory::Assets,
+                             "the sedan's .cnj files carry no material (pre-PBR assets) and will "
+                             "render white -- regenerate them with scripts/build-assets.sh");
+            }
+        }
+
+        // Gate M10 baked lighting: built before RebuildStaticGeometry() below, which assigns the
+        // first district's baked lightmap atlas to lightmapEffect_'s second texture slot.
+        lightmapNeutralTexture_ = std::make_shared<Texture2D>(device, 1, 1);
+        const Color neutralGray(128, 128, 128, 255);
+        lightmapNeutralTexture_->SetData(&neutralGray, 1);
+        lightmapEffect_ = std::make_unique<DualTextureEffect>(device);
+        lightmapEffect_->setVertexColorEnabledProperty(true);
+        lightmapEffect_->SetOwnedTexture(lightmapNeutralTexture_);
+
+        if (characterModel_.has_value())
+        {
+            auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
+            if (skinningData != nullptr)
+            {
+                characterAnimation_ = std::make_unique<CharacterAnimationState>(*skinningData);
+            }
+            else
+            {
+                // Loaded, but with no SkinningData on Tag -- not a skinned model (e.g. a
+                // malformed/regenerated asset). Fall back to the procedural player box rather
+                // than drawing an un-animatable character.
+                characterModel_.reset();
+            }
+        }
+
+        RebuildStaticGeometry(device, world);
+
+        MeshBuilder vehicleBuilder;
+        vehicleBuilder.AddBox({0.0F, 0.0F, 0.0F}, {2.1F, 0.65F, 4.2F}, Color(116, 26, 30, 255));
+        vehicleBuilder.AddBox({0.0F, 0.58F, -0.15F}, {1.75F, 0.75F, 2.05F}, Color(145, 42, 47, 255));
+        vehicleBuilder.AddBox({0.0F, 0.62F, -0.35F}, {1.50F, 0.45F, 1.45F}, Color(95, 130, 145, 255));
+        vehicleBuilder.AddBox({-1.05F, -0.20F, -1.35F}, {0.32F, 0.65F, 0.75F}, Color(25, 25, 27, 255));
+        vehicleBuilder.AddBox({1.05F, -0.20F, -1.35F}, {0.32F, 0.65F, 0.75F}, Color(25, 25, 27, 255));
+        vehicleBuilder.AddBox({-1.05F, -0.20F, 1.35F}, {0.32F, 0.65F, 0.75F}, Color(25, 25, 27, 255));
+        vehicleBuilder.AddBox({1.05F, -0.20F, 1.35F}, {0.32F, 0.65F, 0.75F}, Color(25, 25, 27, 255));
+        vehicleMesh_.Upload(device, vehicleBuilder);
+
+        MeshBuilder playerBuilder;
+        playerBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.55F, 1.25F, 0.38F}, Color(49, 69, 91, 255));
+        playerBuilder.AddBox({0.0F, 0.85F, 0.0F}, {0.42F, 0.42F, 0.42F}, Color(209, 177, 143, 255));
+        playerMesh_.Upload(device, playerBuilder);
+
+        // Gate M9: a plainer, slightly smaller car than the player's own sedan (fewer parts, flat
+        // slate-blue paint) so traffic reads as background rather than competing with it visually.
+        MeshBuilder trafficVehicleBuilder;
+        trafficVehicleBuilder.AddBox({0.0F, 0.0F, 0.0F}, {1.9F, 0.6F, 3.9F}, Color(70, 82, 97, 255));
+        trafficVehicleBuilder.AddBox({0.0F, 0.55F, -0.10F}, {1.55F, 0.6F, 1.8F}, Color(88, 98, 112, 255));
+        trafficVehicleMesh_.Upload(device, trafficVehicleBuilder);
+
+        // A simple standing box distinct from the player's own two-tone body/head mesh (single
+        // muted tone, no separate head box -- keeps ambient pedestrians cheap and visually minor).
+        MeshBuilder pedestrianBuilder;
+        pedestrianBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.5F, 1.15F, 0.35F}, Color(120, 108, 96, 255));
+        pedestrianMesh_.Upload(device, pedestrianBuilder);
+
+        // plan_21 IG-21-003: the lamp itself is white here and tinted per phase at draw time, so
+        // one mesh serves all three colours.
+        MeshBuilder signalBuilder;
+        signalBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.45F, 0.45F, 0.45F}, Color(255, 255, 255, 255));
+        signalLightMesh_.Upload(device, signalBuilder);
+
+        // Black-and-white patrol livery so a police response reads clearly against ordinary
+        // traffic even as plain colored boxes.
+        MeshBuilder policeCarBuilder;
+        policeCarBuilder.AddBox({0.0F, 0.0F, 0.0F}, {2.0F, 0.62F, 4.0F}, Color(245, 245, 245, 255));
+        policeCarBuilder.AddBox({0.0F, 0.56F, -0.10F}, {1.6F, 0.62F, 1.9F}, Color(20, 20, 24, 255));
+        policeCarBuilder.AddBox({0.0F, 0.92F, -0.10F}, {0.55F, 0.20F, 0.35F}, Color(200, 40, 40, 255));
+        policeCarMesh_.Upload(device, policeCarBuilder);
+
+        // Gate M10: a unit-footprint flat, dark, semi-transparent decal -- scaled/positioned per
+        // actor at draw time (see DrawShadowDecal()) rather than baked per-size, so one mesh
+        // covers both the player's and the vehicle's differently-shaped footprints.
+        MeshBuilder shadowBuilder;
+        shadowBuilder.AddBox({0.0F, 0.0F, 0.0F}, {1.0F, 0.02F, 1.0F}, Color(10, 10, 10, 110));
+        shadowDecalMesh_.Upload(device, shadowBuilder);
+
+        effect_ = std::make_unique<BasicEffect>(device);
+        effect_->VertexColorEnabled = true;
+        device.setRasterizerStateProperty(RasterizerState::CullNone);
+        device.SetDepthTestEnabled(true);
+    }
+
+    void PrototypeRenderer::UpdatePedestrianAnimations(float deltaSeconds,
+                                                       const std::vector<ActorPose>& pedestrians)
+    {
+        if (!characterModel_.has_value())
+        {
+            return; // no skinned character loaded: the coloured boxes stay
+        }
+        auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
+        if (skinningData == nullptr)
+        {
+            return;
+        }
+
+        while (pedestrianAnimations_.size() < pedestrians.size())
+        {
+            auto state = std::make_unique<CharacterAnimationState>(*skinningData);
+            // Each new pedestrian starts a fraction of a second into its walk cycle. Without this
+            // every pedestrian steps in perfect unison, which reads as one puppet drawn twelve
+            // times -- worse than the boxes it replaces.
+            const float phase = 0.13F * static_cast<float>(pedestrianAnimations_.size() % 7U);
+            state->Update(phase, "Walk");
+            pedestrianAnimations_.push_back(std::move(state));
+        }
+        pedestrianAnimations_.resize(pedestrians.size());
+
+        for (std::size_t index = 0; index < pedestrians.size(); ++index)
+        {
+            // plan_20 IG-20-003: the three locomotion states -- walking, pivoting on the spot at
+            // the end of a pavement, and standing still while yielding (IG-20-010) -- each pick
+            // their own clip through the shared, unit-tested selector.
+            const PedestrianAnimation animation = SelectPedestrianAnimation(pedestrians[index].moving,
+                                                                            pedestrians[index].turningInPlace,
+                                                                            pedestrians[index].fleeing);
+            pedestrianAnimations_[index]->Update(deltaSeconds,
+                                                 PedestrianAnimationClipName(animation),
+                                                 PedestrianAnimationFallbackClipName(animation));
+        }
+    }
+
+    void PrototypeRenderer::UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName)
+    {
+        if (!characterAnimation_)
+        {
+            return;
+        }
+        characterAnimation_->Update(deltaSeconds, clipName);
+    }
+
+    void PrototypeRenderer::RebuildStaticGeometry(GraphicsDevice& device, const PrototypeWorld& world)
+    {
+        // Gate M10 baked lighting: one flat-shaded lightmap tile per box face (LightmapMesh.hpp),
+        // not per-vertex vertex color -- MC3-sourced models (warehouseModel_) have no lightmap UV
+        // channel from the current pipeline and stay out of scope for this pass.
+        LightmapMeshBuilder cityBuilder;
+        staticPrimitiveObjectCount_ = 0;
+        // Only the district the props were authored for gives up its placeholder lamps.
+        streetPropsReplaceLampBoxes_ =
+            streetPropsModel_.has_value() && world.GetId() == DistrictId::WarehouseBlock;
+        for (const WorldBox& box : world.GetBoxes())
+        {
+            if (warehouseModel_.has_value() && box.name == "warehouse")
+            {
+                warehousePosition_ = box.center;
+                continue;
+            }
+            // plan_09 IG-09-005/008: the MC3 prop set carries its own lamps, already placed by
+            // <instance> elements in the source file, so the placeholder lamp boxes are dropped.
+            // Their positions were the placeholder; the authored instances are the content.
+            if (streetPropsReplaceLampBoxes_ &&
+                (box.name == "lamp_west" || box.name == "lamp_east" ||
+                 box.name == "lamp_glow_west" || box.name == "lamp_glow_east"))
+            {
+                continue;
+            }
+            cityBuilder.AddBox(box.center, box.size, box.color);
+            ++staticPrimitiveObjectCount_;
+        }
+        cityBuilder.Finalize();
+        staticCityLightmapMesh_.Upload(device, cityBuilder);
+
+        auto atlasTexture = std::make_shared<Texture2D>(device, cityBuilder.GetAtlasWidth(), cityBuilder.GetAtlasHeight());
+        const auto& atlasPixels = cityBuilder.GetAtlasPixels();
+        atlasTexture->SetData(atlasPixels.data(), static_cast<int>(atlasPixels.size()));
+        lightmapEffect_->SetOwnedTexture2(std::move(atlasTexture));
+        lightmapTextureBytes_ = sizeof(Color) + atlasPixels.size() * sizeof(Color);
+    }
+
+    RendererVideoMemoryBreakdown PrototypeRenderer::GetTrackedVideoMemory() const
+    {
+        VideoMemoryAccumulator importedModels;
+        if (warehouseModel_)
+        {
+            importedModels.AddModel(*warehouseModel_);
+        }
+        if (vehicleModels_)
+        {
+            importedModels.AddModel(vehicleModels_->body);
+            importedModels.AddModel(vehicleModels_->cabin);
+            importedModels.AddModel(vehicleModels_->windshield);
+            importedModels.AddModel(vehicleModels_->wheel);
+        }
+        if (characterModel_)
+        {
+            importedModels.AddModel(*characterModel_);
+        }
+
+        RendererVideoMemoryBreakdown result;
+        result.gameOwnedBytes = staticCityLightmapMesh_.GetTrackedVideoMemoryBytes() +
+                                vehicleMesh_.GetTrackedVideoMemoryBytes() +
+                                playerMesh_.GetTrackedVideoMemoryBytes() +
+                                trafficVehicleMesh_.GetTrackedVideoMemoryBytes() +
+                                pedestrianMesh_.GetTrackedVideoMemoryBytes() +
+                                signalLightMesh_.GetTrackedVideoMemoryBytes() +
+                                policeCarMesh_.GetTrackedVideoMemoryBytes() +
+                                shadowDecalMesh_.GetTrackedVideoMemoryBytes() + lightmapTextureBytes_;
+        result.importedModels = importedModels.GetBreakdown();
+        return result;
+    }
+
+    void PrototypeRenderer::BeginFrameWorkloadTracking() noexcept
+    {
+        workloadTrackingEnabled_ = true;
+        frameWorkload_ = {};
+    }
+
+    void PrototypeRenderer::RecordPrimitiveDraw(const PrimitiveMesh& mesh) noexcept
+    {
+        if (!workloadTrackingEnabled_ || !mesh.IsReady())
+        {
+            return;
+        }
+        ++frameWorkload_.drawCalls;
+        // One EffectPass::Apply plus SetVertexBuffer and Indices in PrimitiveMesh::Draw.
+        frameWorkload_.stateChanges += 3;
+        frameWorkload_.vertices += static_cast<std::uint64_t>(std::max(0, mesh.GetVertexCount()));
+        frameWorkload_.triangles += static_cast<std::uint64_t>(std::max(0, mesh.GetTriangleCount()));
+    }
+
+    void PrototypeRenderer::RecordLightmapDraw() noexcept
+    {
+        if (!workloadTrackingEnabled_ || !staticCityLightmapMesh_.IsReady())
+        {
+            return;
+        }
+        ++frameWorkload_.drawCalls;
+        // One EffectPass::Apply plus the lightmap mesh's two buffer-binding calls.
+        frameWorkload_.stateChanges += 3;
+        frameWorkload_.vertices +=
+            static_cast<std::uint64_t>(std::max(0, staticCityLightmapMesh_.GetVertexCount()));
+        frameWorkload_.triangles +=
+            static_cast<std::uint64_t>(std::max(0, staticCityLightmapMesh_.GetTriangleCount()));
+    }
+
+    void PrototypeRenderer::RecordModelDraw(const Model& model)
+    {
+        if (!workloadTrackingEnabled_)
+        {
+            return;
+        }
+
+        bool submitted = false;
+        for (const ModelMesh* mesh : model.getMeshesProperty())
+        {
+            if (mesh == nullptr)
+            {
+                continue;
+            }
+            for (const ModelMeshPart* part : mesh->getMeshPartsProperty())
+            {
+                if (part == nullptr || part->getEffectProperty() == nullptr ||
+                    part->getPrimitiveCountProperty() <= 0)
+                {
+                    continue;
+                }
+                const int passCount = part->getEffectProperty()->getCurrentTechniqueProperty()
+                    ->getPassesProperty().getCountProperty();
+                if (passCount <= 0)
+                {
+                    continue;
+                }
+
+                const std::uint64_t passes = static_cast<std::uint64_t>(passCount);
+                frameWorkload_.drawCalls += passes;
+                // ModelMesh::Draw binds VB/IB once per part and applies each effect pass once.
+                frameWorkload_.stateChanges += 2U + passes;
+                frameWorkload_.vertices +=
+                    static_cast<std::uint64_t>(std::max(0, part->getNumVerticesProperty())) * passes;
+                const PrimitiveType topology = part->getPrimitiveTypeEXTProperty();
+                if (topology == PrimitiveType::TriangleList || topology == PrimitiveType::TriangleStrip)
+                {
+                    frameWorkload_.triangles +=
+                        static_cast<std::uint64_t>(part->getPrimitiveCountProperty()) * passes;
+                }
+                submitted = true;
+            }
+        }
+        if (submitted)
+        {
+            ++frameWorkload_.instances;
+        }
+    }
+
+    void PrototypeRenderer::DrawModel(Model& model,
+                                      const Matrix& world,
+                                      const Matrix& view,
+                                      const Matrix& projection)
+    {
+        model.Draw(world, view, projection);
+        RecordModelDraw(model);
+    }
+
+    void PrototypeRenderer::DrawMesh(GraphicsDevice& device,
+                                     PrimitiveMesh& mesh,
+                                     const Matrix& worldMatrix,
+                                     const Vector3& tint)
+    {
+        effect_->World = worldMatrix;
+        effect_->setDiffuseColorProperty(tint);
+        bool submitted = false;
+        for (auto& pass : effect_->getCurrentTechniqueProperty()->getPassesProperty())
+        {
+            pass.Apply();
+            mesh.Draw(device);
+            RecordPrimitiveDraw(mesh);
+            submitted = submitted || mesh.IsReady();
+        }
+        if (workloadTrackingEnabled_ && submitted)
+        {
+            ++frameWorkload_.instances;
+        }
+    }
+
+    void PrototypeRenderer::DrawStaticCityMesh(GraphicsDevice& device, const Matrix& view, const Matrix& projection)
+    {
+        lightmapEffect_->setWorldProperty(Matrix::getIdentityProperty());
+        lightmapEffect_->setViewProperty(view);
+        lightmapEffect_->setProjectionProperty(projection);
+        bool submitted = false;
+        for (auto& pass : lightmapEffect_->getCurrentTechniqueProperty()->getPassesProperty())
+        {
+            pass.Apply();
+            staticCityLightmapMesh_.Draw(device);
+            RecordLightmapDraw();
+            submitted = submitted || staticCityLightmapMesh_.IsReady();
+        }
+        if (workloadTrackingEnabled_ && submitted)
+        {
+            ++frameWorkload_.instances;
+        }
+    }
+
+    void PrototypeRenderer::DrawShadowDecal(GraphicsDevice& device,
+                                            const Vector3& position,
+                                            float yaw,
+                                            float width,
+                                            float depth)
+    {
+        // Ground surface sits at Y = -0.05 (SetGround's center -0.30 + half-height 0.25); this
+        // matches the small clearance lane markings already use above it (Y = 0.045) to avoid
+        // z-fighting.
+        constexpr float kShadowGroundY = 0.03F;
+        const Matrix world = Matrix::CreateScale(width, 1.0F, depth) *
+                             Matrix::CreateRotationY(yaw) *
+                             Matrix::CreateTranslation(Vector3(position.X, kShadowGroundY, position.Z));
+        DrawMesh(device, shadowDecalMesh_, world);
+    }
+
+    void PrototypeRenderer::Draw(GraphicsDevice& device,
+                                 const Matrix& view,
+                                 const Matrix& projection,
+                                 const Vector3& playerPosition,
+                                 float playerYaw,
+                                 bool drawPlayer,
+                                 const Vector3& vehiclePosition,
+                                 float vehicleYaw)
+    {
+        effect_->View = view;
+        effect_->Projection = projection;
+
+        // Gate M10: one shared brightness scalar for every dynamic actor this frame (see
+        // SunLight.hpp).
+        //
+        // warehouseModel_ used to be left at full brightness here, on the reasoning that it is
+        // neither a dynamic actor nor lightmapped. Once the renderer could be looked at (see
+        // docs/screenshots.md) that showed up as a pure-white slab dominating the skyline: it has
+        // no material either, so "full brightness" meant white. It is now shaded like everything
+        // else, from its own MC3 base colour (plan_08 IG-08-014). Real per-face baked lighting for
+        // imported geometry is still open -- the .cnj vertex layout has no colour channel to bake
+        // into.
+        const float sunBrightness = ComputeSunBrightness();
+        const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
+
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(staticPrimitiveObjectCount_);
+        }
+
+        // The static city mesh gets real per-face baked lighting (DrawStaticCityMesh(), a
+        // DualTextureEffect) instead of the CPU brightness tint below.
+        DrawStaticCityMesh(device, view, projection);
+
+        const Matrix vehicleWorld = Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition);
+        if (vehicleModels_.has_value())
+        {
+            const Vector3 kCabinOffset{0.0F, 0.58F, -0.15F};
+            const Vector3 kWindshieldOffset{0.0F, 0.62F, -0.35F};
+            const Vector3 kWheelOffsets[4] = {
+                {-1.05F, -0.20F, -1.35F}, {1.05F, -0.20F, -1.35F},
+                {-1.05F, -0.20F, 1.35F},  {1.05F, -0.20F, 1.35F},
+            };
+
+            // plan_08 IG-08-014: the asset's own colour times the sun, not a colour the game keeps
+            // a second copy of. The sedan is authored dark red in vehicle_body.mc3.xml, and that
+            // is what the .cnj now carries.
+            ApplyModelDiffuseColors(vehicleModels_->body, vehicleBodyBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->cabin, vehicleCabinBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->windshield, vehicleWindshieldBaseColors_, sunTint);
+            ApplyModelDiffuseColors(vehicleModels_->wheel, vehicleWheelBaseColors_, sunTint);
+
+            DrawModel(vehicleModels_->body, vehicleWorld, view, projection);
+            DrawModel(vehicleModels_->cabin, Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
+            DrawModel(vehicleModels_->windshield,
+                      Matrix::CreateTranslation(kWindshieldOffset) * vehicleWorld, view, projection);
+            for (const Vector3& wheelOffset : kWheelOffsets)
+            {
+                DrawModel(vehicleModels_->wheel,
+                          Matrix::CreateTranslation(wheelOffset) * vehicleWorld, view, projection);
+            }
+        }
+        else
+        {
+            DrawMesh(device, vehicleMesh_, vehicleWorld, sunTint);
+        }
+        if (workloadTrackingEnabled_)
+        {
+            ++frameWorkload_.visibleObjects;
+        }
+
+        if (warehouseModel_.has_value())
+        {
+            ApplyModelDiffuseColors(*warehouseModel_, warehouseBaseColors_, sunTint);
+            DrawModel(*warehouseModel_, Matrix::CreateTranslation(warehousePosition_), view, projection);
+        }
+        if (streetPropsModel_ && streetPropsReplaceLampBoxes_)
+        {
+            ApplyModelDiffuseColors(*streetPropsModel_, streetPropsBaseColors_, sunTint);
+            // One call: every instance's placement is baked into the model's own node hierarchy by
+            // the MC3 <instance> elements, so the renderer neither knows nor needs to know where
+            // the benches are.
+            DrawModel(*streetPropsModel_, Matrix::CreateTranslation(Vector3()), view, projection);
+            if (workloadTrackingEnabled_)
+            {
+                ++frameWorkload_.visibleObjects;
+            }
+            if (workloadTrackingEnabled_)
+            {
+                ++frameWorkload_.visibleObjects;
+            }
+        }
+
+        if (drawPlayer)
+        {
+            if (characterModel_.has_value() && characterAnimation_)
+            {
+                // Push freshly computed bone poses onto every skinned effect this model's meshes
+                // use, then draw through the same direct Model::Draw() call warehouseModel_/
+                // vehicleModels_ already use. The animation state uses CNA::GraphicsCore's
+                // AnimationPlayer directly, so no separate ECS/rendering framework is needed.
+                const auto& skinTransforms = characterAnimation_->blendedSkinTransforms;
+                for (ModelMesh* mesh : characterModel_->getMeshesProperty())
+                {
+                    for (Effect* effect : mesh->getEffectsPropertyMutable())
+                    {
+                        if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                        {
+                            skinnedEffect->SetBoneTransforms(skinTransforms);
+                            skinnedEffect->setDiffuseColorProperty(sunTint);
+                        }
+                        else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                        {
+                            skinnedPbrEffect->SetBoneTransforms(skinTransforms);
+                            skinnedPbrEffect->setDiffuseColorProperty(sunTint);
+                        }
+                    }
+                }
+                DrawModel(*characterModel_,
+                          Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerPosition),
+                          view, projection);
+            }
+            else
+            {
+                const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
+                DrawMesh(device, playerMesh_,
+                        Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition), sunTint);
+            }
+            if (workloadTrackingEnabled_)
+            {
+                ++frameWorkload_.visibleObjects;
+            }
+        }
+
+        // Gate M10 "limited shadows": simple ground-decal blob shadows beneath the player and
+        // their own vehicle only (not traffic/pedestrians/police -- see DrawShadowDecal()'s own
+        // comment). Drawn last, with alpha blending, over the already-drawn opaque geometry.
+        device.setBlendStateProperty(BlendState::AlphaBlend);
+        if (drawPlayer)
+        {
+            DrawShadowDecal(device, playerPosition, playerYaw, 0.8F, 0.8F);
+        }
+        DrawShadowDecal(device, vehiclePosition, vehicleYaw, 1.9F, 3.7F);
+        device.setBlendStateProperty(BlendState::Opaque);
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.stateChanges += 2;
+        }
+    }
+
+    void PrototypeRenderer::DrawTrafficSignals(GraphicsDevice& device,
+                                              const Matrix& view,
+                                              const Matrix& projection,
+                                              const std::vector<SignalLight>& lights)
+    {
+        effect_->View = view;
+        effect_->Projection = projection;
+        for (const SignalLight& light : lights)
+        {
+            // Deliberately not tinted by the sun like everything else: a traffic light is a light,
+            // and dimming it at dusk would make the one thing that must stay readable the first
+            // thing to go.
+            DrawMesh(device, signalLightMesh_, Matrix::CreateTranslation(light.position),
+                     Vector3(static_cast<float>(light.color.getRProperty()) / 255.0F,
+                             static_cast<float>(light.color.getGProperty()) / 255.0F,
+                             static_cast<float>(light.color.getBProperty()) / 255.0F));
+        }
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(lights.size());
+        }
+    }
+
+    void PrototypeRenderer::DrawTraffic(GraphicsDevice& device,
+                                        const Matrix& view,
+                                        const Matrix& projection,
+                                        const std::vector<ActorPose>& trafficVehicles,
+                                        const std::vector<ActorPose>& pedestrians,
+                                        const std::vector<ActorPose>& policeCars)
+    {
+        effect_->View = view;
+        effect_->Projection = projection;
+
+        // Gate M10: the same shared sun-brightness tint as Draw()'s player/vehicle -- see
+        // SunLight.hpp's own comment.
+        const float sunBrightness = ComputeSunBrightness();
+        const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
+
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(trafficVehicles.size()) +
+                                             static_cast<std::uint64_t>(pedestrians.size()) +
+                                             static_cast<std::uint64_t>(policeCars.size());
+        }
+
+        for (const ActorPose& pose : trafficVehicles)
+        {
+            DrawMesh(device, trafficVehicleMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
+        }
+        for (std::size_t index = 0; index < pedestrians.size(); ++index)
+        {
+            const ActorPose& pose = pedestrians[index];
+            // plan_20 IG-20-003: the same skinned character the player uses, when it loaded. The
+            // model is shared and only the bone palette differs, so each instance pushes its own
+            // pose into the effect immediately before its draw.
+            if (pose.skinned && characterModel_.has_value() && index < pedestrianAnimations_.size() &&
+                pedestrianAnimations_[index])
+            {
+                const auto& skinTransforms = pedestrianAnimations_[index]->blendedSkinTransforms;
+                for (ModelMesh* mesh : characterModel_->getMeshesProperty())
+                {
+                    for (Effect* effect : mesh->getEffectsPropertyMutable())
+                    {
+                        if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                        {
+                            skinnedEffect->SetBoneTransforms(skinTransforms);
+                            skinnedEffect->setDiffuseColorProperty(sunTint);
+                        }
+                        else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                        {
+                            skinnedPbrEffect->SetBoneTransforms(skinTransforms);
+                            skinnedPbrEffect->setDiffuseColorProperty(sunTint);
+                        }
+                    }
+                }
+                // The character model's origin is at its feet, while a sidewalk waypoint is
+                // authored at the box mesh's centre height -- so it is lowered by that half-height
+                // rather than drawn floating.
+                DrawModel(*characterModel_,
+                          Matrix::CreateRotationY(pose.yaw) *
+                              Matrix::CreateTranslation(pose.position - Vector3(0.0F, 0.9F, 0.0F)),
+                          view, projection);
+                continue;
+            }
+
+            // Unlike the player mesh (whose GetPosition() is eye-height, offset down in Draw()
+            // above), sidewalk WaypointPath points are already authored at this mesh's own center
+            // height (see PrototypeWorld::BuildWarehouseBlock's sidewalkPaths_ comment) -- no
+            // extra vertical offset needed here.
+            DrawMesh(device, pedestrianMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
+        }
+        for (const ActorPose& pose : policeCars)
+        {
+            DrawMesh(device, policeCarMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
+        }
+    }
+}

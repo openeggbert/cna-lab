@@ -1,0 +1,34 @@
+{
+  "id": "save_and_load",
+  "version": 1,
+  "steps": [
+    { "update": 20, "held": ["confirm"] },
+    { "update": 21, "held": [] },
+    { "update": 50, "held": ["confirm"] },
+    { "update": 51, "held": [] },
+    { "update": 80, "held": ["confirm"] },
+    { "update": 81, "held": [] },
+
+    { "update": 150, "held": ["move_forward"] },
+    { "update": 260, "held": [] },
+    { "update": 300, "held": ["interact"] },
+    { "update": 301, "held": [] },
+
+    { "update": 420, "held": ["move_forward"] },
+    { "update": 520, "held": [] },
+    { "update": 600, "held": ["handbrake"] },
+    { "update": 700, "held": [] },
+
+    { "update": 760, "held": ["quick_save"] },
+    { "update": 761, "held": [] },
+
+    { "update": 820, "held": ["move_forward"] },
+    { "update": 940, "held": [] },
+    { "update": 1000, "held": ["handbrake"] },
+    { "update": 1080, "held": [] },
+
+    { "update": 1140, "held": ["quick_load"] },
+    { "update": 1141, "held": [] },
+    { "update": 1260, "held": [] }
+  ]
+}
