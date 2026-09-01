@@ -1,0 +1,414 @@
+# tamagotchi-cna — Next Work
+
+## Policy change (2026-08-26): free reimplementation
+
+The extended TamaTool-based capture campaign is retired. tamagotchi-cna is now
+a **free reimplementation** — recognisably the same game, not a pixel/timing
+-verified clone. Remaining home sprites and action animations may be authored
+from the manual, community documentation, and reasonable judgement without a
+captured device trace. TamaTool may still be launched occasionally as an
+informal spot-check (e.g. glancing at the clock or Health Meter screen) to
+keep the result close to the original, but that is no longer a precondition
+for any item below. Everything already captured (egg, Babytchi, Marutchi,
+waste, Toilet, Light, Medicine, sleep) remains valid and does not need
+redoing; the backlog below should be read with "capture and transcribe"
+downgraded to "author something close, informed by what's already known."
+
+## Status at the start of this backlog
+
+The active product target is the international English Tamagotchi P1 (1997),
+implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
+is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
+an explicit per-sequence frame count, so it no longer fakes motion by shifting
+a static creature around the LCD. Most provisional frames use the centred
+16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
+home and two-phase sick cycles, Marutchi's complete 28-phase awake path, its
+separate two-phase sleeping body and Z overlay, and a Mametchi idle sequence have
+been visually transcribed from P1 reference traces. The exact two-phase stacked
+waste overlay is also implemented; the other character redraws remain provisional.
+
+The retired Pipple/Budbit `PetSimulation` and `CreatureCatalog` were no longer
+referenced by the active application but were still compiled and tested by
+default. Their implementation/header/test files and two CMake targets are now
+removed; the production and test graphs contain only the P1 programme domain.
+The old prototype remains recoverable from Git history, while legacy-save
+detection remains intentionally independent of those removed types.
+
+The English tutorial now matches the observed icon renderer: selected and
+urgent pictograms become fully black without a tile or cursor, dormant segments
+remain faint, illness uses the P1 skull rather than the action-feedback cross,
+and the bottom-left care function is consistently named Toilet rather than
+the prototype-oriented Clean label.
+
+The last P2-only programme discriminators are gone: the unused `Number` game
+and `Ufo` ending enum values, their fields, initialisers, and negative tests
+were removed. The current data model now states only behaviour the selected
+international P1 package can actually execute.
+
+The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
+another emulator core. A reference program may be viewed externally only to
+write and verify the clean implementation.
+
+## Context handoff — 2026-08-26
+
+Today's session was spent almost entirely on an extended attempt to grow a
+reference P1 pet in TamaTool v0.1 up to its first teen form (Tamatchi or
+Kuchitamatchi) for transcription, first under Xvfb and later on the user's
+real desktop (positioned on an otherwise-unused laptop panel, `eDP-1`). It did
+**not** reach a teen — the run kept getting reset by a series of environment
+problems (Xvfb dying unpredictably, the TamaTool window being destroyed and
+recreated with a new X11 id and a different, sometimes non-proportional, scale
+whenever it crossed monitors or the user's own desktop use touched it, and one
+long-lived, genuinely confusing but ultimately harmless recurring visual — a
+Health-Meter-adjacent glyph cluster that repeatedly looked like a "frozen"
+state but was not). None of that produced usable new sprite data, and no
+application code changed today.
+
+**Consequently the project's policy changed (2026-08-26): tamagotchi-cna is
+now a free reimplementation, not a pixel/timing-verified clone.** See the
+policy-change note at the top of this file and in `analysis.md`. Practically:
+stop trying to grow/capture a reference pet through TamaTool for hours at a
+time. A quick, occasional TamaTool glance (a few minutes, actively watched,
+never left to run unattended for a long stretch) is fine as a sanity check,
+but it is not a gate for shipping anything below. Author remaining sprites and
+behaviour from the manual, community documentation (cited in this ledger),
+and judgement.
+
+A separate, unrelated project the user is also running,
+`/rv/data/development/github.com/tamagotchi-disassembled`, is a full P1 ROM
+disassembly (`tama.asm`) with a decompilation effort underway. The user
+decided tamagotchi-cna may use it **only to verify** timing/rules already
+captured by observation — never to derive or port tamagotchi-cna's actual
+implementation from it, since that ROM disassembly is explicitly Bandai's
+copyrighted code (per its own README), and porting/deriving from it would make
+tamagotchi-cna a derivative work rather than a clean-room reimplementation.
+This is a firm boundary, distinct from (and stricter than) the fidelity-policy
+relaxation above.
+
+**Immediate next step:** author Tamatchi's home idle animation (see Priority 1
+item 4 below), then Kuchitamatchi, then the remaining adults and Bill, one at
+a time, each with its own `P1SpriteCatalogTests` coverage — no reference
+capture needed first.
+
+## Context handoff — 2026-08-24
+
+- Product naming is now consistent end to end: repository branding is
+  `tamagotchi-cna`, C++ namespaces/includes and the game class use
+  `TamagotchiCna`, CMake internals use `TAMAGOTCHI_CNA`, and all eight test
+  targets begin with `TamagotchiCna`. No tracked file contains the retired
+  product spelling. Save-location compatibility is intentionally retained by
+  constructing the pre-rename directory name from two string fragments; the
+  migration test confirms an existing pet still wins over a new slot. The
+  temporary filesystem compatibility symlink was removed and the SDL/web
+  build trees were regenerated under the final repository path.
+- The CMake integration was updated for the current sibling `../cna` and its
+  modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
+  `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
+  chosen renderer rather than CNA's compatibility umbrella. The explicit
+  sharp-runtime closure and `CNA_ENABLE_DRACO=OFF` are intentional. CNA's
+  current `Runtime` target owns graphics/input/content/audio/media as one API
+  closure; this game disables the genuinely unused network/ENet, CNAEXT, and
+  device-extension branches before CNA is added.
+- Both supported modular renderer presets configure and build: SDL also passes
+  all eight CTest tests with `--parallel 2`, and a fresh HEADLESS application
+  build completed on 2026-08-24. Keep the two-job ceiling. This runner can
+  intermittently fail while `ar` replaces a static library (observed with both
+  two and one job); retry the unchanged incremental build before attributing
+  that message to a source or dependency change.
+- The `web` preset now produces a Release Emscripten build with the SDL
+  renderer. It was verified on 2026-08-24 with Emscripten 6.0.3 and emits
+  `TamagotchiCna.html`, `.js`, `.wasm`, and `.data`. The application target
+  explicitly matches CNA's `-fwasm-exceptions` ABI; omitting that target-level
+  option reproduces `__cpp_exception`/`__wasm_lpad_context` link failures.
+  Both icon atlases are preloaded at `/assets`, because copying them beside the
+  page alone does not make them visible through Emscripten's virtual filesystem.
+  The web `Game` instance has static lifetime as required by CNA's asynchronous
+  Emscripten main loop; a stack-local instance leaves its frame callback with a
+  dangling object after `main()` yields.
+- After the complete internal product rename and awake/sleeping Marutchi split,
+  SDL CMake regenerated successfully and all eight newly named tests passed on
+  2026-08-24.
+- A clean SDL application run was checked on Xvfb with
+  `SDL_VIDEODRIVER=x11`, `WAYLAND_DISPLAY` unset, and an isolated
+  `XDG_DATA_HOME` under `/tmp`. The initial clock setup needs a held virtual
+  `C` input; an instantaneous synthetic key can be missed by the polling loop.
+  Root-window captures can alternate with an empty GL backbuffer under Xvfb;
+  capture again before treating a frame as absent.
+- A dedicated 30 fps 1× trace measured the inactive-home icon timeout: Food
+  stayed dark through frame 310 after becoming stable at frame 16 and cleared
+  at frame 311, or 9.83 seconds of visible selection. The nominal 10.0 seconds
+  now lives in `DisplayDefinition`; each home A resets the transient timer and
+  a 30 fps application trace showed exactly 300 dark-marker frames. The timer
+  is not persisted and does not close menus or interrupt named action visuals.
+- A direct existing-pet clock session verified that C does not leave Clock view,
+  A+C enters SET, C confirms that SET back to Clock view, and B alone returns
+  home. The application now remembers whether SET came from Clock view so the
+  initial/reset SET can still start the egg directly. A missed synthetic C let
+  the attempted 08:59 wake boundary pass while SET was still open, so no wake
+  transition frames are accepted from that attempt; a later 30-second home run
+  contained only the then-known fixed-origin sleeping Marutchi silhouettes.
+  A six-state normal-scale CNA run confirmed Clock → C/Clock → SET → C/Clock
+  → B/Home with the corrected implementation.
+- Clock SET is also the user-facing P1 pause workaround: on SET, the simulation,
+  clock, UI timeouts, action visuals, and animation phase all remain frozen
+  until C resumes. Format-6 saves retain the paused screen and displayed time,
+  so closing and reopening the desktop application performs no offline
+  catch-up. Version-5 slots migrate to a running clock. README and the web FAQ
+  document the exact keyboard/shell sequence B, A+C, C, B.
+- P1 ROM observation confirmed that selection energises the pictogram itself;
+  it does not add a cursor or a modern highlight tile. The renderer therefore
+  keeps dormant desktop icons faint, renders selected/urgent icons fully dark,
+  and no longer draws the small triangular cursor.
+- The hand-drawn device treatment now uses the selected reference's turquoise
+  shell family and yellow buttons. It was inspected on a separate Xvfb screen;
+  its colours and geometry are authored C++ values, with no reference image
+  added to the repository. Continue to treat this as an approximate shell
+  treatment rather than a claim that every retail P1 shell is identical.
+- A/B/C now depress and darken for the complete held duration from keyboard,
+  mouse, or touch input. The reset recess gains a held-state halo, and a
+  premultiplied-alpha three-layer contact shadow grounds the egg. Xvfb QA
+  checked idle, held-A, and held-reset states; the first non-premultiplied
+  bright shadow attempt was rejected and corrected before commit.
+- TamaTool v0.1 was used only as an external visual reference in a separate
+  Xvfb display. Do not add its executable, ROM, screenshots, extracted data,
+  TamaLIB, or any other emulator artefact to this repository. The egg rows in
+  `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
+  imported or algorithmically extracted.
+- A freshly started, unaccelerated reference run was recorded at 30 fps. Its
+  corrected stable egg silhouettes change every 21–22 host frames; the
+  catalogue uses 0.70 seconds per phase. Variable-length home
+  sequences are represented explicitly, so the egg wraps wide → tall → wide
+  without an artificial A/B/A pause.
+- The wide egg phase is a hand-read 12 × 10 cell at `(10, 3)` and the tall phase
+  is a hand-read 10 × 11 cell at `(11, 2)`. Partial LCD writes visible across
+  one or two host frames were excluded. Focused tests protect both bounds,
+  every hand-read row, timing, active frame count, and direct wrapping.
+- A fresh three-second same-display trace confirmed both corrected phases at
+  normal LCD scale: they remain centred, wrap directly, and stay inside the
+  32 × 16 game field without touching either permanent icon band. The working
+  capture is outside the repository.
+- A confirmed activation and post-hatch capture established Babytchi's real
+  home motion. At 1× it repeats two full 6 × 6 poses at `y=9`, then two
+  compressed 8 × 3 poses at `y=13`, while moving through observed horizontal
+  origins. Its complete 36-phase cycle is hand-transcribed at an inferred
+  0.46-second cadence; focused tests protect every row, origin, bound, count,
+  and wrap. A separate clean 30-second trace showed the full origin sequence
+  repeat and resolved the former phase-20 uncertainty.
+- A new five-second normal-scale application trace using an isolated clean save
+  confirms both corrected poses stay inside the LCD without touching the icon
+  bands. Continue the per-form home ledger with Tamatchi; capture Babytchi
+  care-action sequences under Priority 2.
+- A later layout audit found that the original 288 × 144 working crop did not
+  cover TamaTool v0.1's 10-pixel-stride matrix. That crop's coordinates and
+  lower rows were discarded. Accepted replacement traces cover the complete
+  319 × 159 active matrix extent, sample the centre of every logical cell, and
+  yield the corrected egg and Babytchi data above. Do not infer a 32 × 16 grid
+  by merely resizing a reference crop; derive its stride and extent first.
+
+- Clock SET moved an isolated save to daytime; two Medicine doses followed by
+  Toilet produced a confirmed awake, waste-free Marutchi state. A complete-LCD
+  30 fps 1× trace repeats 28 stable phases at a nominal 16-host-frame (0.53 s)
+  cadence. Its 10 × 9 long and 10 × 8 short open-eye poses follow origins
+  `9, 7, 5, 7, 9, 11, 13, 11, 9, 10, 11, 12, 13, 11, 9, 7, 5, 7, 9, 11,
+  13, 11, 9, 10, 11, 12, 13, 11`, always at `y=3`. One- to three-host-frame
+  partial LCD writes are excluded. Catalogue tests protect both row sets,
+  every origin, pose order, cadence, and direct wrap.
+- The earlier fixed-origin, double-eye 0.92-second trace included the measured
+  Z overlay and is therefore a sleeping body, not normal home. It now lives in
+  a separate two-phase sleeping Marutchi catalogue so awake rendering cannot
+  reuse closed eyes and sleeping rendering cannot run the horizontal path.
+- One- and two-pile reference traces establish an 8 × 8 waste glyph at
+  `(24, 8)`, with a second copy stacked at `(24, 0)`. Both exact hand-read
+  phases animate together at about 1.0 second. Catalogue tests protect their
+  rows, geometry, cadence, and wrap; a six-second normal-scale two-pile
+  application trace confirms placement. The Toilet/flush action remains open.
+- A subsequent 30 fps Babytchi Toilet trace establishes the wipe core. It moves
+  the complete pre-clean framebuffer left by two cells through 16 positions
+  while the exact six-column water band `..##.# / .##.#. / ##.#.. / .##.#.`
+  enters from the right. The implementation uses 0.10 seconds per moving phase,
+  holds the complete band at the left for 0.30 seconds, then briefly blanks the
+  LCD. Display tests protect the transform, clipping, all water cells, timing,
+  and completion; a normal-scale two-pile Marutchi application run was checked.
+  The character-specific post-flush celebration remains open evidence.
+- A natural Babytchi illness on the retained 1× reference produced a repeating
+  ten-second trace. The fixed skull is an exact 7 × 7 glyph at `(25, 1)`; the
+  character alternates exact wide/narrow 8 × 3 poses at `(12, 13)` every
+  27–29 host frames, represented as 0.93 seconds. Waste remains an independent
+  overlay. Catalogue tests protect every row, bound, cadence, wrap, and the
+  deliberate normal-pose fallback for unobserved sick forms; a five-second
+  normal-scale application run with one waste pile was checked. Illness onset
+  and later-form sick poses remain open.
+- A complete 30 fps 1× Marutchi Medicine trace established three full-frame
+  states and the seven-phase order front/A/front/B/front/A/front. Stable phases
+  occupy `2, 2, 3, 2, 2, 2, 3` host frames, sixteen total. The application now
+  blocks input during this exact transient and returns directly to the healthy
+  home cycle. Other-form Medicine art remains open rather than reusing the
+  observed Marutchi states.
+
+- The naturally evolved reference later showed sleeping Marutchi. Its separate
+  fixed-origin, closed-eye long/short body cycle continues while an independent two-phase Z overlay
+  alternates every 24–25 host frames (0.82 seconds): a 7 × 6 arrangement at
+  `(24, 0)` and a 4 × 6 Z at `(25, 2)`. Existing waste also continues on its
+  own cadence. Exact catalogue tests and a six-second normal-scale application
+  run cover this combination. Sleep poses for every other form remain open.
+- A same-session sleeping-Marutchi Light trace established both complete ON/OFF
+  menu frames, the 6 × 7 marker positions, A/B behaviour, and the nominal
+  ten-second inactivity return. Confirming OFF fills all 512 field cells, then
+  renders the existing 11/12-cell Z phases as transparent holes at `(16, 0)`
+  and `(17, 2)`, eight cells left of the light-on overlay; character and waste
+  disappear. `P1LightScreen` keeps this presentation independent of the
+  persistent light flag. Exact display tests and a normal-scale 30 fps trace
+  showing exactly 300 menu frames before timeout were checked. Other-form
+  lights-out placement and wake-up remain open.
+
+## Priority 0 — Add selectable physical shell variants
+
+1. [x] Replace the provisional flat shell drawing with a reusable CNA shell renderer
+   that models the rim, translucent or opaque body, recessed LCD bezel, three
+   physical buttons, reset pinhole, highlights, and material depth without a
+   detached floor shadow.
+2. [x] Add historically grounded P1 colour families, beginning with Translucent
+   Blue/Yellow, Blue/Yellow, Pink/Yellow, Green/Yellow, and White/Blue.
+3. [x] Provide an in-application host control for cycling the shell; it must not
+   consume an original P1 A/B/C action or alter the 32 x 16 simulation.
+4. [x] Persist the selected shell identifier in the versioned save format, retain a
+   safe default for existing saves, and add save/load validation tests.
+5. [x] Capture every variant on the same virtual display and compare silhouette,
+   bezel, button offset, reset recess, highlights, and material treatment.
+
+**Acceptance condition met (2026-08-24):** `V` cycles all five shell treatments,
+format-6 persistence survives a process restart, pre-v5 saves receive the safe
+default, same-display captures retain identical LCD geometry, and the
+shell-control path does not mutate P1 state or framebuffer data.
+
+## Priority 1 — Make the home LCD visually faithful
+
+1. [x] Complete and regression-check the egg's two stable idle phases.
+2. [x] Capture and transcribe Babytchi's complete 36-phase home cycle, including
+   its true full/compressed geometry, horizontal path, cadence, wrap, and
+   partial-write exclusion.
+3. [x] Replace the misclassified sleeping Marutchi body with the complete
+   28-phase waste-free awake path, and retain the fixed-origin closed-eye
+   silhouettes only in a separate sleeping sequence.
+4. For each remaining P1 home form (Tamatchi, Kuchitamatchi, Mametchi,
+   Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi, Tarakotchi, Bill), author a
+   distinct, recognisable one-bit idle animation informed by the manual and
+   community character references — a captured trace is no longer required.
+5. Give each form a plausible idle-frame count and cell origin/geometry
+   consistent with the already-captured forms (roughly the 16 × 10 cell used
+   by the current provisional forms, or a bespoke bound if the character
+   clearly needs one). Do not invent a claim of exact fidelity.
+6. Replace the provisional redraw of one form at a time with independently
+   written one-bit frame data. Keep the catalogue free from source-ROM data
+   and make no use of frame translation as animation.
+7. Extend `P1SpriteCatalogTests` for every new sequence: each phase's rows
+   must share a consistent width, all frames must remain inside the 32 × 16
+   LCD, and adjacent frames must be genuinely distinct drawings.
+8. Check the rendered result at normal LCD scale (not only a magnified
+   bitmap) for basic sanity: the character stays centred and does not
+   overwrite the physical face-icon bands. An occasional TamaTool glance is a
+   useful sanity check here, not a requirement.
+
+**Acceptance condition:** the entire home roster has a distinct, tested idle
+animation; no form uses the previous translated-sprite bobbing behaviour.
+Exact reference fidelity is not required.
+
+## Priority 2 — Add P1-specific action and transition visuals
+
+1. [x] Replace the generic home-screen waste marks with the exact observed
+   two-phase 8 × 8 glyph, stacking, and cadence. This does not complete the
+   distinct Toilet/flush action.
+2. [x] Implement the observed Toilet wipe core as a transient visual that
+   transforms a framebuffer snapshot without persisting animation state or
+   accepting A/B/C during the wipe. Keep its following character celebration
+   open until a complete reference trace is captured.
+3. [x] Replace the generic sickness plus with the exact common 7 × 7 skull and
+   both observed Babytchi bottom poses. Do not invent sick poses for later forms.
+4. [x] Replace the generic sleep symbol for Marutchi with both exact observed Z
+   arrangements and preserve the independent body and waste animation clocks.
+   Do not reuse this body behaviour for unobserved forms.
+5. [x] Replace the generic Light text with both exact ON/OFF menu frames, the
+   measured inactivity timeout, and the filled lights-out LCD with shifted,
+   transparent Z phases.
+6. [x] Transcribe Marutchi's complete Medicine recovery as three exact full-LCD
+   states in its seven-phase, sixteen-frame order; block input until completion
+   and keep all unobserved forms on the fallback path.
+7. Author distinct frame sequences (not necessarily captured) for egg
+   cracking/hatching, eating Bread, eating Candy, Character game play,
+   sleeping for every remaining form, unhappy/refusal, illness, medicine,
+   waste, attention, discipline, evolution, death, and the angel-and-stars
+   ending.
+8. Add a rendering state key to the programme/UI boundary for the remaining
+   actions. The renderer must
+   select a named P1 action sequence; it must not infer an action by mutating
+   or replacing the persistent pet state.
+9. Define action duration, frame cadence, interruption rules, and what A, B,
+   and C do while each action is on screen. Keep those rules separate from the
+   one-bit drawing data.
+10. Add deterministic display/controller tests for each finite animation:
+   start frame, frame order, completion, cancellation where P1 permits it,
+   and return to the expected screen.
+
+**Acceptance condition:** every implemented care operation has a distinct P1
+visual sequence instead of text-only feedback or a generic symbol.
+
+## Priority 3 — Close the remaining P1 behaviour gaps
+
+1. Implement the P1 adult waste cadence, illness triggers, medicine recovery
+   rules, refusal behaviour, neglect/death path, and life-span/end
+   transition, informed by the manual and community documentation.
+2. Replace the current wall-clock evolution approximations with reasonable P1
+   stage timing, including sleep and wake boundaries. Preserve deterministic
+   offline catch-up without writing a save every minute.
+3. Resolve conflicting historical claims about care mistakes and discipline by
+   noting the source used before changing the evolution resolver. Do not
+   silently combine P1 and P2 or modern rerelease rules.
+4. Exercise traces for all visible P1 adult branches and the Maskutchi → Bill
+   condition, deterministic domain tests, not necessarily device-verified.
+
+**Acceptance condition:** every implemented P1 rule states its source and has
+a deterministic domain test; exact device verification is not required.
+
+## Priority 4 — Validate and document a usable release candidate
+
+1. Keep all builds incremental and use at most two CPU jobs. Do not clean
+   the existing build directory or generate large derived image sets.
+2. Run the domain, persistence, display, sprite-catalogue, controller, and
+   smoke tests after each cohesive change.
+3. Update the English user tutorial with screenshots once the matching visual
+   flow exists; label illustrations as a free reimplementation, not a claim
+   of exact fidelity.
+4. Maintain a concise deviation list in `docs/p1-specification.md` noting
+   where tamagotchi-cna is known to differ from the original.
+
+**Release condition:** the README, tutorial, P1 specification, and observable
+behaviour all describe the same scope — a free reimplementation, not a
+verified clone; the repository remains ROM-free and emulator-free.
+
+## Priority 5 — Add P1-faithful sound (open)
+
+CNA's `Runtime` component closure already owns an audio module, so square-wave
+tone playback itself is not the hard part. International P1 sound is a
+sequence of short square-wave beeps (piezo speaker), not sampled audio, so a
+`P1SoundCatalog` of `{frequencyHz, durationMs}` sequences per cue (icon
+select, confirm, care actions, calls, evolution, angel ending) is the natural
+data shape, mirroring `P1SpriteCatalog`.
+
+1. No ROM audio, sample, or extracted sound asset may enter the repository —
+   that boundary is unchanged by the free-reimplementation policy. Cue pitch
+   and rhythm may be authored freely (informed by an occasional TamaTool
+   listen if convenient) as explicit frequency/duration data; a captured
+   transcription is not required.
+2. Note each cue's inspiration in `docs/p1-specification.md` briefly; this is
+   for context, not a fidelity gate.
+3. Add a generic sound-cue schema to `ProgramDefinition` (or a sibling
+   sound-package type) so a future P2 package can supply its own cues through
+   the same seam, without hard-coding P1 tones into the shared engine.
+4. Implement deterministic playback tests (cue selection, sequence order,
+   timing) independent of any real audio device, matching the existing
+   display-test pattern.
+5. Respect the existing muted-by-default/sound-toggle behaviour noted under
+   the Clock/A+C control table; do not change that control's meaning.
+
+**Acceptance condition:** every implemented cue has a deterministic playback
+test and uses only independently authored tone data.

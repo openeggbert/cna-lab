@@ -1,0 +1,22 @@
+# CMake build trees
+build*/
+cmake-build-*/
+out/
+
+# IDE and editor state
+.idea/
+.vs/
+.vscode/
+*.swp
+
+# Per-user CMake configuration
+CMakeUserPresets.json
+
+# Platform artefacts
+*.wasm
+*.data
+.DS_Store
+
+# Local save data and logs
+saves/
+*.log

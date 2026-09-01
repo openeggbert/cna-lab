@@ -1,0 +1,358 @@
+#include "TamagotchiCna/Domain/P1Program.hpp"
+#include "TamagotchiCna/Domain/ProgramSimulation.hpp"
+
+#include <array>
+#include <iostream>
+
+using namespace TamagotchiCna::Domain;
+
+namespace {
+
+int failures = 0;
+
+void expect(const bool condition, const char* const message)
+{
+    if (!condition) {
+        std::cerr << "FAILED: " << message << '\n';
+        ++failures;
+    }
+}
+
+void testP1EggHatchesFromProgrammeData()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+
+    const ProgramAdvanceReport beforeHatch = simulation.advance(p1, pet, 4);
+    expect(!beforeHatch.hatched && pet.stage == ProgramStage::Egg,
+        "P1 egg must remain an egg for the first four clock minutes");
+
+    const ProgramAdvanceReport hatch = simulation.advance(p1, pet, 1);
+    expect(hatch.hatched && pet.stage == ProgramStage::Baby && pet.characterId == "babytchi",
+        "P1 programme data must hatch Babytchi at five minutes");
+    expect(pet.weight == 5 && pet.hungerHearts == 0 && pet.happinessHearts == 0,
+        "a newly hatched Babytchi must begin at its captured P1 state");
+}
+
+void testP1BabyTraceUsesSharedProgrammeSimulator()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    static_cast<void>(simulation.advance(p1, pet, 5));
+
+    static_cast<void>(simulation.advance(p1, pet, 33));
+    expect(pet.sick && pet.medicineDosesRemaining == 2,
+        "Babytchi must become ill at the captured P1 minute and require two doses");
+    expect(simulation.giveMedicine(pet) && pet.sick && pet.medicineDosesRemaining == 1,
+        "first P1 medicine dose must leave Babytchi sick");
+    expect(simulation.giveMedicine(pet) && !pet.sick && pet.medicineDosesRemaining == 0,
+        "second P1 medicine dose must cure Babytchi");
+
+    static_cast<void>(simulation.advance(p1, pet, 7));
+    expect(pet.minutesSinceHatch == 40 && pet.asleep,
+        "Babytchi must start its captured five-minute nap at minute forty");
+    static_cast<void>(simulation.advance(p1, pet, 5));
+    expect(!pet.asleep && pet.age == 1,
+        "Babytchi must wake and gain an age year after its captured nap");
+
+    const ProgramAdvanceReport evolution = simulation.advance(p1, pet, 20);
+    expect(evolution.becameChild && pet.stage == ProgramStage::Child && pet.characterId == "marutchi",
+        "shared simulator must evolve Babytchi to Marutchi at minute sixty-five");
+    expect(pet.weight == 10, "Marutchi must receive its P1 minimum weight from programme data");
+}
+
+void testP1FoodGameWasteAndSleepUseProgrammeData()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    static_cast<void>(simulation.advance(p1, pet, 5));
+
+    expect(simulation.feed(p1, pet, 0) && pet.hungerHearts == 1 && pet.weight == 5,
+        "P1 Bread must add one hunger heart while Babytchi keeps its five-ounce weight");
+    expect(simulation.feed(p1, pet, 1) && pet.happinessHearts == 1 && pet.weight == 5,
+        "P1 Candy must add happiness while Babytchi keeps its five-ounce weight");
+    expect(simulation.completeGame(p1, pet, 3) && pet.happinessHearts == 2 && pet.weight == 5,
+        "a three-win P1 Character game must not change Babytchi's fixed baby weight");
+
+    static_cast<void>(simulation.advance(p1, pet, 15));
+    expect(pet.wasteCount == 1, "Babytchi's captured first waste event must be programme data");
+    expect(simulation.cleanWaste(pet) && pet.wasteCount == 0,
+        "the P1 Toilet action must remove recorded waste without a prototype hygiene meter");
+
+    static_cast<void>(simulation.advance(p1, pet, 50));
+    expect(pet.stage == ProgramStage::Child && pet.characterId == "marutchi",
+        "the trace must reach Marutchi before its P1 sleep schedule is evaluated");
+    pet.weight = 10;
+    expect(simulation.completeGame(p1, pet, 0) && pet.weight == 10,
+        "a P1 Character game must never reduce Marutchi below its ten-ounce minimum");
+    pet.weight = 99;
+    pet.hungerHearts = 3;
+    expect(simulation.feed(p1, pet, 0) && pet.weight == 99,
+        "P1 food must never raise a non-baby form above its ninety-nine-ounce maximum");
+    pet.clockMinutesOfDay = 19 * 60 + 59;
+    static_cast<void>(simulation.advance(p1, pet, 1));
+    expect(pet.asleep, "Marutchi must follow its captured 20:00 P1 sleep schedule");
+    expect(simulation.setLightOff(pet, true) && pet.lightOff,
+        "the P1 Light menu must set OFF only while the character is asleep");
+    expect(simulation.setLightOff(pet, false) && !pet.lightOff,
+        "the P1 Light menu must also allow the ON selection while asleep");
+    expect(!simulation.setLightOff(pet, false),
+        "choosing the already active P1 light state must not manufacture a care change");
+}
+
+void testP1AttentionCallsAndCareMistakesUseProgrammeData()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+
+    static_cast<void>(simulation.advance(p1, pet, 5));
+    expect(pet.attentionReason == ProgramAttentionReason::Hunger
+            && pet.attentionDeadlineMinutes == 20,
+        "a newly hatched P1 baby with zero hunger must begin its fifteen-minute hunger call");
+
+    static_cast<void>(simulation.advance(p1, pet, 15));
+    expect(pet.careMistakes == 1 && pet.attentionReason == ProgramAttentionReason::None
+            && pet.nextAttentionEligibleMinutes == -1,
+        "an unanswered real P1 call must make one care mistake without repeating while empty");
+
+    expect(simulation.feed(p1, pet, 0) && pet.attentionReason == ProgramAttentionReason::Happiness,
+        "feeding after a missed hunger call must re-arm attention for the still-empty happy meter");
+    expect(simulation.feed(p1, pet, 1) && pet.attentionReason == ProgramAttentionReason::None,
+        "feeding the correct snack must clear a real P1 happiness call");
+
+    pet.attentionReason = ProgramAttentionReason::Discipline;
+    pet.attentionDeadlineMinutes = pet.minutesSinceClockSet + p1.lifecycle.attentionWindowMinutes;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
+    static_cast<void>(simulation.advance(p1, pet, p1.lifecycle.attentionWindowMinutes));
+    expect(pet.careMistakes == 1,
+        "a missed classic-P1 false discipline call must not become a care mistake");
+
+    static_cast<void>(simulation.advance(p1, pet, 45));
+    expect(pet.stage == ProgramStage::Child && pet.careMistakes == 0,
+        "baby-stage calls must not influence the Marutchi care-mistake history");
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
+    pet.attentionReason = ProgramAttentionReason::None;
+    pet.attentionDeadlineMinutes = -1;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+    pet.clockMinutesOfDay = 19 * 60 + 59;
+    static_cast<void>(simulation.advance(p1, pet, 1));
+    expect(pet.asleep && pet.attentionReason == ProgramAttentionReason::SleepLight,
+        "a sleeping Marutchi with the light on must begin a P1 lights-off call");
+    expect(simulation.toggleLight(pet) && pet.attentionReason == ProgramAttentionReason::None,
+        "turning the P1 light off during the call must clear it");
+}
+
+void testP1NeedTimersPauseForSleepAndScheduleFalseCalls()
+{
+    ProgramPetState baby{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    static_cast<void>(simulation.advance(p1, baby, 5));
+    for (int count = 0; count < 4; ++count) {
+        static_cast<void>(simulation.feed(p1, baby, 0));
+        static_cast<void>(simulation.feed(p1, baby, 1));
+    }
+
+    static_cast<void>(simulation.advance(p1, baby, 2));
+    expect(baby.hungerHearts == 4 && baby.happinessHearts == 4,
+        "Babytchi must retain full hearts before its captured three/four-minute losses");
+    static_cast<void>(simulation.advance(p1, baby, 1));
+    expect(baby.hungerHearts == 3 && baby.happinessHearts == 4,
+        "Babytchi must lose hungry hearts at its captured three-minute rate");
+    static_cast<void>(simulation.advance(p1, baby, 1));
+    expect(baby.hungerHearts == 3 && baby.happinessHearts == 3,
+        "Babytchi must lose happy hearts at its captured four-minute rate");
+
+    static_cast<void>(simulation.advance(p1, baby, 36));
+    expect(baby.asleep && baby.minutesSinceHatch == p1.lifecycle.babyNapStartMinute,
+        "the baby timer trace must reach the captured nap boundary");
+    const int awakeMinutesAtNap = baby.stageAwakeMinutes;
+    static_cast<void>(simulation.advance(p1, baby, p1.lifecycle.babyNapDurationMinutes));
+    expect(!baby.asleep && baby.stageAwakeMinutes == awakeMinutesAtNap,
+        "P1 need timers must pause for every minute of Babytchi's nap");
+
+    ProgramPetState marutchi{};
+    static_cast<void>(simulation.advance(p1, marutchi, 5 + p1.lifecycle.babyToChildMinutes));
+    marutchi.hungerHearts = 4;
+    marutchi.happinessHearts = 4;
+    marutchi.attentionReason = ProgramAttentionReason::None;
+    marutchi.attentionDeadlineMinutes = -1;
+    marutchi.nextAttentionEligibleMinutes = marutchi.minutesSinceClockSet;
+    static_cast<void>(simulation.advance(p1, marutchi, 180));
+    expect(marutchi.attentionReason == ProgramAttentionReason::Discipline
+            && marutchi.disciplineCallsIssued == 1 && marutchi.disciplineCallQuota == 4,
+        "six Marutchi need decrements must raise one false P1 Discipline call");
+    expect(!simulation.feed(p1, marutchi, 0) && !simulation.completeGame(p1, marutchi, 3),
+        "a false P1 call must refuse meals and Character games until disciplined");
+    expect(simulation.discipline(marutchi) && marutchi.disciplineBars == 1
+            && marutchi.attentionReason == ProgramAttentionReason::None,
+        "disciplining a false P1 call must fill one visible bar and resolve the call");
+}
+
+ProgramPetState p1TeenWith(const int careMistakes, const int disciplineBars,
+                           ProgramSimulation& simulation, const ProgramDefinition& p1)
+{
+    ProgramPetState pet{};
+    static_cast<void>(simulation.advance(p1, pet, 5));
+    const ProgramAdvanceReport childEvolution = simulation.advance(
+        p1, pet, p1.lifecycle.babyToChildMinutes);
+    // Fixture care begins at Marutchi. The P1 baby is deliberately excluded
+    // from later evolution history, and full hearts prevent the fixture from
+    // manufacturing an unrelated live attention call during the long trace.
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
+    pet.attentionReason = ProgramAttentionReason::None;
+    pet.attentionDeadlineMinutes = -1;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+    pet.careMistakes = careMistakes;
+    pet.disciplineBars = disciplineBars;
+    pet.minutesSinceClockSet = p1.lifecycle.hatchDelayMinutes + p1.lifecycle.babyToChildMinutes
+        + p1.lifecycle.childToTeenMinutes - 1;
+    pet.minutesSinceHatch = pet.minutesSinceClockSet - p1.lifecycle.hatchDelayMinutes;
+    pet.clockMinutesOfDay = 12 * 60;
+    pet.asleep = false;
+    pet.age = p1.lifecycle.teenAge;
+    const ProgramAdvanceReport evolution = simulation.advance(
+        p1, pet, 1);
+    expect(childEvolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
+        "P1's captured child duration must produce a data-selected teen");
+    expect(pet.age == p1.lifecycle.teenAge,
+        "the P1 teen transition must retain the captured age-three display value");
+    return pet;
+}
+
+void testP1EvolutionRulesRemainProgrammeData()
+{
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    expect(p1.evolutionRules.size() == 20,
+        "the P1 programme must expose its teen/adult chart, meter resets, and Bill branch as data rules");
+
+    ProgramPetState typeA = p1TeenWith(0, 3, simulation, p1);
+    expect(typeA.characterId == "tamatchi" && typeA.teenLineage == ProgramTeenLineage::TypeA,
+        "one-or-fewer-care-mistake P1 child state with 75%-100% discipline must select type-A Tamatchi");
+    expect(typeA.disciplineBars == 2,
+        "a classic P1 type-A Tamatchi must begin with the documented 50% discipline meter");
+    ProgramPetState typeB = p1TeenWith(0, 2, simulation, p1);
+    expect(typeB.characterId == "tamatchi" && typeB.teenLineage == ProgramTeenLineage::TypeB,
+        "0%-50% child discipline must retain Tamatchi but record the type-B lineage");
+    expect(typeB.disciplineBars == 0,
+        "a classic P1 type-B Tamatchi must begin with an empty discipline meter");
+
+    ProgramPetState kuchitamatchi = p1TeenWith(2, 3, simulation, p1);
+    expect(kuchitamatchi.characterId == "kuchitamatchi"
+            && kuchitamatchi.teenLineage == ProgramTeenLineage::TypeA,
+        "two care mistakes must select type-A Kuchitamatchi from Marutchi");
+    expect(kuchitamatchi.disciplineBars == 2,
+        "a classic P1 type-A Kuchitamatchi must begin with the documented 50% meter");
+
+    struct AdultCase final {
+        int childCareMistakes;
+        int childDisciplineBars;
+        int adultCareMistakes;
+        int adultDisciplineBars;
+        const char* expectedCharacterId;
+        int expectedInitialDisciplineBars;
+    };
+    constexpr std::array<AdultCase, 15> adultCases{{
+        {0, 3, 0, 4, "mametchi", 4},
+        {0, 3, 0, 3, "ginjirotchi", 2},
+        {0, 3, 0, 0, "maskutchi", 0},
+        {0, 3, 3, 4, "kuchipatchi", 4},
+        {0, 3, 3, 3, "nyorotchi", 2},
+        {0, 3, 3, 0, "tarakotchi", 0},
+        {0, 2, 0, 4, "ginjirotchi", 2},
+        {0, 2, 0, 0, "maskutchi", 0},
+        {0, 2, 3, 4, "nyorotchi", 2},
+        {0, 2, 3, 0, "tarakotchi", 0},
+        {2, 3, 0, 4, "kuchipatchi", 4},
+        {2, 3, 0, 3, "nyorotchi", 2},
+        {2, 3, 0, 0, "tarakotchi", 0},
+        {2, 2, 0, 4, "nyorotchi", 2},
+        {2, 2, 0, 0, "tarakotchi", 0},
+    }};
+
+    for (const AdultCase& testCase : adultCases) {
+        ProgramPetState pet = p1TeenWith(testCase.childCareMistakes,
+            testCase.childDisciplineBars, simulation, p1);
+        // The meter can change during the teen stage, while the version set at
+        // its evolution remains hidden state. This is why both values belong
+        // in a resolver trace.
+        pet.careMistakes = testCase.adultCareMistakes;
+        pet.disciplineBars = testCase.adultDisciplineBars;
+        pet.hungerHearts = 4;
+        pet.happinessHearts = 4;
+        pet.attentionReason = ProgramAttentionReason::None;
+        pet.attentionDeadlineMinutes = -1;
+        pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+        pet.minutesSinceClockSet = p1.lifecycle.hatchDelayMinutes
+            + p1.lifecycle.babyToChildMinutes + p1.lifecycle.childToTeenMinutes
+            + p1.lifecycle.teenToAdultMinutes - 1;
+        pet.minutesSinceHatch = pet.minutesSinceClockSet - p1.lifecycle.hatchDelayMinutes;
+        pet.clockMinutesOfDay = 12 * 60;
+        pet.asleep = false;
+        pet.age = p1.lifecycle.adultAge;
+        const ProgramAdvanceReport evolution = simulation.advance(
+            p1, pet, 1);
+        expect(evolution.becameAdult && pet.characterId == testCase.expectedCharacterId
+                && pet.age == p1.lifecycle.adultAge
+                && pet.disciplineBars == testCase.expectedInitialDisciplineBars,
+            "each classic P1 adult rule must select its documented target and initial meter at age six");
+    }
+
+    ProgramPetState billCandidate{};
+    billCandidate.characterId = "maskutchi";
+    billCandidate.stage = ProgramStage::Adult;
+    billCandidate.minutesSinceClockSet = 10 * 60 + 59;
+    billCandidate.minutesSinceHatch = 8 * 24 * 60;
+    billCandidate.clockMinutesOfDay = 10 * 60 + 59;
+    billCandidate.age = 9;
+    billCandidate.weight = 30;
+    billCandidate.hungerHearts = 4;
+    billCandidate.happinessHearts = 4;
+    billCandidate.teenLineage = ProgramTeenLineage::TypeB;
+    billCandidate.teenStartedWithNoDiscipline = true;
+    billCandidate.asleep = true;
+    billCandidate.lightOff = true;
+    billCandidate.nextAttentionEligibleMinutes = billCandidate.minutesSinceClockSet;
+    const ProgramAdvanceReport billEvolution = simulation.advance(p1, billCandidate, 1);
+    expect(billEvolution.becameHiddenAdult && billCandidate.characterId == "bill"
+            && billCandidate.stage == ProgramStage::Adult && billCandidate.age == 10
+            && billCandidate.disciplineBars == 4,
+        "the qualified original-P1 Maskutchi path must become Bill at the age-ten wake-up");
+
+    ProgramPetState ordinaryMaskutchi = billCandidate;
+    ordinaryMaskutchi.characterId = "maskutchi";
+    ordinaryMaskutchi.age = 10;
+    ordinaryMaskutchi.disciplineBars = 0;
+    ordinaryMaskutchi.teenStartedWithNoDiscipline = false;
+    ordinaryMaskutchi.asleep = false;
+    ordinaryMaskutchi.clockMinutesOfDay = 12 * 60;
+    static_cast<void>(simulation.advance(p1, ordinaryMaskutchi, 1));
+    expect(ordinaryMaskutchi.characterId == "maskutchi",
+        "a Maskutchi without the zero-discipline teen history must not become Bill");
+}
+
+} // namespace
+
+int main()
+{
+    testP1EggHatchesFromProgrammeData();
+    testP1BabyTraceUsesSharedProgrammeSimulator();
+    testP1FoodGameWasteAndSleepUseProgrammeData();
+    testP1AttentionCallsAndCareMistakesUseProgrammeData();
+    testP1NeedTimersPauseForSleepAndScheduleFalseCalls();
+    testP1EvolutionRulesRemainProgrammeData();
+
+    if (failures == 0) {
+        std::cout << "ProgramSimulationTests passed\n";
+    }
+    return failures == 0 ? 0 : 1;
+}

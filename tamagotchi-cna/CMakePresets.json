@@ -1,0 +1,50 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "sdl-renderer",
+      "displayName": "Desktop — SDL Renderer",
+      "description": "Portable 2D development build.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-sdl-renderer",
+      "cacheVariables": {
+        "CNA_GRAPHICS_RENDERER": "SDL_RENDERER"
+      }
+    },
+    {
+      "name": "headless",
+      "displayName": "Headless — domain/test build",
+      "description": "No graphics window; reserved for future automated tests.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-headless",
+      "cacheVariables": {
+        "CNA_GRAPHICS_RENDERER": "HEADLESS"
+      }
+    },
+    {
+      "name": "web",
+      "displayName": "Web — Emscripten SDL Renderer",
+      "description": "Release WebAssembly build; configure through emcmake.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-web",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CNA_GRAPHICS_RENDERER": "SDL_RENDERER",
+        "TAMAGOTCHI_CNA_BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "sdl-renderer", "configurePreset": "sdl-renderer", "targets": ["TamagotchiCna"] },
+    { "name": "headless", "configurePreset": "headless", "targets": ["TamagotchiCna"] },
+    { "name": "web", "configurePreset": "web", "targets": ["TamagotchiCna"] }
+  ]
+}

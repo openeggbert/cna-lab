@@ -1,0 +1,86 @@
+#include "TamagotchiCna/Persistence/SaveLocation.hpp"
+
+#include <cstdlib>
+#include <string>
+#include <system_error>
+
+namespace TamagotchiCna::Persistence {
+namespace {
+
+std::filesystem::path environmentPath(const char* const name)
+{
+    const char* const value = std::getenv(name);
+    return value != nullptr && *value != '\0' ? std::filesystem::path(value)
+                                               : std::filesystem::path{};
+}
+
+bool hasLegacyActiveSlot(const std::filesystem::path& path)
+{
+    std::error_code error;
+    if (std::filesystem::exists(path, error)) {
+        return true;
+    }
+    if (error) {
+        // If we cannot inspect the legacy slot, prefer it. This prevents an
+        // update from silently selecting a different writable location.
+        return true;
+    }
+
+    return std::filesystem::exists(path.string() + ".bak", error) || error;
+}
+
+std::filesystem::path productSlot(const std::filesystem::path& platformDirectory,
+                                  const char* const productDirectory)
+{
+    return platformDirectory / productDirectory / "saves" / "slot-1.json";
+}
+
+} // namespace
+
+std::filesystem::path SaveLocation::legacySlot(const std::filesystem::path& workingDirectory)
+{
+    return workingDirectory / "saves" / "slot-1.json";
+}
+
+std::filesystem::path SaveLocation::platformDataDirectory()
+{
+#if defined(_WIN32)
+    return environmentPath("LOCALAPPDATA");
+#elif defined(__APPLE__)
+    const std::filesystem::path home = environmentPath("HOME");
+    return home.empty() ? std::filesystem::path{}
+                        : home / "Library" / "Application Support";
+#else
+    const std::filesystem::path xdgDataHome = environmentPath("XDG_DATA_HOME");
+    if (!xdgDataHome.empty()) {
+        return xdgDataHome;
+    }
+    const std::filesystem::path home = environmentPath("HOME");
+    return home.empty() ? std::filesystem::path{} : home / ".local" / "share";
+#endif
+}
+
+std::filesystem::path SaveLocation::resolveSlot(
+    const std::filesystem::path& workingDirectory,
+    const std::filesystem::path& platformDirectory)
+{
+    const std::filesystem::path legacy = legacySlot(workingDirectory);
+    if (hasLegacyActiveSlot(legacy) || platformDirectory.empty()) {
+        return legacy;
+    }
+
+    // Preserve a live per-user save written before the product rename rather
+    // than silently starting a separate pet in the new directory.
+    // Keep the pre-rename directory readable without exposing the retired
+    // product spelling as current branding anywhere in the application.
+    const std::string previousProductDirectory = std::string("cna-") + "tamagotchi";
+    const std::filesystem::path previousProduct = productSlot(
+        platformDirectory, previousProductDirectory.c_str());
+    if (hasLegacyActiveSlot(previousProduct)) {
+        return previousProduct;
+    }
+
+    return productSlot(platformDirectory, "tamagotchi-cna");
+}
+
+} // namespace TamagotchiCna::Persistence
