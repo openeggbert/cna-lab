@@ -1,0 +1,84 @@
+#pragma once
+
+#include <array>
+
+#include "BlockType.hpp"
+
+namespace CnaCraft::Worlds {
+
+// Selected block type for placing (plan.md §11.4 "Hotbar"). Kept
+// engine-agnostic like the rest of Worlds/ so slot selection/cycling is
+// unit-testable without CNA (see tests/worlds_smoke_test.cpp) — CnaCraftGame
+// only maps number keys / E to the methods below and reads Selected().
+//
+// Mirrors Craft's own item_index behavior (src/main.c): keys 1-9 jump
+// directly to the first 9 slots (CnaCraftGame caps the direct-key mapping at
+// kMaxNumberKeySlots since there's no numeric key for slots beyond 9), while
+// E/R cycle through *all* slots forward/backward, wrapping — so the
+// remaining slots are still reachable (CRAFT_PARITY.md §2.1: Craft's own
+// `on_key` binds `E`=next, `R`=prev — `CyclePrev` was missing until this
+// session, only `CycleNext`/E existed). Bedrock is intentionally excluded
+// (world-boundary block, not meant to be placed by the player, same as
+// Craft never lists it in `items`). Cloud is also excluded (CRAFT_PARITY.md
+// §2.2, user decision 2026-07-10): real Craft's `items[]` never lists
+// CLOUD either — it's world-gen-only, never player-placeable — so it was
+// removed here to match that exactly, even though it briefly existed as a
+// placeable slot in an earlier session before the fidelity-vs-feature
+// trade-off was resolved.
+//
+// Slots 17-54 (Chest, the other 5 flower colors, the 32 dye colors) were
+// appended after the original 16 rather than interleaved in Craft's own
+// `items[]` order — `BlockType`'s enum ordinals are persisted directly
+// (`Persistence::WorldStore`), and slots 1-16 are already load-bearing in
+// existing tests/saves, so this list only ever grows at the tail, matching
+// `BlockType`'s own append-only convention (see its doc comment). Craft's
+// real `item_count` is 54 with this exact roster (16 base blocks + 6
+// flower colors + 32 dye colors, `item.c`), so `SlotCount()` now matches
+// Craft's real inventory size exactly, just in a different slot order.
+class Hotbar {
+public:
+    static constexpr std::array<BlockType, 54> kSlots = {
+        BlockType::Grass,      BlockType::Dirt,     BlockType::Sand,
+        BlockType::Stone,      BlockType::Cobblestone, BlockType::Brick,
+        BlockType::Plank,      BlockType::Wood,     BlockType::Cement,
+        BlockType::LightStone, BlockType::DarkStone, BlockType::Snow,
+        BlockType::Glass,      BlockType::Leaves,
+        BlockType::TallGrass,  BlockType::Flower,
+        BlockType::Chest,      BlockType::RedFlower, BlockType::PurpleFlower,
+        BlockType::SunFlower,  BlockType::WhiteFlower, BlockType::BlueFlower,
+        BlockType::Dye00, BlockType::Dye01, BlockType::Dye02, BlockType::Dye03,
+        BlockType::Dye04, BlockType::Dye05, BlockType::Dye06, BlockType::Dye07,
+        BlockType::Dye08, BlockType::Dye09, BlockType::Dye10, BlockType::Dye11,
+        BlockType::Dye12, BlockType::Dye13, BlockType::Dye14, BlockType::Dye15,
+        BlockType::Dye16, BlockType::Dye17, BlockType::Dye18, BlockType::Dye19,
+        BlockType::Dye20, BlockType::Dye21, BlockType::Dye22, BlockType::Dye23,
+        BlockType::Dye24, BlockType::Dye25, BlockType::Dye26, BlockType::Dye27,
+        BlockType::Dye28, BlockType::Dye29, BlockType::Dye30, BlockType::Dye31};
+
+    static constexpr int kMaxNumberKeySlots = 9;
+
+    static constexpr int SlotCount() { return static_cast<int>(kSlots.size()); }
+
+    // 1-based slot number (matches keyboard keys 1..min(9, SlotCount())); out
+    // of range numbers are ignored so a stray key press can't corrupt
+    // selection.
+    void SelectSlot(int oneBasedSlot);
+    void CycleNext();
+    void CyclePrev();
+
+    // Middle-click "eyedropper" (CRAFT_PARITY.md §2.7): selects the slot
+    // holding `type`, if any. Ports Craft's `on_middle_click`, which
+    // linear-scans `items[]` for the targeted block's type and selects that
+    // slot if found, leaving selection unchanged otherwise (e.g. the
+    // targeted block isn't in the placeable roster at all — Bedrock, Air).
+    // Returns true if a matching slot was found and selected.
+    bool SelectByBlockType(BlockType type);
+
+    BlockType Selected() const { return kSlots[static_cast<std::size_t>(selectedIndex_)]; }
+    int SelectedIndex() const { return selectedIndex_; }
+
+private:
+    int selectedIndex_ = 0;
+};
+
+}

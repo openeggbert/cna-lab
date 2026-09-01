@@ -1,0 +1,131 @@
+<!doctype html>
+<!--
+  Custom Emscripten shell for the cna-craft web build (plan.md §12.1 item 36).
+  Replaces the toolchain's default demo shell: full-window canvas, pointer-lock
+  on click (the game runs in relative-mouse mode, exactly like the native
+  build), a short controls legend, and a plain text status line instead of the
+  stock progress bar. Emscripten substitutes {{{ SCRIPT }}} with its loader.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CNA Craft (web)</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #101418; color: #cfd6dd;
+                   font-family: system-ui, sans-serif; overflow: hidden; }
+      #canvas { display: block; width: 100vw; height: 100vh; background: #000; outline: none; }
+      #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+                 flex-direction: column; gap: 1rem; background: rgba(10, 14, 18, 0.92); text-align: center;
+                 cursor: pointer; }
+      #overlay.hidden { display: none; }
+      #overlay h1 { margin: 0; font-size: 1.6rem; font-weight: 600; }
+      #overlay p { margin: 0; max-width: 34rem; line-height: 1.5; font-size: 0.95rem; color: #9aa5b1; }
+      #status { font-size: 0.9rem; color: #7f8b97; }
+      kbd { background: #222a33; border: 1px solid #39424c; border-radius: 3px; padding: 0 4px;
+            font-family: ui-monospace, monospace; font-size: 0.85em; }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+
+    <div id="overlay">
+      <h1>CNA Craft</h1>
+      <p id="status">Loading…</p>
+      <p>
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · mouse look ·
+        <kbd>Space</kbd> jump/ascend · <kbd>Shift</kbd> descend/zoom · <kbd>Tab</kbd> fly ·
+        left click break · right click place · <kbd>E</kbd>/<kbd>R</kbd>/scroll change block ·
+        <kbd>F</kbd> ortho · <kbd>/</kbd> commands · <kbd>`</kbd> sign · <kbd>Esc</kbd> release cursor
+      </p>
+      <p><strong>Click to play</strong> (the pointer gets locked, like the desktop build)</p>
+    </div>
+
+    <script type="text/javascript">
+      var canvas = document.getElementById('canvas');
+      var overlay = document.getElementById('overlay');
+      var statusEl = document.getElementById('status');
+      var ready = false;
+
+      var Module = {
+        canvas: canvas,
+        print: function (text) { console.log(text); },
+        printErr: function (text) { console.error(text); },
+        setStatus: function (text) {
+          if (!text && !ready) {
+            ready = true;
+            statusEl.textContent = 'Ready.';
+          } else if (text) {
+            statusEl.textContent = text;
+          }
+        },
+      };
+
+      // Keep the drawing buffer matched to the window so the game's viewport
+      // (and thus its aspect ratio) follows the browser, not the shell default.
+      function resize() {
+        var dpr = window.devicePixelRatio || 1;
+        var cssWidth = Math.max(1, window.innerWidth);
+        var cssHeight = Math.max(1, window.innerHeight);
+        // A retina/fullscreen backing buffer can otherwise be several times
+        // 1080p. Limit it to 1080p while retaining the browser's CSS size;
+        // this avoids a fill-rate bottleneck in the single-thread WebGL build.
+        var maxPixels = 1920 * 1080;
+        var scale = Math.min(dpr, Math.sqrt(maxPixels / (cssWidth * cssHeight)));
+        canvas.width = Math.max(1, Math.floor(cssWidth * scale));
+        canvas.height = Math.max(1, Math.floor(cssHeight * scale));
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      function requestGamePointerLock() {
+        if (document.pointerLockElement === canvas) return;
+        // Pointer Lock must originate directly from this input event. SDL's
+        // deferred request is made while C++ initializes, before the player
+        // has clicked, and Firefox does not replay it for an overlay click.
+        // The method returned void in older Firefox and a Promise in newer
+        // implementations, so use pointerlockerror for the common failure
+        // path rather than assuming a Promise exists.
+        var request = canvas.requestPointerLock();
+        if (request && typeof request.catch === 'function') request.catch(function () {});
+      }
+
+      overlay.addEventListener('click', function () {
+        canvas.focus();
+        requestGamePointerLock();
+      });
+      // Reacquire after Esc or a lost browser focus. This is intentionally a
+      // native canvas event (not an asynchronous callback), so it retains the
+      // user activation Firefox requires for pointer lock.
+      canvas.addEventListener('mousedown', requestGamePointerLock);
+      // Esc releases the cursor (the game's own convention) -- show the overlay
+      // again so the player knows how to get back in.
+      document.addEventListener('pointerlockchange', function () {
+        if (document.pointerLockElement === canvas) {
+          overlay.classList.add('hidden');
+        } else if (ready) {
+          overlay.classList.remove('hidden');
+        }
+      });
+      document.addEventListener('pointerlockerror', function () {
+        if (ready) {
+          statusEl.textContent = 'Pointer lock was blocked. Click the game again.';
+          overlay.classList.remove('hidden');
+        }
+      });
+
+      // Keep browser default key actions from stealing input away from the
+      // game (found via a real user report: Tab silently shifted keyboard
+      // focus off the page instead of toggling fly mode). Capture-phase, no
+      // stopPropagation -- Emscripten's own keydown handler still sees and
+      // processes every one of these keys normally for gameplay; only the
+      // BROWSER's native default action (focus-cycling on Tab, page-scroll
+      // on Space) is suppressed.
+      var kCaptureKeys = new Set(['Tab', 'Space']);
+      window.addEventListener('keydown', function (e) {
+        if (kCaptureKeys.has(e.code)) e.preventDefault();
+      }, true);
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
