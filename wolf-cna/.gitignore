@@ -1,0 +1,12 @@
+build/
+build-*/
+cmake-build-*/
+.idea/
+.vscode/
+*.user
+*.swp
+*~
+wolf-cna-progress.dat
+wolf-cna-save-*.dat
+wolf-cna-save-*.dat.tmp
+wolf-cna-save-*.dat.bak

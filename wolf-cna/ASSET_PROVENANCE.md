@@ -1,0 +1,1071 @@
+# Asset provenance
+
+All files listed here are original project-generated artwork. No third-party or
+proprietary game assets were supplied as references. The images were generated
+on 2026-08-24 with OpenAI's built-in image generation tool and then used without
+deriving pixels from Wolfenstein 3D or another game.
+
+## `assets/sprites/security-guard.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game character billboard sprite for a retro first-person shooter
+Primary request: one original underground-bunker security guard, full body, front-facing alert stance, holding a compact fictional sidearm
+Subject: adult fictional security guard in a worn gray and muted teal utility uniform, simple protective helmet, readable human face, boots and gloves, strong compact silhouette
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, original design rather than a copy of any existing game character
+Composition/framing: one character only, full body completely visible, centered, orthographic front view, generous transparent padding, feet aligned near bottom
+Lighting/mood: simple high-contrast sprite shading readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no military or political insignia; no swastikas; no Nazi imagery; no armbands; no historical uniforms; no blood; no scenery; no drop shadow; no anti-aliased halo around silhouette
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game characters, resemblance to Wolfenstein sprites
+```
+
+## `assets/sprites/security-hound.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game creature billboard sprite for a retro first-person shooter
+Primary request: one original bunker security hound, full body, front-facing alert attack-ready stance
+Subject: muscular medium-sized brown working dog with dark muzzle, ears raised, visible paws, focused expression; clearly a real dog rather than a robot or colored geometric shape; simple teal fabric collar with a small plain peace-symbol medallion
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, matching a gray-and-teal sci-fi bunker game
+Composition/framing: one dog only, entire body and paws visible, centered, near-front three-quarter-free orthographic view suitable for a camera-facing billboard, generous transparent padding, paws aligned near bottom
+Lighting/mood: simple high-contrast sprite shading readable in dark rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no political or military insignia; no swastikas; no Nazi imagery; no blood; no scenery; no drop shadow; no anti-aliased halo
+Avoid: photorealism, 3D render, smooth painterly gradients, robotic dog, copyrighted game creatures, resemblance to Wolfenstein dog sprites
+```
+
+## `assets/title/title-background.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: landscape title-menu background for an original retro first-person shooter game
+Primary request: a dramatic original underground research-bunker entrance and deep corridor, suggesting an imminent fast-paced action mission without depicting a copied game scene
+Scene/backdrop: late-1980s fictional industrial bunker with steel doors, concrete arches, teal utility lights, warm amber warning lights, pipes, vents, floor reflections, distant fog, and one small cloth banner bearing only a simple peace symbol
+Subject: the bunker environment is the hero; two distant indistinct original security silhouettes may appear near the far doorway, with no recognizable existing characters
+Style/medium: hand-painted early-1990s VGA-inspired game key art, deliberately pixel-textured edges and limited rich color palette, polished enough for a modern enhanced retro game
+Composition/framing: landscape 3:2 composition that can be center-cropped to 16:9; strong symmetrical perspective; keep the upper center and middle center relatively dark and uncluttered for a large title and menu overlay; important bunker details around the outer thirds
+Lighting/mood: ominous but adventurous, high contrast teal-and-amber cinematic lighting, readable dark shapes
+Constraints: no text, no title, no letters, no logos, no watermark; no swastikas; no Nazi imagery; no totalitarian or political insignia; no historical uniforms; no gore; no copyrighted characters, weapons, maps, architecture, or recognizable assets; fully original visual identity; peace symbol is the only emblem
+Avoid: resemblance to Wolfenstein title art, photorealism, modern military branding, illegible busy center, bright center behind menu text
+```
+
+## `assets/sprites/rapid-trooper.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game character billboard sprite for an original retro first-person shooter
+Primary request: one original rapid-response bunker trooper, full body, front-facing alert combat stance, holding a compact fictional automatic weapon
+Subject: adult fictional security trooper in a dark navy and muted amber reinforced utility uniform, lightweight protective helmet with clear face, boots and gloves, lean fast silhouette clearly distinct from a standard gray-and-teal guard
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, original design rather than a copy of any existing game character
+Composition/framing: one character only, full body completely visible, centered orthographic front view suitable for a camera-facing 3D billboard, generous transparent padding, feet aligned near bottom
+Lighting/mood: high-contrast sprite shading readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no military or political insignia; no swastikas; no Nazi imagery; no armbands; no historical uniforms; no blood; no scenery; no drop shadow; no anti-aliased halo
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game characters, resemblance to Wolfenstein sprites, resemblance to the existing wolf-cna gray-and-teal guard
+```
+
+## `assets/sprites/heavy-unit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game character billboard sprite for an original retro first-person shooter
+Primary request: one original heavy bunker security unit, full body, front-facing braced combat stance, holding a large fictional heavy automatic weapon
+Subject: imposing adult fictional security specialist in bulky graphite and muted crimson protective utility armor, open readable human face beneath a broad reinforced helmet, heavy boots and gloves, broad slow silhouette clearly distinct from a standard guard and a lean rapid-response trooper
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, original design rather than a copy of any existing game character
+Composition/framing: one character only, full body completely visible, centered orthographic front view suitable for a camera-facing 3D billboard, generous transparent padding, feet aligned near bottom
+Lighting/mood: high-contrast sprite shading readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no military or political insignia; no swastikas; no Nazi imagery; no armbands; no historical uniforms; no blood; no scenery; no drop shadow; no anti-aliased halo; armor is fictional industrial protection rather than historical or modern military gear
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game characters, resemblance to Wolfenstein sprites, resemblance to the existing wolf-cna gray-and-teal guard or navy-and-amber trooper
+```
+
+## `assets/weapons/knife.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original combat knife held ready by the player's right hand, viewed from the player's eyes
+Subject: short practical bunker utility knife with a broad silver-gray blade, dark teal grip, one tan fingerless-gloved hand and a small part of the forearm entering from the bottom center
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: square canvas; weapon and hand centered and completely visible; orthographic first-person view; blade points upward with a slight natural diagonal; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding around the upper and side edges; forearm exits through the bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one knife and one hand; no text; no logo; no watermark; no blood; no gore; no scenery; no muzzle flash; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, floating disconnected hand, anti-aliased halo
+```
+
+## `assets/weapons/sidearm.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original compact fictional sidearm held ready by the player, viewed from the player's eyes
+Subject: angular late-1980s-inspired fictional bunker sidearm in graphite gray with muted teal grip panels, held in two tan fingerless-gloved hands, small forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; barrel near upper center; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one sidearm and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original fictional design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, anti-aliased halo
+```
+
+## `assets/weapons/repeater.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original compact three-shot repeater held ready by the player, viewed from the player's eyes
+Subject: fictional boxy automatic bunker weapon with twin upper cooling rails, graphite and dark steel body, restrained amber details, held firmly in two tan fingerless-gloved hands with small forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching the knife and sidearm
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; compact muzzle at upper center; visibly broader than the sidearm; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one fictional repeater and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original fictional design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, minigun, anti-aliased halo
+```
+
+## `assets/weapons/heavy-automatic.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original heavy automatic bunker weapon held ready by the player, viewed from the player's eyes
+Subject: bulky fictional industrial automatic weapon with four short vented barrel shrouds, dark graphite housing, muted crimson and brass utility details, held in two tan fingerless-gloved hands with braced forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching the other weapon sprites
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; much wider and heavier silhouette than the repeater; recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one fictional heavy automatic weapon and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original industrial design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, recognizable minigun design, anti-aliased halo
+```
+
+## `assets/pickups/ammo-box.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing collectible sprite for an original retro first-person shooter
+Primary request: one compact ammunition pickup for a bunker level
+Subject: a small open graphite metal ammunition box containing several rows of chunky brass cartridges, muted teal latch, clear readable silhouette
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching wolf-cna's original weapon sprites
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: high-contrast warm highlights readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no weapon; no hands; no scenery; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, real ammunition branding, copyrighted game items, resemblance to Wolfenstein pickup sprites, anti-aliased halo
+```
+
+## `assets/pickups/health-kit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing collectible sprite for an original retro first-person shooter
+Primary request: one compact health-kit pickup for a bunker level
+Subject: a sturdy off-white and graphite medical case with a simple teal medical plus symbol, metal clasps, handle, subtle worn edges, clear readable silhouette
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching wolf-cna's original sprites
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: clean high-contrast highlights readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; teal plus only, not a red-cross emblem; no text; no logo; no watermark; no blood; no gore; no hands; no scenery; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, red cross, copyrighted game items, resemblance to Wolfenstein pickup sprites, anti-aliased halo
+```
+
+## `assets/pickups/gold-bars.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing treasure collectible sprite for an original retro first-person shooter
+Primary request: a small stack of valuable gold ingots for a bunker treasure pickup
+Subject: three chunky original gold bars stacked securely, warm yellow metal, beveled edges, simple geometric stamped lines without letters or currency marks
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one compact treasure pile only, centered three-quarter front view, entire pile visible, generous transparent padding, base aligned near bottom, readable at small in-game size
+Lighting/mood: bright amber highlights and deep ochre shadows, clearly valuable against dark rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no currency symbol; no hands; no scenery; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```
+
+## `assets/pickups/golden-goblet.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing treasure collectible sprite for an original retro first-person shooter
+Primary request: one ornate golden goblet as a medium-value bunker treasure pickup
+Subject: original broad golden goblet with angular late-1980s geometric engraving and three small teal gemstones, sturdy stem and base, clearly distinct from simple gold bars
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one object only, centered three-quarter front view, entire goblet visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: bright amber highlights with deep warm shadows and restrained teal sparkle
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no religious, political or military symbols; no hands; no scenery; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```
+
+## `assets/pickups/peace-medallion.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing high-value treasure collectible sprite for an original retro first-person shooter
+Primary request: one compact original golden display medallion with a large cyan gemstone for a bunker treasure pickup
+Subject: a thick low golden peace medallion standing on a tiny angular gold base, one large faceted cyan gemstone in its center and two tiny amber gems, compact silhouette clearly distinct from gold bars and a goblet
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous empty transparent padding on every side, base aligned near bottom, readable at small in-game size
+Lighting/mood: crisp highlights contained strictly on the object, deep warm object shadows
+Constraints: genuinely transparent background and preserved alpha; absolutely no glow, aura, shadow, backdrop, gradient, floor or scenery outside the object; no text; no logo; no watermark; peace symbol is the only allowed emblem; no political, totalitarian, military or religious insignia; no hands; fully original fictional design
+Avoid: colored haze, black rectangle, brown background, photorealism, 3D render, smooth painterly gradients, historical crown, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-guard-defeated.png`
+
+Prompt (using the committed standing guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 in a clearly defeated collapsed pose, lying on one side with the fictional sidearm resting beside the hand
+Subject: preserve the same adult face, helmet, gray and teal utility uniform, boots, gloves, palette and original character identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-defeated.png`
+
+Prompt (using the committed alert hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 in a clearly defeated resting pose, lying peacefully on its side with paws visible
+Subject: preserve the same brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one entire dog only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: photorealism, 3D render, smooth gradients, distress, graphic injury, robotic dog, copyrighted game creatures, resemblance to Wolfenstein defeated dog sprites, anti-aliased halo
+```
+
+## `assets/sprites/rapid-trooper-defeated.png`
+
+Prompt (using the committed standing rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 in a clearly defeated collapsed pose, lying across the floor with the compact fictional automatic weapon beside the body
+Subject: preserve the same adult face, light helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-defeated.png`
+
+Prompt (using the committed standing heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 in a clearly defeated collapsed seated-side pose, bulky body low to the floor with the large fictional weapon resting nearby
+Subject: preserve the same adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, broad horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, historical armor, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+The first heavy-unit result contained a baked light checkerboard. It was sent
+through image generation once more with this exact cleanup prompt:
+
+```text
+Use case: precise-object-edit
+Primary request: remove the entire baked white-and-light-gray checkerboard background from Image 1 and replace it with genuine transparent pixels and a preserved alpha channel. Keep the defeated graphite-and-muted-crimson heavy bunker security unit and its fictional weapon exactly as shown, including every original pixel-art shape, color, pose, facial detail and edge. The only change must be isolating the character and weapon from the checkerboard.
+Output: transparent PNG, original dimensions or similarly high resolution, one complete low horizontal defeated-character billboard sprite with generous transparent padding.
+Constraints: genuinely transparent background; no checkerboard; no white or gray backdrop; no shadow; no scenery; no text; no logo; no watermark; no blood; no gore; no added objects; no political or military insignia; preserve the hand-crafted early-1990s VGA-inspired chunky pixel-art aesthetic and crisp hard silhouette.
+Avoid: changing the pose, armor, face, palette, weapon, proportions or composition; anti-aliased white halo; smooth gradients; photorealism; 3D rendering.
+```
+
+Because that cleanup export still lacked an alpha channel, its unchanged color
+pixels were combined with a project-generated binary silhouette mask. The mask
+removes only large bright connected background regions and retains the sprite's
+small bright pixel-art details. No third-party pixels were added.
+
+## `assets/sprites/security-guard-attack.png`
+
+Prompt (using the committed standing guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 at the instant of firing, with the compact fictional sidearm raised and aimed directly toward the viewer, shoulders squared and a tiny amber muzzle flash
+Subject: preserve the same adult face, helmet, gray and teal utility uniform, boots, gloves, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one tiny contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-attack.png`
+
+Prompt (using the committed alert hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent melee-attack-frame creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 lunging forward toward the viewer at the instant of a close-range attack, forepaws extended, mouth open in a bark, body compact and readable
+Subject: preserve the same brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one entire dog only, front-facing action pose completely visible, centered, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; energetic but non-gory; no contact victim; no blood; no wounds; no saliva; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: photorealism, 3D render, smooth gradients, distress or injury, robotic dog, additional creatures, copyrighted game creatures, resemblance to Wolfenstein dog attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/rapid-trooper-attack.png`
+
+Prompt (using the committed standing rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 at the instant of firing, compact fictional automatic weapon raised and aimed directly toward the viewer, lean stance braced, with a small contained amber muzzle flash
+Subject: preserve the same adult face, helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one small contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-attack.png`
+
+Prompt (using the committed standing heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 at the instant of firing, broad body deeply braced, large fictional heavy automatic weapon aimed directly toward the viewer, with a compact red-amber muzzle flash
+Subject: preserve the same adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one compact contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, historical armor, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+The hound, rapid-trooper and heavy-unit exports contained a baked light
+checkerboard despite requesting alpha. Their unchanged color pixels were combined
+with project-generated edge-connected binary background masks. This preserves
+enclosed bright details such as teeth and muzzle flashes while removing only the
+checkerboard connected to the image boundary. No third-party pixels were added.
+
+## `assets/weapons/knife-attack.png`
+
+Prompt (using the committed ready knife as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person melee attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hand and style reference
+Primary request: redraw the same original bunker utility knife and same tan fingerless-gloved right hand from Image 1 at the strongest instant of a fast diagonal knife slash, forearm thrust farther into the view, blade crossing the center from lower right toward upper left
+Subject: preserve the identical broad silver-gray blade, dark teal grip, glove, skin tone, palette and original fictional design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; exactly one knife and one hand; energetic diagonal attack silhouette centered and fully visible; forearm exits through the bottom edge; same first-person viewpoint and scale family as Image 1
+Constraints: genuinely transparent background and preserved alpha; no blood; no gore; no target; no second hand; no text; no logo; no watermark; no scenery; no political or military insignia; no motion-blur haze
+Avoid: changing weapon identity, photorealism, 3D render, smooth gradients, detached hand, extra blade, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/sidearm-attack.png`
+
+Prompt (using the committed ready sidearm as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person firearm attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original compact graphite-and-teal fictional sidearm and same two tan fingerless-gloved hands from Image 1 at the instant of firing, slide kicked slightly rearward and muzzle raised by recoil, with one compact amber-white muzzle flash
+Subject: preserve the identical weapon body, teal grip panels, hands, forearms, palette and original fictional design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one sidearm and two hands; one contained muzzle flash only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/repeater-attack.png`
+
+Prompt (using the committed ready repeater as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person automatic-weapon attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original graphite-and-amber three-shot repeater and same two tan fingerless-gloved hands from Image 1 at the instant of firing a burst, weapon pushed slightly rearward by recoil, upper cooling rails brightened, with one compact amber-white muzzle flash at the center muzzle
+Subject: preserve the identical boxy fictional weapon, twin upper rails, graphite body, amber details, hands, forearms, palette and original design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one repeater and two hands; one contained muzzle flash only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, minigun, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/heavy-automatic-attack.png`
+
+Prompt (using the committed ready heavy automatic as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person heavy-weapon attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original graphite-crimson-and-brass heavy automatic bunker weapon and same two tan fingerless-gloved hands from Image 1 at the instant of firing, broad assembly recoiling slightly downward into the hands, all four vented barrel shrouds active, with compact red-amber muzzle flashes contained at their tips
+Subject: preserve the identical four-shroud fictional industrial weapon, graphite housing, crimson and brass details, hands, forearms, palette and original design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one heavy weapon and two hands; compact contained flashes only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, recognizable minigun design, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+The sidearm and heavy-automatic exports contained a baked light checkerboard.
+Their unchanged color pixels were combined with project-generated
+brightness/chroma masks. Small neutral highlights are retained by connected-area
+filtering, colored muzzle flashes remain opaque, and large neutral checkerboard
+regions become transparent. No third-party pixels were added.
+
+## `assets/sprites/security-guard-pain.png`
+
+Prompt (using the committed ready guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 recoiling from a non-lethal impact, upper body twisted slightly backward, free arm raised defensively and fictional sidearm lowered
+Subject: preserve the identical adult face, helmet, gray and teal utility uniform, boots, gloves, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: death pose, falling to floor, dismemberment, graphic pain, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-pain.png`
+
+Prompt (using the committed ready hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 making a brief non-lethal flinch, head turned slightly aside, ears lowered partway and one forepaw lifted while remaining firmly standing
+Subject: preserve the identical brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one entire dog only, near-front readable flinch pose completely visible, centered, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no distress beyond a momentary game flinch; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: defeated or lying pose, graphic pain, photorealism, 3D render, smooth gradients, robotic dog, additional creatures, copyrighted game creatures, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+The hound was passed through one additional exact-background-removal edit:
+
+```text
+Use case: precise-object-edit
+Input image: Image 1 is the exact sprite to edit.
+Primary request: keep the security hound character, pose, proportions, pixel-art pixels, colors, teal collar and peace-symbol medallion exactly unchanged. Remove every brown, black or glowing background pixel outside the dog's physical silhouette. Replace all pixels outside the dog with genuine zero-alpha transparency.
+Constraints: one unchanged dog only; crisp clean silhouette; preserve transparent alpha; no aura; no backdrop; no floor shadow; no checkerboard; no added or removed anatomy; no blood; no wound; no scenery; no text; no logo; no watermark.
+Avoid: redrawing or restyling the dog, changing the pose, smooth gradients outside the silhouette, dark rectangle, checker pattern, anti-aliased halo.
+```
+
+## `assets/sprites/rapid-trooper-pain.png`
+
+Prompt (using the committed ready rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 recoiling from a non-lethal impact, lean upper body rocked backward and compact fictional automatic weapon lowered across the torso
+Subject: preserve the identical adult face, helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: death pose, falling to floor, dismemberment, graphic pain, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-pain.png`
+
+Prompt (using the committed ready heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 absorbing a non-lethal impact, broad armored torso jolted slightly sideways, one shoulder dipped and large fictional weapon lowered but still firmly held
+Subject: preserve the identical adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: death pose, falling to floor, dismemberment, graphic pain, historical armor, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+The guard, rapid-trooper and heavy-unit exports contained baked light
+checkerboards. Their unchanged color pixels were combined with
+project-generated brightness/chroma connected-area masks. The hound export used
+a project-generated edge flood mask followed by binary closing and hole filling
+to remove its dark background without altering its color pixels. No third-party
+pixels were added to any hit-reaction sprite.
+
+## `assets/decorations/storage-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: storage-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one hardy compact green fern with broad readable leaves growing from a worn muted-teal cylindrical steel planter, small amber inventory plate on the pot, original fictional industrial design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited green/teal/amber palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, compact vertical silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, flowers, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+## `assets/decorations/foundry-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: foundry-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one tough rust-orange and olive succulent with thick angular leaves growing from a dark graphite square heat-shielded planter with subtle brass corner guards, original fictional industrial design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited graphite/olive/rust/brass palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, squat broad silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: fire, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+## `assets/decorations/labs-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: laboratory-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one original pale cyan and deep blue research fern with slender layered leaves growing from a clean white-and-muted-cyan hexagonal laboratory planter, a tiny green status light built into the pot, fictional benign botanical experiment
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited cyan/blue/white/green palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, elegant vertical silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: dangerous mutation, horror, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+All three image-generation exports contained genuine alpha and were accepted
+without color editing or background masking. No third-party pixels were added.
+
+## `assets/decorations/archive-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: archive-sector potted plant landmark in a real polygonal 3D underground records complex
+Subject: one original deep violet and muted burgundy archive palm with fan-shaped layered leaves growing from a compact dark bronze octagonal planter, small warm amber catalog light built into the pot, dignified fictional institutional design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited violet/burgundy/bronze/amber palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, broad formal silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: horror, decay, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+The export contained genuine alpha and was accepted without color editing or
+background masking. No third-party pixels were added.
+
+## `assets/materials/wall-stone.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original C++ retro first-person shooter
+Primary request: create one fully original seamless repeating cool-gray bunker stone wall texture, inspired only by the broad visual language of early-1990s 256-color VGA shooters: large readable masonry blocks, strong dark mortar lines, compact pixel clusters, restrained highlights, and crisp nearest-neighbor-friendly edges
+Composition/framing: flat orthographic front-facing square texture filling the entire canvas; perfectly tileable on all four edges; no perspective and no border
+Style/medium: polished hand-painted pixel art, visually designed at about 64x64 then cleanly upscaled, deliberately chunky rather than photorealistic
+Color palette: cool gray stone, charcoal mortar, subtle muted blue shadows
+Constraints: entirely original design; no copied game pixels; no text; no logos; no emblems; no symbols; no graffiti; no objects; opaque image; uniform lighting; preserve clear tileability
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photographic detail, perspective, baked directional light, seams at canvas edges
+```
+
+## `assets/materials/wall-brick.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating dark red-brown industrial brick wall texture, with chunky uneven bricks, deep charcoal mortar, occasional steel reinforcement plates and tiny worn corners; broad early-1990s 256-color VGA shooter readability only, no copied motifs
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished hand-painted pixel art designed around 64x64 and cleanly upscaled, crisp hard pixel clusters
+Color palette: dark oxblood brick, rust brown, charcoal, restrained amber highlights
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, graffiti or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/wall-steel.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating teal-gray bunker steel wall texture, made from large riveted rectangular plates, recessed seams, narrow ventilation grooves and sparse scratches; broad early-1990s 256-color VGA shooter readability only
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky pixel art designed around 64x64 and cleanly upscaled, limited palette, crisp nearest-neighbor-friendly edges
+Color palette: desaturated teal steel, gunmetal, charcoal seams, small cyan status accents without text
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, emblems or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/wall-lab.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating cold blue laboratory wall texture, composed of broad ceramic-composite panels, dark joints, inset cable channels and a few small mint indicator lights; broad early-1990s 256-color VGA shooter readability only
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky pixel art designed around 64x64 and cleanly upscaled, limited palette, crisp nearest-neighbor-friendly edges
+Color palette: slate blue, pale blue-gray, navy joints, restrained mint/cyan accents
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, emblems or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/table-wood.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wood texture for real polygonal furniture in an original retro first-person shooter
+Primary request: one fully original seamless repeating dark oak plank texture suitable for the top and legs of a bunker table, with broad readable grain, plank joints, small dents and restrained worn highlights
+Composition/framing: flat orthographic front-facing square filling the entire canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky early-1990s VGA-inspired pixel art designed around 64x64 and cleanly upscaled
+Color palette: dark walnut brown, warm mid-brown, near-black joints, muted honey highlights
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, nails shaped like symbols, or objects
+Avoid: brick, stone, metal wall appearance, photorealism, perspective, canvas-edge seams
+```
+
+All five material exports were opaque and accepted without color editing. Game
+code samples them into a project-generated 64-pixel material atlas through CNA's
+public texture API. No third-party pixels were added.
+
+## `assets/props/access-card.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent world pickup sprite for an original retro first-person shooter
+Primary request: a fully original compact cyan-and-brass bunker access card, thick rugged plastic with one clipped corner, a tiny embedded chip and three simple cyan status bars
+Composition/framing: isolated object centered, slight three-quarter top-down view as if lying just above the floor, full object visible with generous transparent margin, grounded bottom edge
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no scene, no text, no numbers, no logos, no symbols, no emblems, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, readable writing, photorealism, soft blur, copied game asset
+```
+
+## `assets/props/repeater-pickup.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent weapon pickup sprite for an original retro first-person shooter
+Primary request: a fully original compact three-round repeater firearm lying diagonally on the floor, dark gunmetal body, short barrel, violet energy-cell housing and small cyan mechanical accents; clearly a world pickup, not a first-person weapon view
+Composition/framing: isolated full weapon centered in a slight three-quarter top-down view, horizontal-wide silhouette, generous transparent margin, grounded near bottom
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 96x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no person, no scene, no text, no numbers, no logos, no symbols, entirely original fictional design
+Avoid: white or checkerboard background, Nazi imagery, real branded weapon, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/heavy-automatic-pickup.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent heavy weapon pickup sprite for an original retro first-person shooter
+Primary request: a fully original heavy automatic bunker weapon resting on the floor, broad four-vent barrel cluster, dark iron housing, red enamel side plates, brass feed components and restrained amber glow; clearly a world pickup, not a first-person weapon view
+Composition/framing: isolated full weapon centered in a slight three-quarter top-down view, horizontal-wide silhouette, generous transparent margin, grounded near bottom
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 96x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no person, no scene, no text, no numbers, no logos, no symbols, entirely original fictional design
+Avoid: white or checkerboard background, Nazi imagery, real branded weapon, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/terminal.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent interactive terminal sprite for an original retro first-person shooter
+Primary request: a fully original waist-high bunker terminal console, sturdy dark steel pedestal, angled amber monitor, chunky keyboard buttons, cyan cable conduits and small indicator lamps; readable from the front
+Composition/framing: isolated full terminal centered, front three-quarter view with the base at the bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x96 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, screen contains only abstract bars and geometric lights, no text, letters, numbers, logos, emblems or symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/power-relay.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent power-relay sprite for an original retro first-person shooter
+Primary request: a fully original waist-high bunker power relay, squat armored circular generator on a broad base, violet inactive energy core surrounded by copper coils, thick teal cables and a few simple indicator lamps; readable from the front
+Composition/framing: isolated full relay centered, front three-quarter view with base at bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 80x80 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no text, letters, numbers, logos, emblems or symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/sector-exit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent sector-exit sprite for an original retro first-person shooter
+Primary request: a fully original tall bunker elevator exit control pedestal, dark steel vertical frame, large cyan upward chevron made from simple geometric light segments, illuminated side rails and a sturdy floor base; it should clearly read as the destination that completes a sector
+Composition/framing: isolated full pedestal centered, straight-on slight three-quarter view, base at bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x96 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no words, letters, numbers, logos, emblems, flags or historical symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/enemy-projectile.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent enemy projectile sprite for an original retro first-person shooter
+Primary request: one fully original small orange-amber plasma tracer bolt, compact bright diamond-shaped core with two short pixelated energy tails and a thin red-orange halo, readable at tiny on-screen size
+Composition/framing: isolated projectile centered horizontally, wide compact silhouette, generous transparent margin
+Style/medium: polished chunky early-1990s VGA-inspired pixel art designed around 32x16 then cleanly upscaled, crisp hard pixels
+Constraints: genuinely transparent background, no weapon, no scene, no text, logos, symbols or emblems, entirely original
+Avoid: white or checkerboard background, rectangular opaque backdrop, photorealism, excessive blur, copied game asset
+```
+
+All seven prop exports contained genuine alpha and were accepted without color
+editing or background masking. No third-party pixels were added.
+
+## `assets/sprites/bunker-warden.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent-background game enemy sprite
+Primary request: create one original retro first-person shooter boss character for the independent game wolf-cna: a towering fictional bunker warden in dark teal industrial armor, broad silhouette, mechanical shoulder coils, holding an original compact energy repeater
+Subject: full body enemy viewed straight from the front, centered, feet fully visible, readable at small size
+Style/medium: polished hand-painted pixel-art-like raster sprite with chunky early-1990s PC game readability but twice the pixel detail; original design, not based on any existing game character
+Composition/framing: square canvas, front orthographic view, generous transparent padding, no ground plane
+Lighting/mood: dramatic cool cyan rim light and warm amber face light
+Color palette: dark teal, gunmetal, muted amber, small cyan energy accents
+Constraints: genuinely transparent background and preserve alpha; one character only; crisp silhouette; no text; no logo; no watermark; no flags; no uniforms from real regimes; no swastikas; no hate symbols; no peace symbol; no copyrighted character likeness
+Avoid: photorealism, blurry edges, scenery, shadows extending beyond the character, sprite sheet, multiple poses
+```
+
+## `assets/sprites/bunker-warden-attack.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent-background game enemy attack sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss during a ranged attack, bracing the same energy repeater while three compact cyan muzzle-energy bolts fan forward
+Constraints: preserve identity, armor design, colors, body proportions, front-facing full-body framing, pixel-art-like rendering, canvas dimensions, transparent background and alpha; change only the pose enough to read as firing; one character only; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery; no gore
+Avoid: character redesign, different weapon, cropped feet, opaque background, photorealism
+```
+
+The first attack export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## `assets/sprites/bunker-warden-pain.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent-background game enemy pain sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss recoiling from a non-graphic hit, shoulders turned slightly and weapon lowered, with a clear strained expression
+Constraints: preserve identity, armor design, weapon, colors, body proportions, front-facing full-body framing, pixel-art-like rendering, canvas dimensions, genuinely transparent background and alpha; one character only; no projectile; no blood; no injury; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery
+Avoid: character redesign, cropped feet, opaque or checkerboard background, gore, photorealism
+```
+
+The first pain export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## `assets/sprites/bunker-warden-defeated.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss in a clearly defeated non-gory pose, lying heavily on his side with the powered armor disabled and the same energy repeater resting beside his hands
+Constraints: preserve identity, armor design, weapon, colors, body proportions and pixel-art-like rendering; one complete horizontal low body only; genuinely transparent background and alpha; generous transparent padding; no standing pose; no visible wound; no blood; no gore; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery; no drop shadow
+Avoid: character redesign, dismemberment, cropped body, opaque or checkerboard background, photorealism
+```
+
+The first defeated export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## WOLF-039 expanded pickup sprites
+
+These four original project assets were generated with the built-in OpenAI image
+generation tool on 2026-08-24. Each committed PNG was visually inspected and verified
+to contain genuine non-opaque alpha. No third-party reference image or third-party
+pixel was used.
+
+### `assets/pickups/field-dressing.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS pickup sprite
+Primary request: an original compact field dressing pickup, a neatly folded pale bandage roll with a small teal medical clasp, clearly smaller and less powerful-looking than a full health kit
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, generous transparent padding, complete silhouette
+Lighting/mood: soft neutral bunker lighting, restrained highlights
+Color palette: off-white cloth, teal clasp, muted navy shadows; no red cross
+Constraints: genuinely transparent background and preserved alpha, no text, no logo, no watermark, no symbols associated with real organizations, no people, no weapons, entirely original design
+```
+
+### `assets/pickups/amber-access-card.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS pickup sprite
+Primary request: an original amber access credential card for an underground bunker, a rugged compact rectangular smart card with clipped corners, copper contact strips, a bright amber edge and a small abstract peace-dove emblem
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered card in slight three-quarter view, complete silhouette, generous transparent padding
+Lighting/mood: subtle neutral bunker lighting with controlled metallic highlights
+Color palette: amber, copper, charcoal and small cream accents
+Constraints: genuinely transparent background and preserved alpha, no readable text, no numbers, no logos, no watermark, no military or extremist insignia, entirely original design
+```
+
+### `assets/pickups/recovery-beacon.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS rare pickup sprite
+Primary request: an original rare emergency recovery beacon that restores full health and grants an extra life, a compact teal-and-gold portable rescue unit with a glowing circular core and two folded handles
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, prestigious and immediately rarer than an ordinary health kit
+Composition/framing: single centered object, three-quarter front view, complete clear silhouette, generous transparent padding
+Lighting/mood: restrained warm glow from the core, neutral bunker lighting
+Color palette: deep teal casing, aged gold trim, pale cyan core, navy shadows
+Constraints: genuinely transparent background and preserved alpha, no text, no logos, no watermark, no cross symbol, no skull, no weapons, entirely original design
+```
+
+### `assets/pickups/peace-prism.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS high-value treasure pickup sprite
+Primary request: an original high-value peace prism treasure, a faceted amber crystal held in a small art-deco gold frame whose silhouette subtly suggests radiating harmony, clearly more valuable than bars, a goblet or a medallion
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, luxurious but grounded
+Composition/framing: single centered treasure in three-quarter front view, complete silhouette, generous transparent padding
+Lighting/mood: controlled warm glints and a subtle amber internal glow
+Color palette: amber crystal, aged gold, muted teal accent, deep navy shadows
+Constraints: genuinely transparent background and preserved alpha, no text, no logos, no watermark, no religious, military, extremist or national symbols, entirely original design
+```
+
+## WOLF-049 bunker prop sprites
+
+These eleven original project assets were generated on 2026-08-25 with OpenAI's image
+generation tool from the prompts recorded below. No third-party reference image or
+third-party pixel was used, and no pixels derive from Wolfenstein 3D or any other
+game.
+
+The generator returned all ten props on a single 1536x1024 contact sheet rather than
+as separate files. The sheet was split into the individual sprites below by locating
+the fully transparent gaps between objects, cropping each object's alpha bounding box
+with proportional padding, and then clearing the RGB of every fully transparent pixel
+so the sheet's dark vignette cannot bleed into an edge under straight-alpha blending.
+No other pixel was altered. Each committed PNG was visually inspected and verified to
+contain genuine non-opaque alpha.
+
+Three sprites differ from what the prompt asked for and are named for what they
+actually depict: the requested rubble pile came back as a standing equipment rack,
+the specimen cabinet as a laboratory bench, and the archive column as a filing
+cabinet. All three suit the bunker setting, so they were kept rather than regenerated.
+
+### `assets/props/steel-drum.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original sealed steel storage drum standing upright on a bunker floor, two raised rolling ribs around its body, a plain bolted lid, light rust staining near the base, no logos or lettering of any kind
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, restrained specular highlights on the ribs
+Color palette: cool gunmetal grey body, muted teal band, dull orange rust, deep navy shadows
+```
+
+### `assets/props/water-cistern.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original circular water cistern built of fitted stone blocks, a low parapet wall, a simple iron crossbar over the opening with a hanging chain, still dark water visible inside, no bucket
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool damp underground lighting, faint reflected glint on the water surface
+Color palette: cold grey stone, dark iron, near-black water with a single pale highlight, deep navy shadows
+```
+
+### `assets/props/supply-crates.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original stack of three sealed wooden supply crates of slightly different sizes, plain planks with visible grain, simple metal corner brackets and banding straps, completely unmarked with no stencils, symbols or text
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered stack, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, warm bounce on the upper faces
+Color palette: warm dark-oak planks, dull steel brackets, muted olive straps, deep navy shadows
+```
+
+### `assets/props/floor-lamp.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original freestanding industrial floor lamp, a heavy weighted tripod base, a plain vertical post and a wide conical metal shade with a caged bulb glowing warmly beneath it
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: the lamp is its own light source, warm glow concentrated under the shade, the post and base falling into shadow
+Color palette: dull olive-grey metal, warm amber bulb glow, brass cage ring, deep navy shadows
+```
+
+### `assets/props/ration-tins.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original small pile of sealed ration tins and a folded cloth sack of dry stores resting beside them, plain cylindrical tins with ring pulls, no labels, brands, symbols or lettering
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered arrangement, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, gentle highlights on the tin rims
+Color palette: pale tin-grey, muted olive sackcloth, warm tan rope tie, deep navy shadows
+```
+
+### `assets/props/valve-assembly.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original floor-mounted pipe and valve assembly, two thick vertical pipes joined by a horizontal spool, a large spoked handwheel on the front, bolted flanges and a small pressure gauge with an unreadable dial
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool industrial lighting, hard highlights along the pipe tops
+Color palette: teal-painted pipework, bare steel handwheel, dull brass gauge, deep navy shadows
+```
+
+### `assets/props/laboratory-bench.png`
+
+Returned in answer to the specimen-cabinet prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original laboratory specimen cabinet, a metal frame with two glazed shelves holding plain sealed glass flasks and stoppered jars of clear and pale liquid, a closed lower cupboard, nothing organic or biological inside
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cold clinical lighting, crisp highlights on the glass edges
+Color palette: pale laboratory grey-green panels, clear glass with cyan tint, chrome frame, deep navy shadows
+```
+
+### `assets/props/rubble-pile.png`
+
+Generated separately on 2026-08-25 after the contact sheet answered the rubble prompt
+with an equipment rack. It arrived as a single 1536x1024 image with genuine alpha and
+needed no splitting; only the RGB of its fully transparent pixels was cleared, which
+removed the warm halo the generator had left behind the object. The prompt was
+rewritten as prose rather than the field-style record below, because the field format
+is how this file stores a prompt and is not itself a usable chat instruction.
+
+```text
+An original pile of collapsed masonry rubble, drawn as a single game prop on a
+fully transparent background. Broken concrete blocks of different sizes heaped in
+a low mound, chipped edges, a few bent rust-brown reinforcing bars poking out of
+the top, loose grit and dust settled around the base. Nothing resembling bones or
+remains.
+
+Sharp high-resolution hand-painted pixel art in the style of a late-1980s retro
+first-person shooter sprite: crisp clustered pixels, readable at small size, cool
+concrete grey with pale dust highlights and deep navy shadows, soft neutral
+lighting from above.
+
+Single centred object seen from a three-quarter front view, complete silhouette,
+generous transparent padding on all sides. Landscape image, roughly 1536 by 1024.
+Transparent background, no ground plane, no shadow cast onto the background, no
+text, no logos, no watermark.
+```
+
+### `assets/props/equipment-rack.png`
+
+Returned in answer to the rubble-pile prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original low pile of collapsed masonry, broken concrete blocks with exposed bent reinforcing bar, loose grit and dust settled around the base, no debris resembling remains
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered pile, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: soft neutral bunker lighting from above, dusty diffuse shading
+Color palette: cool concrete grey, pale dust, rust-brown reinforcing bar, deep navy shadows
+```
+
+### `assets/props/empty-pressure-suit.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original empty pressure suit hanging on an upright maintenance stand, the visor dark and hollow, arms hanging slack, hoses coiled at the base; the suit is clearly unoccupied equipment, with no body, bones, remains or figure of any kind
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: dim storage lighting, the dark visor reading as an empty void
+Color palette: faded canvas ochre suit, dull steel stand, near-black visor, deep navy shadows
+```
+
+### `assets/props/archive-cabinet.png`
+
+Returned in answer to the archive-column prompt; kept and renamed for what it depicts.
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS static prop sprite
+Primary request: an original narrow archive storage column, a tall metal cabinet of six shallow drawers with plain recessed pull handles and blank card holders, one drawer very slightly ajar, no text or numbering anywhere
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, complete silhouette, generous transparent padding on all sides, fully transparent background
+Lighting/mood: cool archive lighting, soft vertical falloff down the drawer faces
+Color palette: muted violet-grey cabinet, dull bronze handles, pale ivory card holders, deep navy shadows
+```
