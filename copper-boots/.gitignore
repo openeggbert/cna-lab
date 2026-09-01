@@ -1,0 +1,29 @@
+# Build products
+/build/
+/build-*/
+/cmake-build-*/
+/Testing/
+/cmake_test_discovery_*.json
+
+# Downloaded historical reference material is study-only and non-shipping.
+/reference/original/
+
+# Compilers and editors
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.pdb
+*.user
+.cache/
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime state
+/.cna_isolated_storage/
+*.log
+
