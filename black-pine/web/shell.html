@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Black Pine: The Long Silence</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      background: #000;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-width: 1280px;
+      min-height: 700px;
+      margin: 0;
+      overflow: auto;
+      background: #000;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    #canvas {
+      display: block;
+      width: 1280px;
+      height: 700px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: #000;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #aaa;
+      background: #000;
+      font: 16px monospace;
+    }
+
+    #loading[hidden] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="1280" height="700"
+          oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+  <div id="loading">Loading Black Pine...</div>
+  <script>
+    const canvasElement = document.getElementById("canvas");
+    const loadingElement = document.getElementById("loading");
+
+    canvasElement.addEventListener("webglcontextlost", (event) => {
+      event.preventDefault();
+      loadingElement.textContent = "WebGL context lost. Reload the page.";
+      loadingElement.hidden = false;
+    });
+
+    document.addEventListener("pointerdown", () => canvasElement.focus());
+
+    var Module = {
+      canvas: canvasElement,
+      print: (...args) => console.log(...args),
+      printErr: (...args) => console.error(...args),
+      onRuntimeInitialized: () => {
+        loadingElement.hidden = true;
+        canvasElement.focus();
+      }
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>
