@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — MeshWorld</title>
+<meta name="description" content="Technical architecture of MeshWorld: chunk pipeline and planetary map pipeline diagrams, key classes, generator ID convention, world config format, caching, MC3 format, and 467-test suite.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Technical Reference</p>
+    <h1>Architecture</h1>
+    <p>A deep dive into MeshWorld's two generation subsystems, class design, data formats, and test coverage.</p>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ── Pipeline ──────────────────────────────────────── -->
+<section class="section">
+  <p class="section-label">Generation Pipeline · Legacy Chunk/City System</p>
+  <h2 style="margin-bottom:2rem">From Config to Cached Scene</h2>
+
+  <div class="grid-2" style="align-items:start;gap:3rem">
+    <div>
+      <div class="pipeline">
+        <div class="pipe-node accent-node">world.json<sub>Seed · grid size · zones · style</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">WorldMap<sub>Assigns ZoneType + RegionType per (x,y) coordinate</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">ChunkPipeline<sub>Cache hit? → return cached XML</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node purple-node">LuaGeneratorRegistry<sub>try lua.zone.&lt;region&gt; first</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node" style="font-size:0.82rem">LuaSandbox → LuaRuntime (Lua 5.4 + sol2)<sub>Sandboxed: no io/os/debug/require</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">C++ Fallback<sub>get_generator(zone, region) → 20 generators</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">Mc3SceneBuilder<sub>addBox · addCylinder · addPlane · addGround · addInstance</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">MC3Validator<sub>XML · metadata · bounds · material names</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">ChunkCache<sub>cache/chunks/x_y.mc3.xml</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node accent-node">MC3 XML output<sub>MeshCraft viewer · MCB compiler · WorldRenderer</sub></div>
+      </div>
+    </div>
+    <div>
+      <h3 style="color:var(--text);margin-bottom:1rem">Pipeline notes</h3>
+      <div class="callout callout-info">
+        <strong>Cache-first:</strong> ChunkPipeline checks the disk cache before doing any work. If <code>cache/chunks/x_y.mc3.xml</code> exists and is newer than the world config, generation is skipped entirely.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Lua-first:</strong> The registry is checked before the C++ fallback. A Lua file with a matching <code>M.id</code> overrides the C++ generator with zero configuration.
+      </div>
+      <div class="callout callout-warn" style="margin-top:1rem">
+        <strong>Validation gate:</strong> Only validated chunks are written to cache. Invalid generator output is discarded — the cache can never contain corrupted data.
+      </div>
+      <div style="margin-top:1.5rem">
+        <p style="font-size:0.875rem">The <strong>WorldStreamer</strong> sits above this pipeline. It calls <code>ChunkPipeline::generate()</code> for chunks entering the load radius and drops the Mc3Document from memory when chunks leave the radius.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Map subsystem pipeline ──────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <p class="section-label">Generation Pipeline · Planetary Map Subsystem</p>
+  <h2 style="margin-bottom:2rem">From Planet to Chunk Hand-off</h2>
+
+  <div class="grid-2" style="align-items:start;gap:3rem">
+    <div>
+      <div class="pipeline">
+        <div class="pipe-node accent-node">Quadtree tile<sub>TileCoord{level, x, y} — level 0 = whole planet</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">MapTileStore<sub>SQLite per level/region shard — cache hit? return persisted tile</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node purple-node">MapPipeline<sub>Lua-first: "lua.map.child.level{N}.default" lookup</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node" style="font-size:0.82rem">planet.lua (0) · continent.lua (3) · region.lua (7)</div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">C++ fallback<sub>PlanetGenerator (level 0) / ChildGenerator (levels 1+)</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">MapBuilder<sub>setBiomeField() enforces parent-edge boundary conditions</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">Hydrology + MountainRanges<sub>trace()/apply() carve rivers, uplift ridges into elevation</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">BiomeClassifier + BiomeRefinement<sub>elevation/moisture biomes + coastal/swamp neighbour passes</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">FeatureNaming<sub>culture-aware names → MapFeature::River/Lake/MountainRange</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node">MapValidator<sub>validates generated tile output</sub></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-node accent-node">ChunkContext.map_context<sub>optional hand-off into the legacy chunk pipeline above</sub></div>
+      </div>
+    </div>
+    <div>
+      <h3 style="color:var(--text);margin-bottom:1rem">Pipeline notes</h3>
+      <div class="callout callout-info">
+        <strong>Lazy, level-aware descent:</strong> Only "named" quadtree levels are persisted; other levels regenerate deterministically from their nearest persisted ancestor.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Constraint propagation:</strong> A child tile's elevation/biome must match its parent at every shared edge — verified by dedicated LOD-descent tests, not just visual inspection.
+      </div>
+      <div class="callout callout-warn" style="margin-top:1rem">
+        <strong>Settlements &amp; Countries are standalone today:</strong> <code>Settlements::place()</code> and <code>Countries::grow()</code> run and are tested, but nothing yet stores or names their output — they aren't called from this pipeline. Active milestone: MAP9.
+      </div>
+      <div style="margin-top:1.25rem">
+        <p style="font-size:0.875rem">Only the C++ path currently has hydrology/mountain/biome-refinement output — the 3 Lua map generators (<code>planet.lua</code>/<code>continent.lua</code>/<code>region.lua</code>) don't yet call into it, a known tracked gap.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Key classes ────────────────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <p class="section-label">C++ API</p>
+  <h2 style="margin-bottom:2rem">Key Classes</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Header</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ChunkPipeline</code></td>
+          <td><code>ChunkPipeline.hpp</code></td>
+          <td>Orchestrates the full generation flow: Lua-first → C++ fallback → validate → cache. Main entry point for chunk generation.</td>
+        </tr>
+        <tr>
+          <td><code>Mc3SceneBuilder</code></td>
+          <td><code>Mc3SceneBuilder.hpp</code></td>
+          <td>Safe builder API for constructing MC3 scenes: <code>addBox</code>, <code>addCylinder</code>, <code>addPlane</code>, <code>addGround</code>, <code>addInstance</code>, <code>setMetadata</code>.</td>
+        </tr>
+        <tr>
+          <td><code>LuaGeneratorRegistry</code></td>
+          <td><code>LuaGeneratorRegistry.hpp</code></td>
+          <td>Maps generator ID strings to Lua source. Scans <code>generators/lua/</code> at startup. Auto-discovers all <code>.lua</code> files.</td>
+        </tr>
+        <tr>
+          <td><code>LuaSandbox</code></td>
+          <td><code>LuaSandbox.hpp</code></td>
+          <td>Executes a single Lua generator safely. Blocks <code>io</code>, <code>os</code>, <code>debug</code>, <code>require</code>. Provides only the scene API and safe standard libraries.</td>
+        </tr>
+        <tr>
+          <td><code>LuaRuntime</code></td>
+          <td><code>LuaRuntime.hpp</code></td>
+          <td>Wraps sol2 + Lua 5.4. Manages the Lua state, binds the <code>scene</code> and <code>ctx</code> objects, and calls <code>M.generate(ctx, scene)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>TaxonomyRegistry</code></td>
+          <td><code>TaxonomyRegistry.hpp</code></td>
+          <td>Loads <code>data/taxonomy/taxonomy.json</code>. Provides a node hierarchy (world → zone → block → building → room → object).</td>
+        </tr>
+        <tr>
+          <td><code>ContainmentRuleRegistry</code></td>
+          <td><code>ContainmentRuleRegistry.hpp</code></td>
+          <td>Loads <code>data/taxonomy/containment.json</code>. LOD-aware rules: which parent node can contain which child node at which detail level.</td>
+        </tr>
+        <tr>
+          <td><code>MaterialRegistry</code></td>
+          <td><code>MaterialRegistry.hpp</code></td>
+          <td>~100 built-in materials. Provides <code>resolve_color(name)</code> and validation of material name strings.</td>
+        </tr>
+        <tr>
+          <td><code>MC3Validator</code></td>
+          <td><code>MC3Validator.hpp</code></td>
+          <td>Validates MC3 XML: well-formed, metadata presence, bounds check, material name lookup. Returns <code>ValidationResult{valid, errors}</code>.</td>
+        </tr>
+        <tr>
+          <td><code>SqliteContentPack</code></td>
+          <td><code>SqliteContentPack.hpp</code></td>
+          <td>Writes and reads <code>.sqlite</code> content packs. Tables: generators, taxonomy, materials, styles.</td>
+        </tr>
+        <tr>
+          <td><code>WorldMap</code></td>
+          <td><code>WorldMap.hpp</code></td>
+          <td>Builds the zone/region assignment grid from the world config JSON. Provides <code>zone_at(x,y)</code> and <code>region_at(x,y)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>WorldStreamer</code></td>
+          <td><code>WorldStreamer.hpp</code></td>
+          <td>Tracks player position in chunk-space, maintains a load radius, emits LOADED/UNLOADED callbacks as the player moves.</td>
+        </tr>
+        <tr>
+          <td><code>WorldRenderer</code></td>
+          <td><code>WorldRenderer.hpp</code></td>
+          <td>Wraps WorldStreamer + optional Mc3Renderer. <code>update()</code> drives streaming; <code>render()</code> draws loaded chunks.</td>
+        </tr>
+        <tr>
+          <td><code>Mc3MeshBuilder</code></td>
+          <td><code>Mc3MeshBuilder.hpp</code></td>
+          <td>CPU tessellator. Parses MC3 XML, converts box/cylinder/plane primitives to triangle meshes. Resolves material colours from registry.</td>
+        </tr>
+        <tr>
+          <td><code>Mc3Renderer</code></td>
+          <td><code>Mc3Renderer.hpp</code></td>
+          <td>First-person renderer. Wraps MeshCraft SceneRenderer. Guarded by <code>MESH_WORLD_HAS_RENDERER</code> — excluded from the core library.</td>
+        </tr>
+        <tr>
+          <td><code>FPCamera</code></td>
+          <td><code>Mc3Renderer.hpp</code></td>
+          <td>First-person camera: position (vec3), yaw, pitch, fov_y, near_z, far_z, aspect. Produces view + projection matrices.</td>
+        </tr>
+        <tr>
+          <td><code>MainMenu</code></td>
+          <td><code>MainMenu.hpp</code></td>
+          <td>In-app main menu system used by MeshWorldApp. Handles ESC → menu transitions.</td>
+        </tr>
+        <tr>
+          <td><code>ChunkCache</code></td>
+          <td><code>ChunkCache.hpp</code></td>
+          <td>File-based cache. Keys: <code>(x, y)</code> → <code>cache/chunks/x_y.mc3.xml</code>. Has/Put/Get operations.</td>
+        </tr>
+        <tr>
+          <td><code>StyleRegistry</code></td>
+          <td><code>StyleRegistry.hpp</code></td>
+          <td>Maps style name strings (e.g. <code>central_europe_small_city</code>) to style parameter sets used by generators.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ── Map subsystem classes ───────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <p class="section-label">C++ API · namespace MeshWorld::Map</p>
+  <h2 style="margin-bottom:1rem">Map Subsystem Classes</h2>
+  <p style="margin-bottom:1.5rem">Everything below lives under <code>include/Map/</code> + <code>src/Map/</code>, in its own <code>MeshWorld::Map</code> namespace — cleanly separated from the legacy chunk/city classes above.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Header</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TileCoord</code></td>
+          <td><code>TileCoord.hpp</code></td>
+          <td>Quadtree tile coordinate: <code>{level, x, y}</code>. <code>parent()</code>/hashing for the LOD pyramid.</td>
+        </tr>
+        <tr>
+          <td><code>MapPipeline</code></td>
+          <td><code>MapPipeline.hpp</code></td>
+          <td>Orchestrates lazy tile generation on descent: Lua-first (level-aware lookup) → C++ fallback → validate → persist named levels.</td>
+        </tr>
+        <tr>
+          <td><code>MapTileStore</code></td>
+          <td><code>MapTileStore.hpp</code></td>
+          <td>SQLite persistence for map tiles, sharded per level/region.</td>
+        </tr>
+        <tr>
+          <td><code>MapBuilder</code></td>
+          <td>(part of MapPipeline)</td>
+          <td>Builds elevation/biome fields. <code>setBiomeField()</code> enforces parent-tile edges as a fixed boundary condition on the child.</td>
+        </tr>
+        <tr>
+          <td><code>Noise</code></td>
+          <td><code>Noise.hpp</code></td>
+          <td><code>fbm</code>-based fractal noise — drives elevation and moisture fields across the planet generator and both Lua/C++ paths.</td>
+        </tr>
+        <tr>
+          <td><code>BiomeClassifier</code></td>
+          <td><code>BiomeClassifier.hpp</code></td>
+          <td>Elevation/moisture → biome. Includes alpine tundra and swamp lowland thresholds, applied uniformly to Lua and C++ generated levels.</td>
+        </tr>
+        <tr>
+          <td><code>BiomeRefinement</code></td>
+          <td><code>BiomeRefinement.hpp</code></td>
+          <td>Neighbour-aware passes <code>BiomeClassifier</code> can't do per-cell: coastal beach bands, swamp-needs-flat-terrain.</td>
+        </tr>
+        <tr>
+          <td><code>Hydrology</code></td>
+          <td><code>Hydrology.hpp</code></td>
+          <td><code>trace()</code> rivers downhill from elevation maxima to an ocean mouth or flood-filled lake, detects confluences, <code>carve()</code>s valleys into elevation.</td>
+        </tr>
+        <tr>
+          <td><code>MountainRanges</code></td>
+          <td><code>MountainRanges.hpp</code></td>
+          <td>Entropy-driven ridge polylines with a peak/pass profile; <code>apply()</code> uplifts elevation, land-only, edge-protected.</td>
+        </tr>
+        <tr>
+          <td><code>FeatureNaming</code></td>
+          <td><code>FeatureNaming.hpp</code></td>
+          <td>Converts traced Hydrology/MountainRanges output into named, culture-aware <code>MapFeature::River</code>/<code>Lake</code>/<code>MountainRange</code> entries.</td>
+        </tr>
+        <tr>
+          <td><code>Settlements</code></td>
+          <td><code>Settlements.hpp</code></td>
+          <td><code>SettlementTier</code> (Capital/City/Town/Village) + <code>place()</code>: ranks land by suitability (elevation cap, water proximity, flatness), greedily places with minimum spacing.</td>
+        </tr>
+        <tr>
+          <td><code>Countries</code></td>
+          <td><code>Countries.hpp</code></td>
+          <td><code>grow()</code> partitions land into one territory per capital via multi-source uniform-cost priority-flood; never crosses open ocean.</td>
+        </tr>
+        <tr>
+          <td><code>MapValidator</code></td>
+          <td><code>MapValidator.hpp</code></td>
+          <td>Validates generated map tile output before it's accepted by the pipeline.</td>
+        </tr>
+        <tr>
+          <td><code>PlanetGenerator</code> / <code>ChildGenerator</code></td>
+          <td><code>MapGenerator.hpp</code> / <code>ChildGenerator.hpp</code></td>
+          <td>C++ fallback generators for level 0 (whole planet) and every descendant level.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-tip" style="margin-top:1.5rem">
+    <strong>Additive by design:</strong> The map subsystem hands off to the legacy pipeline via an optional <code>ChunkContext.map_context</code> — nothing about the legacy classes' behaviour changes when no <code>Map::MapPipeline*</code> is attached.
+  </div>
+</section>
+
+<!-- ── Generator ID convention ────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <div class="grid-2" style="gap:3rem;align-items:start">
+    <div>
+      <p class="section-label">Naming Convention</p>
+      <h2 style="margin-bottom:1rem">Generator IDs</h2>
+      <p>Every generator has a unique string ID following a structured naming convention.</p>
+
+      <div class="code-block" style="margin-top:1.5rem">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">convention</span>
+        </div>
+<pre><span class="cmt">Lua chunk generators:</span>
+lua.&lt;category&gt;.&lt;name&gt;.&lt;variant&gt;
+
+<span class="cmt">C++ chunk generators:</span>
+cpp.chunk.&lt;region&gt;
+
+<span class="cmt">Lua map generators (level-aware lookup):</span>
+lua.map.child.level{N}.default
+lua.map.planet.default   <span class="cmt">— level 0 only</span>
+
+<span class="cmt">Examples:</span>
+lua.object.chair.simple
+lua.zone.park
+lua.building.simple_house.standard
+lua.room.kitchen.standard
+cpp.chunk.river_bank
+cpp.chunk.apartment_block
+lua.map.planet.default      <span class="cmt">— level 0</span>
+lua.map.child.level3.default <span class="cmt">— continent.lua</span>
+lua.map.child.level7.default <span class="cmt">— region.lua</span></pre>
+      </div>
+
+      <p style="margin-top:1rem;font-size:0.875rem">The <strong>category</strong> maps to the subdirectory under <code>generators/lua/</code>: zone, object, building, room, map. The <strong>variant</strong> allows multiple versions of the same conceptual generator (simple, detailed, ruined, etc.). Map generators use a level-aware ID instead — <code>MapPipeline</code> falls back to a generic ID when no level-specific one is registered.</p>
+    </div>
+
+    <div>
+      <p class="section-label">World Config</p>
+      <h2 style="margin-bottom:1rem">world.json Format</h2>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">json</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre>{
+  <span class="str">"name"</span>: <span class="str">"demo_city"</span>,
+  <span class="str">"seed"</span>: <span class="num">42</span>,
+  <span class="str">"style"</span>: <span class="str">"central_europe_small_city"</span>,
+  <span class="str">"grid_w"</span>: <span class="num">20</span>,
+  <span class="str">"grid_h"</span>: <span class="num">20</span>,
+  <span class="str">"chunk_size_m"</span>: <span class="num">64</span>,
+  <span class="str">"zones"</span>: [
+    {
+      <span class="str">"type"</span>: <span class="str">"city"</span>,
+      <span class="str">"x_min"</span>: <span class="num">0</span>, <span class="str">"x_max"</span>: <span class="num">18</span>,
+      <span class="str">"y_min"</span>: <span class="num">0</span>, <span class="str">"y_max"</span>: <span class="num">18</span>,
+      <span class="str">"region_default"</span>: <span class="str">"small_house_block"</span>,
+      <span class="str">"regions"</span>: [
+        {
+          <span class="str">"x_min"</span>: <span class="num">9</span>, <span class="str">"x_max"</span>: <span class="num">10</span>,
+          <span class="str">"y_min"</span>: <span class="num">9</span>, <span class="str">"y_max"</span>: <span class="num">10</span>,
+          <span class="str">"type"</span>: <span class="str">"square"</span>
+        }
+      ]
+    }
+  ]
+}</pre>
+      </div>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Field</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>seed</code></td><td>Global seed. Chunks derive their variation from <code>seed + x*31 + y*37</code>.</td></tr>
+            <tr><td><code>style</code></td><td>Style name resolved by StyleRegistry — affects material choices and proportions.</td></tr>
+            <tr><td><code>grid_w/h</code></td><td>World size in chunks. 20×20 = 400 chunks = 1280m × 1280m at 64m chunk size.</td></tr>
+            <tr><td><code>chunk_size_m</code></td><td>Side length of each chunk in metres (default 64).</td></tr>
+            <tr><td><code>regions</code></td><td>Sub-zones within a zone that override the <code>region_default</code> for specific coordinate ranges.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── MC3 format ─────────────────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <div class="grid-2" style="gap:3rem;align-items:start">
+    <div>
+      <p class="section-label">Data Format</p>
+      <h2 style="margin-bottom:1rem">MC3 XML Format</h2>
+      <p>MC3 (MeshCraft 3) is the XML scene format used by the MeshCraft ecosystem. Each chunk is stored as one MC3 file containing:</p>
+      <ul style="margin-top:1rem;padding-left:1.5rem;color:var(--muted);font-size:0.9rem;line-height:2.2">
+        <li>A <code>&lt;mc3&gt;</code> root element with version attribute</li>
+        <li>A <code>&lt;metadata&gt;</code> block (generator ID, version, language, generation parameters)</li>
+        <li>A flat list of primitives: <code>&lt;box&gt;</code>, <code>&lt;cylinder&gt;</code>, <code>&lt;plane&gt;</code>, <code>&lt;ground&gt;</code></li>
+        <li>Each primitive has an ID, position, size/radius, material, and optional rotation (ry)</li>
+      </ul>
+      <p style="margin-top:1rem">MC3 files can be compiled to MCB (binary) format by the MeshCraft toolchain using <code>MeshWorldExport --mcb</code>.</p>
+    </div>
+    <div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">xml — sample mc3 output (excerpt)</span>
+        </div>
+<pre><span class="op">&lt;?xml version="1.0"?&gt;</span>
+<span class="kw">&lt;mc3</span> version=<span class="str">"1.0"</span><span class="kw">&gt;</span>
+
+  <span class="kw">&lt;metadata&gt;</span>
+    <span class="kw">&lt;generator</span>
+      id=<span class="str">"lua.zone.park"</span>
+      version=<span class="str">"0.1.0"</span>
+      language=<span class="str">"lua"</span><span class="kw">/&gt;</span>
+    <span class="kw">&lt;chunk</span> x=<span class="str">"2"</span> y=<span class="str">"9"</span> size_m=<span class="str">"64"</span><span class="kw">/&gt;</span>
+  <span class="kw">&lt;/metadata&gt;</span>
+
+  <span class="kw">&lt;ground</span> material=<span class="str">"grass"</span><span class="kw">/&gt;</span>
+
+  <span class="kw">&lt;cylinder</span> id=<span class="str">"fountain_basin"</span>
+    x=<span class="str">"32"</span> y=<span class="str">"0"</span> z=<span class="str">"32"</span>
+    radius=<span class="str">"1.8"</span> height=<span class="str">"0.4"</span>
+    material=<span class="str">"stone_wall"</span><span class="kw">/&gt;</span>
+
+  <span class="kw">&lt;box</span> id=<span class="str">"bench_n_seat"</span>
+    x=<span class="str">"32"</span> y=<span class="str">"0.46"</span> z=<span class="str">"26"</span>
+    w=<span class="str">"1.55"</span> h=<span class="str">"0.04"</span> d=<span class="str">"0.35"</span>
+    material=<span class="str">"wood_bench"</span>
+    ry=<span class="str">"0"</span><span class="kw">/&gt;</span>
+
+<span class="kw">&lt;/mc3&gt;</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Repository layout ──────────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <p class="section-label">Repository</p>
+  <h2 style="margin-bottom:1.5rem">Directory Layout</h2>
+  <div class="grid-2" style="gap:2rem">
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">filesystem</span>
+      </div>
+<pre>mesh-world/
+  <span class="str">apps/mesh-world-app/</span>  <span class="cmt">— standalone 3D viewer</span>
+  <span class="str">cache/chunks/</span>         <span class="cmt">— generated MC3 XML cache</span>
+  <span class="str">data/taxonomy/</span>        <span class="cmt">— taxonomy.json + containment.json</span>
+  <span class="str">docs/</span>                 <span class="cmt">— design documents (worldgen, vision, formats…)</span>
+  <span class="str">examples/</span>             <span class="cmt">— world.json demo config</span>
+  <span class="str">generators/lua/</span>       <span class="cmt">— Lua generators</span>
+    <span class="str">zone/</span>               <span class="cmt">— park.lua, forest.lua, road.lua…</span>
+    <span class="str">object/</span>             <span class="cmt">— bench.lua, tree.lua, lamp.lua…</span>
+    <span class="str">building/</span>           <span class="cmt">— simple_house.lua</span>
+    <span class="str">room/</span>               <span class="cmt">— kitchen.lua</span>
+    <span class="str">map/</span>                <span class="cmt">— planet.lua, continent.lua, region.lua</span>
+  <span class="str">include/</span>              <span class="cmt">— C++ public headers</span>
+    <span class="str">Map/</span>                <span class="cmt">— planetary map subsystem headers</span>
+  <span class="str">src/</span>                  <span class="cmt">— C++ sources</span>
+    <span class="str">generators/</span>         <span class="cmt">— 20 C++ chunk generators</span>
+    <span class="str">materials/</span>          <span class="cmt">— built-in material definitions</span>
+    <span class="str">styles/</span>             <span class="cmt">— built-in style definitions</span>
+    <span class="str">tools/</span>              <span class="cmt">— CLI tool main() functions</span>
+    <span class="str">Map/</span>                <span class="cmt">— planetary map subsystem sources</span>
+  <span class="str">tests/</span>                <span class="cmt">— GTest suite (467 tests)</span>
+  <span class="str">vendor/</span>               <span class="cmt">— googletest, nlohmann/json</span>
+  CMakeLists.txt
+  plan.md               <span class="cmt">— task list M001–M228 (MAP0–MAP14)</span>
+  NEXT.md                <span class="cmt">— living handoff / status document</span></pre>
+    </div>
+    <div>
+      <h3 style="color:var(--text);margin-bottom:1rem">Test Coverage</h3>
+      <p style="font-size:0.9rem">The GTest suite (47 test files) covers all major subsystems in both generation systems. 467 tests pass with zero compiler warnings on every CI push.</p>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Subsystem</th><th>Coverage highlights</th></tr></thead>
+          <tbody>
+            <tr><td>ChunkPipeline</td><td>Cache hit/miss, validation failure, Lua override detection</td></tr>
+            <tr><td>LuaSandbox</td><td>Sandbox isolation, all scene API calls, error propagation</td></tr>
+            <tr><td>MaterialRegistry</td><td>All ~100 materials register, unknown name → error</td></tr>
+            <tr><td>MC3Validator</td><td>Well-formed XML, missing metadata, out-of-bounds, bad material</td></tr>
+            <tr><td>WorldStreamer</td><td>3×3 area around origin loads on update()</td></tr>
+            <tr><td>Mc3MeshBuilder</td><td>Park chunk XML → non-empty mesh list</td></tr>
+            <tr><td>TaxonomyRegistry</td><td>Node hierarchy loads, parent/child lookups</td></tr>
+            <tr><td>ContainmentRuleRegistry</td><td>LOD rule lookup, out-of-range LOD</td></tr>
+            <tr><td>SqliteContentPack</td><td>Round-trip: pack → read back → match</td></tr>
+            <tr><td>Hydrology</td><td>River tracing to ocean/lake, confluence detection, valley carving</td></tr>
+            <tr><td>MountainRanges</td><td>Ridge polylines, peak/pass profile, land-only edge-protected uplift</td></tr>
+            <tr><td>BiomeClassifier / BiomeRefinement</td><td>Elevation/moisture thresholds, coastal + swamp neighbour passes</td></tr>
+            <tr><td>Settlements</td><td>Suitability ranking, greedy placement, minimum spacing</td></tr>
+            <tr><td>Countries</td><td>Multi-source priority-flood growth, two-island ocean-crossing guard</td></tr>
+            <tr><td>MapPipeline / MapTileStore</td><td>Lazy generation on descent, SQLite round-trip, LOD constraint propagation</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Dependencies ───────────────────────────────────── -->
+<section class="section" style="border-top:1px solid var(--border);padding-top:3rem">
+  <p class="section-label">Dependencies</p>
+  <h2 style="margin-bottom:1.5rem">External Libraries</h2>
+  <div class="grid-3">
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">Lua 5.4.7</h3>
+      <p style="font-size:0.85rem">Embedded scripting language. Auto-downloaded by CMake FetchContent at configure time. No system package needed.</p>
+      <div class="gen-id" style="margin-top:0.5rem">MIT</div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">sol2 3.3.0</h3>
+      <p style="font-size:0.85rem">Header-only C++17 binding library for Lua. Makes binding C++ objects to Lua clean and type-safe. FetchContent.</p>
+      <div class="gen-id" style="margin-top:0.5rem">MIT</div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">SQLite 3</h3>
+      <p style="font-size:0.85rem">System package (<code>libsqlite3-dev</code>). Used for content pack storage and loading.</p>
+      <div class="gen-id" style="margin-top:0.5rem">Public Domain</div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">nlohmann/json</h3>
+      <p style="font-size:0.85rem">Header-only JSON parser used for world.json, taxonomy.json, and containment.json. Vendored.</p>
+      <div class="gen-id" style="margin-top:0.5rem">MIT</div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">GoogleTest</h3>
+      <p style="font-size:0.85rem">GTest + GMock test framework. Vendored. Used by the 467-test suite.</p>
+      <div class="gen-id" style="margin-top:0.5rem">BSD-3-Clause</div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-size:1rem;color:var(--accent)">tinyxml2</h3>
+      <p style="font-size:0.85rem">Lightweight XML parser. Used by MC3Validator and Mc3MeshBuilder to parse chunk scene files.</p>
+      <div class="gen-id" style="margin-top:0.5rem">zlib</div>
+    </div>
+  </div>
+  <div class="callout callout-tip" style="margin-top:2rem">
+    <strong>Viewer-only dependencies</strong> (MeshWorldApp only): SDL3, OpenGL ES 3, MeshCraft, CNA (with the EasyGL backend), SharpRuntime, plus <code>manifold</code> and <code>tinyobjloader</code> (geometry, fetched by MeshCraft's renderer) and <code>imgui</code> (in-app UI, e.g. the main menu). These are separate sibling repositories/FetchContent dependencies and are not required to build the core library or CLI tools.
+  </div>
+</section>
+
+</div><!-- /.container -->
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

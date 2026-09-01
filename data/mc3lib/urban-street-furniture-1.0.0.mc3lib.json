@@ -1,0 +1,1245 @@
+{
+  "format": "mc3",
+  "version": "0.3",
+  "model": "urban-street-furniture",
+  "unit": "meter",
+  "coordinateSystem": "right_handed_y_up",
+  "rotationUnits": "degrees",
+  "eulerOrder": "XYZ",
+  "library": {
+    "namespace": "urban-street-furniture",
+    "version": "1.0.0",
+    "hash": "sha256:76d5da0c1f0e9bea40bbd87ec04240b7c364659304bbb12a1b1c09cf52b08108"
+  },
+  "definitions": [
+    {
+      "id": "bench.classic_01",
+      "object": {
+        "type": "group",
+        "id": "bench.classic_01",
+        "name": "bench.classic_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "street_furniture",
+          "subcategory": "bench",
+          "styleTags": [
+            "central_europe",
+            "classic"
+          ],
+          "nominalSize": [
+            1.5,
+            0.8999999761581421,
+            0.44999998807907104
+          ],
+          "bounds": {
+            "min": [
+              -0.75,
+              0.0,
+              -0.23000000417232513
+            ],
+            "max": [
+              0.75,
+              0.8999999761581421,
+              0.22499999403953552
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "bench.classic_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "leg_l",
+            "transform": {
+              "position": [
+                -0.6499999761581421,
+                0.22499999403953552,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.05999999865889549,
+                0.44999998807907104,
+                0.4000000059604645
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "leg_r",
+            "transform": {
+              "position": [
+                0.6499999761581421,
+                0.22499999403953552,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.05999999865889549,
+                0.44999998807907104,
+                0.4000000059604645
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "seat",
+            "transform": {
+              "position": [
+                0.0,
+                0.47999998927116394,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_bench",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.5,
+                0.05999999865889549,
+                0.44999998807907104
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "back",
+            "transform": {
+              "position": [
+                0.0,
+                0.6749999523162842,
+                -0.20000000298023224
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_bench",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.5,
+                0.44999998807907104,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "bench.classic_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "bench.classic_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.44999998807907104,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "wood_bench",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            1.5,
+            0.8999999761581421,
+            0.44999998807907104
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "streetlamp.classic_01",
+      "object": {
+        "type": "group",
+        "id": "streetlamp.classic_01",
+        "name": "streetlamp.classic_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "street_furniture",
+          "subcategory": "streetlamp",
+          "styleTags": [
+            "central_europe",
+            "classic"
+          ],
+          "nominalSize": [
+            0.25,
+            3.200000047683716,
+            0.25
+          ],
+          "bounds": {
+            "min": [
+              -0.125,
+              0.0,
+              -0.125
+            ],
+            "max": [
+              0.125,
+              3.200000047683716,
+              0.125
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "streetlamp.classic_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "base",
+            "transform": {
+              "position": [
+                0.0,
+                0.07500000298023224,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.11999999731779099,
+              "height": 0.15000000596046448,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "cylinder",
+            "name": "pole",
+            "transform": {
+              "position": [
+                0.0,
+                1.5,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.05000000074505806,
+              "height": 2.700000047683716,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "housing",
+            "transform": {
+              "position": [
+                0.0,
+                3.0249998569488525,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.25,
+                0.3499999940395355,
+                0.25
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "icosphere",
+            "name": "core",
+            "transform": {
+              "position": [
+                0.0,
+                3.0,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "light_amber",
+            "primitive": {
+              "primitiveType": "icosphere",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.11999999731779099,
+              "height": 1.0,
+              "segments": 2,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "streetlamp.classic_01.lod_low",
+      "object": {
+        "type": "cylinder",
+        "id": "streetlamp.classic_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "metal_lamp_ornate",
+        "primitive": {
+          "primitiveType": "cylinder",
+          "size": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "radius": 0.05999999865889549,
+          "height": 3.200000047683716,
+          "segments": 12,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "streetlamp.classic_02",
+      "object": {
+        "type": "group",
+        "id": "streetlamp.classic_02",
+        "name": "streetlamp.classic_02",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "street_furniture",
+          "subcategory": "streetlamp",
+          "styleTags": [
+            "central_europe",
+            "classic"
+          ],
+          "nominalSize": [
+            0.949999988079071,
+            3.25,
+            0.25
+          ],
+          "bounds": {
+            "min": [
+              -0.5299999713897705,
+              0.0,
+              -0.125
+            ],
+            "max": [
+              0.5299999713897705,
+              3.25,
+              0.125
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "streetlamp.classic_02.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "base",
+            "transform": {
+              "position": [
+                0.0,
+                0.07500000298023224,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.11999999731779099,
+              "height": 0.15000000596046448,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "cylinder",
+            "name": "pole",
+            "transform": {
+              "position": [
+                0.0,
+                1.5749999284744263,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.05000000074505806,
+              "height": 2.8499999046325684,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "arm",
+            "transform": {
+              "position": [
+                0.0,
+                2.9800000190734863,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.8999999761581421,
+                0.05999999865889549,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "housing_l",
+            "transform": {
+              "position": [
+                -0.41999998688697815,
+                3.1000001430511475,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.2199999988079071,
+                0.30000001192092896,
+                0.2199999988079071
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "housing_r",
+            "transform": {
+              "position": [
+                0.41999998688697815,
+                3.1000001430511475,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_lamp_ornate",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.2199999988079071,
+                0.30000001192092896,
+                0.2199999988079071
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "icosphere",
+            "name": "core_l",
+            "transform": {
+              "position": [
+                -0.41999998688697815,
+                3.0999999046325684,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "light_amber",
+            "primitive": {
+              "primitiveType": "icosphere",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.10000000149011612,
+              "height": 1.0,
+              "segments": 2,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "icosphere",
+            "name": "core_r",
+            "transform": {
+              "position": [
+                0.41999998688697815,
+                3.0999999046325684,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "light_amber",
+            "primitive": {
+              "primitiveType": "icosphere",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.10000000149011612,
+              "height": 1.0,
+              "segments": 2,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "streetlamp.classic_02.lod_low",
+      "object": {
+        "type": "cylinder",
+        "id": "streetlamp.classic_02.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "metal_lamp_ornate",
+        "primitive": {
+          "primitiveType": "cylinder",
+          "size": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "radius": 0.05999999865889549,
+          "height": 3.200000047683716,
+          "segments": 12,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "streetlamp.modern_01",
+      "object": {
+        "type": "group",
+        "id": "streetlamp.modern_01",
+        "name": "streetlamp.modern_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "street_furniture",
+          "subcategory": "streetlamp",
+          "styleTags": [
+            "modern"
+          ],
+          "nominalSize": [
+            0.4650000035762787,
+            3.25,
+            0.11999999731779099
+          ],
+          "bounds": {
+            "min": [
+              -0.03999999910593033,
+              0.0,
+              -0.05999999865889549
+            ],
+            "max": [
+              0.42500001192092896,
+              3.25,
+              0.05999999865889549
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "streetlamp.modern_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "pole",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.03999999910593033,
+              "height": 3.200000047683716,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "arm",
+            "transform": {
+              "position": [
+                0.15000000596046448,
+                3.200000047683716,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                0.10000000149011612,
+                0.10000000149011612
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "head",
+            "transform": {
+              "position": [
+                0.30000001192092896,
+                3.0799999237060547,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "light_amber",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.25,
+                0.05999999865889549,
+                0.11999999731779099
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "streetlamp.modern_01.lod_low",
+      "object": {
+        "type": "cylinder",
+        "id": "streetlamp.modern_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "metal_dark",
+        "primitive": {
+          "primitiveType": "cylinder",
+          "size": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "radius": 0.03999999910593033,
+          "height": 3.200000047683716,
+          "segments": 12,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    }
+  ]
+}

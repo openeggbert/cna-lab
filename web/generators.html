@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generators — MeshWorld</title>
+<meta name="description" content="All 40 MeshWorld generators: 20 C++ chunk generators and 20 Lua generators for zones, objects, buildings, rooms, and planetary map levels.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Content Library</p>
+    <h1>Generators</h1>
+    <p>40 generators total — 20 C++ chunk generators and 20 Lua generators spanning zones, objects, buildings, rooms, and planetary map levels.</p>
+  </div>
+</div>
+
+<div class="container">
+<section class="section">
+
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">All (40)</button>
+    <button class="filter-btn" data-filter="cpp">C++ (20)</button>
+    <button class="filter-btn" data-filter="lua">Lua (20)</button>
+    <button class="filter-btn" data-filter="zone">Zone</button>
+    <button class="filter-btn" data-filter="obj">Object</button>
+    <button class="filter-btn" data-filter="bld">Building</button>
+    <button class="filter-btn" data-filter="room">Room</button>
+    <button class="filter-btn" data-filter="map">Map</button>
+  </div>
+
+  <!-- ── C++ chunk generators ─────────────────────────── -->
+  <p class="section-label" style="margin-bottom:1rem">C++ Chunk Generators</p>
+  <h2 style="margin-bottom:1.5rem">20 Built-in Zone Generators</h2>
+  <p style="margin-bottom:2rem">Each C++ generator produces a complete 64×64 m chunk as an MC3 XML scene. They serve as production-ready defaults and as fallbacks when no Lua override exists.</p>
+
+  <div class="grid-4" id="gen-grid">
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>ApartmentBlockGenerator</h4>
+      <p>Multi-storey residential apartment buildings with balconies, windows, and entrance areas. Varies floor count and facade materials by seed.</p>
+      <div class="gen-id">cpp.chunk.apartment_block</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>BeachGenerator</h4>
+      <p>Sandy shoreline with water edge, dunes, and beach furniture. Blends sand, gravel, and water plane materials.</p>
+      <div class="gen-id">cpp.chunk.beach</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>BridgeGenerator</h4>
+      <p>Road bridge spanning a gap with deck, support pillars, and side barriers. Adapts width to chunk size.</p>
+      <div class="gen-id">cpp.chunk.bridge</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>CaveGenerator</h4>
+      <p>Underground cavern with rock ceiling, floor, stalactites and natural pillars. Ground is stone with scattered gravel patches.</p>
+      <div class="gen-id">cpp.chunk.cave</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>CrossroadGenerator</h4>
+      <p>Four-way road intersection with paved crossing, corner kerbs, and pedestrian areas. Connects to adjacent road chunks.</p>
+      <div class="gen-id">cpp.chunk.crossroad</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>DesertGenerator</h4>
+      <p>Arid sandy terrain with scattered rocks, cacti (cylinder approximations), and rippled sand plane.</p>
+      <div class="gen-id">cpp.chunk.desert</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>EmptyGenerator</h4>
+      <p>A flat grass ground plane and nothing else. Useful as a placeholder, test baseline, or neutral buffer zone.</p>
+      <div class="gen-id">cpp.chunk.empty</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>ForestGenerator</h4>
+      <p>Dense woodland with procedurally placed deciduous and conifer trees. Trunk radius and canopy size vary by seed. Grass ground with leaf scatter.</p>
+      <div class="gen-id">cpp.chunk.forest</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>JungleGenerator</h4>
+      <p>Dense tropical foliage with overlapping canopy layers, thick trunks, and undergrowth boxes. Ground is dark soil with mossy patches.</p>
+      <div class="gen-id">cpp.chunk.jungle</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>MeadowGenerator</h4>
+      <p>Open grassland with scattered wildflower patches and occasional small shrubs. No trees. Gentle colour variation in the ground plane.</p>
+      <div class="gen-id">cpp.chunk.meadow</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>MountainGenerator</h4>
+      <p>Rocky mountain chunk with stepped terrain approximated by stacked box layers, exposed stone, and snow cap at the top.</p>
+      <div class="gen-id">cpp.chunk.mountain</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>OceanGenerator</h4>
+      <p>Open water plane with a dark seabed ground layer. Large flat chunks representing deep ocean or open sea zones.</p>
+      <div class="gen-id">cpp.chunk.ocean</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>ParkGenerator</h4>
+      <p>Urban park with grass, paved plaza, fountain, benches, lamp posts, trees, and flower beds. Also available as the <code>lua.zone.park</code> override.</p>
+      <div class="gen-id">cpp.chunk.park</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>RiverBankGenerator</h4>
+      <p>Riverbank with water channel, sandy/gravelly shore, and grassy embankment. Connects to adjacent water or meadow chunks.</p>
+      <div class="gen-id">cpp.chunk.river_bank</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>RoadGenerator</h4>
+      <p>Straight road segment with asphalt surface, pavement strips on both sides, and kerb boxes. Runs north–south or east–west per region tag.</p>
+      <div class="gen-id">cpp.chunk.road</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>ShopStreetGenerator</h4>
+      <p>Commercial street with shop facades, display windows, awnings, signage boxes, and lamp posts along a paved pedestrian zone.</p>
+      <div class="gen-id">cpp.chunk.shop_street</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>SmallHouseBlockGenerator</h4>
+      <p>Suburban residential block with small detached houses, gardens, and garden fences. House size varies by seed.</p>
+      <div class="gen-id">cpp.chunk.small_house_block</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>SquareGenerator</h4>
+      <p>Town square with large paved area, central monument, benches arranged symmetrically, lamp posts, and decorative planters.</p>
+      <div class="gen-id">cpp.chunk.square</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>SwampGenerator</h4>
+      <p>Boggy wetland with dark water puddles, dead tree stumps, thick undergrowth, and mud ground with reeds.</p>
+      <div class="gen-id">cpp.chunk.swamp</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="cpp zone">
+      <span class="gen-tag tag-cpp">C++</span>
+      <h4>TundraGenerator</h4>
+      <p>Flat frozen terrain with sparse dead vegetation, icy ground plane, and occasional rock outcrops. Pale colour palette.</p>
+      <div class="gen-id">cpp.chunk.tundra</div>
+    </div>
+
+    <!-- ── Lua zone generators ────────────────────────── -->
+    <div class="gen-card fade-in" data-tags="lua zone" style="border-color:rgba(34,211,238,0.2)">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-zone">Zone</span>
+      </div>
+      <h4>Park (Lua)</h4>
+      <p>Full park implementation: fountain, diagonal paths, 4 benches, 6 lamp posts, 16 trees (4 species), flower beds. Lua override of the C++ ParkGenerator.</p>
+      <div class="gen-id">lua.zone.park</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua zone">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-zone">Zone</span>
+      </div>
+      <h4>Forest (Lua)</h4>
+      <p>Lua forest zone with seeded tree placement, 4 species (oak, linden, birch, chestnut), undergrowth boxes, and path entry points.</p>
+      <div class="gen-id">lua.zone.forest</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua zone">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-zone">Zone</span>
+      </div>
+      <h4>Crossroad (Lua)</h4>
+      <p>Four-way intersection with road surface, corner pavement blocks, pedestrian crossing stripes, and lamp posts at each corner.</p>
+      <div class="gen-id">lua.zone.crossroad</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua zone">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-zone">Zone</span>
+      </div>
+      <h4>Road (Lua)</h4>
+      <p>Straight road segment with asphalt, pavement, kerbs, and optionally lamp posts or road markings depending on variation seed.</p>
+      <div class="gen-id">lua.zone.road</div>
+    </div>
+
+    <!-- ── Lua object generators ──────────────────────── -->
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Bench</h4>
+      <p>Park bench with two metal legs, wooden seat planks, and optional backrest. Width, seat height, and materials are configurable via <code>ctx.parameters</code>.</p>
+      <div class="gen-id">lua.object.bench.simple</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Chair</h4>
+      <p>Simple chair with four legs, seat, and back. Used in kitchen, living room, and office room generators.</p>
+      <div class="gen-id">lua.object.chair.simple</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Door</h4>
+      <p>Door frame (box) with panel insert. Configurable width, height, frame material, and panel material. Used by building generators.</p>
+      <div class="gen-id">lua.object.door.simple</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Fountain</h4>
+      <p>Three-tier fountain: wide basin cylinder, central column, and decorative cap. Used in the park zone and town square.</p>
+      <div class="gen-id">lua.object.fountain.classic</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Fridge</h4>
+      <p>Household refrigerator: large white box body, smaller freezer compartment box on top, door handle strip on the front face.</p>
+      <div class="gen-id">lua.object.fridge.standard</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Lamp</h4>
+      <p>Street or park lamp post: base disc, pole cylinder, and rectangular lamp head. Height configurable. Used in park, road, and crossroad zones.</p>
+      <div class="gen-id">lua.object.lamp.post</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Table</h4>
+      <p>Rectangular table with flat top and four legs. Configurable dimensions and material. Used in kitchen and room generators.</p>
+      <div class="gen-id">lua.object.table.simple</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Trash Can</h4>
+      <p>Cylindrical waste bin with lid. Used in street, park, and commercial zone generators to add urban detail.</p>
+      <div class="gen-id">lua.object.trash_can.street</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Tree</h4>
+      <p>Deciduous tree with cylinder trunk and two-box canopy. Four species (oak, linden, birch, chestnut) selected by seed. Scale parameter supported.</p>
+      <div class="gen-id">lua.object.tree.deciduous</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>TV</h4>
+      <p>Flat-screen television: thin screen box with dark bezel, small speaker strip below. Used in living room and bedroom generators.</p>
+      <div class="gen-id">lua.object.tv.flatscreen</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua obj">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-obj">Object</span>
+      </div>
+      <h4>Window</h4>
+      <p>Window frame (box) with glass pane insert. Configurable width, height, frame colour, and pane material. Used in building generators.</p>
+      <div class="gen-id">lua.object.window.simple</div>
+    </div>
+
+    <!-- ── Lua building ───────────────────────────────── -->
+    <div class="gen-card fade-in" data-tags="lua bld">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-bld">Building</span>
+      </div>
+      <h4>Simple House</h4>
+      <p>Detached house with floor slab, four walls, gable or flat roof, front door opening, two front windows, and configurable wall/roof materials. Parametric: width, depth, wall height, roof type.</p>
+      <div class="gen-id">lua.building.simple_house.standard</div>
+    </div>
+
+    <!-- ── Lua room ───────────────────────────────────── -->
+    <div class="gen-card fade-in" data-tags="lua room">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-room">Room</span>
+      </div>
+      <h4>Kitchen</h4>
+      <p>Interior kitchen room with floor, counter top box along one wall, cabinets above and below, sink, and freestanding fridge object instance. Table and chairs optional.</p>
+      <div class="gen-id">lua.room.kitchen.standard</div>
+    </div>
+
+    <!-- ── Lua map generators ─────────────────────────── -->
+    <div class="gen-card fade-in" data-tags="lua map" style="border-color:rgba(45,212,191,0.2)">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-map">Map</span>
+      </div>
+      <h4>Planet (Lua)</h4>
+      <p>Level-0 planet generator: whole-planet elevation/moisture fields via <code>noise::fbm</code>, biome classification, culture assignment. Runs live in <code>MapPipeline</code> at the root of the quadtree.</p>
+      <div class="gen-id">lua.map.planet.default</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua map" style="border-color:rgba(45,212,191,0.2)">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-map">Map</span>
+      </div>
+      <h4>Continent (Lua)</h4>
+      <p>Level-3 child generator descending from the planet tile. Derives elevation/moisture from its parent's edges (constraint propagation) and emits <code>MountainRange</code> features.</p>
+      <div class="gen-id">lua.map.child.level3.default</div>
+    </div>
+
+    <div class="gen-card fade-in" data-tags="lua map" style="border-color:rgba(45,212,191,0.2)">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        <span class="gen-tag tag-lua">Lua</span>
+        <span class="gen-tag tag-map">Map</span>
+      </div>
+      <h4>Region (Lua)</h4>
+      <p>Level-7 child generator. Emits <code>Town</code> features via an explicitly-labelled v1 stub (random site sampling) — not yet using the real <code>Settlements::place()</code> suitability model.</p>
+      <div class="gen-id">lua.map.child.level7.default</div>
+    </div>
+
+  </div><!-- /#gen-grid -->
+
+</section>
+</div>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "version": "0.1",
+  "name": "biome_showcase",
+  "seed": 142,
+  "use_world_composer": false,
+  "style": "central_europe_small_city",
+  "map_size_m": 576,
+  "chunk_size_m": 64,
+  "grid_w": 9,
+  "grid_h": 9,
+  "zone_default": "empty",
+  "region_default": "empty",
+  "zones": [
+    { "type": "jungle",   "x_min": 0, "x_max": 2, "y_min": 0, "y_max": 2, "region_default": "open" },
+    { "type": "mountain", "x_min": 3, "x_max": 5, "y_min": 0, "y_max": 2, "region_default": "open" },
+    { "type": "tundra",   "x_min": 6, "x_max": 8, "y_min": 0, "y_max": 2, "region_default": "open" },
+    { "type": "meadow",   "x_min": 0, "x_max": 2, "y_min": 3, "y_max": 5, "region_default": "open" },
+    { "type": "forest",   "x_min": 3, "x_max": 5, "y_min": 3, "y_max": 5, "region_default": "open" },
+    { "type": "desert",   "x_min": 6, "x_max": 8, "y_min": 3, "y_max": 5, "region_default": "open" },
+    { "type": "beach",    "x_min": 0, "x_max": 2, "y_min": 6, "y_max": 8, "region_default": "open" },
+    { "type": "swamp",    "x_min": 3, "x_max": 5, "y_min": 6, "y_max": 8, "region_default": "open" },
+    { "type": "ocean",    "x_min": 6, "x_max": 8, "y_min": 6, "y_max": 8, "region_default": "open" }
+  ]
+}

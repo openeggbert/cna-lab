@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.1" model="chunk_2_9">
+    <metadata format="json" type="generation"><![CDATA[
+{
+  "generator": {
+    "id": "cpp.chunk.park",
+    "version": "0.1.0",
+    "language": "cpp",
+    "category": "chunk"
+  },
+  "chunk": {
+    "x": 2,
+    "y": 9,
+    "size_m": 64
+  },
+  "generation": {
+    "variationInput": 378324715047150540,
+    "style": "central_europe_small_city",
+    "zone": "city",
+    "region": "park",
+    "meshworldVersion": "0.1",
+    "generatedAt": "2026-06-26T11:50:18Z",
+    "aiAssisted": false,
+    "notes": "Variation input is not a long-term compatibility guarantee."
+  }
+}
+    ]]></metadata>
+    <objects>
+        <plane id="ground" material="grass_park" position="32 0 32" size="64 64"/>
+        <plane id="ring_n" material="path_gravel" position="32 0 23" size="22 4"/>
+        <plane id="ring_s" material="path_gravel" position="32 0 41" size="22 4"/>
+        <plane id="ring_w" material="path_gravel" position="23 0 32" size="4 14"/>
+        <plane id="ring_e" material="path_gravel" position="41 0 32" size="4 14"/>
+        <cylinder id="fountain_base" material="stone_granite" position="32 0.25 32" radius="2.8" height="0.5"/>
+        <cylinder id="fountain_basin" material="stone_light" position="32 0.175 32" radius="2.3" height="0.35"/>
+        <cylinder id="fountain_water" material="water" position="32 0.125 32" radius="1.8" height="0.25"/>
+        <cylinder id="fountain_jet" material="water" position="32 1.85 32" radius="0.08" height="2.2"/>
+        <box id="flowerbed_n" material="flower_red" position="32 0.175 26.5" size="2.5 0.35 1.2"/>
+        <box id="flowerbed_s" material="flower_yellow" position="32 0.175 37.5" size="2.5 0.35 1.2"/>
+        <box id="flowerbed_e" material="flower_red" position="37.5 0.175 32" size="1.2 0.35 2.5"/>
+        <box id="flowerbed_w" material="flower_yellow" position="26.5 0.175 32" size="1.2 0.35 2.5"/>
+        <instance id="bench_in_0" position="32 0 27.5" definition="bench_park"/>
+        <instance id="bench_in_1" position="36.5 0 32" rotation="0 90 0" definition="bench_park"/>
+        <instance id="bench_in_2" position="32 0 36.5" rotation="0 180 0" definition="bench_park"/>
+        <instance id="bench_in_3" position="27.5 0 32" rotation="0 270 0" definition="bench_park"/>
+        <instance id="bench_out_0" position="41.23 0 22.77" rotation="0 45 0" definition="bench_park"/>
+        <instance id="bench_out_1" position="41.23 0 41.23" rotation="0 135 0" definition="bench_park"/>
+        <instance id="bench_out_2" position="22.77 0 41.23" rotation="0 225 0" definition="bench_park"/>
+        <instance id="bench_out_3" position="22.77 0 22.77" rotation="0 315 0" definition="bench_park"/>
+        <cylinder id="lamp_ne" material="metal_lamp_ornate" position="43 2.25 21" radius="0.12" height="4.5"/>
+        <cylinder id="lamp_nw" material="metal_lamp_ornate" position="21 2.25 21" radius="0.12" height="4.5"/>
+        <cylinder id="lamp_se" material="metal_lamp_ornate" position="43 2.25 43" radius="0.12" height="4.5"/>
+        <cylinder id="lamp_sw" material="metal_lamp_ornate" position="21 2.25 43" radius="0.12" height="4.5"/>
+        <instance id="tree_0" position="9.01235 0 10.0502" rotation="0 282.386 0" scale="0.995242 0.995242 0.995242" definition="tree_chestnut"/>
+        <instance id="tree_1" position="54.8773 0 46.9457" rotation="0 179.765 0" scale="0.963844 0.963844 0.963844" definition="tree_chestnut"/>
+        <instance id="tree_2" position="47.7405 0 36.7895" rotation="0 57.0517 0" scale="1.2388 1.2388 1.2388" definition="tree_lime"/>
+        <instance id="tree_3" position="7.09903 0 6.61829" rotation="0 30.2769 0" scale="1.24411 1.24411 1.24411" definition="tree_chestnut"/>
+        <instance id="tree_4" position="56.779 0 18.8263" rotation="0 194.182 0" scale="1.20382 1.20382 1.20382" definition="tree_oak"/>
+        <instance id="tree_5" position="18.927 0 46.0178" rotation="0 7.27826 0" scale="0.958182 0.958182 0.958182" definition="tree_birch"/>
+        <instance id="tree_6" position="42.0761 0 14.3535" rotation="0 89.2048 0" scale="1.21571 1.21571 1.21571" definition="tree_birch"/>
+        <instance id="tree_7" position="20.3085 0 13.6919" rotation="0 26.9986 0" scale="1.06717 1.06717 1.06717" definition="tree_chestnut"/>
+        <instance id="tree_8" position="54.0832 0 58.2443" rotation="0 347.66 0" scale="0.919096 0.919096 0.919096" definition="tree_birch"/>
+        <instance id="tree_9" position="57.3938 0 13.5121" rotation="0 235.104 0" scale="1.24215 1.24215 1.24215" definition="tree_lime"/>
+        <instance id="tree_10" position="56.5364 0 25.8681" rotation="0 336.109 0" scale="1.11477 1.11477 1.11477" definition="tree_lime"/>
+        <instance id="tree_11" position="55.5636 0 58.9059" rotation="0 337.745 0" scale="0.978057 0.978057 0.978057" definition="tree_birch"/>
+        <instance id="tree_12" position="21.1887 0 17.8056" rotation="0 75.8504 0" scale="0.986994 0.986994 0.986994" definition="tree_chestnut"/>
+        <instance id="tree_13" position="9.43809 0 19.1708" rotation="0 127.261 0" scale="1.15405 1.15405 1.15405" definition="tree_chestnut"/>
+        <instance id="tree_14" position="12.6625 0 49.1953" rotation="0 303.928 0" scale="0.937179 0.937179 0.937179" definition="tree_lime"/>
+        <instance id="tree_15" position="13.9607 0 7.98435" rotation="0 309.988 0" scale="1.14219 1.14219 1.14219" definition="tree_birch"/>
+        <instance id="tree_16" position="13.7674 0 11.0857" rotation="0 289.895 0" scale="0.871563 0.871563 0.871563" definition="tree_oak"/>
+        <instance id="tree_17" position="11.6052 0 10.7547" rotation="0 55.0789 0" scale="0.899637 0.899637 0.899637" definition="tree_oak"/>
+        <instance id="tree_18" position="57.6164 0 57.1796" rotation="0 89.0496 0" scale="0.949855 0.949855 0.949855" definition="tree_birch"/>
+        <instance id="tree_19" position="52.34 0 52.1157" rotation="0 198.615 0" scale="1.12879 1.12879 1.12879" definition="tree_birch"/>
+        <instance id="tree_20" position="15.1745 0 50.0097" rotation="0 304.656 0" scale="0.919685 0.919685 0.919685" definition="tree_birch"/>
+        <instance id="tree_21" position="6.96932 0 18.2748" rotation="0 269.757 0" scale="1.22602 1.22602 1.22602" definition="tree_birch"/>
+    </objects>
+</mc3>

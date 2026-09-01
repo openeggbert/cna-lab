@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roadmap — MeshWorld</title>
+<meta name="description" content="MeshWorld roadmap: 27 completed milestones spanning the legacy chunk/city system and the new planetary map subsystem (MAP0–MAP8), MAP9 in progress, and MAP10–MAP14 planned.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Development Plan</p>
+    <h1>Roadmap</h1>
+    <p>27 milestones completed across two subsystems — the mature chunk/city generator, and a new planetary map subsystem (quadtree LOD, hydrology, mountains, biomes, settlements, countries). MAP9 is the active milestone; MAP10–MAP14 are planned.</p>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1.5rem">
+      <span class="badge badge-done">&#10003; Completed</span>
+      <span class="badge badge-wip">&#9654; In Progress</span>
+      <span class="badge badge-planned">&#9671; Planned</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+<section class="section">
+
+<div class="grid-2" style="gap:4rem;align-items:start">
+
+<!-- ── Left: Completed ───────────────────────────────── -->
+<div>
+  <h2 style="margin-bottom:2rem;color:var(--accent3)">&#10003; Completed Milestones</h2>
+  <div class="timeline">
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M1 — Core Foundation</div>
+      <h3>WorldConfig, WorldMap, ZoneType, RegionType</h3>
+      <p>JSON config loading, grid-based zone/region assignment, chunk coordinate system, world seed infrastructure.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M2 — Scene Builder</div>
+      <h3>Mc3SceneBuilder + MC3Writer</h3>
+      <p>Safe C++ API for constructing MC3 scenes. addBox, addCylinder, addPlane, addGround, addInstance, setMetadata.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M3 — Material System</div>
+      <h3>MaterialRegistry — ~100 built-in materials</h3>
+      <p>Full material catalogue with RGB, roughness, category, and license metadata. CLI tool MeshWorldMaterials.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M4 — C++ Generators</div>
+      <h3>20 built-in chunk generators</h3>
+      <p>ApartmentBlock, Beach, Bridge, Cave, Crossroad, Desert, Empty, Forest, Jungle, Meadow, Mountain, Ocean, Park, RiverBank, Road, ShopStreet, SmallHouseBlock, Square, Swamp, Tundra.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M5 — Chunk Pipeline</div>
+      <h3>ChunkPipeline + ChunkCache</h3>
+      <p>File-based disk cache, cache-first generation skip, Lua-first → C++ fallback dispatch.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M6 — MC3 Validation</div>
+      <h3>MC3Validator</h3>
+      <p>XML well-formedness, metadata presence, bounds checking, material name validation. ValidationResult with error list.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M7 — Lua Runtime</div>
+      <h3>LuaRuntime + LuaSandbox</h3>
+      <p>Lua 5.4 + sol2 integration. Sandboxed execution blocking io/os/debug/require. Scene API binding.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M8 — Lua Generators</div>
+      <h3>LuaGeneratorRegistry + 17 Lua generators</h3>
+      <p>Auto-discovery from generators/lua/. Park, forest, crossroad, road zones; bench, chair, door, fountain, fridge, lamp, table, trash_can, tree, tv, window objects; simple_house building; kitchen room.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M9 — Taxonomy</div>
+      <h3>TaxonomyRegistry + ContainmentRuleRegistry</h3>
+      <p>Node hierarchy from taxonomy.json. LOD-aware containment rules from containment.json.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M10 — Content Packs</div>
+      <h3>SqliteContentPack + ContentPackLoader</h3>
+      <p>Pack and load all generators, taxonomy, materials, and styles into a portable .sqlite file. MeshWorldPack CLI tool.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M11 — Style Registry</div>
+      <h3>StyleRegistry + BuiltinStyles</h3>
+      <p>Named style system mapping style strings to parameter sets. central_europe_small_city and others.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M12 — CLI Tools</div>
+      <h3>MeshWorld, MeshWorldMap, MeshWorldExport</h3>
+      <p>World info dump, ASCII zone map, bulk chunk export. MeshWorldExport --mcb flag for binary output.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M13 — Texture Registry</div>
+      <h3>TextureRegistry</h3>
+      <p>Texture entry registry (groundwork for atlas support in future milestones).</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M14 — Generation Metadata</div>
+      <h3>GenerationMetadata + ProceduralWorldGen</h3>
+      <p>Structured metadata for generation context. ProceduralWorldGen utility class for seeded deterministic generation helpers.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M15 — Mc3DocumentBuilder</div>
+      <h3>Mc3DocumentBuilder</h3>
+      <p>Higher-level document builder wrapping Mc3SceneBuilder for programmatic MC3 construction outside of generators.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M16 — Mc3Renderer</div>
+      <h3>Mc3MeshBuilder + Mc3Renderer + FPCamera</h3>
+      <p>CPU tessellation of MC3 primitives to triangle meshes. First-person camera. SceneRenderer integration (guarded by MESH_WORLD_HAS_RENDERER).</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M17 — World Streaming</div>
+      <h3>WorldStreamer + WorldRenderer</h3>
+      <p>Real-time chunk streaming around player position with configurable load radius. LOADED/UNLOADED callbacks. 127/127 streaming tests pass.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">M18 — MeshWorldApp</div>
+      <h3>Interactive 3D viewer + MainMenu</h3>
+      <p>Standalone MeshWorldApp binary with WASD + mouse look, live chunk streaming, main menu system. Built on CNA (SDL3/OpenGL).</p>
+    </div>
+
+    <div class="divider" style="margin:2.5rem 0"></div>
+    <p class="section-label" style="margin-bottom:1.5rem">Planetary Map Subsystem (new, <code>MeshWorld::Map</code>)</p>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP0 — Vertical Slice</div>
+      <h3>Planet → LOD descent → SQLite → chunk hand-off</h3>
+      <p>The one genuinely hard part proven cheap first: descend a coarse planet into one location and hand off to a rendered chunk. Green-light gate passed 2026-07-01 — descent is deterministic, edge-consistent, and fast enough to build on.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP1 — Coordinates &amp; Tile Model</div>
+      <h3>TileCoord — quadtree addressing</h3>
+      <p><code>{level, x, y}</code> tile coordinates with parent/child derivation and hashing, the addressing scheme for every level of the LOD pyramid.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP2 — SQLite Storage Foundation</div>
+      <h3>MapTileStore</h3>
+      <p>Per-level/region-sharded SQLite persistence for generated map tiles.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP3 — Planet Config &amp; World Bootstrap</div>
+      <h3>Planet-scale world setup</h3>
+      <p>Bootstraps a planet-scale world alongside the existing chunk-scale <code>world.json</code> config.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP4 — Planet Generator (C++)</div>
+      <h3>PlanetGenerator — level 0</h3>
+      <p>C++ generator for the root tile: continents, coarse elevation/moisture via <code>noise::fbm</code>, biome seeding.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP5 — Naming Subsystem</div>
+      <h3>Naming::country() / city() / mountain() / river()</h3>
+      <p>Culture-aware procedural name generation, later reused by FeatureNaming (MAP8) and Countries (MAP9).</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP6 — Lua Map-Generator Binding</div>
+      <h3>MapBuilder / MapValidator / LuaSandbox::executeMap()</h3>
+      <p>Mirrors the chunk system's Lua-first → C++ fallback pattern for the map layer. <code>planet.lua</code> is live in the real <code>MapPipeline</code>, not just exercised by tests.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP7 — LOD Descent &amp; Constraint Propagation</div>
+      <h3>Parent/child edge consistency</h3>
+      <p><code>MapBuilder::setBiomeField()</code> enforces parent edges as a fixed boundary condition; only "named" quadtree levels persist, others regenerate deterministically. <code>continent.lua</code> (level 3) and <code>region.lua</code> (level 7) added.</p>
+    </div>
+
+    <div class="timeline-item done fade-in">
+      <div class="milestone-label">MAP8 — Hydrology, Biome &amp; Terrain Refinement</div>
+      <h3>Hydrology · MountainRanges · BiomeRefinement · FeatureNaming</h3>
+      <p>Rivers traced downhill to oceans/lakes with confluence detection; entropy-driven mountain ridges with peak/pass profiles; coastal and swamp biome refinement; named <code>MapFeature</code> entries for all of the above. C++ generators only — not yet ported to the 3 Lua map scripts.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Right: Planned ────────────────────────────────── -->
+<div>
+  <h2 style="margin-bottom:2rem;color:var(--warn)">&#9654; Active &amp; Planned</h2>
+  <div class="timeline">
+
+    <div class="timeline-item wip fade-in">
+      <div class="milestone-label">MAP9 — Active Milestone</div>
+      <h3>Political &amp; Settlement Layer</h3>
+      <p>Chosen right after MAP8 finished. Done so far: <code>Settlements.hpp</code> data model (Capital/City/Town/Village), <code>Settlements::place()</code> suitability-ranked placement, <code>Countries.hpp</code> + <code>Countries::grow()</code> multi-source territory growth from capitals.</p>
+      <p style="margin-top:0.5rem">Neither is wired into the live pipeline yet — no storage field exists for a <code>SettlementNetwork</code>/<code>CountryNetwork</code>, and naming/persistence is still ahead.</p>
+      <div class="callout callout-warn" style="margin-top:0.75rem">
+        Next up: borders that prefer natural features (rivers, ridges, coasts) over cutting across open terrain.
+      </div>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP9 (remainder)</div>
+      <h3>Roads, Lua Ports, Naming &amp; Persistence</h3>
+      <ul style="font-size:0.875rem;padding-left:1.25rem;color:var(--muted);margin-top:0.5rem;line-height:2">
+        <li>Country borders prefer rivers/ridges/coasts over open terrain</li>
+        <li>Culture per country (<code>Naming::country()</code>)</li>
+        <li>RoadNetwork connecting settlements</li>
+        <li>Lua ports: <code>country.lua</code> (level 5), <code>metro.lua</code> (level 9)</li>
+        <li>Naming + persisting settlement/country labels (mirrors MAP8's FeatureNaming)</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP10 — Street-Level &amp; Chunk Hand-off</div>
+      <h3>Map Layer Drives Chunk Generation</h3>
+      <p><code>city.lua</code> (level 12, street grid + zoning) and <code>neighborhood.lua</code> (level 15, named streets). <code>ChunkContext.map_context</code> populated from <code>MapPipeline</code> so chunk generators read biome/elevation/roads from the map layer instead of the flat <code>WorldMap</code>.</p>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP11 — 3D Model Store &amp; Streaming</div>
+      <h3>Geo + Altitude Indexed Placement</h3>
+      <p><code>ModelPlacement</code> store queryable by 3D proximity (horizontal + vertical radius), background-thread streaming as the player moves. Also unblocks the deferred cave-zone seeding from MAP8.</p>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP12 — Zoomable Map UI</div>
+      <h3>In-App Map View</h3>
+      <p>ImGui-based zoomable/pannable map viewport with lazy tile loading, feature overlays (coastlines, rivers, borders), and level-of-detail-aware labels.</p>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP13 — Validation &amp; Tooling</div>
+      <h3>MeshWorldPlanet Grows Up</h3>
+      <p><code>--png</code>/<code>--ascii</code> preview output, <code>--stats</code> (continents, land ratio, rivers, cities), <code>--names</code>, and a <code>MapValidator</code> CLI for validating a whole generated world.</p>
+    </div>
+
+    <div class="timeline-item planned fade-in">
+      <div class="milestone-label">MAP14 — Performance, Scale &amp; QA</div>
+      <h3>Benchmarks &amp; Stress Tests</h3>
+      <p>Cold vs. cached descent timing, async off-thread generation, LRU tile/DB caps, long-traverse memory stress tests, and a determinism check for regenerating deleted intermediate tiles.</p>
+    </div>
+
+    <div class="callout callout-info" style="margin-top:1rem">
+      Offline-first is a deliberate, final architectural decision — MeshWorld does not call any AI API at runtime, and no such integration is planned. AI tools are used during development to help write generators, not as a runtime feature.
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /.grid-2 -->
+
+<!-- ── Task summary ───────────────────────────────────── -->
+<div class="divider" style="margin:4rem 0"></div>
+<p class="section-label">Task Breakdown</p>
+<h2 style="margin-bottom:1.5rem">Backlog Summary</h2>
+
+<div class="grid-4">
+  <div class="stat-card fade-in">
+    <div class="stat-number" style="color:var(--accent3)">27</div>
+    <div class="stat-label">Completed Milestones</div>
+  </div>
+  <div class="stat-card fade-in">
+    <div class="stat-number" style="color:var(--accent)">467</div>
+    <div class="stat-label">Tests Passing</div>
+  </div>
+  <div class="stat-card fade-in">
+    <div class="stat-number" style="color:var(--accent2)">228</div>
+    <div class="stat-label">Tracked Tasks (M001–M228)</div>
+  </div>
+  <div class="stat-card fade-in">
+    <div class="stat-number" style="color:var(--warn)">5</div>
+    <div class="stat-label">Planned Milestones (MAP10–14)</div>
+  </div>
+</div>
+
+</section>
+</div>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

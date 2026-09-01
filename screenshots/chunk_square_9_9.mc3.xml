@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.1" model="chunk_9_9">
+    <metadata format="json" type="generation"><![CDATA[
+{
+  "generator": {
+    "id": "cpp.chunk.square",
+    "version": "0.1.0",
+    "language": "cpp",
+    "category": "chunk"
+  },
+  "chunk": {
+    "x": 9,
+    "y": 9,
+    "size_m": 64
+  },
+  "generation": {
+    "variationInput": 15638035720244050640,
+    "style": "central_europe_small_city",
+    "zone": "city",
+    "region": "square",
+    "meshworldVersion": "0.1",
+    "generatedAt": "2026-06-26T11:50:18Z",
+    "aiAssisted": false,
+    "notes": "Variation input is not a long-term compatibility guarantee."
+  }
+}
+    ]]></metadata>
+    <objects>
+        <plane id="ground" material="cobblestone_square" position="32 0 32" size="64 64"/>
+        <cylinder id="plinth" material="stone_granite" position="32 0.75 32" radius="3.5" height="1.5"/>
+        <cylinder id="fountain_ring" material="stone_light" position="32 2 32" radius="3"/>
+        <cylinder id="water_bowl" material="water" position="32 2.7 32" radius="2.5" height="0.4"/>
+        <cylinder id="jet" material="water" position="32 3.9 32" radius="0.08" height="2"/>
+        <cylinder id="lamp_ne" material="metal_lamp_ornate" position="44 2.5 20" radius="0.15" height="5"/>
+        <cylinder id="lamp_nw" material="metal_lamp_ornate" position="20 2.5 20" radius="0.15" height="5"/>
+        <cylinder id="lamp_se" material="metal_lamp_ornate" position="44 2.5 44" radius="0.15" height="5"/>
+        <cylinder id="lamp_sw" material="metal_lamp_ornate" position="20 2.5 44" radius="0.15" height="5"/>
+        <instance id="bench_0" position="39 0 32" definition="bench_stone"/>
+        <instance id="bench_1" position="36.9498 0 36.9497" rotation="0 45 0" definition="bench_stone"/>
+        <instance id="bench_2" position="32 0 39" rotation="0 90 0" definition="bench_stone"/>
+        <instance id="bench_3" position="27.0503 0 36.9498" rotation="0 135 0" definition="bench_stone"/>
+        <instance id="bench_4" position="25 0 32" rotation="0 180 0" definition="bench_stone"/>
+        <instance id="bench_5" position="27.0502 0 27.0503" rotation="0 225 0" definition="bench_stone"/>
+        <instance id="bench_6" position="32 0 25" rotation="0 270 0" definition="bench_stone"/>
+        <instance id="bench_7" position="36.9497 0 27.0502" rotation="0 315 0" definition="bench_stone"/>
+        <plane id="path_n" material="cobblestone_path" position="32 0 12" size="4 24"/>
+        <plane id="path_s" material="cobblestone_path" position="32 0 52" size="4 24"/>
+        <plane id="path_w" material="cobblestone_path" position="12 0 32" size="24 4"/>
+        <plane id="path_e" material="cobblestone_path" position="52 0 32" size="24 4"/>
+        <instance id="tree_ne" position="52 0 12" definition="tree_lime"/>
+        <instance id="tree_nw" position="12 0 12" rotation="0 45 0" definition="tree_lime"/>
+        <instance id="tree_se" position="52 0 52" rotation="0 90 0" definition="tree_lime"/>
+        <instance id="tree_sw" position="12 0 52" rotation="0 135 0" definition="tree_lime"/>
+    </objects>
+</mc3>

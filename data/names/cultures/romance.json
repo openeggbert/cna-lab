@@ -1,0 +1,26 @@
+{
+  "id": "romance",
+
+  "consonants": ["m", "r", "l", "v", "d", "t", "c", "p", "n", "s"],
+  "vowels": ["a", "e", "i", "o", "u"],
+  "syllable_templates": ["CV", "CVC"],
+  "allow_repeated_seam_phoneme": false,
+
+  "continent_suffixes": ["ia", "onia", "essa"],
+  "country_suffixes": ["via", "ania", "oria"],
+  "city_suffixes": ["ento", "ara", "ino"],
+  "river_suffixes": ["rio", "ada", "essa"],
+  "lake_suffixes": ["ago", "etta", "ola"],
+  "mountain_suffixes": ["orno", "ito", "ara"],
+
+  "street_adjectives": ["Old", "Green", "High", "Silver", "New", "Quiet"],
+  "street_nouns": ["Vine", "Piazza", "Olive", "Fountain", "Laurel"],
+  "street_suffixes": ["Street", "Road", "Lane"],
+
+  "continent_syllables": 2,
+  "country_syllables": 2,
+  "city_syllables": 2,
+  "river_syllables": 1,
+  "lake_syllables": 1,
+  "mountain_syllables": 1
+}

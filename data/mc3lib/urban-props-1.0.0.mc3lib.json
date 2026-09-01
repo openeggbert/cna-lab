@@ -1,0 +1,901 @@
+{
+  "format": "mc3",
+  "version": "0.3",
+  "model": "urban-props",
+  "unit": "meter",
+  "coordinateSystem": "right_handed_y_up",
+  "rotationUnits": "degrees",
+  "eulerOrder": "XYZ",
+  "library": {
+    "namespace": "urban-props",
+    "version": "1.0.0",
+    "hash": "sha256:49956f948f3da8baf6193cfeb4b7d85decc6e2d1637b57727d2da3ace978ba99"
+  },
+  "definitions": [
+    {
+      "id": "prop.mailbox.classic_01",
+      "object": {
+        "type": "group",
+        "id": "prop.mailbox.classic_01",
+        "name": "prop.mailbox.classic_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "prop",
+          "subcategory": "mailbox",
+          "styleTags": [
+            "central_europe",
+            "classic"
+          ],
+          "nominalSize": [
+            0.32499998807907104,
+            1.100000023841858,
+            0.3499999940395355
+          ],
+          "bounds": {
+            "min": [
+              -0.15000000596046448,
+              0.0,
+              -0.17499999701976776
+            ],
+            "max": [
+              0.17499999701976776,
+              1.100000023841858,
+              0.17499999701976776
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "prop.mailbox.classic_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "post",
+            "transform": {
+              "position": [
+                0.0,
+                0.44999998807907104,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_natural",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.03999999910593033,
+              "height": 0.8999999761581421,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "body",
+            "transform": {
+              "position": [
+                0.0,
+                0.9750000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "mailbox_body",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                0.25,
+                0.3499999940395355
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "flag",
+            "transform": {
+              "position": [
+                0.1599999964237213,
+                1.024999976158142,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.029999999329447746,
+                0.15000000596046448,
+                0.029999999329447746
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "prop.mailbox.classic_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "prop.mailbox.classic_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.550000011920929,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "mailbox_body",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            0.3499999940395355,
+            1.100000023841858,
+            0.3499999940395355
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "prop.mailbox.classic_02",
+      "object": {
+        "type": "group",
+        "id": "prop.mailbox.classic_02",
+        "name": "prop.mailbox.classic_02",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "prop",
+          "subcategory": "mailbox",
+          "styleTags": [
+            "central_europe",
+            "classic"
+          ],
+          "nominalSize": [
+            0.41999998688697815,
+            1.0399999618530273,
+            0.30000001192092896
+          ],
+          "bounds": {
+            "min": [
+              -0.20999999344348907,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              0.20999999344348907,
+              1.0399999618530273,
+              0.15000000596046448
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "prop.mailbox.classic_02.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "post",
+            "transform": {
+              "position": [
+                0.0,
+                0.3499999940395355,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_natural",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.05000000074505806,
+              "height": 0.699999988079071,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "body",
+            "transform": {
+              "position": [
+                0.0,
+                0.8500000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "mailbox_body",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.4000000059604645,
+                0.30000001192092896,
+                0.2800000011920929
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "lid",
+            "transform": {
+              "position": [
+                0.0,
+                1.0199999809265137,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.41999998688697815,
+                0.03999999910593033,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "prop.mailbox.classic_02.lod_low",
+      "object": {
+        "type": "box",
+        "id": "prop.mailbox.classic_02.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.5199999809265137,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "mailbox_body",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            0.41999998688697815,
+            1.0399999618530273,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "prop.mailbox.modern_01",
+      "object": {
+        "type": "group",
+        "id": "prop.mailbox.modern_01",
+        "name": "prop.mailbox.modern_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "prop",
+          "subcategory": "mailbox",
+          "styleTags": [
+            "modern"
+          ],
+          "nominalSize": [
+            0.2800000011920929,
+            1.0700000524520874,
+            0.30000001192092896
+          ],
+          "bounds": {
+            "min": [
+              -0.14000000059604645,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              0.14000000059604645,
+              1.0700000524520874,
+              0.15000000596046448
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "prop.mailbox.modern_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "post",
+            "transform": {
+              "position": [
+                0.0,
+                0.44999998807907104,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.05999999865889549,
+                0.8999999761581421,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "body",
+            "transform": {
+              "position": [
+                0.0,
+                0.9600000381469727,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "mailbox_body",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.2800000011920929,
+                0.2199999988079071,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "prop.mailbox.modern_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "prop.mailbox.modern_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.5350000262260437,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "mailbox_body",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            0.30000001192092896,
+            1.0700000524520874,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "prop.trash_bin.classic_01",
+      "object": {
+        "type": "group",
+        "id": "prop.trash_bin.classic_01",
+        "name": "prop.trash_bin.classic_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "prop",
+          "subcategory": "trash_bin",
+          "styleTags": [
+            "central_europe",
+            "modern"
+          ],
+          "nominalSize": [
+            0.41999998688697815,
+            0.5899999737739563,
+            0.41999998688697815
+          ],
+          "bounds": {
+            "min": [
+              -0.20999999344348907,
+              0.0,
+              -0.20999999344348907
+            ],
+            "max": [
+              0.20999999344348907,
+              0.5899999737739563,
+              0.20999999344348907
+            ]
+          },
+          "facing": "+X",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "prop.trash_bin.classic_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "cylinder",
+            "name": "body",
+            "transform": {
+              "position": [
+                0.0,
+                0.2750000059604645,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plastic_black",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.20000000298023224,
+              "height": 0.550000011920929,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "cylinder",
+            "name": "lid",
+            "transform": {
+              "position": [
+                0.0,
+                0.5699999928474426,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_dark",
+            "primitive": {
+              "primitiveType": "cylinder",
+              "size": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "radius": 0.20999999344348907,
+              "height": 0.03999999910593033,
+              "segments": 12,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "prop.trash_bin.classic_01.lod_low",
+      "object": {
+        "type": "cylinder",
+        "id": "prop.trash_bin.classic_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.29499998688697815,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "plastic_black",
+        "primitive": {
+          "primitiveType": "cylinder",
+          "size": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "radius": 0.20000000298023224,
+          "height": 0.5899999737739563,
+          "segments": 12,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    }
+  ]
+}

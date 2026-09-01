@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.1" model="chunk_3_3">
+    <metadata format="json" type="generation"><![CDATA[
+{
+  "generator": {
+    "id": "cpp.chunk.road",
+    "version": "0.1.0",
+    "language": "cpp",
+    "category": "chunk"
+  },
+  "chunk": {
+    "x": 3,
+    "y": 3,
+    "size_m": 64
+  },
+  "generation": {
+    "variationInput": 15083821669087896378,
+    "style": "central_europe_small_city",
+    "zone": "city",
+    "region": "road",
+    "meshworldVersion": "0.1",
+    "generatedAt": "2026-06-26T11:50:18Z",
+    "aiAssisted": false,
+    "notes": "Variation input is not a long-term compatibility guarantee."
+  }
+}
+    ]]></metadata>
+    <objects>
+        <plane id="ground" material="grass_strip" position="32 0 32" size="64 64"/>
+        <plane id="road_patch" material="asphalt" position="32 0 32" size="16 16"/>
+        <box id="curb_patch" material="stone_curb" position="32 0.075 32" size="16.25 0.15 16.25"/>
+    </objects>
+</mc3>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Features — MeshWorld</title>
+<meta name="description" content="Detailed overview of MeshWorld's current features: chunk generation, planetary map generation (hydrology, mountains, biomes, settlements, countries), Lua scripting, MC3 validation, disk caching, real-time streaming, CLI tools, and more.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Current Features</p>
+    <h1>What MeshWorld Can Do Today</h1>
+    <p>A complete procedural world generation library and interactive viewer — now with a planetary map subsystem alongside the original chunk/city generator. 467 tests pass on every push.</p>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ── Planetary map subsystem ─────────────────────────── -->
+<section class="section">
+  <div class="feature-row">
+    <div class="fade-in">
+      <p class="section-label">New — Planetary Scale</p>
+      <h2>Planetary Map Subsystem</h2>
+      <p>Alongside the original chunk/city generator, MeshWorld now builds a whole planet: a quadtree LOD pyramid from level 0 (the whole planet) down through ~18 levels to 64 m chunk scale, SQLite-persisted per level and generated lazily as you descend. It hands off to the chunk pipeline below without changing that pipeline's behaviour when the map layer isn't attached.</p>
+      <ul style="margin-top:1rem;padding-left:1.5rem;color:var(--muted);font-size:0.9rem;line-height:2.2">
+        <li><strong>Hydrology</strong> — traces rivers downhill from elevation peaks to an ocean mouth or a flood-filled lake, detects tributary confluences, carves valleys into the terrain</li>
+        <li><strong>Mountain ranges</strong> — entropy-driven ridge polylines with a peak/pass elevation profile, uplifted land-only with edges protected</li>
+        <li><strong>Biome classification &amp; refinement</strong> — elevation/moisture-driven biomes plus neighbour-aware passes for coastal beach bands and flat-terrain swamp placement</li>
+        <li><strong>Feature naming</strong> — culture-aware names for rivers, lakes, and mountain ranges</li>
+        <li><strong>Settlements</strong> — capitals, cities, towns, and villages placed by a suitability model (elevation, water proximity, flatness) with minimum spacing</li>
+        <li><strong>Countries</strong> — territory grown outward from each capital via multi-source priority-flood, never crossing open ocean between landmasses</li>
+      </ul>
+      <div class="callout callout-warn" style="margin-top:1.25rem">
+        <strong>Active development (MAP9):</strong> Settlements and countries are implemented and tested standalone, but not yet wired into the live world — there's no storage field for them yet, and naming/persistence is a later milestone. See the <a href="roadmap.html">roadmap</a> for current status.
+      </div>
+    </div>
+    <div class="fade-in">
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">bash</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre><span class="cmt"># Descend the quadtree to a tile, generating every</span>
+<span class="cmt"># ancestor level along the way (Lua-first, C++ fallback)</span>
+./build/MeshWorldPlanet /tmp/demo_world --level 5 --tile 2,3</pre>
+      </div>
+      <div class="callout callout-info" style="margin-top:1rem">
+        <strong>Two subsystems, one hand-off:</strong> The map layer carries biome/elevation into chunk generation via an optional <code>ChunkContext.map_context</code> — the legacy chunk/city system underneath is unchanged.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Lua map generators:</strong> <code>planet.lua</code> (level 0), <code>continent.lua</code> (level 3), and <code>region.lua</code> (level 7) already run live in the pipeline, mirroring the Lua-first → C++ fallback pattern used by the chunk system.
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row reverse">
+    <div class="fade-in">
+      <p class="section-label">Non-Reproducible Worlds</p>
+      <h2>Time-Seeded, Persistence-Backed</h2>
+      <p>Every world's entropy is time-based, not a fixed seed — no two worlds are ever the same. Consistency when you revisit a location comes entirely from SQLite persistence, never from re-deriving a stored seed.</p>
+      <p style="margin-top:1rem">Constraint propagation keeps the quadtree globally consistent: a child tile's elevation and biome match its parent at every shared edge, so descending to street level never produces a visible seam.</p>
+    </div>
+    <div class="fade-in">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>MapPipeline</code></td><td>Orchestrates lazy generation on descent; only persists "named" quadtree levels</td></tr>
+            <tr><td><code>MapTileStore</code></td><td>SQLite persistence per level/region shard</td></tr>
+            <tr><td><code>MapBuilder</code></td><td>Enforces parent-edge boundary conditions for LOD consistency</td></tr>
+            <tr><td><code>BiomeClassifier</code> / <code>BiomeRefinement</code></td><td>Elevation/moisture biome assignment + neighbour-aware refinement</td></tr>
+            <tr><td><code>Hydrology</code> / <code>MountainRanges</code></td><td>River tracing + ridge generation, carved/uplifted into the elevation field</td></tr>
+            <tr><td><code>Settlements</code> / <code>Countries</code></td><td>Capital/city/town/village placement + territory growth</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" style="margin:3rem 0;"></div>
+</section>
+
+<!-- ── Chunk generation ───────────────────────────────── -->
+<section class="section">
+  <div class="feature-row">
+    <div class="fade-in">
+      <p class="section-label">Core System</p>
+      <h2>Chunk-Based Generation</h2>
+      <p>The world is divided into square chunks of configurable size (default 64 m × 64 m). Each chunk is generated independently — a self-contained MC3 XML scene file.</p>
+      <p style="margin-top:1rem">Chunks are keyed by (x, y) coordinate. Once generated and validated, they are cached to disk and never regenerated unless the cache is cleared. This makes large exports (400+ chunks) fast on subsequent runs.</p>
+      <ul style="margin-top:1rem;padding-left:1.5rem;color:var(--muted);font-size:0.9rem;line-height:2.2">
+        <li>Configurable grid size (<code>grid_w</code> × <code>grid_h</code>)</li>
+        <li>Configurable chunk size in metres (<code>chunk_size_m</code>)</li>
+        <li>Zone and region types per chunk coordinate</li>
+        <li>Variation seed per chunk (deterministic noise)</li>
+        <li>Disk cache with file-level invalidation</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">json — examples/world.json</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre>{
+  <span class="str">"name"</span>: <span class="str">"demo_city"</span>,
+  <span class="str">"seed"</span>: <span class="num">42</span>,
+  <span class="str">"style"</span>: <span class="str">"central_europe_small_city"</span>,
+  <span class="str">"grid_w"</span>: <span class="num">20</span>,
+  <span class="str">"grid_h"</span>: <span class="num">20</span>,
+  <span class="str">"chunk_size_m"</span>: <span class="num">64</span>,
+  <span class="str">"zones"</span>: [
+    {
+      <span class="str">"type"</span>: <span class="str">"city"</span>,
+      <span class="str">"x_min"</span>: <span class="num">0</span>, <span class="str">"x_max"</span>: <span class="num">18</span>,
+      <span class="str">"y_min"</span>: <span class="num">0</span>, <span class="str">"y_max"</span>: <span class="num">18</span>,
+      <span class="str">"region_default"</span>: <span class="str">"small_house_block"</span>,
+      <span class="str">"regions"</span>: [
+        {
+          <span class="str">"x_min"</span>: <span class="num">9</span>, <span class="str">"x_max"</span>: <span class="num">10</span>,
+          <span class="str">"y_min"</span>: <span class="num">9</span>, <span class="str">"y_max"</span>: <span class="num">10</span>,
+          <span class="str">"type"</span>: <span class="str">"square"</span>
+        }
+      ]
+    }
+  ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+<!-- ── Dual pipeline ──────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row reverse">
+    <div class="fade-in">
+      <p class="section-label">Generation Engine</p>
+      <h2>Dual-Language Pipeline</h2>
+      <p>Every chunk goes through a Lua-first pipeline. If a Lua generator with the matching ID exists, it runs. If not, MeshWorld falls back to the equivalent C++ generator. This makes it trivial to override any built-in generator with a custom Lua version.</p>
+      <div style="margin-top:1.5rem">
+        <div class="badge badge-done" style="margin-bottom:0.5rem">&#10003; Lua-first</div>
+        <p style="font-size:0.875rem">The LuaGeneratorRegistry scans <code>generators/lua/</code> at startup and maps each generator's <code>M.id</code> string. The LuaSandbox blocks all dangerous modules (io, os, debug, require) for safe execution.</p>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div class="badge badge-done" style="margin-bottom:0.5rem">&#10003; C++ fallback</div>
+        <p style="font-size:0.875rem">20 production-ready C++ generators cover every zone type. If no Lua override is found, <code>get_generator(zone, region)</code> returns the appropriate C++ generator.</p>
+      </div>
+    </div>
+    <div class="fade-in">
+      <div class="callout callout-info">
+        <strong>How it works:</strong> When <code>lua.zone.park</code> exists in the registry, it runs instead of <code>cpp.chunk.park</code>. Override only what you want to change — the rest stays untouched.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Zero-config discovery:</strong> No registration step needed. Drop a <code>.lua</code> file in the right subdirectory, run the app, and the generator is live.
+      </div>
+      <div class="callout callout-warn" style="margin-top:1rem">
+        <strong>Sandbox restrictions:</strong> Lua generators cannot access the file system, network, OS, or spawned processes. Only the scene API and math/string/table libraries are available.
+      </div>
+    </div>
+  </div>
+
+<!-- ── MC3 Validation ─────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row">
+    <div class="fade-in">
+      <p class="section-label">Quality Assurance</p>
+      <h2>MC3 Validation Pipeline</h2>
+      <p>Every generated chunk is validated before it is cached to disk. The MC3Validator checks four categories of correctness:</p>
+      <div class="table-wrap" style="margin-top:1.25rem">
+        <table>
+          <thead><tr><th>Check</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Well-formed XML</strong></td><td>The output parses as valid XML with the mc3 root element.</td></tr>
+            <tr><td><strong>Metadata</strong></td><td>Generator ID, version, and language fields are present and non-empty.</td></tr>
+            <tr><td><strong>Bounds</strong></td><td>All geometry is within the declared chunk boundary (0 to chunk_size_m).</td></tr>
+            <tr><td><strong>Material names</strong></td><td>Every material reference exists in the MaterialRegistry.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem;font-size:0.875rem">Validation failures are reported with the chunk coordinate and a descriptive error message. Invalid chunks are not cached.</p>
+    </div>
+    <div class="fade-in">
+      <div class="callout callout-info">
+        <strong>ValidationResult:</strong> The validator returns a <code>ValidationResult</code> struct containing a boolean <code>valid</code> flag and a vector of human-readable error strings.
+      </div>
+      <p style="margin-top:1.5rem;font-size:0.875rem;color:var(--muted)">The validation pipeline ensures that every MC3 file in the cache is guaranteed to load correctly in the MeshCraft viewer. Broken generators cannot corrupt the cache.</p>
+    </div>
+  </div>
+
+<!-- ── Material registry ──────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row reverse">
+    <div class="fade-in">
+      <p class="section-label">Materials</p>
+      <h2>~100 Built-in Materials</h2>
+      <p>The MaterialRegistry ships with approximately 100 procedural materials covering all major surface categories. Each material entry stores:</p>
+      <ul style="margin-top:1rem;padding-left:1.5rem;color:var(--muted);font-size:0.9rem;line-height:2.2">
+        <li>RGB colour (linear float triplet)</li>
+        <li>Roughness value (0.0 – 1.0)</li>
+        <li>Category tag (stone, wood, metal, glass, foliage…)</li>
+        <li>License metadata (MIT, CC0, etc.)</li>
+      </ul>
+      <p style="margin-top:1rem">Material names are validated during MC3 validation. Any unknown material name is a validation error, ensuring generators never produce invalid material references.</p>
+      <div style="margin-top:1.5rem">
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dots"><span></span><span></span><span></span></div>
+            <span class="code-lang">bash</span>
+            <button class="code-copy">Copy</button>
+          </div>
+<pre><span class="cmt"># List all registered materials</span>
+./build/MeshWorldMaterials
+
+<span class="cmt"># Example output:</span>
+<span class="str">grass              </span>  rgb(0.28,0.52,0.22) rough=0.95  MIT
+<span class="str">stone_wall         </span>  rgb(0.55,0.52,0.48) rough=0.88  MIT
+<span class="str">wood_bench         </span>  rgb(0.55,0.38,0.22) rough=0.75  MIT
+<span class="str">metal_lamp         </span>  rgb(0.72,0.72,0.72) rough=0.20  MIT
+<span class="str">glass_clear        </span>  rgb(0.80,0.90,0.95) rough=0.05  MIT
+<span class="str">foliage_oak        </span>  rgb(0.20,0.45,0.15) rough=0.90  MIT</pre>
+        </div>
+      </div>
+    </div>
+    <div class="fade-in">
+      <h3 style="color:var(--text);margin-bottom:1.25rem">Material Categories</h3>
+      <div class="grid-2" style="gap:0.75rem">
+        <div class="card" style="padding:1rem">
+          <h4>Stone &amp; Masonry</h4>
+          <p style="font-size:0.8rem">stone_wall, stone_pavement, stone_path, brick_red, brick_dark, concrete, asphalt…</p>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h4>Wood</h4>
+          <p style="font-size:0.8rem">wood_bench, wood_door_panel, wood_birch, wood_bark_dark, wood_bark_light…</p>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h4>Metal &amp; Glass</h4>
+          <p style="font-size:0.8rem">metal_lamp, glass_clear, metal_railing, metal_frame…</p>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h4>Foliage</h4>
+          <p style="font-size:0.8rem">foliage_oak, foliage_linden, foliage_birch, foliage_chestnut, grass, grass_park…</p>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h4>Soil &amp; Ground</h4>
+          <p style="font-size:0.8rem">soil, sand, gravel, dirt, mud…</p>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h4>Flowers &amp; Accents</h4>
+          <p style="font-size:0.8rem">flowers_red, flowers_yellow, flowers_white, flowers_purple, plaster_white…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ── Taxonomy ───────────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row">
+    <div class="fade-in">
+      <p class="section-label">Content Organisation</p>
+      <h2>Taxonomy &amp; Containment Rules</h2>
+      <p>The TaxonomyRegistry loads a JSON node hierarchy that describes how world objects relate to each other — what can contain what, at which level of detail.</p>
+      <p style="margin-top:1rem">The ContainmentRuleRegistry extends this with LOD-aware rules: at low detail, a <em>city</em> zone contains only block shapes; at high detail, blocks contain individual buildings; buildings contain rooms; rooms contain furniture.</p>
+      <p style="margin-top:1rem">This hierarchy drives generator selection and will underpin future multi-LOD streaming.</p>
+    </div>
+    <div class="fade-in">
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">json — data/taxonomy/containment.json (excerpt)</span>
+        </div>
+<pre>{
+  <span class="str">"rules"</span>: [
+    {
+      <span class="str">"parent"</span>: <span class="str">"city"</span>,
+      <span class="str">"child"</span>:  <span class="str">"block"</span>,
+      <span class="str">"lod_min"</span>: <span class="num">0</span>, <span class="str">"lod_max"</span>: <span class="num">2</span>
+    },
+    {
+      <span class="str">"parent"</span>: <span class="str">"block"</span>,
+      <span class="str">"child"</span>:  <span class="str">"building"</span>,
+      <span class="str">"lod_min"</span>: <span class="num">2</span>, <span class="str">"lod_max"</span>: <span class="num">4</span>
+    },
+    {
+      <span class="str">"parent"</span>: <span class="str">"building"</span>,
+      <span class="str">"child"</span>:  <span class="str">"room"</span>,
+      <span class="str">"lod_min"</span>: <span class="num">4</span>, <span class="str">"lod_max"</span>: <span class="num">6</span>
+    }
+  ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+<!-- ── Content packs ──────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row reverse">
+    <div class="fade-in">
+      <p class="section-label">Distribution</p>
+      <h2>SQLite Content Packs</h2>
+      <p>The MeshWorldPack tool bundles all generators, taxonomy, and materials into a single portable <code>.sqlite</code> file. Content packs can be distributed, versioned, and swapped independently of the main executable.</p>
+      <p style="margin-top:1rem">The ContentPackLoader reads these bundles at runtime. Multiple packs can be loaded, with later packs overriding earlier ones — enabling a clean mod/override system.</p>
+    </div>
+    <div class="fade-in">
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">bash</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre><span class="cmt"># Pack everything into one file</span>
+./build/MeshWorldPack meshworld_content.sqlite
+
+<span class="cmt"># The resulting .sqlite file contains:</span>
+<span class="cmt">#   generators  — Lua source + C++ metadata</span>
+<span class="cmt">#   taxonomy    — node hierarchy JSON</span>
+<span class="cmt">#   materials   — RGB + roughness + license</span>
+<span class="cmt">#   styles      — style name → parameter set</span></pre>
+      </div>
+    </div>
+  </div>
+
+<!-- ── World streaming ────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <div class="feature-row">
+    <div class="fade-in">
+      <p class="section-label">Real-time Viewer</p>
+      <h2>World Streaming &amp; Rendering</h2>
+      <p>WorldStreamer tracks the player's current chunk coordinate and maintains a configurable load radius. As the player moves, chunks outside the radius are unloaded and new ones are loaded (or generated on demand).</p>
+      <p style="margin-top:1rem">WorldRenderer wraps the streamer and drives Mc3Renderer, which uses MeshCraft's SceneRenderer to draw geometry on screen. Mc3MeshBuilder tessellates MC3 primitives (boxes, cylinders, planes) into triangle meshes at load time.</p>
+      <ul style="margin-top:1rem;padding-left:1.5rem;color:var(--muted);font-size:0.9rem;line-height:2.2">
+        <li>Configurable load radius (default 2 chunks)</li>
+        <li>LOADED / UNLOADED event callbacks</li>
+        <li>FPCamera: position, yaw, pitch, fov_y, near/far, aspect</li>
+        <li>SDL3 + OpenGL rendering via CNA framework</li>
+        <li>WASD / Q / E movement, mouse look</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="callout callout-info">
+        <strong>MeshWorldApp</strong> is a standalone binary built from <code>apps/mesh-world-app/</code> with its own CMake project. It requires the <code>cna</code>, <code>sharp-runtime</code>, <code>easy-gl</code>, and <code>mesh-craft</code> sibling repositories.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Controls:</strong><br>
+        <code>WASD</code> — move horizontally<br>
+        <code>Q / E</code> — move down / up<br>
+        <code>Mouse</code> — look around<br>
+        <code>ESC</code> — exit to main menu
+      </div>
+    </div>
+  </div>
+
+<!-- ── CLI tools ──────────────────────────────────────── -->
+  <div class="divider" style="margin:3rem 0;"></div>
+  <p class="section-label">CLI Toolset</p>
+  <h2 style="margin-bottom:2rem">Seven Command-Line Tools</h2>
+  <div class="grid-3">
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorld</h3>
+      <p style="font-size:0.875rem">Loads a world config, prints world info, and samples 4 chunks with their zone/region assignments and generation stats.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorld examples/world.json</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldMap</h3>
+      <p style="font-size:0.875rem">Prints an ASCII zone layout map of the world grid — zone type and region type per chunk. Useful for visualising world structure at a glance.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorldMap examples/world.json</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldExport</h3>
+      <p style="font-size:0.875rem">Exports all chunks to MC3 XML files. Pass <code>--mcb</code> to also compile to the MCB binary format. Output goes to a specified directory.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorldExport \
+  --mcb world.json output/</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldMaterials</h3>
+      <p style="font-size:0.875rem">Lists all registered materials with their RGB values, roughness, category, and license. Useful for finding the right material name for a Lua generator.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorldMaterials</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldPack</h3>
+      <p style="font-size:0.875rem">Packs all generators, taxonomy, materials, and styles into a portable SQLite content pack file for distribution or archival.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorldPack \
+  meshworld_content.sqlite</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldPlanet</h3>
+      <p style="font-size:0.875rem">Headless planet map driver. Descends the quadtree to a given tile, generating every ancestor level along the way, and hands off a chunk to the legacy pipeline.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">./build/MeshWorldPlanet \
+  world-dir --level 5 --tile 2,3</pre>
+      </div>
+    </div>
+    <div class="card fade-in">
+      <h3 style="font-family:monospace;font-size:1rem;color:var(--accent)">MeshWorldTests</h3>
+      <p style="font-size:0.875rem">GTest-based test suite. 467 tests covering all major subsystems — ChunkPipeline, LuaSandbox, MaterialRegistry, MC3Validator, WorldStreamer, Hydrology, Settlements, Countries, and more.</p>
+      <div class="code-block" style="margin-top:1rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre style="font-size:0.78rem;padding:0.75rem">cd build
+ctest --output-on-failure</pre>
+      </div>
+    </div>
+  </div>
+
+</section>
+</div><!-- /.container -->
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

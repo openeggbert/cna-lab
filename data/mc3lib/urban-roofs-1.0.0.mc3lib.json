@@ -1,0 +1,1446 @@
+{
+  "format": "mc3",
+  "version": "0.3",
+  "model": "urban-roofs",
+  "unit": "meter",
+  "coordinateSystem": "right_handed_y_up",
+  "rotationUnits": "degrees",
+  "eulerOrder": "XYZ",
+  "library": {
+    "namespace": "urban-roofs",
+    "version": "1.0.0",
+    "hash": "sha256:ca578f7191ba446bd07e24dcca05bfa074b35ba70641b8fd92821c6aadc32a3b"
+  },
+  "definitions": [
+    {
+      "id": "roof.flat_modern_01",
+      "object": {
+        "type": "group",
+        "id": "roof.flat_modern_01",
+        "name": "roof.flat_modern_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "roof",
+          "subcategory": "flat",
+          "styleTags": [
+            "modern",
+            "flat_roof"
+          ],
+          "nominalSize": [
+            10.600000381469727,
+            0.5,
+            8.600000381469727
+          ],
+          "bounds": {
+            "min": [
+              -5.300000190734863,
+              0.0,
+              -4.300000190734863
+            ],
+            "max": [
+              5.300000190734863,
+              0.5,
+              4.300000190734863
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "roof.flat_modern_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "slab",
+            "transform": {
+              "position": [
+                0.0,
+                0.10000000149011612,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_slab",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_n",
+            "transform": {
+              "position": [
+                0.0,
+                0.3500000238418579,
+                4.225000381469727
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.30000001192092896,
+                0.15000000596046448
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_s",
+            "transform": {
+              "position": [
+                0.0,
+                0.3500000238418579,
+                -4.225000381469727
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.30000001192092896,
+                0.15000000596046448
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_e",
+            "transform": {
+              "position": [
+                5.225000381469727,
+                0.3500000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.15000000596046448,
+                0.30000001192092896,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_w",
+            "transform": {
+              "position": [
+                -5.225000381469727,
+                0.3500000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.15000000596046448,
+                0.30000001192092896,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "roof.flat_modern_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "roof.flat_modern_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.25,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "concrete_slab",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            10.600000381469727,
+            0.5,
+            8.600000381469727
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "roof.flat_modern_02",
+      "object": {
+        "type": "group",
+        "id": "roof.flat_modern_02",
+        "name": "roof.flat_modern_02",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "roof",
+          "subcategory": "flat",
+          "styleTags": [
+            "modern",
+            "flat_roof"
+          ],
+          "nominalSize": [
+            10.600000381469727,
+            0.800000011920929,
+            8.600000381469727
+          ],
+          "bounds": {
+            "min": [
+              -5.300000190734863,
+              0.0,
+              -4.300000190734863
+            ],
+            "max": [
+              5.300000190734863,
+              0.800000011920929,
+              4.300000190734863
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "roof.flat_modern_02.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "slab",
+            "transform": {
+              "position": [
+                0.0,
+                0.10000000149011612,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_slab",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_n",
+            "transform": {
+              "position": [
+                0.0,
+                0.3500000238418579,
+                4.225000381469727
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.30000001192092896,
+                0.15000000596046448
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_s",
+            "transform": {
+              "position": [
+                0.0,
+                0.3500000238418579,
+                -4.225000381469727
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.30000001192092896,
+                0.15000000596046448
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_e",
+            "transform": {
+              "position": [
+                5.225000381469727,
+                0.3500000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.15000000596046448,
+                0.30000001192092896,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "parapet_w",
+            "transform": {
+              "position": [
+                -5.225000381469727,
+                0.3500000238418579,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.15000000596046448,
+                0.30000001192092896,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "hvac_unit",
+            "transform": {
+              "position": [
+                -2.6500000953674316,
+                0.5,
+                -2.1500000953674316
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "metal_grate",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.2000000476837158,
+                0.6000000238418579,
+                0.8999999761581421
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "roof.flat_modern_02.lod_low",
+      "object": {
+        "type": "box",
+        "id": "roof.flat_modern_02.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            0.25,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "concrete_slab",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            10.600000381469727,
+            0.5,
+            8.600000381469727
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "roof.gable_clay_04",
+      "object": {
+        "type": "group",
+        "id": "roof.gable_clay_04",
+        "name": "roof.gable_clay_04",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "roof",
+          "subcategory": "gable",
+          "styleTags": [
+            "central_europe",
+            "gable_roof"
+          ],
+          "nominalSize": [
+            11.200000762939453,
+            2.799999952316284,
+            9.200000762939453
+          ],
+          "bounds": {
+            "min": [
+              -5.600000381469727,
+              0.0,
+              -4.600000381469727
+            ],
+            "max": [
+              5.600000381469727,
+              2.799999952316284,
+              4.600000381469727
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "roof.gable_clay_04.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "panel_l",
+            "transform": {
+              "position": [
+                -2.6500000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                -25.25316047668457
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                6.260034561157227,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "panel_r",
+            "transform": {
+              "position": [
+                2.6500000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                25.25316047668457
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                6.260034561157227,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "ridge",
+            "transform": {
+              "position": [
+                0.0,
+                2.5,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                0.20000000298023224,
+                9.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "roof.gable_clay_04.lod_low",
+      "object": {
+        "type": "box",
+        "id": "roof.gable_clay_04.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.350000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "roof_tile_red",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            10.600000381469727,
+            2.700000047683716,
+            8.600000381469727
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "roof.gable_clay_05",
+      "object": {
+        "type": "group",
+        "id": "roof.gable_clay_05",
+        "name": "roof.gable_clay_05",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "roof",
+          "subcategory": "gable",
+          "styleTags": [
+            "central_europe",
+            "gable_roof"
+          ],
+          "nominalSize": [
+            11.200000762939453,
+            2.799999952316284,
+            9.200000762939453
+          ],
+          "bounds": {
+            "min": [
+              -5.600000381469727,
+              0.0,
+              -4.600000381469727
+            ],
+            "max": [
+              5.600000381469727,
+              2.799999952316284,
+              4.600000381469727
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "roof.gable_clay_05.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "panel_l",
+            "transform": {
+              "position": [
+                -2.6500000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                -25.25316047668457
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_grey",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                6.260034561157227,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "panel_r",
+            "transform": {
+              "position": [
+                2.6500000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                25.25316047668457
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_grey",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                6.260034561157227,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "ridge",
+            "transform": {
+              "position": [
+                0.0,
+                2.5,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_grey",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                0.20000000298023224,
+                9.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "roof.gable_clay_05.lod_low",
+      "object": {
+        "type": "box",
+        "id": "roof.gable_clay_05.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.350000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "roof_tile_grey",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            10.600000381469727,
+            2.700000047683716,
+            8.600000381469727
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "roof.gable_clay_wide_01",
+      "object": {
+        "type": "group",
+        "id": "roof.gable_clay_wide_01",
+        "name": "roof.gable_clay_wide_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "roof",
+          "subcategory": "gable",
+          "styleTags": [
+            "central_europe",
+            "gable_roof"
+          ],
+          "nominalSize": [
+            16.200000762939453,
+            2.799999952316284,
+            9.200000762939453
+          ],
+          "bounds": {
+            "min": [
+              -8.100000381469727,
+              0.0,
+              -4.600000381469727
+            ],
+            "max": [
+              8.100000381469727,
+              2.799999952316284,
+              4.600000381469727
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "roof.gable_clay_wide_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "panel_l",
+            "transform": {
+              "position": [
+                -3.9000000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                -17.771320343017578
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                8.590847969055176,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "panel_r",
+            "transform": {
+              "position": [
+                3.9000000953674316,
+                1.25,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                17.771320343017578
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                8.590847969055176,
+                0.25,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "ridge",
+            "transform": {
+              "position": [
+                0.0,
+                2.5,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "roof_tile_red",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                0.20000000298023224,
+                9.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "roof.gable_clay_wide_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "roof.gable_clay_wide_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.350000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "roof_tile_red",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            15.600000381469727,
+            2.700000047683716,
+            8.600000381469727
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    }
+  ]
+}
