@@ -1,0 +1,941 @@
+{
+  "format": "mc3",
+  "version": "0.3",
+  "model": "urban-facades",
+  "unit": "meter",
+  "coordinateSystem": "right_handed_y_up",
+  "rotationUnits": "degrees",
+  "eulerOrder": "XYZ",
+  "library": {
+    "namespace": "urban-facades",
+    "version": "1.0.0",
+    "hash": "sha256:2c0b5130bd9a25718e673b6670818a87da5730eaa3c47aafa89d272c381d53e2"
+  },
+  "definitions": [
+    {
+      "id": "facade.residential_bay_door_01",
+      "object": {
+        "type": "group",
+        "id": "facade.residential_bay_door_01",
+        "name": "facade.residential_bay_door_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "facade_module",
+          "subcategory": "residential_bay_door",
+          "styleTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            2.5,
+            3.200000047683716,
+            0.4000000059604645
+          ],
+          "bounds": {
+            "min": [
+              -1.25,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              1.25,
+              3.200000047683716,
+              0.20000000298023224
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "facade.residential_bay_door_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "wall",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                2.5,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "slab",
+            "transform": {
+              "position": [
+                0.0,
+                1.0499999523162842,
+                0.15000000596046448
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_door_panel",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.0,
+                2.0999999046325684,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "facade.residential_bay_door_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "facade.residential_bay_door_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "plaster_white",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            2.5,
+            3.200000047683716,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "facade.residential_bay_plain_01",
+      "object": {
+        "type": "group",
+        "id": "facade.residential_bay_plain_01",
+        "name": "facade.residential_bay_plain_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "facade_module",
+          "subcategory": "residential_bay_plain",
+          "styleTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            2.5,
+            3.200000047683716,
+            0.30000001192092896
+          ],
+          "bounds": {
+            "min": [
+              -1.25,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              1.25,
+              3.200000047683716,
+              0.15000000596046448
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "facade.residential_bay_plain_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "wall",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                2.5,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "facade.residential_bay_plain_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "facade.residential_bay_plain_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "plaster_white",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            2.5,
+            3.200000047683716,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "facade.residential_bay_window_01",
+      "object": {
+        "type": "group",
+        "id": "facade.residential_bay_window_01",
+        "name": "facade.residential_bay_window_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "facade_module",
+          "subcategory": "residential_bay_window",
+          "styleTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            2.5,
+            3.200000047683716,
+            0.4000000059604645
+          ],
+          "bounds": {
+            "min": [
+              -1.25,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              1.25,
+              3.200000047683716,
+              0.20000000298023224
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "facade.residential_bay_window_01.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "wall",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                2.5,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "frame",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.15000000596046448
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_window_frame",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.2000000476837158,
+                1.0,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "glass",
+            "transform": {
+              "position": [
+                0.0,
+                1.5999999046325684,
+                0.17000000178813934
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "glass_clear",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.0399999618530273,
+                0.8399999737739563,
+                0.029999999329447746
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "facade.residential_bay_window_01.lod_low",
+      "object": {
+        "type": "box",
+        "id": "facade.residential_bay_window_01.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "plaster_white",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            2.5,
+            3.200000047683716,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    },
+    {
+      "id": "facade.residential_bay_window_02",
+      "object": {
+        "type": "group",
+        "id": "facade.residential_bay_window_02",
+        "name": "facade.residential_bay_window_02",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "assetMetadata": {
+          "category": "facade_module",
+          "subcategory": "residential_bay_window",
+          "styleTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            2.5,
+            3.200000047683716,
+            0.4000000059604645
+          ],
+          "bounds": {
+            "min": [
+              -1.25,
+              0.0,
+              -0.15000000596046448
+            ],
+            "max": [
+              1.25,
+              3.200000047683716,
+              0.20000000298023224
+            ]
+          },
+          "facing": "+Z",
+          "collisionProxy": "none",
+          "lods": {
+            "low": "facade.residential_bay_window_02.lod_low"
+          },
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R112, build_mc3lib_content.cpp)",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_core.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "wall",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_cream",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                2.5,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "frame",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                0.15000000596046448
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_window_frame",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.2000000476837158,
+                1.0,
+                0.05999999865889549
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "glass",
+            "transform": {
+              "position": [
+                0.0,
+                1.5999999046325684,
+                0.17000000178813934
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "glass_clear",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                1.0399999618530273,
+                0.8399999737739563,
+                0.029999999329447746
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "shutter_l",
+            "transform": {
+              "position": [
+                -0.75,
+                1.600000023841858,
+                0.15000000596046448
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_bark_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                1.0,
+                0.029999999329447746
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "shutter_r",
+            "transform": {
+              "position": [
+                0.75,
+                1.600000023841858,
+                0.15000000596046448
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "wood_bark_dark",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                1.0,
+                0.029999999329447746
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "facade.residential_bay_window_02.lod_low",
+      "object": {
+        "type": "box",
+        "id": "facade.residential_bay_window_02.lod_low",
+        "name": "proxy",
+        "transform": {
+          "position": [
+            0.0,
+            1.600000023841858,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "material": "plaster_cream",
+        "primitive": {
+          "primitiveType": "box",
+          "size": [
+            2.5,
+            3.200000047683716,
+            0.30000001192092896
+          ],
+          "radius": 0.5,
+          "height": 1.0,
+          "segments": 32,
+          "axis": "y",
+          "majorRadius": 0.3499999940395355,
+          "minorRadius": 0.15000000596046448,
+          "subdivisionsX": 4,
+          "subdivisionsZ": 4
+        }
+      }
+    }
+  ]
+}

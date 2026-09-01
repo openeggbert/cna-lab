@@ -1,0 +1,26 @@
+{
+  "id": "desert",
+
+  "consonants": ["z", "q", "sh", "r", "m", "s", "t", "n", "dh", "kh"],
+  "vowels": ["a", "i", "u"],
+  "syllable_templates": ["CV", "CVC"],
+  "allow_repeated_seam_phoneme": true,
+
+  "continent_suffixes": ["ara", "dunia", "zaan"],
+  "country_suffixes": ["istan", "emira", "zar"],
+  "city_suffixes": ["abad", "ir", "oom"],
+  "river_suffixes": ["oud", "ara", "esh"],
+  "lake_suffixes": ["ira", "ash", "oom"],
+  "mountain_suffixes": ["ir", "az", "um"],
+
+  "street_adjectives": ["Old", "Green", "High", "Silver", "New", "Quiet"],
+  "street_nouns": ["Palm", "Oasis", "Dune", "Cedar", "Well"],
+  "street_suffixes": ["Street", "Road", "Lane"],
+
+  "continent_syllables": 2,
+  "country_syllables": 2,
+  "city_syllables": 2,
+  "river_syllables": 1,
+  "lake_syllables": 1,
+  "mountain_syllables": 1
+}

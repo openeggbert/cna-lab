@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started — MeshWorld</title>
+<meta name="description" content="Install, build, and run MeshWorld. Generate your first world, use the CLI tools, launch the 3D viewer, and write your first Lua generator.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Installation Guide</p>
+    <h1>Getting Started</h1>
+    <p>From zero to a generated 3D world in under five minutes on any Linux or macOS machine with GCC 13+.</p>
+  </div>
+</div>
+
+<div class="container">
+<section class="section">
+
+<!-- ── Prerequisites ─────────────────────────────────── -->
+<p class="section-label">Step 1</p>
+<h2 style="margin-bottom:1.5rem">Prerequisites</h2>
+
+<div class="grid-2" style="gap:2rem;margin-bottom:3rem">
+  <div>
+    <h3 style="color:var(--text);margin-bottom:1rem">Core (required for CLI tools + library)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash — Debian / Ubuntu</span>
+        <button class="code-copy">Copy</button>
+      </div>
+<pre><span class="cmt"># GCC 13+ or Clang 17+</span>
+sudo apt install gcc-13 g++-13
+
+<span class="cmt"># CMake 3.20+</span>
+sudo apt install cmake
+
+<span class="cmt"># SQLite development library</span>
+sudo apt install libsqlite3-dev
+
+<span class="cmt"># Lua 5.4 and sol2 are downloaded automatically</span>
+<span class="cmt"># by CMake FetchContent — no manual install needed</span></pre>
+    </div>
+  </div>
+  <div>
+    <h3 style="color:var(--text);margin-bottom:1rem">Viewer (optional — for MeshWorldApp)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+        <button class="code-copy">Copy</button>
+      </div>
+<pre><span class="cmt"># SDL3 (for the interactive viewer)</span>
+sudo apt install libsdl3-dev
+
+<span class="cmt"># OpenGL</span>
+sudo apt install libgl1-mesa-dev libglu1-mesa-dev
+
+<span class="cmt"># Sibling repositories (cloned next to mesh-world):</span>
+<span class="cmt">#   openeggbert/cna</span>
+<span class="cmt">#   openeggbert/sharp-runtime</span>
+<span class="cmt">#   openeggbert/easy-gl</span>
+<span class="cmt">#   openeggbert/mesh-craft</span></pre>
+    </div>
+    <div class="callout callout-info" style="margin-top:1rem">
+      The viewer is optional. The core library and all CLI tools (including <code>MeshWorldPlanet</code>) build with only the core requirements above. The viewer's own geometry/UI deps (<code>manifold</code>, <code>tinyobjloader</code>, <code>imgui</code>) are fetched automatically via CMake FetchContent — no manual cloning needed for those.
+    </div>
+  </div>
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── Clone ─────────────────────────────────────────── -->
+<p class="section-label">Step 2</p>
+<h2 style="margin-bottom:1.5rem">Clone the Repositories</h2>
+
+<p style="margin-bottom:1.5rem">MeshWorld depends on <a href="https://github.com/openeggbert/mesh-craft">mesh-craft</a> at sibling directory level. Both repos must be cloned into the same parent directory.</p>
+
+<div class="code-block fade-in">
+  <div class="code-header">
+    <div class="code-dots"><span></span><span></span><span></span></div>
+    <span class="code-lang">bash</span>
+    <button class="code-copy">Copy</button>
+  </div>
+<pre><span class="cmt"># Create a workspace directory</span>
+mkdir ~/openeggbert && <span class="kw">cd</span> ~/openeggbert
+
+<span class="cmt"># Clone mesh-craft (MeshWorld depends on this)</span>
+git clone https://github.com/openeggbert/mesh-craft
+
+<span class="cmt"># Clone mesh-world</span>
+git clone https://github.com/openeggbert/mesh-world
+
+<span class="cmt"># Directory structure must be:</span>
+<span class="cmt"># ~/openeggbert/</span>
+<span class="cmt">#   mesh-craft/     ← sibling</span>
+<span class="cmt">#   mesh-world/     ← this repo</span></pre>
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── Build ─────────────────────────────────────────── -->
+<p class="section-label">Step 3</p>
+<h2 style="margin-bottom:1.5rem">Build</h2>
+
+<div class="code-block fade-in">
+  <div class="code-header">
+    <div class="code-dots"><span></span><span></span><span></span></div>
+    <span class="code-lang">bash</span>
+    <button class="code-copy">Copy</button>
+  </div>
+<pre><span class="kw">cd</span> ~/openeggbert/mesh-world
+
+<span class="cmt"># Configure (downloads Lua 5.4.7 + sol2 3.3.0 automatically)</span>
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+<span class="cmt"># Build all targets (adjust -j to your core count)</span>
+cmake --build build -j$(nproc)
+
+<span class="cmt"># Verify with tests</span>
+<span class="kw">cd</span> build && ctest --output-on-failure
+
+<span class="cmt"># Expected output:</span>
+<span class="str">100% tests passed, 0 tests failed out of 467</span></pre>
+</div>
+
+<p style="margin-top:1rem;font-size:0.875rem">The build produces these binaries in <code>build/</code>:</p>
+<div class="table-wrap" style="margin-top:0.75rem">
+  <table>
+    <thead><tr><th>Binary</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>MeshWorld</code></td><td>World info + sample chunks</td></tr>
+      <tr><td><code>MeshWorldMap</code></td><td>ASCII zone layout map</td></tr>
+      <tr><td><code>MeshWorldExport</code></td><td>Export all chunks to MC3 XML / MCB</td></tr>
+      <tr><td><code>MeshWorldMaterials</code></td><td>List all registered materials</td></tr>
+      <tr><td><code>MeshWorldPack</code></td><td>Pack content into SQLite</td></tr>
+      <tr><td><code>MeshWorldPlanet</code></td><td>Headless planet map driver (quadtree descent)</td></tr>
+      <tr><td><code>MeshWorldTests</code></td><td>GTest test runner</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── Generate world ─────────────────────────────────── -->
+<p class="section-label">Step 4</p>
+<h2 style="margin-bottom:1.5rem">Generate Your First World</h2>
+
+<div class="grid-2" style="gap:2rem">
+  <div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+        <button class="code-copy">Copy</button>
+      </div>
+<pre><span class="kw">cd</span> ~/openeggbert/mesh-world
+
+<span class="cmt"># Print world info + sample 4 chunks</span>
+./build/MeshWorld examples/world.json
+
+<span class="cmt"># Show ASCII zone map</span>
+./build/MeshWorldMap examples/world.json
+
+<span class="cmt"># Export all 400 chunks to MC3 XML</span>
+mkdir -p output
+./build/MeshWorldExport examples/world.json output/
+
+<span class="cmt"># Files are cached — second run is instant</span>
+./build/MeshWorldExport examples/world.json output/
+
+<span class="cmt"># Export to MCB binary format (for MeshCraft)</span>
+./build/MeshWorldExport --mcb examples/world.json output/</pre>
+    </div>
+  </div>
+  <div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">output — MeshWorldMap</span>
+      </div>
+<pre><span class="str">demo_city</span> (20×20, 64m chunks)
+seed=42  style=central_europe_small_city
+
+   0         1         1
+   0123456789012345678 9
+ 0 HHHHHHHHHHHHHHHHHHHR
+ 1 HHRRRRRRRRRRRRRRHHR
+ 2 HHRHHHHHHHHHHHRHHHR
+ 3 HHRHHPPPPPPPPHHRHHR
+ 4 HHRHHPPPPPPPPHHRHHR
+ 5 HHRHHHHHHHHHHHRHHHR
+ 6 HHRHHAAAAAARRAAAAHRH
+ 7 HHRRRRRRRRRRRRRRHHR
+...
+<span class="cmt">H=SmallHouseBlock  A=Apartment  P=Park
+Q=Square  R=Road</span></pre>
+    </div>
+    <p style="margin-top:1rem;font-size:0.875rem">Generated MC3 files are at <code>output/x_y.mc3.xml</code>. The cache is at <code>cache/chunks/</code> and is reused on subsequent runs.</p>
+  </div>
+</div>
+
+<div class="callout callout-tip" style="margin-top:2rem">
+  <strong>New: try the planetary map subsystem.</strong> <code>MeshWorldPlanet</code> descends a quadtree LOD pyramid from the whole planet down to a single tile, generating every ancestor level along the way:
+  <div class="code-block" style="margin-top:0.75rem">
+    <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+    <pre style="font-size:0.82rem;padding:0.75rem">./build/MeshWorldPlanet /tmp/demo_world --level 5 --tile 2,3</pre>
+  </div>
+  This is a separate, newer generation path (rivers, mountains, biomes, settlements, countries) that hands off into the same chunk pipeline above — see the <a href="architecture.html">architecture page</a> for how the two connect.
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── CLI reference ──────────────────────────────────── -->
+<p class="section-label">CLI Reference</p>
+<h2 style="margin-bottom:1.5rem">All CLI Tool Usage</h2>
+
+<div class="code-block fade-in">
+  <div class="code-header">
+    <div class="code-dots"><span></span><span></span><span></span></div>
+    <span class="code-lang">bash</span>
+    <button class="code-copy">Copy</button>
+  </div>
+<pre><span class="cmt"># World info and 4 sample chunks</span>
+./build/MeshWorld examples/world.json
+
+<span class="cmt"># ASCII zone map</span>
+./build/MeshWorldMap examples/world.json
+
+<span class="cmt"># Export to MC3 XML</span>
+./build/MeshWorldExport examples/world.json output/
+
+<span class="cmt"># Export to MC3 XML AND compile to MCB binary</span>
+./build/MeshWorldExport --mcb examples/world.json output/
+
+<span class="cmt"># List all ~100 registered materials</span>
+./build/MeshWorldMaterials
+
+<span class="cmt"># Pack all content into a SQLite file</span>
+./build/MeshWorldPack meshworld_content.sqlite
+
+<span class="cmt"># Descend the planetary quadtree to a specific tile</span>
+./build/MeshWorldPlanet /tmp/demo_world --level 5 --tile 2,3
+
+<span class="cmt"># View a specific chunk in MeshCraft</span>
+meshcraft output/2_9.mc3.xml    <span class="cmt"># park chunk</span>
+meshcraft output/9_9.mc3.xml    <span class="cmt"># town square chunk</span></pre>
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── Build viewer ───────────────────────────────────── -->
+<p class="section-label">Optional: Interactive Viewer</p>
+<h2 style="margin-bottom:1.5rem">Build and Run MeshWorldApp</h2>
+
+<div class="callout callout-warn" style="margin-bottom:1.5rem">
+  MeshWorldApp requires the <code>cna</code>, <code>sharp-runtime</code>, <code>easy-gl</code>, and <code>mesh-craft</code> sibling repositories, plus SDL3 and OpenGL development libraries.
+</div>
+
+<div class="code-block fade-in">
+  <div class="code-header">
+    <div class="code-dots"><span></span><span></span><span></span></div>
+    <span class="code-lang">bash</span>
+    <button class="code-copy">Copy</button>
+  </div>
+<pre><span class="cmt"># Clone viewer dependencies (siblings of mesh-world)</span>
+<span class="kw">cd</span> ~/openeggbert
+git clone https://github.com/openeggbert/cna
+git clone https://github.com/openeggbert/sharp-runtime
+git clone https://github.com/openeggbert/easy-gl
+
+<span class="cmt"># Build MeshWorldApp (separate CMake project)</span>
+<span class="kw">cd</span> mesh-world
+cmake -S apps/mesh-world-app -B apps/mesh-world-app/build
+cmake --build apps/mesh-world-app/build --parallel
+
+<span class="cmt"># Run</span>
+./apps/mesh-world-app/build/MeshWorldApp</pre>
+</div>
+
+<div class="grid-3" style="margin-top:1.5rem">
+  <div class="card">
+    <h4>WASD keys</h4>
+    <p style="font-size:0.85rem">Move forward / back / strafe left / strafe right</p>
+  </div>
+  <div class="card">
+    <h4>Q / E keys</h4>
+    <p style="font-size:0.85rem">Move down / up (vertical movement)</p>
+  </div>
+  <div class="card">
+    <h4>Mouse</h4>
+    <p style="font-size:0.85rem">Look around — captured when window is focused</p>
+  </div>
+  <div class="card">
+    <h4>ESC</h4>
+    <p style="font-size:0.85rem">Exit to main menu</p>
+  </div>
+  <div class="card">
+    <h4>Streaming</h4>
+    <p style="font-size:0.85rem">Chunks load automatically as you move. Cache is used for instant re-load.</p>
+  </div>
+  <div class="card">
+    <h4>On-demand gen</h4>
+    <p style="font-size:0.85rem">If a chunk has never been generated, it's generated on the fly as you approach.</p>
+  </div>
+</div>
+
+<div class="divider" style="margin:3rem 0"></div>
+
+<!-- ── Write first generator ──────────────────────────── -->
+<p class="section-label">Step 5</p>
+<h2 style="margin-bottom:1.5rem">Write Your First Lua Generator</h2>
+
+<ol class="steps">
+  <li>
+    <div>
+      <h4>Create the file</h4>
+      <p>Lua generators are auto-discovered. Create a new file in the right subdirectory:</p>
+      <div class="code-block" style="margin-top:0.75rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+        <pre>touch generators/lua/zone/farmland.lua</pre>
+      </div>
+    </div>
+  </li>
+  <li>
+    <div>
+      <h4>Write the generator module</h4>
+      <div class="code-block" style="margin-top:0.75rem">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">lua — generators/lua/zone/farmland.lua</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre><span class="kw">local</span> M = {}
+M.id       = <span class="str">"lua.zone.farmland"</span>
+M.version  = <span class="str">"0.1.0"</span>
+M.category = <span class="str">"zone"</span>
+
+<span class="kw">function</span> <span class="fn">M.generate</span>(ctx, scene)
+    <span class="kw">local</span> S = ctx.chunk_size_m
+
+    <span class="cmt">-- Ploughed field ground</span>
+    scene:<span class="fn">addGround</span>(<span class="str">"soil"</span>)
+
+    <span class="cmt">-- A farmhouse in one corner</span>
+    scene:<span class="fn">addInstance</span>(<span class="str">"farmhouse"</span>, {
+        generator = <span class="str">"lua.building.simple_house.standard"</span>,
+        position  = {<span class="num">5</span>, <span class="num">0</span>, <span class="num">5</span>},
+        ry        = <span class="num">0</span>,
+        parameters = {
+            width         = <span class="num">12</span>,
+            depth         = <span class="num">9</span>,
+            wall_material = <span class="str">"plaster_white"</span>,
+            roof_material = <span class="str">"roof_tile_red"</span>
+        }
+    })
+
+    <span class="cmt">-- Crop rows (dark soil strips)</span>
+    <span class="kw">for</span> i = <span class="num">0</span>, <span class="num">7</span> <span class="kw">do</span>
+        scene:<span class="fn">addPlane</span>(<span class="str">"crop_"</span>..i, {
+            position = {<span class="num">20</span> + i*<span class="num">5</span>, <span class="num">0.01</span>, <span class="num">10</span>},
+            size     = {<span class="num">3</span>, S-<span class="num">20</span>},
+            material = <span class="str">"soil"</span>
+        })
+    <span class="kw">end</span>
+
+    scene:<span class="fn">setMetadata</span>({
+        generator  = {id=M.id, version=M.version, language=<span class="str">"lua"</span>},
+        generation = {variationInput=ctx.variation}
+    })
+<span class="kw">end</span>
+
+<span class="kw">return</span> M</pre>
+      </div>
+    </div>
+  </li>
+  <li>
+    <div>
+      <h4>Wire it to a zone region in world.json</h4>
+      <div class="code-block" style="margin-top:0.75rem">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">json — add to zones[].regions</span>
+        </div>
+<pre>{
+  <span class="str">"x_min"</span>: <span class="num">0</span>, <span class="str">"x_max"</span>: <span class="num">5</span>,
+  <span class="str">"y_min"</span>: <span class="num">15</span>, <span class="str">"y_max"</span>: <span class="num">19</span>,
+  <span class="str">"type"</span>: <span class="str">"farmland"</span>
+}</pre>
+      </div>
+    </div>
+  </li>
+  <li>
+    <div>
+      <h4>Generate and view</h4>
+      <div class="code-block" style="margin-top:0.75rem">
+        <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div>
+          <span class="code-lang">bash</span>
+          <button class="code-copy">Copy</button>
+        </div>
+<pre><span class="cmt"># Clear the cache for the affected chunks, then regenerate</span>
+rm cache/chunks/0_15.mc3.xml  <span class="cmt"># etc.</span>
+
+./build/MeshWorldExport examples/world.json output/
+
+<span class="cmt"># View a farmland chunk</span>
+meshcraft output/0_15.mc3.xml</pre>
+      </div>
+    </div>
+  </li>
+</ol>
+
+<div class="callout callout-tip" style="margin-top:2rem">
+  <strong>Next steps:</strong> See the <a href="lua-api.html">full Lua API reference</a> for all scene methods and ctx fields, or browse the <a href="generators.html">generators page</a> to see what's already available.
+</div>
+
+</section>
+</div>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

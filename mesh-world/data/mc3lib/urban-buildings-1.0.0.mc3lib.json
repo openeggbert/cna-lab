@@ -1,0 +1,1153 @@
+{
+  "format": "mc3",
+  "version": "0.3",
+  "model": "urban-buildings",
+  "unit": "meter",
+  "coordinateSystem": "right_handed_y_up",
+  "rotationUnits": "degrees",
+  "eulerOrder": "XYZ",
+  "library": {
+    "namespace": "urban-buildings",
+    "version": "1.0.0",
+    "hash": "sha256:0ff63691ef6c014b491fe4b5b89ef6eb051faf0576f427bfc35d5130ef74a6e5"
+  },
+  "imports": [
+    {
+      "namespace": "windows",
+      "source": "mc3lib://urban-windows@1.0.0"
+    },
+    {
+      "namespace": "doors",
+      "source": "mc3lib://urban-doors@1.0.0"
+    },
+    {
+      "namespace": "roofs",
+      "source": "mc3lib://urban-roofs@1.0.0"
+    },
+    {
+      "namespace": "facades",
+      "source": "mc3lib://urban-facades@1.0.0"
+    }
+  ],
+  "scripts": [
+    {
+      "id": "house.gable.modular_01.facade",
+      "scriptType": "lua",
+      "source": "def:place(\"window_l\", \"windows:window.residential.double.classic_01\", \"window_front_l\")\ndef:place(\"window_r\", \"windows:window.residential.double.classic_01\", \"window_front_r\")\ndef:place(\"door\", \"doors:door.residential.wood_panel_01\", \"door_front\")\ndef:place(\"roof\", \"roofs:roof.gable_clay_04\", \"roof_mount\")\n"
+    },
+    {
+      "id": "house.gable.wide_01.facade",
+      "scriptType": "lua",
+      "source": "def:place(\"window_l1\", \"windows:window.residential.double.classic_01\", \"window_front_l1\")\ndef:place(\"window_l2\", \"windows:window.residential.double.classic_02\", \"window_front_l2\")\ndef:place(\"window_r1\", \"windows:window.residential.double.classic_01\", \"window_front_r1\")\ndef:place(\"window_r2\", \"windows:window.residential.double.classic_02\", \"window_front_r2\")\ndef:place(\"door\", \"doors:door.residential.wood_panel_02\", \"door_front\")\ndef:place(\"roof\", \"roofs:roof.gable_clay_wide_01\", \"roof_mount\")\n"
+    },
+    {
+      "id": "house.rowhouse.modular_01.facade",
+      "scriptType": "lua",
+      "source": "local bay_w = 2.5\nlocal count = 6\nlocal half_total = (bay_w * count) / 2.0\nlocal front_z = 4.151000\nfor i = 0, count - 1 do\n  local x = -half_total + bay_w * (i + 0.5)\n  local id = \"bay_\" .. i\n  if i == 0 then\n    def:place_at(id, \"facades:facade.residential_bay_door_01\", x, 0.0, front_z)\n  elseif i % 2 == 0 then\n    def:place_at(id, \"facades:facade.residential_bay_window_01\", x, 0.0, front_z)\n  else\n    def:place_at(id, \"facades:facade.residential_bay_window_02\", x, 0.0, front_z)\n  end\nend\n"
+    }
+  ],
+  "definitions": [
+    {
+      "id": "house.gable.modular_01",
+      "object": {
+        "type": "group",
+        "id": "house.gable.modular_01",
+        "name": "house.gable.modular_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "script": "house.gable.modular_01.facade",
+        "assetMetadata": {
+          "category": "house",
+          "subcategory": "detached",
+          "semanticTags": [
+            "residential",
+            "detached",
+            "gable_roof",
+            "modular"
+          ],
+          "styleTags": [
+            "central_europe",
+            "gable_roof"
+          ],
+          "regionTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            10.600000381469727,
+            5.699999809265137,
+            8.600000381469727
+          ],
+          "bounds": {
+            "min": [
+              -5.300000190734863,
+              0.0,
+              -4.300000190734863
+            ],
+            "max": [
+              5.300000190734863,
+              5.699999809265137,
+              4.300000190734863
+            ]
+          },
+          "facing": "+Z",
+          "sockets": {
+            "door_front": [
+              0.0,
+              0.0,
+              4.151000022888184
+            ],
+            "roof_mount": [
+              0.0,
+              3.200000047683716,
+              0.0
+            ],
+            "window_front_l": [
+              -2.5,
+              1.100000023841858,
+              4.151000022888184
+            ],
+            "window_front_r": [
+              2.5,
+              1.100000023841858,
+              4.151000022888184
+            ]
+          },
+          "materialSlots": [
+            "wall"
+          ],
+          "collisionProxy": "box",
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R103/R104, build_mc3lib_content.cpp) -- modular variant of ObjectDefinitionLibrary's own house_gable_default, importing windows/door/roof instead of baking them in",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_buildings.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "floor",
+            "transform": {
+              "position": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_front",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_back",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                -4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_left",
+            "transform": {
+              "position": [
+                -5.150000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_right",
+            "transform": {
+              "position": [
+                5.150000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "gable_front",
+            "transform": {
+              "position": [
+                0.0,
+                4.449999809265137,
+                4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                2.5,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "gable_back",
+            "transform": {
+              "position": [
+                0.0,
+                4.449999809265137,
+                -4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_white",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                10.600000381469727,
+                2.5,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "house.gable.wide_01",
+      "object": {
+        "type": "group",
+        "id": "house.gable.wide_01",
+        "name": "house.gable.wide_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "script": "house.gable.wide_01.facade",
+        "assetMetadata": {
+          "category": "house",
+          "subcategory": "wide_detached",
+          "semanticTags": [
+            "residential",
+            "detached",
+            "gable_roof",
+            "modular",
+            "wide"
+          ],
+          "styleTags": [
+            "central_europe",
+            "gable_roof"
+          ],
+          "regionTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            15.600000381469727,
+            5.699999809265137,
+            8.600000381469727
+          ],
+          "bounds": {
+            "min": [
+              -7.800000190734863,
+              0.0,
+              -4.300000190734863
+            ],
+            "max": [
+              7.800000190734863,
+              5.699999809265137,
+              4.300000190734863
+            ]
+          },
+          "facing": "+Z",
+          "sockets": {
+            "door_front": [
+              0.0,
+              0.0,
+              4.151000022888184
+            ],
+            "roof_mount": [
+              0.0,
+              3.200000047683716,
+              0.0
+            ],
+            "window_front_l1": [
+              -3.0,
+              1.100000023841858,
+              4.151000022888184
+            ],
+            "window_front_l2": [
+              -6.0,
+              1.100000023841858,
+              4.151000022888184
+            ],
+            "window_front_r1": [
+              3.0,
+              1.100000023841858,
+              4.151000022888184
+            ],
+            "window_front_r2": [
+              6.0,
+              1.100000023841858,
+              4.151000022888184
+            ]
+          },
+          "materialSlots": [
+            "wall"
+          ],
+          "collisionProxy": "box",
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R113 size-aware matching follow-up, build_mc3lib_content.cpp) -- a wide (15.6m) house with a real gable roof, closing the wide-class style-coverage gap house.rowhouse.modular_01's genuine flat roof left open",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_buildings.wide_gable.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "floor",
+            "transform": {
+              "position": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_front",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_back",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                -4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_left",
+            "transform": {
+              "position": [
+                -7.650000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_right",
+            "transform": {
+              "position": [
+                7.650000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "gable_front",
+            "transform": {
+              "position": [
+                0.0,
+                4.449999809265137,
+                4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                2.5,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "gable_back",
+            "transform": {
+              "position": [
+                0.0,
+                4.449999809265137,
+                -4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_yellow",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                2.5,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "house.rowhouse.modular_01",
+      "object": {
+        "type": "group",
+        "id": "house.rowhouse.modular_01",
+        "name": "house.rowhouse.modular_01",
+        "transform": {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pivot": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "script": "house.rowhouse.modular_01.facade",
+        "assetMetadata": {
+          "category": "house",
+          "subcategory": "terraced",
+          "semanticTags": [
+            "residential",
+            "row_house",
+            "modular",
+            "facade_tiled"
+          ],
+          "styleTags": [
+            "central_europe"
+          ],
+          "regionTags": [
+            "central_europe"
+          ],
+          "nominalSize": [
+            15.600000381469727,
+            3.4000000953674316,
+            8.600000381469727
+          ],
+          "bounds": {
+            "min": [
+              -7.800000190734863,
+              0.0,
+              -4.300000190734863
+            ],
+            "max": [
+              7.800000190734863,
+              3.4000000953674316,
+              4.300000190734863
+            ]
+          },
+          "facing": "+Z",
+          "materialSlots": [
+            "wall"
+          ],
+          "collisionProxy": "box",
+          "shadowPolicy": "cast_receive",
+          "license": "MIT",
+          "provenance": "MeshWorld procedural (R103/R112 facade-tiling demo, build_mc3lib_content.cpp) -- demonstrates real facade_module consumption via Mc3ScriptRunner::place_at(), tiling 6 facade bay modules (2.5m each) along its own 15m front wall instead of a fixed baked-in facade",
+          "sourceGeneratorOrHash": "cpp.mc3lib.urban_buildings.rowhouse.v1",
+          "semanticVersion": "1.0.0"
+        },
+        "children": [
+          {
+            "type": "box",
+            "name": "floor",
+            "transform": {
+              "position": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_back",
+            "transform": {
+              "position": [
+                0.0,
+                1.600000023841858,
+                -4.150000095367432
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_cream",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                3.200000047683716,
+                0.30000001192092896
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_left",
+            "transform": {
+              "position": [
+                -7.650000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_cream",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "wall_right",
+            "transform": {
+              "position": [
+                7.650000095367432,
+                1.600000023841858,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "plaster_cream",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                0.30000001192092896,
+                3.200000047683716,
+                8.0
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          },
+          {
+            "type": "box",
+            "name": "roof_slab",
+            "transform": {
+              "position": [
+                0.0,
+                3.299999952316284,
+                0.0
+              ],
+              "rotation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "pivot": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "material": "concrete_slab",
+            "primitive": {
+              "primitiveType": "box",
+              "size": [
+                15.600000381469727,
+                0.20000000298023224,
+                8.600000381469727
+              ],
+              "radius": 0.5,
+              "height": 1.0,
+              "segments": 32,
+              "axis": "y",
+              "majorRadius": 0.3499999940395355,
+              "minorRadius": 0.15000000596046448,
+              "subdivisionsX": 4,
+              "subdivisionsZ": 4
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

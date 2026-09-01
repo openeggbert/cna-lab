@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeshWorld — Procedural 3D World Generator</title>
+<meta name="description" content="MeshWorld is a free, open-source procedural 3D world generator. City chunk generation plus a planetary map subsystem — rivers, mountains, biomes, settlements, countries. Lua scripting, real-time exploration, MIT license.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<!-- ── Hero ─────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">&#9632; Open Source · MIT License · C++23</div>
+      <h1>
+        Procedural <span class="accent">3D World</span><br>
+        Generator &amp; Explorer
+      </h1>
+      <p class="hero-sub">
+        MeshWorld generates 3D city chunks from a simple JSON config, and — via its new planetary
+        map subsystem — whole worlds with rivers, mountain ranges, biomes, settlements, and countries.
+        Script new content in Lua, explore in real time, pack everything into portable SQLite bundles.
+      </p>
+      <div class="btn-group">
+        <a href="getting-started.html" class="btn btn-primary">Get Started</a>
+        <a href="https://github.com/openeggbert/mesh-world" class="btn btn-secondary">View on GitHub</a>
+        <a href="features.html" class="btn btn-secondary">Explore Features</a>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" data-target="20">20</div>
+          <div class="stat-label">C++ Generators</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" data-target="20">20</div>
+          <div class="stat-label">Lua Generators</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" data-target="467">467</div>
+          <div class="stat-label">Tests Passing</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" data-target="100">~100</div>
+          <div class="stat-label">Built-in Materials</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" data-target="0">0</div>
+          <div class="stat-label">Compiler Warnings</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" data-suffix=" keys">0</div>
+          <div class="stat-label">API Keys Required</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Demo ASCII map ─────────────────────────────────── -->
+<section class="section-sm">
+  <div class="container">
+    <p class="section-label">World Map Preview</p>
+    <h2 style="margin-bottom:1.5rem">20 × 20 Demo City Layout</h2>
+    <div class="ascii-demo">
+<pre><span class="a-label">MeshWorldMap — examples/world.json (20×20 chunks, 64m each)</span>
+
+   0         1         1
+   0123456789012345678 9
+ 0 <span class="a-city">HHHHHHHHHHHHHHHHHHH</span><span class="a-road">R</span>
+ 1 <span class="a-city">HH</span><span class="a-road">RRRRRRRRRRRRRR</span><span class="a-city">HHH</span><span class="a-road">R</span>
+ 2 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HHHHHHHHHHHH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 3 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-park">PPPPPPPP</span><span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 4 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-park">PPPPPPPP</span><span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 5 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HHHHHHHHHHHH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 6 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-apt">AAAAAA</span><span class="a-road">RR</span><span class="a-apt">AAAA</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 7 <span class="a-city">HH</span><span class="a-road">RRRRRRRRRRRRRR</span><span class="a-city">HHH</span><span class="a-road">R</span>
+ 8 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span><span class="a-apt">AAAAAA</span><span class="a-road">RR</span><span class="a-city">HH</span><span class="a-road">R</span>
+ 9 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-sq">QQ</span><span class="a-city">HH</span><span class="a-road">RR</span><span class="a-city">HH</span><span class="a-road">R</span>
+10 <span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-road">R</span><span class="a-city">HH</span><span class="a-sq">QQ</span><span class="a-city">HH</span><span class="a-road">RR</span><span class="a-city">HH</span><span class="a-road">R</span>
+11 <span class="a-city">HH</span><span class="a-road">RRRRRRRRRRRRRR</span><span class="a-city">HHH</span><span class="a-road">R</span>
+<span class="a-label">
+Legend: H=SmallHouseBlock  A=ApartmentBlock  P=Park  Q=Square  R=Road</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── Feature cards ──────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <p class="section-label">Core Capabilities</p>
+    <h2 style="margin-bottom:0.75rem">Everything You Need to Build Worlds</h2>
+    <p style="margin-bottom:3rem">From JSON config to rendered 3D scene — MeshWorld handles the full pipeline.</p>
+
+    <div class="grid-3">
+      <div class="card fade-in">
+        <div class="card-icon">&#9632;</div>
+        <h3>Procedural Generation</h3>
+        <p>20 built-in C++ chunk generators covering cities, forests, mountains, deserts, oceans, rivers, caves and more. Deterministic from a seed value.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon purple">&#9670;</div>
+        <h3>Lua Scripting</h3>
+        <p>Write generators in Lua 5.4 with full access to the scene-builder API. Drop a file in <code>generators/lua/</code> — it's auto-discovered at startup.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon green">&#9650;</div>
+        <h3>Real-time Exploration</h3>
+        <p>MeshWorldApp streams and renders chunks around the player using SDL3 + OpenGL. WASD movement, mouse look, live chunk loading.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">&#9644;</div>
+        <h3>CLI Toolset</h3>
+        <p>Seven CLI tools including MeshWorldExport (400 chunks in one command) and MeshWorldPlanet, the new headless planetary quadtree driver.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon purple">&#9673;</div>
+        <h3>Content Packs</h3>
+        <p>Pack all generators, taxonomy, and materials into a single portable SQLite file. Distribute, version, and swap content bundles independently.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon green">&#9632;</div>
+        <h3>Material Registry</h3>
+        <p>~100 built-in procedural materials covering stone, wood, metal, glass, foliage, soil, water and more — each with RGB, roughness, and license metadata.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">&#9678;</div>
+        <h3>Planetary Map Generation</h3>
+        <p>A quadtree LOD pyramid from whole-planet scale down to 64 m chunks, with real hydrology (rivers, lakes, confluences), mountain ranges, and biome classification — SQLite-persisted, generated lazily on descent.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon purple">&#9670;</div>
+        <h3>Settlements &amp; Countries</h3>
+        <p>Capitals, cities, towns and villages placed by a suitability model; countries grown from capitals via multi-source flood-fill that never crosses open ocean. <span style="color:var(--muted)">Active development (MAP9) — not yet wired into the live world.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pipeline overview ──────────────────────────────── -->
+<section class="section" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <p class="section-label">Architecture</p>
+    <h2 style="margin-bottom:0.75rem">The Generation Pipeline</h2>
+    <p style="margin-bottom:3rem">Every chunk passes through a validated, cached, dual-language pipeline. This is the mature <strong>legacy chunk/city system</strong> — a second, newer <strong>planetary map subsystem</strong> (quadtree LOD, hydrology, biomes, settlements) hands off into this same pipeline at the chunk level. See the <a href="architecture.html">architecture page</a> for both.</p>
+
+    <div class="pipeline fade-in">
+      <div class="pipe-node accent-node">world.json<sub>World config — seed, grid size, zones, style</sub></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node">WorldMap<sub>Assigns ZoneType + RegionType to each (x,y) chunk coordinate</sub></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node">ChunkPipeline<sub>Checks disk cache first — skips generation if chunk exists</sub></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-split">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+          <div class="pipe-node purple-node">LuaGeneratorRegistry<sub>Tries lua.zone.&lt;region&gt; first</sub></div>
+          <div class="pipe-arrow"></div>
+          <div class="pipe-node" style="font-size:0.8rem">LuaSandbox → LuaRuntime (Lua 5.4 + sol2)</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+          <div class="pipe-node">C++ Fallback<sub>get_generator(zone, region)</sub></div>
+          <div class="pipe-arrow"></div>
+          <div class="pipe-node" style="font-size:0.8rem">20 built-in chunk generators</div>
+        </div>
+      </div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node">MC3Validator<sub>Validates XML structure, metadata, bounds, material names</sub></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node">ChunkCache<sub>Stores validated MC3 XML to disk (cache/chunks/)</sub></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node accent-node">MC3 XML Output<sub>Load in MeshCraft viewer · compile to MCB binary</sub></div>
+    </div>
+
+    <div style="text-align:center;margin-top:2rem;">
+      <a href="architecture.html" class="btn btn-secondary">Full Architecture Docs</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Quick start ────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <p class="section-label">Quick Start</p>
+    <h2 style="margin-bottom:0.75rem">Up and Running in Minutes</h2>
+    <p style="margin-bottom:2.5rem">Build, generate a world, and explore — three commands.</p>
+
+    <div class="grid-2">
+      <div>
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dots"><span></span><span></span><span></span></div>
+            <span class="code-lang">bash</span>
+            <button class="code-copy">Copy</button>
+          </div>
+<pre><span class="cmt"># Clone both repos side-by-side</span>
+git clone https://github.com/openeggbert/mesh-craft
+git clone https://github.com/openeggbert/mesh-world
+<span class="kw">cd</span> mesh-world
+
+<span class="cmt"># Configure + build (Lua/sol2 auto-downloaded)</span>
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+
+<span class="cmt"># Run tests</span>
+<span class="kw">cd</span> build &amp;&amp; ctest --output-on-failure
+
+<span class="cmt"># Generate demo world (20×20 chunks)</span>
+./build/MeshWorldExport examples/world.json output/
+
+<span class="cmt"># ASCII zone map</span>
+./build/MeshWorldMap examples/world.json
+
+<span class="cmt"># Launch interactive 3D viewer</span>
+./apps/mesh-world-app/build/MeshWorldApp</pre>
+        </div>
+      </div>
+      <div>
+        <h3 style="color:var(--text);margin-bottom:1rem">Write a Lua generator in minutes</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dots"><span></span><span></span><span></span></div>
+            <span class="code-lang">lua — generators/lua/zone/my_zone.lua</span>
+            <button class="code-copy">Copy</button>
+          </div>
+<pre><span class="kw">local</span> M = {}
+M.id = <span class="str">"lua.zone.my_zone"</span>
+
+<span class="kw">function</span> <span class="fn">M.generate</span>(ctx, scene)
+  <span class="cmt">-- ctx: variation, chunk_x, chunk_y, style, zone, region</span>
+  scene:<span class="fn">addGround</span>(<span class="str">"grass"</span>)
+  scene:<span class="fn">addBox</span>(<span class="str">"shed"</span>, {
+    position = {<span class="num">10</span>, <span class="num">1.5</span>, <span class="num">10</span>},
+    size     = {<span class="num">4</span>, <span class="num">3</span>, <span class="num">4</span>},
+    material = <span class="str">"plaster_white"</span>
+  })
+  scene:<span class="fn">addCylinder</span>(<span class="str">"lamp"</span>, {
+    position = {<span class="num">20</span>, <span class="num">0</span>, <span class="num">20</span>},
+    radius = <span class="num">0.06</span>, height = <span class="num">4.5</span>,
+    material = <span class="str">"metal_lamp"</span>
+  })
+  scene:<span class="fn">setMetadata</span>({
+    generator = {id=M.id, version=<span class="str">"0.1.0"</span>, language=<span class="str">"lua"</span>}
+  })
+<span class="kw">end</span>
+
+<span class="kw">return</span> M</pre>
+        </div>
+        <p style="margin-top:1rem;font-size:0.875rem">Drop the file in <code>generators/lua/zone/</code> and it's picked up automatically on next run.</p>
+        <div style="margin-top:1.5rem;">
+          <a href="lua-api.html" class="btn btn-secondary">Full Lua API Reference</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA band ───────────────────────────────────────── -->
+<section class="section-sm" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="container" style="text-align:center;">
+    <h2 style="margin-bottom:0.75rem">Free. Open Source. No Strings.</h2>
+    <p style="max-width:50ch;margin:0 auto 2rem">MIT license. No credits. No billing. No subscription. No marketplace. No API keys committed.</p>
+    <div class="btn-group" style="justify-content:center;">
+      <a href="getting-started.html" class="btn btn-primary">Get Started</a>
+      <a href="roadmap.html" class="btn btn-secondary">View Roadmap</a>
+      <a href="ecosystem.html" class="btn btn-secondary">Ecosystem</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+[
+  { "parent": "region.city", "child": "zone.residential_estate", "probability": 0.4,  "min_count": 1, "max_count": 20, "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.park",               "probability": 0.15, "min_count": 1, "max_count": 5,  "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.shop_street",        "probability": 0.15, "min_count": 1, "max_count": 8,  "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.old_town",           "probability": 0.1,  "min_count": 0, "max_count": 3,  "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.square",             "probability": 0.05, "min_count": 1, "max_count": 2,  "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.crossroad",          "probability": 1.0,  "min_count": 4, "max_count": 30, "lod_max": 0 },
+  { "parent": "region.city", "child": "zone.river_bank",         "probability": 0.1,  "min_count": 0, "max_count": 2,  "lod_max": 0 },
+
+  { "parent": "region.wilderness", "child": "zone.forest",  "probability": 0.5,  "min_count": 1, "max_count": 50, "lod_max": 0 },
+  { "parent": "region.wilderness", "child": "zone.meadow",  "probability": 0.3,  "min_count": 1, "max_count": 30, "lod_max": 0 },
+
+  { "parent": "zone.residential_estate", "child": "building.house",      "probability": 0.9, "min_count": 2, "max_count": 8, "lod_max": 1 },
+  { "parent": "zone.residential_estate", "child": "building.apartment",  "probability": 0.3, "min_count": 0, "max_count": 3, "lod_max": 1 },
+  { "parent": "zone.residential_estate", "child": "place.playground",    "probability": 0.2, "min_count": 0, "max_count": 1, "lod_max": 2 },
+  { "parent": "zone.residential_estate", "child": "place.parking_lot",   "probability": 0.4, "min_count": 0, "max_count": 2, "lod_max": 2 },
+  { "parent": "zone.residential_estate", "child": "object.bench",        "probability": 0.7, "min_count": 1, "max_count": 6, "lod_max": 2 },
+  { "parent": "zone.residential_estate", "child": "object.tree",         "probability": 1.0, "min_count": 3, "max_count": 15, "lod_max": 2 },
+  { "parent": "zone.residential_estate", "child": "object.lamp_post",    "probability": 0.8, "min_count": 2, "max_count": 8, "lod_max": 2 },
+  { "parent": "zone.residential_estate", "child": "object.trash_bin",    "probability": 0.6, "min_count": 1, "max_count": 4, "lod_max": 2 },
+
+  { "parent": "zone.park", "child": "object.tree",       "probability": 1.0, "min_count": 8, "max_count": 40, "lod_max": 2 },
+  { "parent": "zone.park", "child": "object.bench",      "probability": 1.0, "min_count": 4, "max_count": 12, "lod_max": 2 },
+  { "parent": "zone.park", "child": "object.lamp_post",  "probability": 0.9, "min_count": 2, "max_count": 8,  "lod_max": 2 },
+  { "parent": "zone.park", "child": "object.flower_bed", "probability": 0.8, "min_count": 2, "max_count": 8,  "lod_max": 2 },
+  { "parent": "zone.park", "child": "object.fountain",   "probability": 0.5, "min_count": 0, "max_count": 1,  "lod_max": 2 },
+
+  { "parent": "zone.forest", "child": "object.tree",        "probability": 1.0, "min_count": 20, "max_count": 80, "lod_max": 1 },
+  { "parent": "zone.forest", "child": "object.bush",        "probability": 0.8, "min_count": 5,  "max_count": 20, "lod_max": 2 },
+  { "parent": "zone.forest", "child": "object.rock",        "probability": 0.4, "min_count": 0,  "max_count": 5,  "lod_max": 2 },
+  { "parent": "zone.forest", "child": "object.fallen_log",  "probability": 0.3, "min_count": 0,  "max_count": 3,  "lod_max": 3 },
+  { "parent": "zone.forest", "child": "place.clearing",     "probability": 0.4, "min_count": 0,  "max_count": 2,  "lod_max": 1 },
+  { "parent": "zone.forest", "child": "path.forest_trail",  "probability": 0.6, "min_count": 0,  "max_count": 1,  "lod_max": 1 },
+
+  { "parent": "building.house", "child": "room.kitchen",    "probability": 0.95, "min_count": 1, "max_count": 1, "lod_max": 3 },
+  { "parent": "building.house", "child": "room.bedroom",    "probability": 0.95, "min_count": 1, "max_count": 4, "lod_max": 3 },
+  { "parent": "building.house", "child": "room.bathroom",   "probability": 0.9,  "min_count": 1, "max_count": 2, "lod_max": 3 },
+  { "parent": "building.house", "child": "room.living_room","probability": 0.9,  "min_count": 1, "max_count": 1, "lod_max": 3 },
+  { "parent": "building.house", "child": "place.garden",    "probability": 0.7,  "min_count": 0, "max_count": 1, "lod_max": 2 },
+
+  { "parent": "room.kitchen", "child": "object.fridge",    "probability": 0.95, "min_count": 1, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.microwave", "probability": 0.7,  "min_count": 0, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.oven",      "probability": 0.8,  "min_count": 0, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.sink",      "probability": 0.95, "min_count": 1, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.cabinet",   "probability": 0.9,  "min_count": 2, "max_count": 8, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.table",     "probability": 0.6,  "min_count": 0, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.kitchen", "child": "object.chair",     "probability": 0.6,  "min_count": 0, "max_count": 4, "lod_max": 3 },
+
+  { "parent": "room.living_room", "child": "object.tv",    "probability": 0.85, "min_count": 0, "max_count": 1, "lod_max": 3 },
+  { "parent": "room.living_room", "child": "object.table", "probability": 0.9,  "min_count": 1, "max_count": 2, "lod_max": 3 },
+  { "parent": "room.living_room", "child": "object.chair", "probability": 0.9,  "min_count": 1, "max_count": 4, "lod_max": 3 },
+
+  { "parent": "object.fridge", "child": "object.milk_box",    "probability": 0.7, "min_count": 0, "max_count": 3, "lod_max": 4 },
+  { "parent": "object.fridge", "child": "object.water_bottle","probability": 0.6, "min_count": 0, "max_count": 4, "lod_max": 4 },
+  { "parent": "object.fridge", "child": "object.egg_box",     "probability": 0.5, "min_count": 0, "max_count": 1, "lod_max": 4 },
+  { "parent": "object.fridge", "child": "object.cheese_box",  "probability": 0.4, "min_count": 0, "max_count": 2, "lod_max": 4 },
+
+  { "parent": "object.window", "child": "object.bay_window",           "probability": 0.65, "min_count": 1, "max_count": 3, "lod_max": 1 },
+  { "parent": "object.window", "child": "object.casement_window",      "probability": 0.3,  "min_count": 1, "max_count": 2, "lod_max": 1 },
+  { "parent": "object.window", "child": "object.gothic_pointed_window","probability": 0.25, "min_count": 1, "max_count": 2, "lod_max": 1 },
+  { "parent": "object.window", "child": "object.oval_window",          "probability": 0.2,  "min_count": 1, "max_count": 2, "lod_max": 1 },
+  { "parent": "object.window", "child": "object.round_oculus_window",  "probability": 0.3,  "min_count": 0, "max_count": 1, "lod_max": 1 },
+  { "parent": "object.window", "child": "object.stained_glass_window", "probability": 0.15, "min_count": 0, "max_count": 1, "lod_max": 1 },
+
+  { "parent": "object.door", "child": "object.french_double_door", "probability": 0.3,  "min_count": 1, "max_count": 2, "lod_max": 1 },
+  { "parent": "object.door", "child": "object.gothic_arched_door", "probability": 0.25, "min_count": 1, "max_count": 1, "lod_max": 1 },
+  { "parent": "object.door", "child": "object.storm_screen_door",  "probability": 0.2,  "min_count": 0, "max_count": 1, "lod_max": 2 },
+  { "parent": "object.door", "child": "object.jib_flush_door",     "probability": 0.2,  "min_count": 1, "max_count": 1, "lod_max": 1 },
+
+  { "parent": "object.roof", "child": "object.gambrel_roof",       "probability": 0.3, "min_count": 1, "max_count": 1, "lod_max": 1 },
+  { "parent": "object.roof", "child": "object.saltbox_roof",       "probability": 0.4, "min_count": 0, "max_count": 1, "lod_max": 1 },
+  { "parent": "object.roof", "child": "object.butterfly_roof",     "probability": 0.2, "min_count": 1, "max_count": 1, "lod_max": 0 },
+  { "parent": "object.roof", "child": "object.pyramidal_hip_roof", "probability": 0.2, "min_count": 1, "max_count": 1, "lod_max": 1 },
+  { "parent": "object.roof", "child": "object.skylight_flat",      "probability": 0.3, "min_count": 1, "max_count": 3, "lod_max": 1 },
+  { "parent": "object.roof", "child": "object.green_roof_section", "probability": 0.2, "min_count": 1, "max_count": 1, "lod_max": 1 },
+
+  { "parent": "object.chimney", "child": "object.chimney_cap", "probability": 0.4, "min_count": 1, "max_count": 1, "lod_max": 2 },
+
+  { "parent": "path.sidewalk", "child": "object.bike_rack",        "probability": 0.5,  "min_count": 1, "max_count": 2, "lod_max": 2 },
+  { "parent": "path.sidewalk", "child": "object.bus_stop_shelter", "probability": 0.15, "min_count": 1, "max_count": 1, "lod_max": 1 },
+  { "parent": "path.road",     "child": "object.bus_stop_sign",    "probability": 0.1,  "min_count": 1, "max_count": 1, "lod_max": 2 },
+  { "parent": "path.road",     "child": "object.bike_lane_sign",   "probability": 0.1,  "min_count": 1, "max_count": 2, "lod_max": 2 },
+  { "parent": "path.road",     "child": "object.curb_inlet_drain", "probability": 0.5,  "min_count": 0, "max_count": 4, "lod_max": 2 },
+  { "parent": "path.road",     "child": "object.scooter_moped",    "probability": 0.3,  "min_count": 0, "max_count": 2, "lod_max": 2 },
+  { "parent": "path.road",     "child": "object.cargo_bicycle",    "probability": 0.2,  "min_count": 1, "max_count": 1, "lod_max": 2 },
+
+  { "parent": "zone.old_town",   "child": "object.streetlamp_ornate",           "probability": 0.4, "min_count": 1, "max_count": 8, "lod_max": 1 },
+  { "parent": "zone.shop_street","child": "object.trash_recycling_bin_station", "probability": 0.3, "min_count": 0, "max_count": 2, "lod_max": 2 },
+
+  { "parent": "place.parking_lot", "child": "object.trash_receptacle_outdoor",     "probability": 0.5, "min_count": 2, "max_count": 8,  "lod_max": 3 },
+  { "parent": "place.parking_lot", "child": "object.cargo_van",                    "probability": 0.3, "min_count": 1, "max_count": 2,  "lod_max": 1 },
+  { "parent": "place.parking_lot", "child": "object.motorcycle_cruiser",          "probability": 0.3, "min_count": 1, "max_count": 3,  "lod_max": 2 },
+  { "parent": "place.parking_lot", "child": "object.motorcycle_sport",            "probability": 0.3, "min_count": 1, "max_count": 3,  "lod_max": 2 },
+  { "parent": "place.parking_lot", "child": "object.motorcycle_touring",          "probability": 0.3, "min_count": 1, "max_count": 3,  "lod_max": 2 },
+  { "parent": "place.parking_lot", "child": "object.motorcycle_parking_rack",     "probability": 0.4, "min_count": 1, "max_count": 2,  "lod_max": 2 },
+  { "parent": "place.parking_lot", "child": "object.vehicle_parking_bumper",      "probability": 0.6, "min_count": 2, "max_count": 10, "lod_max": 2 }
+]

@@ -1,0 +1,26 @@
+{
+  "id": "nordic",
+
+  "consonants": ["k", "r", "f", "st", "v", "h", "l", "b", "g", "sk", "n", "th"],
+  "vowels": ["a", "o", "i", "e", "u", "y"],
+  "syllable_templates": ["CV", "CVC"],
+  "allow_repeated_seam_phoneme": false,
+
+  "continent_suffixes": ["ia", "landia", "gard"],
+  "country_suffixes": ["land", "mark", "shire"],
+  "city_suffixes": ["burg", "ton", "ham"],
+  "river_suffixes": ["water", "flow", "brook"],
+  "lake_suffixes": ["mere", "tarn", "pond"],
+  "mountain_suffixes": ["peak", "horn", "spire"],
+
+  "street_adjectives": ["Old", "Green", "High", "Silver", "New", "Quiet"],
+  "street_nouns": ["Birch", "Fjord", "Pine", "Elk", "Frost"],
+  "street_suffixes": ["Street", "Road", "Lane"],
+
+  "continent_syllables": 2,
+  "country_syllables": 2,
+  "city_syllables": 2,
+  "river_syllables": 1,
+  "lake_syllables": 1,
+  "mountain_syllables": 1
+}

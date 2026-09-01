@@ -1,0 +1,34 @@
+{
+  "version": "0.1",
+  "request_type": "chunk_generate",
+  "chunk": {
+    "x": 2,
+    "y": 9,
+    "world_seed": 42,
+    "chunk_size_m": 64,
+    "district": "park",
+    "style": "central_europe_small_city"
+  },
+  "neighbors": {
+    "north": { "district": "empty_field", "path_exits": [] },
+    "south": { "district": "empty_field", "path_exits": [] },
+    "west":  { "district": "river_bank",  "path_exits": [] },
+    "east":  { "district": "road",        "path_exits": ["center"] }
+  },
+  "constraints": {
+    "max_objects": 80,
+    "max_triangles": 12000,
+    "path_exits_required": ["east"],
+    "no_characters": true,
+    "no_text": true,
+    "no_brands": true,
+    "no_outside_bounds": true
+  },
+  "allowed_object_categories": [
+    "grass", "tree", "bench", "lamp", "path", "fountain",
+    "flower_bed", "hedge", "fence", "small_sculpture"
+  ],
+  "output_format": "mc3.xml",
+  "deterministic": true,
+  "ai_assist": false
+}

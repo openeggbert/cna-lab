@@ -1,0 +1,42 @@
+{
+  "version": "0.1",
+  "name": "city_showcase",
+  "seed": 100,
+  "use_world_composer": true,
+  "style": "central_europe_small_city",
+  "map_size_m": 448,
+  "chunk_size_m": 64,
+  "grid_w": 7,
+  "grid_h": 7,
+  "zone_default": "empty",
+  "region_default": "empty",
+  "zones": [
+    {
+      "type": "city",
+      "x_min": 0, "x_max": 6, "y_min": 0, "y_max": 6,
+      "region_default": "small_house_block",
+      "regions": [
+        { "x_min": 0, "x_max": 6, "y_min": 3, "y_max": 3, "type": "road" },
+        { "x_min": 3, "x_max": 3, "y_min": 0, "y_max": 6, "type": "road" },
+        { "x_min": 3, "x_max": 3, "y_min": 3, "y_max": 3, "type": "crossroad" },
+        { "x_min": 4, "x_max": 4, "y_min": 2, "y_max": 2, "type": "apartment_block" },
+        { "x_min": 2, "x_max": 2, "y_min": 4, "y_max": 4, "type": "shop_street" },
+        { "x_min": 4, "x_max": 4, "y_min": 4, "y_max": 4, "type": "shop_street" },
+        { "x_min": 1, "x_max": 1, "y_min": 2, "y_max": 2, "type": "square" }
+      ]
+    }
+  ],
+  "landmarks": [
+    {
+      "chunk_x": 2, "chunk_y": 2,
+      "definition_id": "landmark.clocktower_01",
+      "x": 32, "z": 32, "rotation_y": 0
+    }
+  ],
+  "road_termini": [
+    { "chunk_x": 3, "chunk_y": 0, "edge": "north", "kind": "boundary" },
+    { "chunk_x": 0, "chunk_y": 3, "edge": "west",  "kind": "boundary" },
+    { "chunk_x": 6, "chunk_y": 3, "edge": "east",  "kind": "boundary" },
+    { "chunk_x": 3, "chunk_y": 6, "edge": "south", "kind": "boundary" }
+  ]
+}

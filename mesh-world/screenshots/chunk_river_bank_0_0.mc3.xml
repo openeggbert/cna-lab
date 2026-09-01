@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.1" model="chunk_0_0">
+    <metadata format="json" type="generation"><![CDATA[
+{
+  "generator": {
+    "id": "cpp.chunk.river_bank",
+    "version": "0.1.0",
+    "language": "cpp",
+    "category": "chunk"
+  },
+  "chunk": {
+    "x": 0,
+    "y": 0,
+    "size_m": 64
+  },
+  "generation": {
+    "variationInput": 17804442530610004179,
+    "style": "central_europe_small_city",
+    "zone": "city",
+    "region": "river_bank",
+    "meshworldVersion": "0.1",
+    "generatedAt": "2026-06-26T11:50:18Z",
+    "aiAssisted": false,
+    "notes": "Variation input is not a long-term compatibility guarantee."
+  }
+}
+    ]]></metadata>
+    <objects>
+        <plane id="water" material="water" position="11.2 -0.3 31.7" size="22.4 64"/>
+        <plane id="embank" material="stone_embank" position="23.9 0 32" size="3 64"/>
+        <plane id="grass" material="grass_bank" position="44.7 0 32" size="38.6 64"/>
+        <box id="railing" material="metal_railing" position="22.6 0.55 32" size="0.12 1.1 64"/>
+        <box id="post_0" material="metal_railing" position="22.6 0.6 0" size="0.2 1.2 0.2"/>
+        <box id="post_1" material="metal_railing" position="22.6 0.6 5" size="0.2 1.2 0.2"/>
+        <box id="post_2" material="metal_railing" position="22.6 0.6 10" size="0.2 1.2 0.2"/>
+        <box id="post_3" material="metal_railing" position="22.6 0.6 15" size="0.2 1.2 0.2"/>
+        <box id="post_4" material="metal_railing" position="22.6 0.6 20" size="0.2 1.2 0.2"/>
+        <box id="post_5" material="metal_railing" position="22.6 0.6 25" size="0.2 1.2 0.2"/>
+        <box id="post_6" material="metal_railing" position="22.6 0.6 30" size="0.2 1.2 0.2"/>
+        <box id="post_7" material="metal_railing" position="22.6 0.6 35" size="0.2 1.2 0.2"/>
+        <box id="post_8" material="metal_railing" position="22.6 0.6 40" size="0.2 1.2 0.2"/>
+        <box id="post_9" material="metal_railing" position="22.6 0.6 45" size="0.2 1.2 0.2"/>
+        <box id="post_10" material="metal_railing" position="22.6 0.6 50" size="0.2 1.2 0.2"/>
+        <box id="post_11" material="metal_railing" position="22.6 0.6 55" size="0.2 1.2 0.2"/>
+        <box id="post_12" material="metal_railing" position="22.6 0.6 60" size="0.2 1.2 0.2"/>
+        <instance id="willow_0" position="60.4469 0 52.723" rotation="0 172.898 0" definition="tree_willow"/>
+        <instance id="willow_1" position="41.524 0 21.7294" rotation="0 329.127 0" definition="tree_willow"/>
+        <instance id="willow_2" position="34.1516 0 19.4" rotation="0 81.3988 0" definition="tree_willow"/>
+        <instance id="willow_3" position="60.9979 0 2.233" rotation="0 332.003 0" definition="tree_willow"/>
+        <instance id="willow_4" position="32.1025 0 37.963" rotation="0 348.696 0" definition="tree_willow"/>
+        <instance id="willow_5" position="39.02 0 48.804" rotation="0 313.477 0" definition="tree_willow"/>
+        <instance id="willow_6" position="41.3776 0 61.065" rotation="0 262.488 0" definition="tree_willow"/>
+        <instance id="willow_7" position="39.7706 0 31.893" rotation="0 268.72 0" definition="tree_willow"/>
+        <instance id="bench_0" position="27.4 0 16" rotation="0 270 0" definition="bench_park"/>
+        <instance id="bench_1" position="27.4 0 48" rotation="0 270 0" definition="bench_park"/>
+        <cylinder id="lamp_0" material="metal_lamp" position="26.9 2 8" radius="0.12" height="4"/>
+        <cylinder id="lamp_1" material="metal_lamp" position="26.9 2 24" radius="0.12" height="4"/>
+        <cylinder id="lamp_2" material="metal_lamp" position="26.9 2 40" radius="0.12" height="4"/>
+        <cylinder id="lamp_3" material="metal_lamp" position="26.9 2 56" radius="0.12" height="4"/>
+    </objects>
+</mc3>

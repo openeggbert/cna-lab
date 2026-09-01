@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lua API — MeshWorld</title>
+<meta name="description" content="Complete Lua scripting API reference for MeshWorld: module structure, ctx fields, scene methods, the separate map-generator API (planetary quadtree), generator ID convention, and a full working example.">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">Scripting Reference</p>
+    <h1>Lua API</h1>
+    <p>Write world generators in Lua 5.4. Drop a file in the right directory — it's live on the next run.</p>
+  </div>
+</div>
+
+<div class="container">
+<section class="section">
+
+<!-- ── Philosophy ────────────────────────────────────── -->
+<div class="grid-2" style="gap:3rem;align-items:start;margin-bottom:3rem">
+  <div>
+    <p class="section-label">Design Philosophy</p>
+    <h2>Sandboxed, Safe, Simple</h2>
+    <p>Lua generators run inside a strict sandbox. Only the scene construction API and safe Lua standard libraries are available. There is no file I/O, no network access, no process spawning.</p>
+    <p style="margin-top:1rem">This makes generators easy to distribute, safe to run from untrusted sources, and impossible to accidentally corrupt the host system.</p>
+
+    <div style="margin-top:1.5rem">
+      <div class="callout callout-warn">
+        <strong>Blocked modules:</strong> <code>io</code>, <code>os</code>, <code>debug</code>, <code>require</code>, <code>dofile</code>, <code>loadfile</code>.
+      </div>
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <strong>Allowed:</strong> <code>math</code>, <code>string</code>, <code>table</code>, <code>ipairs</code>, <code>pairs</code>, <code>type</code>, <code>tostring</code>, <code>tonumber</code>, <code>print</code>, <code>pcall</code>, <code>error</code>.
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="section-label">Auto-Discovery</p>
+    <h2>Zero-Config Registration</h2>
+    <p>The LuaGeneratorRegistry scans <code>generators/lua/</code> recursively at startup. Every <code>.lua</code> file found is executed to extract its <code>M.id</code> string. No configuration file or registration step is needed.</p>
+    <p style="margin-top:1rem">Subdirectory structure is for human organisation only — the registry does not enforce categories. The ID string in <code>M.id</code> is the only thing that matters for lookup.</p>
+    <div class="callout callout-info" style="margin-top:1rem">
+      <strong>Override rule:</strong> If a Lua generator has the same ID as a C++ generator, the Lua version wins. Use this to override any built-in generator without modifying C++ source.
+    </div>
+  </div>
+</div>
+
+<!-- ── Module structure ───────────────────────────────── -->
+<div class="divider" style="margin:2rem 0"></div>
+<p class="section-label">Module Structure</p>
+<h2 style="margin-bottom:1.5rem">Generator Module Format</h2>
+
+<div class="grid-2" style="gap:2rem;align-items:start">
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span></span><span></span><span></span></div>
+      <span class="code-lang">lua — minimal generator</span>
+      <button class="code-copy">Copy</button>
+    </div>
+<pre><span class="kw">local</span> M = {}
+
+<span class="cmt">-- Required: unique generator ID</span>
+M.id       = <span class="str">"lua.zone.my_zone"</span>
+
+<span class="cmt">-- Optional but recommended</span>
+M.version  = <span class="str">"0.1.0"</span>
+M.category = <span class="str">"zone"</span>
+
+<span class="kw">function</span> <span class="fn">M.generate</span>(ctx, scene)
+    scene:<span class="fn">addGround</span>(<span class="str">"grass"</span>)
+    scene:<span class="fn">setMetadata</span>({
+        generator = {
+            id       = M.id,
+            version  = M.version,
+            category = M.category,
+            language = <span class="str">"lua"</span>
+        },
+        generation = {
+            variationInput = ctx.variation
+        }
+    })
+<span class="kw">end</span>
+
+<span class="kw">return</span> M</pre>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>M.id</code></td><td><span class="badge badge-done">required</span></td><td>Unique generator identifier. Must match the convention <code>lua.&lt;cat&gt;.&lt;name&gt;.&lt;variant&gt;</code>.</td></tr>
+        <tr><td><code>M.version</code></td><td>optional</td><td>Semantic version string. Used in metadata output. Defaults to <code>"0.0.0"</code> if omitted.</td></tr>
+        <tr><td><code>M.category</code></td><td>optional</td><td>Category tag: zone, object, building, room. For documentation and metadata.</td></tr>
+        <tr><td><code>M.generate</code></td><td><span class="badge badge-done">required</span></td><td>Function accepting <code>(ctx, scene)</code>. Called once per chunk generation request.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── ctx object ─────────────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">Context Object</p>
+<h2 style="margin-bottom:0.75rem">The <code>ctx</code> Parameter</h2>
+<p style="margin-bottom:1.5rem">The first parameter to <code>M.generate</code> is a context table containing information about the chunk being generated.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>ctx.variation</code></td><td>integer</td><td>Per-chunk seed derived from the world seed and chunk coordinates. Use for deterministic pseudo-random placement.</td></tr>
+      <tr><td><code>ctx.chunk_x</code></td><td>integer</td><td>X coordinate of this chunk in the world grid (0-based).</td></tr>
+      <tr><td><code>ctx.chunk_y</code></td><td>integer</td><td>Y coordinate of this chunk in the world grid (0-based).</td></tr>
+      <tr><td><code>ctx.chunk_size_m</code></td><td>number</td><td>Side length of the chunk in metres (default 64). Use this instead of hardcoding 64.</td></tr>
+      <tr><td><code>ctx.style</code></td><td>string</td><td>World style name (e.g. <code>"central_europe_small_city"</code>). Can drive material selection.</td></tr>
+      <tr><td><code>ctx.zone</code></td><td>string</td><td>Zone type for this chunk (e.g. <code>"city"</code>, <code>"forest"</code>, <code>"ocean"</code>).</td></tr>
+      <tr><td><code>ctx.region</code></td><td>string</td><td>Region type for this chunk (e.g. <code>"park"</code>, <code>"small_house_block"</code>, <code>"crossroad"</code>).</td></tr>
+      <tr><td><code>ctx.parameters</code></td><td>table or nil</td><td>Optional parameter table for object/building generators. Caller passes this to override defaults.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout callout-tip" style="margin-top:1rem">
+  <strong>Seeded random:</strong> Use <code>ctx.variation</code> as your seed rather than <code>math.random()</code> to keep generation deterministic across platforms and runs.
+</div>
+
+<!-- ── scene API ──────────────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">Scene API</p>
+<h2 style="margin-bottom:2rem">The <code>scene</code> Parameter</h2>
+
+<!-- addGround -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:addGround</span>
+    <span class="method-sig">(material: string)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Places a ground plane covering the entire chunk at y=0. Every chunk should call this exactly once.</p>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre>scene:<span class="fn">addGround</span>(<span class="str">"grass"</span>)
+scene:<span class="fn">addGround</span>(<span class="str">"asphalt"</span>)
+scene:<span class="fn">addGround</span>(<span class="str">"sand"</span>)</pre>
+    </div>
+  </div>
+</div>
+
+<!-- addBox -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:addBox</span>
+    <span class="method-sig">(id: string, params: table)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Adds an axis-aligned rectangular box. The most versatile primitive — used for walls, floors, furniture, signs, and almost everything else.</p>
+    <div class="table-wrap">
+      <table class="params-table">
+        <thead><tr><th>Param key</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>position</code></td><td><code>{x, y, z}</code></td><td><span class="badge badge-done">yes</span></td><td>Centre of the box in world space. y=0 is the ground plane.</td></tr>
+          <tr><td><code>size</code></td><td><code>{w, h, d}</code></td><td><span class="badge badge-done">yes</span></td><td>Width (X), height (Y), depth (Z) of the box in metres.</td></tr>
+          <tr><td><code>material</code></td><td>string</td><td><span class="badge badge-done">yes</span></td><td>Material name. Must exist in the MaterialRegistry.</td></tr>
+          <tr><td><code>ry</code></td><td>number</td><td>optional</td><td>Rotation around the Y axis in degrees. Default 0.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre>scene:<span class="fn">addBox</span>(<span class="str">"wall_front"</span>, {
+    position = {<span class="num">0</span>, <span class="num">1.5</span>, <span class="num">5</span>},
+    size     = {<span class="num">10</span>, <span class="num">3</span>, <span class="num">0.3</span>},
+    material = <span class="str">"plaster_white"</span>,
+    ry       = <span class="num">0</span>
+})
+
+scene:<span class="fn">addBox</span>(<span class="str">"bench_seat"</span>, {
+    position = {<span class="num">20</span>, <span class="num">0.46</span>, <span class="num">15</span>},
+    size     = {<span class="num">1.55</span>, <span class="num">0.04</span>, <span class="num">0.35</span>},
+    material = <span class="str">"wood_bench"</span>
+})</pre>
+    </div>
+  </div>
+</div>
+
+<!-- addCylinder -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:addCylinder</span>
+    <span class="method-sig">(id: string, params: table)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Adds a vertical cylinder. Used for tree trunks, lamp poles, fountain basins, columns, pillars, and round objects.</p>
+    <div class="table-wrap">
+      <table class="params-table">
+        <thead><tr><th>Param key</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>position</code></td><td><code>{x, y, z}</code></td><td><span class="badge badge-done">yes</span></td><td>Base centre of the cylinder (bottom face centre) in world space.</td></tr>
+          <tr><td><code>radius</code></td><td>number</td><td><span class="badge badge-done">yes</span></td><td>Radius in metres.</td></tr>
+          <tr><td><code>height</code></td><td>number</td><td><span class="badge badge-done">yes</span></td><td>Height in metres.</td></tr>
+          <tr><td><code>material</code></td><td>string</td><td><span class="badge badge-done">yes</span></td><td>Material name. Must exist in the MaterialRegistry.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre>scene:<span class="fn">addCylinder</span>(<span class="str">"lamp_pole"</span>, {
+    position = {<span class="num">15</span>, <span class="num">0</span>, <span class="num">18</span>},
+    radius   = <span class="num">0.055</span>,
+    height   = <span class="num">4.5</span>,
+    material = <span class="str">"metal_lamp"</span>
+})
+
+scene:<span class="fn">addCylinder</span>(<span class="str">"tree_trunk"</span>, {
+    position = {<span class="num">10</span>, <span class="num">0</span>, <span class="num">10</span>},
+    radius   = <span class="num">0.18</span>,
+    height   = <span class="num">4.0</span>,
+    material = <span class="str">"wood_bark_dark"</span>
+})</pre>
+    </div>
+  </div>
+</div>
+
+<!-- addPlane -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:addPlane</span>
+    <span class="method-sig">(id: string, params: table)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Adds a flat horizontal plane at a specific position. Used for roads, pavements, plazas, water surfaces, and decorative overlays on the ground.</p>
+    <div class="table-wrap">
+      <table class="params-table">
+        <thead><tr><th>Param key</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>position</code></td><td><code>{x, y, z}</code></td><td><span class="badge badge-done">yes</span></td><td>Top-left corner of the plane. y should be slightly above 0 (e.g. 0.01) to avoid z-fighting with the ground.</td></tr>
+          <tr><td><code>size</code></td><td><code>{w, d}</code></td><td><span class="badge badge-done">yes</span></td><td>Width (X) and depth (Z) of the plane in metres.</td></tr>
+          <tr><td><code>material</code></td><td>string</td><td><span class="badge badge-done">yes</span></td><td>Material name.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre><span class="cmt">-- Central plaza (8×8 m at chunk centre)</span>
+scene:<span class="fn">addPlane</span>(<span class="str">"plaza"</span>, {
+    position = {<span class="num">28</span>, <span class="num">0.01</span>, <span class="num">28</span>},
+    size     = {<span class="num">8</span>, <span class="num">8</span>},
+    material = <span class="str">"stone_pavement"</span>
+})
+
+<span class="cmt">-- North-south path (2 m wide, full chunk length)</span>
+scene:<span class="fn">addPlane</span>(<span class="str">"path_ns"</span>, {
+    position = {<span class="num">31</span>, <span class="num">0.01</span>, <span class="num">0</span>},
+    size     = {<span class="num">2</span>, <span class="num">64</span>},
+    material = <span class="str">"stone_path"</span>
+})</pre>
+    </div>
+  </div>
+</div>
+
+<!-- addInstance -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:addInstance</span>
+    <span class="method-sig">(id: string, params: table)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Embeds another generator's output at a specific position within this chunk. Used to compose complex scenes from reusable object generators.</p>
+    <div class="table-wrap">
+      <table class="params-table">
+        <thead><tr><th>Param key</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>generator</code></td><td>string</td><td><span class="badge badge-done">yes</span></td><td>Generator ID to instantiate (e.g. <code>"lua.object.bench.simple"</code>).</td></tr>
+          <tr><td><code>position</code></td><td><code>{x, y, z}</code></td><td><span class="badge badge-done">yes</span></td><td>Position offset for the instance's origin.</td></tr>
+          <tr><td><code>ry</code></td><td>number</td><td>optional</td><td>Y rotation in degrees.</td></tr>
+          <tr><td><code>parameters</code></td><td>table</td><td>optional</td><td>Passed as <code>ctx.parameters</code> to the child generator.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre>scene:<span class="fn">addInstance</span>(<span class="str">"bench_n"</span>, {
+    generator  = <span class="str">"lua.object.bench.simple"</span>,
+    position   = {<span class="num">32</span>, <span class="num">0</span>, <span class="num">26</span>},
+    ry         = <span class="num">0</span>,
+    parameters = { width = <span class="num">1.8</span>, material = <span class="str">"wood_bench"</span> }
+})
+
+scene:<span class="fn">addInstance</span>(<span class="str">"house_1"</span>, {
+    generator  = <span class="str">"lua.building.simple_house.standard"</span>,
+    position   = {<span class="num">5</span>, <span class="num">0</span>, <span class="num">5</span>},
+    ry         = <span class="num">90</span>
+})</pre>
+    </div>
+  </div>
+</div>
+
+<!-- setMetadata -->
+<div class="api-method fade-in">
+  <div class="api-method-header">
+    <span class="method-name">scene:setMetadata</span>
+    <span class="method-sig">(meta: table)</span>
+  </div>
+  <div class="api-method-body">
+    <p>Sets the metadata block of the MC3 output file. Required for MC3 validation to pass — a chunk without valid metadata will be rejected.</p>
+    <div class="table-wrap">
+      <table class="params-table">
+        <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>meta.generator.id</code></td><td><span class="badge badge-done">required</span></td><td>Generator ID string. Use <code>M.id</code>.</td></tr>
+          <tr><td><code>meta.generator.version</code></td><td><span class="badge badge-done">required</span></td><td>Version string. Use <code>M.version</code>.</td></tr>
+          <tr><td><code>meta.generator.language</code></td><td><span class="badge badge-done">required</span></td><td>Always <code>"lua"</code> for Lua generators.</td></tr>
+          <tr><td><code>meta.generation.variationInput</code></td><td>optional</td><td>The variation seed used. Aids reproducibility.</td></tr>
+          <tr><td><code>meta.chunk.x</code>, <code>meta.chunk.y</code></td><td>optional</td><td>Chunk coordinates from ctx. Useful for debugging.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-block" style="margin-top:1rem">
+      <div class="code-header"><div class="code-dots"><span></span><span></span><span></span></div></div>
+<pre>scene:<span class="fn">setMetadata</span>({
+    generator  = {
+        id       = M.id,
+        version  = M.version,
+        category = M.category,
+        language = <span class="str">"lua"</span>
+    },
+    chunk      = {
+        x      = ctx.chunk_x,
+        y      = ctx.chunk_y,
+        size_m = ctx.chunk_size_m
+    },
+    generation = {
+        variationInput = ctx.variation,
+        zone           = ctx.zone,
+        region         = ctx.region
+    }
+})</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ── Map generator API ──────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">A Second, Separate API</p>
+<h2 style="margin-bottom:0.75rem">Lua Map Generators</h2>
+<p style="margin-bottom:1.5rem">Everything above is the <strong>chunk/city</strong> generator API (<code>ctx</code> + <code>scene</code>). The planetary map subsystem has its own, different Lua entry point — <code>M.generate(ctx, map)</code> — used by exactly 3 scripts today: <code>generators/lua/map/planet.lua</code> (level 0), <code>continent.lua</code> (level 3), and <code>region.lua</code> (level 7). <code>MapPipeline</code> looks these up by a level-aware ID (<code>"lua.map.child.level{N}.default"</code>, or <code>"lua.map.planet.default"</code> at level 0) instead of the zone/object convention above.</p>
+
+<div class="grid-2" style="gap:2rem;align-items:start">
+  <div>
+    <h3 style="color:var(--text);margin-bottom:1rem">Map <code>ctx</code> fields</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>ctx.level</code></td><td>Quadtree level of the tile being generated (0 = whole planet).</td></tr>
+          <tr><td><code>ctx.tile_x</code> / <code>ctx.tile_y</code></td><td>Tile coordinate at this level.</td></tr>
+          <tr><td><code>ctx.tile_size_m</code></td><td>Side length of this tile in metres (the whole planet at level 0).</td></tr>
+          <tr><td><code>ctx.parent</code></td><td>The parent tile's data (elevation/biome fields, <code>culture</code>) — absent at level 0.</td></tr>
+          <tr><td><code>ctx.variation</code></td><td>Deterministic per-tile seed, same role as the chunk API's <code>ctx.variation</code>.</td></tr>
+          <tr><td><code>ctx.noise(x, y)</code></td><td>Shared <code>fbm</code> noise function — a single fixed seed, so scripts decorrelate channels with a fixed domain offset (e.g. <code>x + 2000.0</code> for a "detail" channel).</td></tr>
+          <tr><td><code>ctx.random()</code> / <code>ctx.randomInt(a,b)</code></td><td>Deterministic random helpers seeded from the tile, used for e.g. continent count/placement at level 0.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h3 style="color:var(--text);margin-bottom:1rem">Map object methods</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>map:setBiomeField(w, h, elevation, temperature, moisture)</code></td><td>Sets the tile's field grids. <code>MapBuilder</code> then enforces the parent-edge boundary condition on top of this.</td></tr>
+          <tr><td><code>map:setEdge(dir, values)</code></td><td>Level 0 only: sets the planet's wraparound edge data (<code>"N"/"E"/"S"/"W"</code>).</td></tr>
+          <tr><td><code>map:addContinent(name, x, y)</code></td><td>Registers a named continent centre (level 0, <code>planet.lua</code>).</td></tr>
+          <tr><td><code>map:addMountainRange(name, points)</code></td><td>Registers a named <code>MapFeature::MountainRange</code> (level 3, <code>continent.lua</code>).</td></tr>
+          <tr><td><code>map:setMetadata(id, culture)</code></td><td>Required. Sets generator ID and the culture used for naming (rivers, mountains, settlements downstream).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="callout callout-warn" style="margin-top:1.5rem">
+  <strong>Known gap:</strong> none of the 3 Lua map generators call into <code>Hydrology</code>, <code>MountainRanges</code>' real ridge-tracing, <code>BiomeRefinement</code>, <code>Settlements</code>, or <code>Countries</code> yet — those currently only run on the C++ <code>PlanetGenerator</code>/<code>ChildGenerator</code> path. <code>continent.lua</code>'s mountain ranges are a simpler v1 (every above-threshold cell in raster order, not a traced ridge polyline). <code>region.lua</code>'s town placement is an explicitly-labelled stub (random site sampling), not the real <code>Settlements::place()</code> suitability model.
+</div>
+
+<!-- ── Full example ───────────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">Complete Example</p>
+<h2 style="margin-bottom:1rem">Full Park Zone Generator</h2>
+<p style="margin-bottom:1.5rem">This is the actual <code>generators/lua/zone/park.lua</code> shipped with MeshWorld. It demonstrates all scene API methods, seeded randomness, and helper functions.</p>
+
+<div class="code-block fade-in">
+  <div class="code-header">
+    <div class="code-dots"><span></span><span></span><span></span></div>
+    <span class="code-lang">lua — generators/lua/zone/park.lua</span>
+    <button class="code-copy">Copy</button>
+  </div>
+<pre><span class="cmt">-- SPDX-License-Identifier: MIT</span>
+<span class="kw">local</span> M = {}
+M.id       = <span class="str">"lua.zone.park"</span>
+M.version  = <span class="str">"0.1.0"</span>
+M.category = <span class="str">"zone"</span>
+
+<span class="cmt">-- Seeded pseudo-random (no global state)</span>
+<span class="kw">local function</span> <span class="fn">rng</span>(seed, i)
+    <span class="kw">local</span> v = (seed * <span class="num">1664525</span> + i * <span class="num">22695477</span> + <span class="num">1013904223</span>) % (<span class="num">2</span>^<span class="num">32</span>)
+    <span class="kw">return</span> v / (<span class="num">2</span>^<span class="num">32</span>)
+<span class="kw">end</span>
+
+<span class="kw">local function</span> <span class="fn">place_bench</span>(scene, id, x, z, ry)
+    <span class="kw">local</span> w, sh = <span class="num">1.6</span>, <span class="num">0.44</span>
+    scene:<span class="fn">addBox</span>(id..<span class="str">"_legl"</span>, {position={x-w/<span class="num">2</span>+<span class="num">0.1</span>,sh/<span class="num">2</span>,z}, size={<span class="num">0.08</span>,sh,<span class="num">0.5</span>}, material=<span class="str">"metal_lamp"</span>, ry=ry})
+    scene:<span class="fn">addBox</span>(id..<span class="str">"_legr"</span>, {position={x+w/<span class="num">2</span>-<span class="num">0.1</span>,sh/<span class="num">2</span>,z}, size={<span class="num">0.08</span>,sh,<span class="num">0.5</span>}, material=<span class="str">"metal_lamp"</span>, ry=ry})
+    scene:<span class="fn">addBox</span>(id..<span class="str">"_seat"</span>, {position={x,sh+<span class="num">0.02</span>,z},         size={w-<span class="num">0.05</span>,<span class="num">0.04</span>,<span class="num">0.35</span>}, material=<span class="str">"wood_bench"</span>, ry=ry})
+    scene:<span class="fn">addBox</span>(id..<span class="str">"_back"</span>, {position={x,sh+<span class="num">0.30</span>,z-<span class="num">0.19</span>},  size={w-<span class="num">0.05</span>,<span class="num">0.35</span>,<span class="num">0.04</span>}, material=<span class="str">"wood_bench"</span>, ry=ry})
+<span class="kw">end</span>
+
+<span class="kw">local function</span> <span class="fn">place_lamp</span>(scene, id, x, z, h)
+    h = h <span class="kw">or</span> <span class="num">4.5</span>
+    scene:<span class="fn">addCylinder</span>(id..<span class="str">"_base"</span>, {position={x,<span class="num">0</span>,z}, radius=<span class="num">0.12</span>, height=<span class="num">0.06</span>, material=<span class="str">"metal_lamp"</span>})
+    scene:<span class="fn">addCylinder</span>(id..<span class="str">"_pole"</span>, {position={x,<span class="num">0</span>,z}, radius=<span class="num">0.055</span>, height=h, material=<span class="str">"metal_lamp"</span>})
+    scene:<span class="fn">addBox</span>(id..<span class="str">"_head"</span>,     {position={x,h,z}, size={<span class="num">0.35</span>,<span class="num">0.18</span>,<span class="num">0.35</span>}, material=<span class="str">"metal_lamp"</span>})
+<span class="kw">end</span>
+
+<span class="kw">local</span> SPECIES = {
+    {tr=<span class="num">0.18</span>, th=<span class="num">4.0</span>, cr=<span class="num">3.2</span>, tm=<span class="str">"wood_bark_dark"</span>,  cm=<span class="str">"foliage_oak"</span>      },
+    {tr=<span class="num">0.15</span>, th=<span class="num">3.5</span>, cr=<span class="num">2.8</span>, tm=<span class="str">"wood_bark_light"</span>, cm=<span class="str">"foliage_linden"</span>   },
+    {tr=<span class="num">0.10</span>, th=<span class="num">5.0</span>, cr=<span class="num">2.0</span>, tm=<span class="str">"wood_birch"</span>,      cm=<span class="str">"foliage_birch"</span>    },
+    {tr=<span class="num">0.20</span>, th=<span class="num">4.5</span>, cr=<span class="num">3.5</span>, tm=<span class="str">"wood_bark_dark"</span>,  cm=<span class="str">"foliage_chestnut"</span> },
+}
+<span class="kw">local function</span> <span class="fn">place_tree</span>(scene, id, x, z, seed_i, scale)
+    scale = scale <span class="kw">or</span> <span class="num">1.0</span>
+    <span class="kw">local</span> sp = SPECIES[math.fmod(seed_i, <span class="num">4</span>) + <span class="num">1</span>]
+    <span class="kw">local</span> cy = sp.th * scale * <span class="num">0.7</span>
+    scene:<span class="fn">addCylinder</span>(id..<span class="str">"_trunk"</span>,  {position={x,<span class="num">0</span>,z},  radius=sp.tr*scale, height=sp.th*scale, material=sp.tm})
+    scene:<span class="fn">addBox</span>     (id..<span class="str">"_canopy"</span>, {position={x,cy,z}, size={sp.cr*scale*<span class="num">2</span>,sp.cr*scale*<span class="num">1.4</span>,sp.cr*scale*<span class="num">2</span>}, material=sp.cm})
+    scene:<span class="fn">addBox</span>     (id..<span class="str">"_top"</span>,    {position={x,cy+sp.cr*scale*<span class="num">0.6</span>,z}, size={sp.cr*scale*<span class="num">1.3</span>,sp.cr*scale*<span class="num">0.7</span>,sp.cr*scale*<span class="num">1.3</span>}, material=sp.cm})
+<span class="kw">end</span>
+
+<span class="kw">function</span> <span class="fn">M.generate</span>(ctx, scene)
+    <span class="kw">local</span> S    = ctx.chunk_size_m
+    <span class="kw">local</span> half = S / <span class="num">2</span>
+    <span class="kw">local</span> var  = ctx.variation <span class="kw">or</span> <span class="num">0</span>
+
+    scene:<span class="fn">addGround</span>(<span class="str">"grass"</span>)
+
+    scene:<span class="fn">addPlane</span>(<span class="str">"plaza"</span>,   {position={half-<span class="num">4</span>,<span class="num">0.01</span>,half-<span class="num">4</span>}, size={<span class="num">8</span>,<span class="num">8</span>},  material=<span class="str">"stone_pavement"</span>})
+    scene:<span class="fn">addPlane</span>(<span class="str">"path_ns"</span>, {position={half-<span class="num">1</span>,<span class="num">0.01</span>,<span class="num">0</span>},      size={<span class="num">2</span>,S},  material=<span class="str">"stone_path"</span>})
+    scene:<span class="fn">addPlane</span>(<span class="str">"path_ew"</span>, {position={<span class="num">0</span>,<span class="num">0.01</span>,half-<span class="num">1</span>},      size={S,<span class="num">2</span>},  material=<span class="str">"stone_path"</span>})
+
+    scene:<span class="fn">addCylinder</span>(<span class="str">"fountain_basin"</span>,  {position={half,<span class="num">0</span>,half},   radius=<span class="num">1.8</span>, height=<span class="num">0.4</span>, material=<span class="str">"stone_wall"</span>})
+    scene:<span class="fn">addCylinder</span>(<span class="str">"fountain_column"</span>, {position={half,<span class="num">0.4</span>,half}, radius=<span class="num">0.2</span>, height=<span class="num">1.2</span>, material=<span class="str">"stone_wall"</span>})
+    scene:<span class="fn">addCylinder</span>(<span class="str">"fountain_cap"</span>,    {position={half,<span class="num">1.5</span>,half}, radius=<span class="num">0.5</span>, height=<span class="num">0.2</span>, material=<span class="str">"stone_pavement"</span>})
+
+    <span class="fn">place_bench</span>(scene, <span class="str">"bench_n"</span>, half,        half-<span class="num">6</span>, <span class="num">0</span>)
+    <span class="fn">place_bench</span>(scene, <span class="str">"bench_s"</span>, half,        half+<span class="num">6</span>, <span class="num">0</span>)
+    <span class="fn">place_bench</span>(scene, <span class="str">"bench_w"</span>, half-<span class="num">6</span>, half,      <span class="num">90</span>)
+    <span class="fn">place_bench</span>(scene, <span class="str">"bench_e"</span>, half+<span class="num">6</span>, half,      <span class="num">90</span>)
+
+    <span class="kw">local</span> lamps = {{half,<span class="num">8</span>},{half,S-<span class="num">8</span>},{<span class="num">8</span>,half},{S-<span class="num">8</span>,half},{half-<span class="num">12</span>,half},{half+<span class="num">12</span>,half}}
+    <span class="kw">for</span> i, lp <span class="kw">in</span> <span class="fn">ipairs</span>(lamps) <span class="kw">do</span>
+        <span class="fn">place_lamp</span>(scene, <span class="str">"lamp_"</span>..i, lp[<span class="num">1</span>], lp[<span class="num">2</span>])
+    <span class="kw">end</span>
+
+    <span class="kw">local</span> trees = {{<span class="num">10</span>,<span class="num">10</span>},{<span class="num">18</span>,<span class="num">8</span>},{<span class="num">8</span>,<span class="num">20</span>},{<span class="num">14</span>,<span class="num">18</span>},{<span class="num">54</span>,<span class="num">10</span>},{<span class="num">46</span>,<span class="num">8</span>},
+                   {<span class="num">56</span>,<span class="num">20</span>},{<span class="num">50</span>,<span class="num">18</span>},{<span class="num">10</span>,<span class="num">54</span>},{<span class="num">18</span>,<span class="num">56</span>},{<span class="num">8</span>,<span class="num">46</span>},{<span class="num">14</span>,<span class="num">50</span>},
+                   {<span class="num">54</span>,<span class="num">54</span>},{<span class="num">46</span>,<span class="num">56</span>},{<span class="num">56</span>,<span class="num">46</span>},{<span class="num">50</span>,<span class="num">50</span>}}
+    <span class="kw">for</span> i, tp <span class="kw">in</span> <span class="fn">ipairs</span>(trees) <span class="kw">do</span>
+        <span class="fn">place_tree</span>(scene, <span class="str">"tree_"</span>..i, tp[<span class="num">1</span>], tp[<span class="num">2</span>], var+i, <span class="num">0.8</span>+<span class="fn">rng</span>(var,i)*<span class="num">0.5</span>)
+    <span class="kw">end</span>
+
+    scene:<span class="fn">setMetadata</span>({
+        generator  = {id=M.id, version=M.version, category=M.category, language=<span class="str">"lua"</span>},
+        chunk      = {x=ctx.chunk_x, y=ctx.chunk_y, size_m=S},
+        generation = {variationInput=var, zone=ctx.zone, region=ctx.region}
+    })
+<span class="kw">end</span>
+
+<span class="kw">return</span> M</pre>
+</div>
+
+</section>
+</div>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

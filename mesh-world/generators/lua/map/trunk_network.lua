@@ -1,0 +1,157 @@
+-- SPDX-License-Identifier: MIT
+-- Copyright (c) 2026 Robert Vokac and contributors
+--
+-- M306 (MAP18, 2026-07-10) — Lua child-tile generator for level 6 ("—" in
+-- map.md's own level table, but with defined content: "road/rail trunk
+-- network between cities", ~353 km per that table). Registered as
+-- "lua.map.child.level6.default" so MapPipeline's level-aware Lua lookup
+-- only tries this for level-6 tiles.
+--
+-- Mirrors country.lua's (M146)/metro.lua's (M147) generic child-refinement
+-- technique (bilinear-from-parent elevation + fade-to-zero fBm detail;
+-- temperature/moisture recomputed from world position) and its settlement-
+-- placement approach (same non-ocean/non-mountain single-cell suitability
+-- check, no C++ Settlements::place()/Roads::build() call -- see country.
+-- lua's own header for why: no per-tile access to the shared multi-tile
+-- data those real algorithms need).
+--
+-- V1 SIMPLIFICATIONS:
+-- * **A chain, not a star.** country.lua's own towns are hub-and-spoke from
+--   a single capital (right shape for "a country has one capital"); this
+--   level's job is specifically the TRUNK NETWORK BETWEEN settlements, so
+--   each site here connects to the PREVIOUS site in placement order, not
+--   to one hub -- town1-town2-town3-town4, a path graph, closer to what a
+--   "trunk route" actually looks like than a star. Also unlike country.lua,
+--   there is no capital/border concept at this level at all -- these are
+--   plain towns.
+-- * Site suitability, naming, and the "no sites -> no content" rule mirror
+--   country.lua's own choices exactly (see its header for the reasoning);
+--   not repeated at length here.
+--
+-- KNOWN LIMITATIONS (same as every other child script):
+-- * ctx does not expose WorldConfig (sea level, equator/pole temperature) to
+--   Lua generators yet — hardcodes the same defaults the other scripts do.
+-- * MapBuilder::setBiomeField's M108 constraint overwrites this tile's own
+--   boundary rows/columns on the 2 sides that touch the parent's boundary;
+--   the OTHER 2 sides rely on this script's own bilinear math matching what
+--   the sibling computes, same as the others.
+
+local M = {}
+M.id       = "lua.map.child.level6.default"
+M.version  = "0.1.0"
+M.category = "map"
+
+local GRID_SIZE         = 64
+local SEA_LEVEL_M       = 0.0
+local EQUATOR_TEMP_C    = 30.0
+local POLE_TEMP_C       = -20.0
+local MOUNTAIN_ELEV_M   = 2500.0
+local DETAIL_OFFSET     = 2000.0
+local MOISTURE_OFFSET   = 6000.0
+local TOWNS_MIN         = 2
+local TOWNS_MAX         = 4
+local MAX_SITE_ATTEMPTS = 8
+
+local function bilinear(grid, fx, fy)
+    fx = math.max(0.0, math.min(grid.w - 1, fx))
+    fy = math.max(0.0, math.min(grid.h - 1, fy))
+    local x0 = math.floor(fx)
+    local y0 = math.floor(fy)
+    local x1 = math.min(x0 + 1, grid.w - 1)
+    local y1 = math.min(y0 + 1, grid.h - 1)
+    local tx = fx - x0
+    local ty = fy - y0
+    local function at(gx, gy) return grid.data[gy * grid.w + gx + 1] end
+    local v00, v10 = at(x0, y0), at(x1, y0)
+    local v01, v11 = at(x0, y1), at(x1, y1)
+    local a = v00 + (v10 - v00) * tx
+    local b = v01 + (v11 - v01) * tx
+    return a + (b - a) * ty
+end
+
+local function find_site(ctx, elevation, W, H, child_x0, child_y0, child_size_m)
+    for _attempt = 1, MAX_SITE_ATTEMPTS do
+        local gx = ctx.randomInt(0, W - 1)
+        local gy = ctx.randomInt(0, H - 1)
+        local elev_above_sea = elevation[gy * W + gx + 1] - SEA_LEVEL_M
+        if elev_above_sea > 0.0 and elev_above_sea < MOUNTAIN_ELEV_M then
+            local wx = child_x0 + (gx + 0.5) * child_size_m / W
+            local wy = child_y0 + (gy + 0.5) * child_size_m / H
+            return wx, wy
+        end
+    end
+    return nil, nil
+end
+
+function M.generate(ctx, map)
+    local parent = ctx.parent
+    if not parent then return end
+
+    local W, H = GRID_SIZE, GRID_SIZE
+    local cx = ctx.tile_x % 2
+    local cy = ctx.tile_y % 2
+
+    local planet_size_m = ctx.tile_size_m * (2 ^ ctx.level)
+    local child_size_m  = ctx.tile_size_m
+    local child_x0      = ctx.tile_x * child_size_m
+    local child_y0      = ctx.tile_y * child_size_m
+
+    local terrain_scale = math.max(child_size_m / 4.0, 1.0)
+    local detail_amp    = math.min(child_size_m / 100.0, 500.0)
+
+    local elevation, temperature, moisture = {}, {}, {}
+
+    for gy = 0, H - 1 do
+        for gx = 0, W - 1 do
+            local pgx = cx * 32.0 + gx * (32.0 / (W - 1))
+            local pgy = cy * 32.0 + gy * (32.0 / (H - 1))
+            local base_elev = bilinear(parent.elevation, pgx, pgy)
+
+            local fx_fade = math.sin(math.pi * gx / (W - 1))
+            local fy_fade = math.sin(math.pi * gy / (H - 1))
+            local fade    = fx_fade * fx_fade * fy_fade * fy_fade
+
+            local wx = child_x0 + (gx + 0.5) * child_size_m / W
+            local wy = child_y0 + (gy + 0.5) * child_size_m / H
+
+            local detail_fbm = ctx.noise(wx / terrain_scale + DETAIL_OFFSET, wy / terrain_scale)
+            local elev = base_elev + fade * (detail_fbm - 0.5) * detail_amp
+
+            local lat_factor = math.abs(wy / planet_size_m - 0.5) * 2.0
+            local base_temp  = EQUATOR_TEMP_C + (POLE_TEMP_C - EQUATOR_TEMP_C) * lat_factor
+            local elev_above = math.max(elev - SEA_LEVEL_M, 0.0)
+            local temp       = base_temp - 6.5 * elev_above / 1000.0
+
+            local moisture_fbm = ctx.noise(wx / terrain_scale + MOISTURE_OFFSET, wy / terrain_scale)
+            local moist = math.max(0.0, math.min(1.0, moisture_fbm))
+
+            local idx = gy * W + gx + 1
+            elevation[idx]   = elev
+            temperature[idx] = temp
+            moisture[idx]    = moist
+        end
+    end
+
+    map:setBiomeField(W, H, elevation, temperature, moisture)
+
+    -- Chain of towns, each linked to the previous by a trunk road (see
+    -- header note on why this is a path graph, not a star).
+    local n = ctx.randomInt(TOWNS_MIN, TOWNS_MAX)
+    local prev_x, prev_z = nil, nil
+    for i = 1, n do
+        local town_x, town_z = find_site(ctx, elevation, W, H, child_x0, child_y0, child_size_m)
+        if town_x ~= nil then
+            local town_name = names.city(parent.culture, ctx.variation + i)
+            map:addCity(town_name, town_x, town_z, "town")
+            if prev_x ~= nil then
+                local road_name = names.street(parent.culture, ctx.variation + 100 + i)
+                map:addRoad(road_name, {{prev_x, prev_z}, {town_x, town_z}})
+            end
+            prev_x, prev_z = town_x, town_z
+        end
+    end
+
+    map:setMetadata(M.id, parent.culture)
+end
+
+return M

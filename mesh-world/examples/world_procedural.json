@@ -1,0 +1,30 @@
+{
+  "version": "0.1",
+  "name": "procedural_world",
+  "seed": 1337,
+  "style": "mixed_wilderness",
+  "map_size_m": 1280,
+  "chunk_size_m": 64,
+  "grid_w": 20,
+  "grid_h": 20,
+  "procedural": true,
+  "procedural_cell_size": 3,
+  "zones": [
+    {
+      "type": "city",
+      "x_min": 8, "x_max": 12, "y_min": 8, "y_max": 12,
+      "region_default": "small_house_block",
+      "regions": [
+        { "x_min": 9,  "x_max": 11, "y_min": 9,  "y_max": 11, "type": "square"   },
+        { "x_min": 8,  "x_max": 12, "y_min": 8,  "y_max": 8,  "type": "road"     },
+        { "x_min": 8,  "x_max": 12, "y_min": 12, "y_max": 12, "type": "road"     },
+        { "x_min": 8,  "x_max": 8,  "y_min": 8,  "y_max": 12, "type": "road"     },
+        { "x_min": 12, "x_max": 12, "y_min": 8,  "y_max": 12, "type": "road"     }
+      ]
+    }
+  ],
+  "ai_generation": {
+    "enabled": false,
+    "note": "Set enabled=true and api_key_env to use AI-assisted generation (BYOK). Never commit API keys."
+  }
+}

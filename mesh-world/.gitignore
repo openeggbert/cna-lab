@@ -1,0 +1,63 @@
+# Build output
+build/
+cmake-build-*/
+
+# Generated world data (runtime-generated, not source)
+cache/
+generated/
+chunks/
+source_chunks/
+output/
+saves/
+
+# SQLite content pack — BUILD ARTIFACT, never commit.
+# Source of truth is the text generators in generators/lua/; the pack is
+# produced from them by MeshWorldPack and shipped as a release asset, not
+# versioned (git stores SQLite binaries poorly: page reshuffling + header
+# change-counter defeat delta compression, history bloats unboundedly).
+*.sqlite
+*.sqlite3
+meshworld_content.sqlite
+
+# Runtime SQLite databases (PersistentWorldMap per-world map_level0.db, etc.)
+*.db
+
+# Local AI / secrets configuration
+.env
+*.local.*
+secrets.*
+ai-keys.*
+ai-config.*
+config/local.*
+config/*.secret.*
+
+# Compiled binaries
+*.o
+*.a
+*.so
+*.exe
+*.dll
+
+# IDE / editor
+.idea/
+.vscode/
+*.user
+*.suo
+*.sdf
+*.VC.db
+*.VC.opendb
+*.DS_Store
+
+# CMake generated
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# Logs
+*.log
+
+# Thumbnails / previews (generated)
+thumbnails/
+screenshots/generated/

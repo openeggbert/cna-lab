@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ecosystem — MeshWorld</title>
+<meta name="description" content="The OpenEggbert ecosystem: MeshWorld, MeshCraft, SharpRuntime, CNA, EasyGL, MetaGL, Simple3D, Nova3D, MobileEggbert and how they interconnect.">
+<link rel="stylesheet" href="css/main.css">
+<style>
+.dep-arrow {
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--border);
+  line-height: 1;
+}
+.dep-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.dep-row .eco-node { flex: 1; min-width: 160px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">Mesh<span>World</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="features.html">Features</a>
+    <a href="generators.html">Generators</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="lua-api.html">Lua API</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="ecosystem.html">Ecosystem</a>
+    <a href="https://github.com/openeggbert/mesh-world" class="nav-github">&#9679; GitHub</a>
+  </div>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<div class="page-header">
+  <div class="container">
+    <p class="section-label">OpenEggbert</p>
+    <h1>The Ecosystem</h1>
+    <p>MeshWorld is one component in a family of open-source C++ libraries and tools for 3D world generation, rendering, and game development.</p>
+  </div>
+</div>
+
+<div class="container">
+<section class="section">
+
+<!-- ── Dependency diagram ─────────────────────────────── -->
+<p class="section-label">Dependency Overview</p>
+<h2 style="margin-bottom:2rem">How the Projects Connect</h2>
+
+<div class="grid-2" style="gap:3rem;align-items:start;margin-bottom:3rem">
+  <div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">dependency graph</span>
+      </div>
+<pre>
+<span class="str">MeshWorldApp</span>           <span class="cmt">← interactive viewer</span>
+  ├── <span class="str">MeshWorld</span>         <span class="cmt">← world generation library</span>
+  │     └── <span class="str">MeshCraft</span>   <span class="cmt">← MC3/MCB scene format</span>
+  ├── <span class="str">CNA</span>               <span class="cmt">← SDL3 app framework</span>
+  │     └── <span class="str">SDL3</span>
+  ├── <span class="str">EasyGL</span>            <span class="cmt">← OpenGL abstraction</span>
+  │     └── <span class="str">MetaGL</span>      <span class="cmt">← OpenGL ES abstraction</span>
+  └── <span class="str">SharpRuntime</span>      <span class="cmt">← C++23 .NET reimpl</span>
+
+<span class="str">Simple3D</span>               <span class="cmt">← 3D rendering + Lua API</span>
+  └── <span class="str">Nova3D</span>            <span class="cmt">← 3D engine</span>
+
+<span class="str">MobileEggbert</span>          <span class="cmt">← mobile game platform</span></pre>
+    </div>
+  </div>
+
+  <div>
+    <p>MeshWorld sits at the centre of the world generation stack. The <strong>MeshCraft</strong> library defines the MC3/MCB scene format that MeshWorld writes. The <strong>CNA</strong> application framework provides the SDL3 window and event loop that MeshWorldApp runs inside. <strong>EasyGL</strong> and <strong>SharpRuntime</strong> fill in the rendering and utility layers.</p>
+    <p style="margin-top:1rem">Each project can be used independently. MeshWorld's core library has no GUI dependencies — only MeshWorldApp (the viewer) pulls in CNA, EasyGL, and SharpRuntime.</p>
+    <div class="callout callout-info" style="margin-top:1.5rem">
+      All repositories are under the <a href="https://github.com/openeggbert">openeggbert GitHub organisation</a> and carry the MIT license.
+    </div>
+  </div>
+</div>
+
+<!-- ── Project cards ──────────────────────────────────── -->
+<div class="divider" style="margin:2rem 0"></div>
+<h2 style="margin-bottom:2rem">All Projects</h2>
+<div class="eco-graph">
+
+  <div class="eco-node current fade-in">
+    <h4>MeshWorld</h4>
+    <p>Procedural 3D world generator: chunk/city generation plus a planetary map subsystem (quadtree LOD, hydrology, mountains, biomes, settlements, countries). Lua scripting, MC3 validation, real-time streaming viewer, CLI tools.</p>
+    <p class="eco-lang">C++23 · Lua 5.4 · SQLite</p>
+    <a href="https://github.com/openeggbert/mesh-world" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>MeshCraft</h4>
+    <p>MC3/MCB scene format library, validator, viewer, and compiler. Defines the 3D scene interchange format used by MeshWorld output.</p>
+    <p class="eco-lang">C++23</p>
+    <a href="https://github.com/openeggbert/mesh-craft" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>SharpRuntime</h4>
+    <p>C++23 reimplementation of .NET System.* APIs. Provides string, collections, math, and IO utilities with a familiar .NET-style API in native C++.</p>
+    <p class="eco-lang">C++23</p>
+    <a href="https://github.com/openeggbert/sharp-runtime" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>CNA</h4>
+    <p>Cross-platform Native Application framework. Window management, event loop, input, and audio on top of SDL3. Used by MeshWorldApp for the OS layer.</p>
+    <p class="eco-lang">C++23 · SDL3</p>
+    <a href="https://github.com/openeggbert/cna" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>EasyGL</h4>
+    <p>OpenGL abstraction layer. Wraps shader compilation, buffer management, texture upload, and draw calls into a clean C++23 API.</p>
+    <p class="eco-lang">C++23 · OpenGL</p>
+    <a href="https://github.com/openeggbert/easy-gl" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>MetaGL</h4>
+    <p>OpenGL ES abstraction. Sits below EasyGL in the rendering stack, providing a portable ES-compatible subset of OpenGL used for mobile and web targets.</p>
+    <p class="eco-lang">C++23 · OpenGL ES</p>
+    <a href="https://github.com/openeggbert/meta-gl" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>Simple3D</h4>
+    <p>Simple 3D rendering library with a Lua scripting API. Targets beginner-friendly 3D development. Has its own Lua scene description format.</p>
+    <p class="eco-lang">C++23 · Lua</p>
+    <a href="https://github.com/openeggbert/simple-3d" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>Nova3D</h4>
+    <p>Full 3D engine built on top of the lower-level rendering stack. Provides scene graph, entity system, and asset pipeline for game development.</p>
+    <p class="eco-lang">C++23</p>
+    <a href="https://github.com/openeggbert/nova-3d" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+  <div class="eco-node fade-in">
+    <h4>MobileEggbert</h4>
+    <p>Mobile game platform targeting Android and desktop. Uses the CNA/SDL3 stack for cross-platform deployment with a focus on classic 2D gameplay.</p>
+    <p class="eco-lang">C++23 · SDL3 · Android</p>
+    <a href="https://github.com/openeggbert/mobile-eggbert" style="font-size:0.8rem;margin-top:0.5rem;display:inline-block">GitHub →</a>
+  </div>
+
+</div>
+
+<!-- ── Technology stack ───────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">Technology Stack</p>
+<h2 style="margin-bottom:1.5rem">Shared Technologies</h2>
+
+<div class="grid-3">
+  <div class="card fade-in">
+    <div class="card-icon">&#9632;</div>
+    <h3>C++23</h3>
+    <p>All projects target C++23. Requires GCC 13+ or Clang 17+. Modern features: ranges, modules (where supported), concepts, std::expected.</p>
+  </div>
+  <div class="card fade-in">
+    <div class="card-icon purple">&#9670;</div>
+    <h3>CMake 3.20+</h3>
+    <p>All repositories use CMake as the build system. FetchContent is used for automatic dependency download (Lua, sol2, etc.) — no manual dependency management.</p>
+  </div>
+  <div class="card fade-in">
+    <div class="card-icon green">&#9650;</div>
+    <h3>MIT License</h3>
+    <p>Every project in the OpenEggbert ecosystem is published under the MIT license. No credits required, no CLAs, no billing.</p>
+  </div>
+  <div class="card fade-in">
+    <div class="card-icon">&#9675;</div>
+    <h3>SDL3</h3>
+    <p>SDL3 is the cross-platform window, input, and audio layer used by CNA and all applications that need a GUI or game loop.</p>
+  </div>
+  <div class="card fade-in">
+    <div class="card-icon purple">&#9679;</div>
+    <h3>Lua 5.4</h3>
+    <p>Lua 5.4 is the embedded scripting language used in MeshWorld (generators), Simple3D (scene API), and other projects that expose scripting surfaces.</p>
+  </div>
+  <div class="card fade-in">
+    <div class="card-icon green">&#9644;</div>
+    <h3>GTest</h3>
+    <p>GoogleTest is the test framework used across all C++ projects. CI runs on every push. MeshWorld: 467 tests. Zero warnings policy.</p>
+  </div>
+</div>
+
+<!-- ── GitHub links ───────────────────────────────────── -->
+<div class="divider" style="margin:3rem 0"></div>
+<p class="section-label">Organisation</p>
+<h2 style="margin-bottom:1.5rem">OpenEggbert on GitHub</h2>
+<p style="margin-bottom:2rem">All repositories are open-source, MIT-licensed, and actively developed under the <a href="https://github.com/openeggbert">openeggbert</a> GitHub organisation.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Repository</th><th>Description</th><th>Language</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a href="https://github.com/openeggbert/mesh-world">openeggbert/mesh-world</a></td>
+        <td>Procedural 3D world generator and explorer</td>
+        <td>C++23, Lua</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/mesh-craft">openeggbert/mesh-craft</a></td>
+        <td>MC3/MCB scene format tools and viewer</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/sharp-runtime">openeggbert/sharp-runtime</a></td>
+        <td>C++23 reimplementation of .NET System.*</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/cna">openeggbert/cna</a></td>
+        <td>Cross-platform Native Application framework (SDL3)</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/easy-gl">openeggbert/easy-gl</a></td>
+        <td>OpenGL abstraction layer</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/meta-gl">openeggbert/meta-gl</a></td>
+        <td>OpenGL ES abstraction</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/simple-3d">openeggbert/simple-3d</a></td>
+        <td>Simple 3D rendering library with Lua API</td>
+        <td>C++23, Lua</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/nova-3d">openeggbert/nova-3d</a></td>
+        <td>3D engine (scene graph, entity system, asset pipeline)</td>
+        <td>C++23</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/openeggbert/mobile-eggbert">openeggbert/mobile-eggbert</a></td>
+        <td>Mobile game platform (Android + desktop, SDL3)</td>
+        <td>C++23</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</section>
+</div>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>MeshWorld</h3>
+        <p>Free, open-source procedural 3D world generator and explorer. Part of the OpenEggbert ecosystem.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="features.html">Features</a>
+        <a href="generators.html">Generators</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="https://github.com/openeggbert/mesh-world">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Docs</h4>
+        <a href="architecture.html">Architecture</a>
+        <a href="lua-api.html">Lua API</a>
+        <a href="getting-started.html">Getting Started</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ecosystem</h4>
+        <a href="ecosystem.html">Overview</a>
+        <a href="https://github.com/openeggbert/mesh-craft">MeshCraft</a>
+        <a href="https://github.com/openeggbert/sharp-runtime">SharpRuntime</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>MeshWorld — MIT License — Part of the <a href="ecosystem.html">OpenEggbert ecosystem</a></span>
+      <span>Built with C++23 · Lua 5.4 · SDL3 · OpenGL</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
